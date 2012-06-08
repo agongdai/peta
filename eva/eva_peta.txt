@@ -1,0 +1,47 @@
+Time: 03-28 ~160 sec
+------------------------------------------------------------------- 
+[p_summary] BLAST SAM file: 		 read/ass_contigs.sam 
+[p_summary] Total base: 		 5179387 
+[p_summary] # of genes: 		 1542 
+[p_summary] # of exons: 		 9265 
+[p_summary] Optimal N50: 		 4016 
+[p_summary] Best N50: 			 3226 
+[p_summary] # of stand alone gene: 	 843 
+[p_summary] # of stand alone base: 	 2733287 
+[p_summary] % of stand alone base: 	 0.527724 
+[p_summary]  
+[p_summary] Assembled base: 		 5103778 
+[p_summary] # of contigs: 		 9271 
+[p_summary] Longest contig: 		 6816 
+[p_summary] # of Ctgs not aligend: 	 220 
+[p_summary] Longest ctgs not aligend: 	 299, 200, 198 
+[p_summary] Bases not aligend: 		 9842 
+[p_summary] N50 value:  		 972 
+[p_summary] Base coverage: 		 0.985402 
+
+-------------------------------------------------------------------
+
+Improved extension by mates.
+Time: 04-02
+------------------------------------------------------------------- 
+[p_summary] BLAST SAM file: 		 read/ass_contigs.sam 
+[p_summary] Total base: 		 5179387 
+[p_summary] # of genes: 		 1542 
+[p_summary] # of exons: 		 9265 
+[p_summary] Optimal N50: 		 4016 
+[p_summary] Best N50: 			 3226 
+[p_summary] # of stand alone gene: 	 843 
+[p_summary] # of stand alone base: 	 2733287 
+[p_summary] % of stand alone base: 	 0.527724 
+[p_summary]  
+[p_summary] Assembled base: 		 4969647 
+[p_summary] # of contigs: 		 8790 
+[p_summary] # of Full length: 		 47 
+[p_summary] Stand-alone assembled: 	 34 
+[p_summary] Longest contig: 		 6837 
+[p_summary] # of Ctgs not aligend: 	 1395 
+[p_summary] Longest ctgs not aligend: 	 1061, 983, 961 
+[p_summary] Bases not aligend: 		 68700 
+[p_summary] N50 value:  		 1019 
+[p_summary] Base coverage: 		 0.959505 
+-------------------------------------------------------------------

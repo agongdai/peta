@@ -1,0 +1,3 @@
+1. Programs needed for indexing: bntseq.c, bntseq.h, bwt.c, bwt.h, bwtindex.c, bwt.io, bwtmisc.c, is.c, kseq.h, utils.c, utils.h, main.c, main.h
+2. Programs needed for aligning: bamlite.c, bamlite,h, bwaseqio.c, bwtaln.c, bwtaln.h, bwtgap.h, bwtio.c
+3. Programs needed for samse: cs2nt.c, bwase.c, bwase.h, kstring.h, kstring.c

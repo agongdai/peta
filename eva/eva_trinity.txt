@@ -1,0 +1,74 @@
+./Trinity.pl --seqType fa --kmer_method inchworm --left rnaseq_200_1.fa --right rnaseq_200_2.fa --output trinity_out_dir --CPU 4 --SS_lib_type FR
+Time: 03-29, ~30 mins
+------------------------------------------------------------------- 
+[p_summary] BLAST SAM file: 		 read/ass_contigs.sam 
+[p_summary] Total base: 		 5179387 
+[p_summary] # of genes: 		 1542 
+[p_summary] # of exons: 		 9265 
+[p_summary] Optimal N50: 		 4016 
+[p_summary] Best N50: 			 2650 
+[p_summary] # of stand alone gene: 	 843 
+[p_summary] # of stand alone base: 	 2733287 
+[p_summary] % of stand alone base: 	 0.527724 
+[p_summary]  
+[p_summary] Assembled base: 		 3650350 
+[p_summary] # of contigs: 		 5125 
+[p_summary] Longest contig: 		 7900 
+[p_summary] # of Ctgs not aligend: 	 0 
+[p_summary] Longest ctgs not aligend: 	 0, 0, 0 
+[p_summary] Bases not aligend: 		 0 
+[p_summary] N50 value:  		 892 
+[p_summary] Base coverage: 		 0.704784 
+
+-------------------------------------------------------------------
+
+Minor change
+./Trinity.pl --seqType fa --kmer_method inchworm --left rnaseq_200_1.fa --right rnaseq_200_2.fa --output trinity_out_dir --CPU 4 --SS_lib_type FR
+Time: 04-02
+------------------------------------------------------------------- 
+[p_summary] BLAST SAM file: 		 read/ass_contigs.sam 
+[p_summary] Total base: 		 5179387 
+[p_summary] # of genes: 		 1542 
+[p_summary] # of exons: 		 9265 
+[p_summary] Optimal N50: 		 4016 
+[p_summary] Best N50: 			 0 
+[p_summary] # of stand alone gene: 	 843 
+[p_summary] # of stand alone base: 	 2733287 
+[p_summary] % of stand alone base: 	 0.527724 
+[p_summary]  
+[p_summary] Assembled base: 		 3549223 
+[p_summary] # of contigs: 		 5125 
+[p_summary] # of Full length: 		 147 
+[p_summary] Stand-alone assembled: 	 33 
+[p_summary] Longest contig: 		 7900 
+[p_summary] # of Ctgs not aligend: 	 32 
+[p_summary] Longest ctgs not aligend: 	 1109, 999, 485 
+[p_summary] Bases not aligend: 		 11174 
+[p_summary] N50 value:  		 892 
+[p_summary] Base coverage: 		 0.685259 
+-------------------------------------------------------------------
+
+Set the minimal contig length to be 100bp
+./Trinity.pl --seqType fa --kmer_method inchworm --left rnaseq_200_1.fa --right rnaseq_200_2.fa --output trinity_out_dir --CPU 4 --SS_lib_type FR --min_contig_length 100
+------------------------------------------------------------------- 
+[p_summary] BLAST SAM file: 		 read/ass_contigs.sam 
+[p_summary] Total base: 		 5179387 
+[p_summary] # of genes: 		 1542 
+[p_summary] # of exons: 		 9265 
+[p_summary] Optimal N50: 		 4016 
+[p_summary] Best N50: 			 0 
+[p_summary] # of stand alone gene: 	 843 
+[p_summary] # of stand alone base: 	 2733287 
+[p_summary] % of stand alone base: 	 0.527724 
+[p_summary]  
+[p_summary] Assembled base: 		 4347255 
+[p_summary] # of contigs: 		 17359 
+[p_summary] # of Full length: 		 129 
+[p_summary] Stand-alone assembled: 	 28 
+[p_summary] Longest contig: 		 7900 
+[p_summary] # of Ctgs not aligend: 	 107 
+[p_summary] Longest ctgs not aligend: 	 1109, 999, 485 
+[p_summary] Bases not aligend: 		 21477 
+[p_summary] N50 value:  		 277 
+[p_summary] Base coverage: 		 0.839338 
+-------------------------------------------------------------------
