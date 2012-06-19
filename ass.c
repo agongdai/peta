@@ -735,7 +735,6 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 				gap = est_gap(left_eg, right_eg, ht);
 				if (gap != INVALID) {
 					to_merge = 1;
-					show_debug_msg(__func__, "Gap size: %d \n", gap);
 				}
 				if ((gap - reason_gap) >= TLR_LEN)
 					gap = reason_gap;
@@ -743,6 +742,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		}
 	}
 	if (to_merge) {
+		show_debug_msg(__func__, "Gap size: %d \n", gap);
 		if (ori) {
 			merge_eg_to_right(left_eg, right_eg, gap);
 		} else {
@@ -845,7 +845,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		reset_c(next, c); // Reset the counter
 		// show_debug_msg(__func__, "Current edge: [%d, %d] \n", ass_eg->id,
 		// 		ass_eg->len);
-		p_query(__func__, query);
+		//p_query(__func__, query);
 		if (is_repetitive_q(query)) {
 			show_debug_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n",
 					ass_eg->id, ass_eg->len);
@@ -861,7 +861,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		// Extend the contig, update the counter and sequence pool
 		upd_cur_pool(aligns, next, cur_pool, mate_pool, query, ht, ass_eg, ori);
 		reset_alg(aligns);
-		p_pool("Current pool: ", cur_pool, next);
+		 p_pool("Current pool: ", cur_pool, next);
 		c = get_most(next);
 		// If cannot extend, or multiple path, just stop here
 		if (c[0] == INVALID_CHAR) {
@@ -1216,8 +1216,8 @@ void pe_ass_core(const char *fa_fn, const char *pet_fn) {
 			continue;
 		}
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
-		//p = &ht->seqs[3970996];
-		p = &ht->seqs[index];
+		p = &ht->seqs[1063881];
+		//p = &ht->seqs[index];
 		if (p->used) {
 			rand_times++;
 			continue;

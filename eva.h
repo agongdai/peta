@@ -79,6 +79,7 @@ typedef struct {
 	int n_base;
 	int n_ctgs;
 	int n_full_len;
+	int n_one_covered;
 	int n_sd;
 	int max_len;
 	int n_not_aligned;

@@ -1,17 +1,18 @@
 #!/bin/bash
-query="oases"
+query="ass_contigs_95%"
 db="cufflinks.fa"
 start_reads="read/start_reads.txt"
 start_reads_gene="read/start_reads_gene.txt"
 blastdb="../ncbi-blast-2.2.25+/db/"
+similarity=90
 cp read/$query.fa $blastdb
 cp read/$db $blastdb
 
 #makeblastdb -in $blastdb/$db -out $blastdb/$db -dbtype nucl
 
-echo "Blasting -perc_identity 96 -evalue 0.001 ..." 1>&2
+echo "Blasting $query.fa to $blastdb/$db: -perc_identity $similarity -evalue 0.001 ..." 1>&2
 
-blastn -task blastn -query $blastdb$query.fa -db $blastdb$db -out $blastdb$query.blastn -outfmt "7 qacc sseqid pident length mismatch gaps sstart send evalue qstart qend" -num_threads 8 -perc_identity 96 -evalue 0.001
+#blastn -task blastn -query $blastdb$query.fa -db $blastdb$db -out $blastdb$query.blastn -outfmt "7 qacc sseqid pident length mismatch gaps sstart send evalue qstart qend" -num_threads 8 -perc_identity $similarity -evalue 0.001
 
 echo
 cp $blastdb$query.blastn read/
@@ -37,4 +38,4 @@ echo "See result in $query.result.txt" 1>&2
 echo
 echo "Preparing the sam file..." 1>&2
 bwa bwasw -t 8 read/$db read/$query.fa > read/$query.sam
-echo "Done. Check sorted bam file $query.sam"
+echo "Done. Check sorted bam file $query.sam" 1>&2

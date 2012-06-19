@@ -75,6 +75,7 @@ rs_info *init_rs_info() {
 	i->n_base_not_aligned = 0;
 	i->n_ctgs = 0;
 	i->n_full_len = 0;
+	i->n_one_covered = 0;
 	i->n_not_aligned = 0;
 	i->n_sd = 0;
 	i->slots = (int*) calloc(MAX_LEN_FOR_PLOT / SLOT_SIZE + 1, sizeof(int));
@@ -147,20 +148,23 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 	eva_occ *o = 0, *o_pre = 0;
 	int i = 0;
 	float tx_len = 0;
+	int one_covered = 0, n_bases_on_contig = 0;
 	g_ptr_array_sort(occs, (GCompareFunc) cmp_occ);
 	tx *t;
 	bwa_seq_t *seq;
+
+	for (i = 0; i < ori_info->tx_seqs->len; i++) {
+		seq = g_ptr_array_index(ori_info->tx_seqs, i);
+		//show_debug_msg(__func__, "seq name: %s \n", seq->name);
+		//show_debug_msg(__func__, "align name: %s \n", (char*) key);
+		if (strcmp(seq->name, (char*) key) == 0) {
+			tx_len = seq->len;
+			break;
+		}
+	}
+
 	if (occs->len == 1) {
 		o = g_ptr_array_index(occs, 0);
-		for (i = 0; i < ori_info->tx_seqs->len; i++) {
-			seq = g_ptr_array_index(ori_info->tx_seqs, i);
-			//show_debug_msg(__func__, "seq name: %s \n", seq->name);
-			//show_debug_msg(__func__, "align name: %s \n", (char*) key);
-			if (strcmp(seq->name, (char*) key) == 0) {
-				tx_len = seq->len;
-				break;
-			}
-		}
 		if (abs(o->end - o->start) > tx_len * 0.9) {
 			info->n_full_len++;
 			for (i = 0; i < ori_info->n_sd_tx; i++) {
@@ -173,16 +177,19 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 			}
 		}
 	}
+	one_covered = 1;
 	for (i = 0; i < occs->len; i++) {
 		o = g_ptr_array_index(occs, i);
-		// @TODO: here only consider forward strand.
 		if (o->end < o->start) {
 			o_pre = o;
 			continue;
 		}
 		if (i == 0) {
 			info->n_base_shared += o->end - o->start + 1;
+			n_bases_on_contig += o->end - o->start + 1;
 		} else {
+			if (strcmp(o->q_id, o_pre->q_id) != 0 && one_covered)
+				one_covered = 0;
 			// To avoid duplicate counting:
 			// NM_001042362: [1, 771] [1, 770] [772, 1709] [772, 1709] [1709, 2014] [1709, 2014]
 			if (o->end <= o_pre->end) {
@@ -191,11 +198,18 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 			}
 			if (o->start < o_pre->end) {
 				info->n_base_shared += o->end - o_pre->end;
+				n_bases_on_contig += o->end - o_pre->end;
 			} else {
 				info->n_base_shared += o->end - o->start + 1;
+				n_bases_on_contig += o->end - o->start + 1;
 			}
 		}
 		o_pre = o;
+	}
+	if (one_covered && tx_len * 0.9 <= n_bases_on_contig) {
+		info->n_one_covered++;
+		if (occs->len > 1)
+			show_debug_msg(__func__, "Contig %s \n", o->r_id);
 	}
 }
 
@@ -317,6 +331,10 @@ void write_ass_rs(rs_info *info) {
 
 	str = fix_len("# of Full length: ", ATTR_STR_LEN);
 	sprintf(item, "%s\t%d\n", str, info->n_full_len);
+	fputs(item, rs_fp);
+
+	str = fix_len("Transcripts covered by one contig: ", ATTR_STR_LEN);
+	sprintf(item, "%s\t%d\n", str, info->n_one_covered);
 	fputs(item, rs_fp);
 
 	str = fix_len("Stand-alone assembled: ", ATTR_STR_LEN);
@@ -966,6 +984,26 @@ void cal_ass_n50(rs_info *info) {
 	}
 }
 
+void write_not_aligned_ctgs(rs_info *info) {
+	int i = 0, j = 0;
+	bwa_seq_t *contig = 0;
+	edge *eg = 0;
+	FILE *not_aligned = xopen("read/not_aligned.fa", "w");
+	char header[BUFSIZ];
+	for (i = 0; i < info->contigs->len; i++) {
+		contig = g_ptr_array_index(info->contigs, i);
+		for (j = 0; j < info->ea_not_aligned->len; j++) {
+			eg = g_ptr_array_index(info->ea_not_aligned, j);
+			if (strcmp(eg->name, contig->name) == 0) {
+				sprintf(header, ">%s len=%d\n", contig->name, contig->len);
+				save_con(header, contig, not_aligned);
+				break;
+			}
+		}
+	}
+	fclose(not_aligned);
+}
+
 void get_ori_info() {
 	tx_info *info = init_info();
 	// Read the sequences of transcripts, get total base and # of txs
@@ -1010,6 +1048,7 @@ void get_ass_info() {
 		}
 	}
 	cal_ass_n50(info);
+	write_not_aligned_ctgs(info);
 	write_ass_rs(info);
 }
 
