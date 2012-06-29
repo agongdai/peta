@@ -940,6 +940,7 @@ void read_contigs(rs_info *info) {
 	ks = bwa_open_reads(BWA_MODE, contigs_fn);
 	while ((seqs = bwa_read_seq(ks, 0xa00000, &(info->n_ctgs), BWA_MODE, 0))
 			!= 0) {
+		pe_reverse_seqs(seqs, info->n_ctgs);
 		for (i = 0; i < info->n_ctgs; i++) {
 			s = &seqs[i];
 			info->max_len = (info->max_len > s->len) ? info->max_len : s->len;

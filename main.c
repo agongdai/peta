@@ -5,6 +5,7 @@
 #include "ass.h"
 #include "pealn.h"
 #include "eva.h"
+#include "clean.h"
 
 #ifndef PACKAGE_VERSION
 #define PACKAGE_VERSION "0.1"
@@ -56,6 +57,8 @@ int main(int argc, char *argv[]) {
 		return eva_main(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "test") == 0)
 		return test(argc - 1, argv + 1);
+	else if (strcmp(argv[1], "clean") == 0)
+		return clean_reads(argc - 1, argv + 1);
 	else {
 		fprintf(stderr, "[main] unrecognized command '%s'\n", argv[1]);
 		return 1;
