@@ -23,14 +23,28 @@ clean_opt *init_clean_opt() {
 	return o;
 }
 
-void set_kmer_index(bwa_seq_t *read, int kmer, int *kmer_list) {
+const char *byte_to_binary(int x) {
+	static char b[9];
+	b[0] = '\0';
+	int z;
+	for (z = 128; z > 0; z >>= 1) {
+		strcat(b, ((x & z) == z) ? "1" : "0");
+	}
+	return b;
+}
+
+void set_kmer_index(bwa_seq_t *read, int kmer, short *kmer_list) {
 	int i = 0, start = 0;
 	index64 key = 0;
 	for (start = 0; start <= read->len - kmer; start++) {
 		key = 0;
 		for (i = 0; i < kmer; i++) {
-			key <<= 2;
+			key *= 4;
 			key = key | read->seq[i + start];
+			if (read->seq[i + start] == 4)
+				return;
+			printf("Next: %d \n", read->seq[i + start]);
+			printf("Key 64: %"ID64" \n", key);
 		}
 		kmer_list[key]++;
 	}
@@ -42,7 +56,7 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	index64 i = 0, n_seqs = 0, n_kmers = 0;
 	char dist_name[BUFSIZE], item[BUFSIZE];
 	FILE *dist_file = 0;
-	int *kmer_list = 0;
+	short *kmer_list = 0;
 	clock_t t = clock();
 
 	ks = bwa_open_reads(opt->mode, fa_fn);
@@ -53,18 +67,22 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 		fprintf(stderr,
 				"[pe_clean_core] %" ID64 " sequences in library %s loaded: %.2f sec... \n",
 				n_seqs, fa_fn, (float) (clock() - t) / CLOCKS_PER_SEC);
+		pe_reverse_seqs(seqs, n_seqs);
 		if (n_seqs < 1) {
-			err_fatal(
-					__func__,
+			err_fatal(__func__,
 					"No sequence in file %s, make sure the format is correct! \n",
 					fa_fn);
 		}
 		break;
 	}
 
-	n_kmers = (1 << (opt->kmer * 2)) + 1;
-	show_debug_msg(__func__, "# of kmers: %" ID64 "\n", n_kmers);
-	kmer_list = (int*) calloc(n_kmers, sizeof(int));
+//	n_kmers = (1 << (opt->kmer * 2)) + 1;
+	n_kmers = 1;
+	for (i = 0; i < opt->kmer * 2 + 1; i++)
+		n_kmers *= 2;
+	show_debug_msg(__func__, "# of kmers: %"ID64"\n", n_kmers);
+	kmer_list = (short*) malloc((sizeof(short) * n_kmers));
+	kmer_list[0] = 0;
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
 		show_debug_msg(__func__, "Read %s length %d\n", s->name, s->len);
@@ -103,7 +121,7 @@ int clean_reads(int argc, char *argv[]) {
 	}
 
 	pe_clean_core(argv[optind], opt);
-	fprintf(stderr, "[clean_reads] Cleaning done: %.2f sec\n", (float) (clock()
-			- t) / CLOCKS_PER_SEC);
+	fprintf(stderr, "[clean_reads] Cleaning done: %.2f sec\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return 0;
 }

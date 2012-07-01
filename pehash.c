@@ -14,7 +14,6 @@
 #include "pehash.h"
 #include "bwase.h"
 #include "peseq.h"
-#include "utils.h"
 
 hash_opt *init_hash_opt() {
 	hash_opt *o = (hash_opt*) calloc(1, sizeof(hash_opt));

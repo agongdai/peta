@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include "bwase.h"
+#include "utils.h"
 
 #ifndef PEHASH_H_
 #define PEHASH_H_
@@ -18,7 +19,6 @@
 #define HASH_VALUE_LOWER	65535
 #define BWA_MODE			3
 
-typedef uint64_t index64;
 typedef uint64_t hash_key;
 typedef uint64_t hash_value;
 typedef int16_t  read_pos;
