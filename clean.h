@@ -1,7 +1,5 @@
 #include <stdint.h>
 
-#define ID64 				PRId64
-
 typedef struct {
 	int kmer;
 	int mode;
