@@ -16,6 +16,13 @@ int clean_usage() {
 	return 1;
 }
 
+kmer *init_kmer() {
+	kmer *mer = (kmer*)malloc(sizeof(kmer));
+	mer->count = 0;
+	mer->key = 0;
+	return mer;
+}
+
 clean_opt *init_clean_opt() {
 	clean_opt *o = (clean_opt*) malloc(sizeof(clean_opt));
 	o->kmer = 0;
@@ -24,49 +31,40 @@ clean_opt *init_clean_opt() {
 	return o;
 }
 
-const char *byte_to_binary(int x) {
-	static char b[9];
-	b[0] = '\0';
-	int z;
-	for (z = 128; z > 0; z >>= 1) {
-		strcat(b, ((x & z) == z) ? "1" : "0");
-	}
-	return b;
-}
-
-void set_kmer_index(bwa_seq_t *read, index64 kmer, uint16_t *kmer_list) {
+void set_kmer_index(bwa_seq_t *read, int k, GPtrArray *kmer_list) {
 	int i = 0, start = 0;
 	index64 key = 0;
-	for (start = 0; start <= read->len - kmer; start++) {
+	kmer *mer = 0;
+	for (start = 0; start <= read->len - k; start++) {
 		key = 0;
-		for (i = 0; i < kmer; i++) {
+		for (i = 0; i < k; i++) {
 			key *= 4;
 			key = key | read->seq[i + start];
 			if (read->seq[i + start] == 4)
 				return;
 		}
-		kmer_list[key]++;
+		mer = g_ptr_array_index(kmer_list, key);
+		mer->count++;
 	}
 }
 
 /* qsort int comparison function */
 int int_cmp(const void *a, const void *b)
 {
-    const int *ia = (const int *)a; // casting pointer types
-    const int *ib = (const int *)b;
-    return *ib  - *ia;
-	/* integer comparison: returns negative if b > a
-	and positive if a > b */
+    const kmer *ia = (const kmer *)a; // casting pointer types
+    const kmer *ib = (const kmer *)b;
+    return ia->count - ib->count;
 }
 
 void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	bwa_seq_t *seqs, *s;
 	bwa_seqio_t *ks;
-	index64 i = 0, n_seqs = 0, n_kmers = 0;
+	int i = 0, n_seqs = 0, n_kmers = 0;
 	char dist_name[BUFSIZE], item[BUFSIZE];
 	FILE *dist_file = 0;
-	uint16_t *kmer_list = 0;
 	clock_t t = clock();
+	GPtrArray *kmer_list;
+	kmer *mer = 0;
 
 	ks = bwa_open_reads(opt->mode, fa_fn);
 	sprintf(dist_name, "%s.kmer.dist", opt->lib_name);
@@ -74,7 +72,7 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	show_debug_msg(__func__, "Loading library %s...\n", fa_fn);
 	while ((seqs = bwa_read_seq(ks, 0xa00000, &n_seqs, opt->mode, 0)) != 0) {
 		fprintf(stderr,
-				"[pe_clean_core] %" ID64 " sequences in library %s loaded: %.2f sec... \n",
+				"[pe_clean_core] %d sequences in library %s loaded: %.2f sec... \n",
 				n_seqs, fa_fn, (float) (clock() - t) / CLOCKS_PER_SEC);
 		pe_reverse_seqs(seqs, n_seqs);
 		if (n_seqs < 1) {
@@ -86,8 +84,12 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	}
 
 	n_kmers = (1 << (opt->kmer * 2)) + 1;
-	show_debug_msg(__func__, "# of kmers: %"ID64"\n", n_kmers);
-	kmer_list = (uint16_t*) malloc((sizeof(uint16_t) * n_kmers));
+	show_debug_msg(__func__, "# of kmers: %d\n", n_kmers);
+	kmer_list = g_ptr_array_sized_new(n_kmers);
+	for (i = 0; i < n_kmers; i++) {
+		mer = init_kmer();
+		g_ptr_array_add(kmer_list, mer);
+	}
 	show_debug_msg(__func__, "Calculating k-mer frequency...\n");
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
@@ -95,13 +97,15 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 		set_kmer_index(s, opt->kmer, kmer_list);
 	}
 	show_debug_msg(__func__, "Sorting array of k-mer frequencies...\n");
-	qsort(kmer_list, n_kmers, sizeof(uint16_t), int_cmp);
-	printf("First coverage: %d \n", kmer_list[0]);
-	printf("Middle coverage: %d \n", kmer_list[n_kmers / 2]);
-	printf("Last coverage: %d \n", kmer_list[n_kmers - 1]);
+	g_ptr_array_sort(kmer_list, (GCompareFunc)int_cmp);
+	for (i = n_kmers - 1; i > n_kmers - 30; i--) {
+		mer = g_ptr_array_index(kmer_list, i);
+		printf("%d coverage: %d \n", i, mer->count);
+	}
 	show_debug_msg(__func__, "Saving k-mer frequencies...\n");
 	for (i = 0; i < n_kmers; i++) {
-		sprintf(item, "%" ID64 ": %d\n", i, kmer_list[i]);
+		mer = g_ptr_array_index(kmer_list, i);
+		sprintf(item, "%d: %d\n", i, mer->count);
 		fputs(item, dist_file);
 	}
 

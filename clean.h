@@ -6,4 +6,9 @@ typedef struct {
 	char *lib_name;
 } clean_opt;
 
+typedef struct {
+	int key;
+	int count;
+} kmer;
+
 int clean_reads(int argc, char *argv[]);
