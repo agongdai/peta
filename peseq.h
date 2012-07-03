@@ -22,6 +22,7 @@
 #define FNLEN 128
 #define MINCONTIG 35
 #define NO_REPEAT_BASES	4
+#define NO_REPEAT_LEN 25
 
 #ifdef __cplusplus
 extern "C" {
@@ -95,6 +96,7 @@ int is_repetitive_q(const bwa_seq_t *query);
 void pe_reverse_seqs(bwa_seq_t *seqs, const int n_seqs);
 void destroy_index(indexes *in);
 void free_read_seq(bwa_seq_t *p);
+int has_rep_pattern(bwa_seq_t *read);
 
 #ifdef __cplusplus
 }

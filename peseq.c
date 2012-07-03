@@ -239,13 +239,13 @@ void p_query(const char *header, const bwa_seq_t *q) {
 		printf(" [%d, %d]", q->contig_id, q->shift);
 	else
 		printf(" [not_used]");
-//	printf("\n[rev_com] ");
-//	for (i = 0; i < q->len; i++) {
-//		if (q->rseq[i] > 4)
-//			printf("%c", q->rseq[i]);
-//		else
-//			printf("%c", "acgtn"[(int) q->rseq[i]]);
-//	}
+	//	printf("\n[rev_com] ");
+	//	for (i = 0; i < q->len; i++) {
+	//		if (q->rseq[i] > 4)
+	//			printf("%c", q->rseq[i]);
+	//		else
+	//			printf("%c", "acgtn"[(int) q->rseq[i]]);
+	//	}
 	printf("\n");
 }
 
@@ -343,7 +343,8 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	return p;
 }
 
-bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol, const int shift) {
+bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol,
+		const int shift) {
 	bwa_seq_t *p = new_seq(query, ol, shift);
 	ubyte_t *tmp = p->seq;
 	p->seq = p->rseq;
@@ -457,8 +458,8 @@ int same_q(const bwa_seq_t *query, const bwa_seq_t *seq) {
  * RETURN: if not found, return NOT_FOUND; otherwise, return how many mismatches remained.
  */
 
-int is_sub_seq_aln(const ubyte_t *query, const int q_len, const int shift, const int offset,
-		const bwa_seq_t *seq, int mismatches, const int ol) {
+int is_sub_seq_aln(const ubyte_t *query, const int q_len, const int shift,
+		const int offset, const bwa_seq_t *seq, int mismatches, const int ol) {
 	unsigned int i = 0, start = 0, end = q_len - 1;
 	if (!query || !seq || !seq->seq)
 		return NOT_FOUND;
@@ -519,8 +520,8 @@ int is_sub_seq(const bwa_seq_t *query, const int shift, const bwa_seq_t *seq,
 	return NOT_FOUND;
 }
 
-int is_sub_seq_byte(const ubyte_t *query, const int q_len, const int shift, const bwa_seq_t *seq,
-		int mismatches, const int ol) {
+int is_sub_seq_byte(const ubyte_t *query, const int q_len, const int shift,
+		const bwa_seq_t *seq, int mismatches, const int ol) {
 	unsigned int i = 0, start = 0, offset = 0, end = q_len;
 	int nm;
 	if (!query || !seq || !seq->seq)
@@ -606,6 +607,25 @@ int is_repetitive_q(const bwa_seq_t *query) {
 		for (i = 0; i < query->len - rep_b; i++) {
 			c = seq[i];
 			c2 = seq[i + rep_b];
+			if (c != c2) {
+				is_rep = 0;
+				break;
+			}
+		}
+		if (is_rep)
+			return 1;
+	}
+	return 0;
+}
+
+int has_rep_pattern(bwa_seq_t *read) {
+	int i = 0, j = 0, is_rep = 1;
+	ubyte_t c = 0, c2 = 0;
+	for (i = 0; i < read->len - NO_REPEAT_LEN - 1; i++) {
+		is_rep = 1;
+		for (j = i; j < i + NO_REPEAT_LEN; j++) {
+			c = read->seq[j];
+			c2 = read->seq[j + 1];
 			if (c != c2) {
 				is_rep = 0;
 				break;

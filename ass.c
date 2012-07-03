@@ -862,7 +862,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		// Extend the contig, update the counter and sequence pool
 		upd_cur_pool(aligns, next, cur_pool, mate_pool, query, ht, ass_eg, ori);
 		reset_alg(aligns);
-		 p_pool("Current pool: ", cur_pool, next);
+		// p_pool("Current pool: ", cur_pool, next);
 		c = get_most(next);
 		// If cannot extend, or multiple path, just stop here
 		if (c[0] == INVALID_CHAR) {
@@ -1190,8 +1190,9 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	return cur_eg;
 }
 
-void pe_ass_core(const char *starting_reads, const char *fa_fn, const char *pet_fn) {
-	int counter = 0, index = 0, s_index = 0, e_index = 0, rand_times = 0,
+void pe_ass_core(const char *starting_reads, const char *fa_fn,
+		const char *pet_fn) {
+	int counter = 0, index = 0, s_index = 0, e_index = 0,
 			pre_ctg_id = 0, i = 0;
 	bwa_seq_t *p; // sequence of RNA-SEQs, RNA-PETs and temp
 	char *h = malloc(BUFSIZE), *msg = calloc(BUFSIZE, sizeof(char));
@@ -1211,11 +1212,12 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn, const char *pet_
 	ht = pe_load_hash(fa_fn);
 	left_rm = new_rm();
 
-	s_index = 0;
-	e_index = 1;
-	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE > n_reads_consumed) {
+	s_index = 10000;
+	e_index = 10100;
+	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE
+			> n_reads_consumed) {
 		index = atoi(line);
-		if (counter < s_index) {
+		if (counter < s_index || e_index < counter) {
 			counter++;
 			continue;
 		}
@@ -1223,13 +1225,16 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn, const char *pet_
 		p = &ht->seqs[index];
 		//p = &ht->seqs[index];
 		if (p->used) {
-			rand_times++;
+			show_msg(__func__, "Read used: %s\n", p->name);
 			continue;
 		}
 		counter++;
-		show_msg(__func__, "Rand times: %d; Consumed: %d\n", rand_times,
-				n_reads_consumed);
-		rand_times = 0;
+		if (has_rep_pattern(p)) {
+			show_debug_msg(__func__, "Read has repeat pattern, skip.\n");
+			p_query(__func__, p);
+			continue;
+		}
+		show_msg(__func__, "Reads Consumed: %d\n", n_reads_consumed);
 		sprintf(msg, "Processing read %d: %s... \n", counter, p->name);
 		show_msg(__func__, msg);
 		show_debug_msg(__func__, msg);
