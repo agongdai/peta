@@ -33,6 +33,7 @@ typedef struct {
 	uint16_t mean; // Average span size of the RNA-seq lib
 	uint16_t sd; // Standard deviation of the RNA-seq lib
 	uint8_t pair; // Use pair-end info to extend
+	char *solid_reads;
 	int mode;
 } ass_opt;
 

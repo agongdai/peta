@@ -54,6 +54,7 @@ ass_opt *init_opt() {
 	o->pair = 0;
 	o->nsp = 1;
 	o->mode = (BWA_MODE_GAPE | BWA_MODE_COMPREAD);
+	o->solid_reads = 0;
 	return o;
 }
 
@@ -1189,15 +1190,18 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	return cur_eg;
 }
 
-void pe_ass_core(const char *fa_fn, const char *pet_fn) {
+void pe_ass_core(const char *starting_reads, const char *fa_fn, const char *pet_fn) {
 	int counter = 0, index = 0, s_index = 0, e_index = 0, rand_times = 0,
 			pre_ctg_id = 0, i = 0;
 	bwa_seq_t *p; // sequence of RNA-SEQs, RNA-PETs and temp
 	char *h = malloc(BUFSIZE), *msg = calloc(BUFSIZE, sizeof(char));
+	char line[80];
 	FILE *ass_fa = xopen("read/ass_tx.fa", "w");
 	FILE *ass_contigs = xopen("read/ass_contigs.fa", "w");
 	FILE *all_contigs = xopen("read/contigs.fa", "w");
 	FILE *start_reads = xopen("read/start_reads.txt", "w");
+	FILE *solid_reads = xopen(starting_reads, "r");
+
 	hash_table *ht;
 	edge *eg, *eg_i;
 	clock_t t = clock();
@@ -1209,14 +1213,14 @@ void pe_ass_core(const char *fa_fn, const char *pet_fn) {
 
 	s_index = 0;
 	e_index = 1;
-	while (counter < e_index && ht->n_seqs * STOP_THRE > n_reads_consumed) {
-		index = (int) (rand_f() * ht->n_seqs);
+	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE > n_reads_consumed) {
+		index = atoi(line);
 		if (counter < s_index) {
 			counter++;
 			continue;
 		}
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
-		p = &ht->seqs[1063881];
+		p = &ht->seqs[index];
 		//p = &ht->seqs[index];
 		if (p->used) {
 			rand_times++;
@@ -1266,6 +1270,7 @@ void pe_ass_core(const char *fa_fn, const char *pet_fn) {
 	save_edges(all_edges, ass_contigs, 0, 0, opt->rl * 1.5);
 
 	free(h);
+	fclose(solid_reads);
 	fclose(ass_fa);
 	fclose(ass_contigs);
 	fclose(all_contigs);
@@ -1283,7 +1288,7 @@ int pe_ass(int argc, char *argv[]) {
 	clock_t t = clock();
 	opt = init_opt();
 
-	while ((c = getopt(argc, argv, "n:o:r:a:m:s:p:d:")) >= 0) {
+	while ((c = getopt(argc, argv, "n:o:r:a:m:s:p:d:b:")) >= 0) {
 		switch (c) {
 		case 'n':
 			opt->nm = atoi(optarg);
@@ -1309,6 +1314,9 @@ int pe_ass(int argc, char *argv[]) {
 		case 'p':
 			opt->pair = atoi(optarg);
 			break;
+		case 'b':
+			opt->solid_reads = strdup(optarg);
+			break;
 		default:
 			return 1;
 		}
@@ -1327,7 +1335,7 @@ int pe_ass(int argc, char *argv[]) {
 	fprintf(stderr, "sd = %d \n", opt->sd);
 	fprintf(stderr, "nsp = %d \n", opt->nsp);
 
-	pe_ass_core(argv[optind], argv[optind + 1]);
+	pe_ass_core(opt->solid_reads, argv[optind], argv[optind + 1]);
 
 	free(opt);
 

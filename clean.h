@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <inttypes.h>
 
 typedef struct {
 	int kmer;
@@ -8,7 +9,12 @@ typedef struct {
 
 typedef struct {
 	int key;
-	int count;
+	uint16_t count;
 } kmer;
+
+typedef struct {
+	char *read_id;
+	int k_freq;
+} counter;
 
 int clean_reads(int argc, char *argv[]);
