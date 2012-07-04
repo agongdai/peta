@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <inttypes.h>
 
+#define MAX_N16	4294967295
+
 typedef struct {
 	int kmer;
 	int mode;
@@ -13,8 +15,8 @@ typedef struct {
 } kmer;
 
 typedef struct {
-	char *read_id;
-	int k_freq;
+	uint32_t read_id;
+	double k_freq;
 } counter;
 
 int clean_reads(int argc, char *argv[]);

@@ -923,6 +923,10 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 	return m;
 }
 
+int order_edges(edge *left_eg, edge *right_eg) {
+
+}
+
 int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		const int type, const int ori) {
 	bwa_seq_t *mate = 0, *query = 0;
@@ -1212,15 +1216,16 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	ht = pe_load_hash(fa_fn);
 	left_rm = new_rm();
 
-	s_index = 10000;
-	e_index = 10100;
+	s_index = 100000;
+	e_index = 10100000;
 	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE
 			> n_reads_consumed) {
 		index = atoi(line);
-		if (counter < s_index || e_index < counter) {
-			counter++;
-			continue;
-		}
+//		index = (int) (rand_f() * ht->n_seqs);
+//		if (counter < s_index || e_index < counter) {
+//			counter++;
+//			continue;
+//		}
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
 		p = &ht->seqs[index];
 		//p = &ht->seqs[index];
