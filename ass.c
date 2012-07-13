@@ -639,6 +639,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 	int olpped = 0, gap = 0, ol_len = 0, to_merge = 0, ori_len = 0;
 	int ol = 0;
 	bwa_seq_t *query = 0;
+	eg_gap *added_gap;
 	//	p_query(left_eg->contig);
 	//	p_query(right_eg->contig);
 	//p_ctg_seq(__func__, left_eg->contig);
@@ -746,8 +747,12 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		show_debug_msg(__func__, "Gap size: %d \n", gap);
 		if (ori) {
 			merge_eg_to_right(left_eg, right_eg, gap);
+			added_gap = init_gap(right_eg->len, gap, ori);
+			g_ptr_array_add(right_eg->gaps, added_gap);
 		} else {
 			merge_eg_to_left(left_eg, right_eg, gap);
+			added_gap = init_gap(left_eg->len, gap, ori);
+			g_ptr_array_add(left_eg->gaps, added_gap);
 		}
 	}
 	free_pool(cur_pool);
@@ -801,7 +806,7 @@ bwa_seq_t *ext_by_mates(edge *ass_eg, const hash_table *ht, pool *cur_pool,
 			break;
 		}
 		forward_by_ra(ass_eg, cur_pool, mate_pool->reads, query, ori);
-		p_ctg_seq(__func__, ass_eg->contig);
+		//p_ctg_seq(__func__, ass_eg->contig);
 		//show_debug_msg(__func__, "[%d, %d] \n", ass_eg->id, ass_eg->len);
 		//p_query(__func__, ass_eg->contig);
 	}
@@ -936,6 +941,7 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 	ext_msg *m = 0, *m2 = 0;
 	pool *m_pool = 0, *c_pool = 0;
 	ori_len = ass_eg->len;
+	eg_gap *exi_gap = 0;
 	if (ass_eg->len >= opt->ol && (type != REP_EXTEND && type != QUE_PFD)) {
 		query = get_init_q(ass_eg, 0, ori);
 		c_pool = new_pool();
@@ -999,13 +1005,21 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 				merge_eg_to_left(ass_eg, m_eg, 0);
 			extended = 1;
 		}
-		// Calculate the gap
+		// If not extended, try to merge the edges
 		if (!extended) {
 			show_debug_msg(__func__, "Reasonable Gap: %d \n", reason_gap);
-			if (ori)
-				fill_in_gap(m_eg, ass_eg, reason_gap, ht, ori);
-			else
-				fill_in_gap(ass_eg, m_eg, reason_gap, ht, ori);
+			exi_gap = find_hole(ass_eg, m_eg, ori);
+			if (exi_gap) {
+				// If should be concatenated directly
+				if (exi_gap->s_index == -1) {
+					if (ori)
+						fill_in_gap(m_eg, ass_eg, reason_gap, ht, ori);
+					else
+						fill_in_gap(ass_eg, m_eg, reason_gap, ht, ori);
+				} else {
+					fill_in_hole(ass_eg, m_eg, ori, exi_gap);
+				}
+			}
 		}
 
 		if (ass_eg->len > ori_len) {
@@ -1196,8 +1210,7 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 
 void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		const char *pet_fn) {
-	int counter = 0, index = 0, s_index = 0, e_index = 0,
-			pre_ctg_id = 0, i = 0;
+	int counter = 0, index = 0, s_index = 0, e_index = 0, pre_ctg_id = 0, i = 0;
 	bwa_seq_t *p; // sequence of RNA-SEQs, RNA-PETs and temp
 	char *h = malloc(BUFSIZE), *msg = calloc(BUFSIZE, sizeof(char));
 	char line[80];
@@ -1216,29 +1229,32 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	ht = pe_load_hash(fa_fn);
 	left_rm = new_rm();
 
-	s_index = 100000;
-	e_index = 10100000;
-	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE
-			> n_reads_consumed) {
-		index = atoi(line);
-//		index = (int) (rand_f() * ht->n_seqs);
-//		if (counter < s_index || e_index < counter) {
-//			counter++;
-//			continue;
-//		}
+	s_index = 0;
+	e_index = 1;
+	while (ht->n_seqs * STOP_THRE > n_reads_consumed) {
+		if (fgets(line, 80, solid_reads) != NULL && counter <= 10000)
+			index = atoi(line);
+		else
+			index = (int) (rand_f() * ht->n_seqs);
+		if (counter < s_index) {
+			counter++;
+			continue;
+		}
+		if (counter >= e_index)
+			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
-		p = &ht->seqs[index];
+		p = &ht->seqs[5226253];
 		//p = &ht->seqs[index];
 		if (p->used) {
 			show_msg(__func__, "Read used: %s\n", p->name);
 			continue;
 		}
-		counter++;
 		if (has_rep_pattern(p)) {
 			show_debug_msg(__func__, "Read has repeat pattern, skip.\n");
 			p_query(__func__, p);
 			continue;
 		}
+		//counter++;
 		show_msg(__func__, "Reads Consumed: %d\n", n_reads_consumed);
 		sprintf(msg, "Processing read %d: %s... \n", counter, p->name);
 		show_msg(__func__, msg);
@@ -1247,9 +1263,12 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		fputs("\n", start_reads);
 		eg = pe_ass_ctg(left_rm, p, ht);
 		p->used = 1;
-		if (eg->len == p->len)
+		if (eg->len == p->len) {
+			destroy_eg(eg);
+			contig_id--;
 			n_reads_consumed++;
-		else {
+		} else {
+			counter++;
 			for (i = pre_ctg_id; i < all_edges->len; i++) {
 				eg_i = g_ptr_array_index(all_edges, i);
 				if (eg_i->alive)

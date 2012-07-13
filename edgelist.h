@@ -39,6 +39,7 @@ void log_edge(const edge *eg);
 void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift, const int gap,
 		const int ori);
 void clear_used_reads(edge *eg, const int reset_ctg_id);
+eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori);
 
 #ifdef __cplusplus
 }

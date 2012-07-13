@@ -169,6 +169,90 @@ readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs,
 	return paired;
 }
 
+int has_counter_pair(readarray *large_ra, readarray *small_ra,
+		const int lower_bound, const int upper_bound) {
+	int i = 0, j = 0, ori = 0, pair_ori = 0;
+	bwa_seq_t *s_read, *l_read;
+	for (i = 0; i < small_ra->len; i++) {
+		s_read = g_ptr_array_index(small_ra, i);
+		for (j = 0; j < large_ra->len; j++) {
+			l_read = g_ptr_array_index(large_ra, j);
+			if ((l_read->shift < 0 || l_read->shift >= lower_bound) // Shift could be negative
+					&& l_read->shift <= upper_bound && strcmp(s_read->name,
+					get_mate_name(l_read->name)) == 0) {
+				if (is_left_mate(s_read->name)) {
+					pair_ori = 1;
+				} else
+					pair_ori = 2;
+				break;
+			}
+		}
+		if (!ori) { // If the overall ori is not set, set it.
+			ori = pair_ori; // If there is no mate, the pair_ori remains 0
+		} else {
+			if (pair_ori != ori)
+				return 0;
+		}
+	}
+	return 1;
+}
+
+eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
+	eg_gap *gap = 0;
+	int i = 0, lower = 0, upper = ass_eg->len;
+	readarray *ra = ass_eg->reads;
+	readarray *m_ra = m_eg->reads;
+	// The edge m_eg could be put at the end (ori == 0) or at the beginning (ori == 1)
+	if (!has_counter_pair(ra, m_ra, lower, upper)) {
+		gap = init_gap(-1, -1, ori);
+		return gap;
+	}
+	// The edge m_eg should be put into some hole
+	for (i = ass_eg->gaps->len; i >= 0; i--) {
+		gap = g_ptr_array_index(ass_eg->gaps, i);
+		lower = ori ? gap->s_index : 0;
+		upper = ori ? ass_eg->len : gap->s_index;
+		if (!has_counter_pair(ra, m_ra, lower, upper))
+			return gap;
+	}
+	return 0; // All counter gaps, no where to place.
+}
+
+void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap) {
+	int start = 0, new_len = 0;
+	bwa_seq_t *ass_seq = ass_eg->contig, *m_seq = m_eg->contig;
+	if (ori) {
+		if (m_eg->len < gap->size) {
+			start = (ass_eg->len - gap->s_index - gap->size) + (gap->size - m_eg->len) / 2;
+		} else { // If the m_eg is longer than the gap size, spare some more space for it.
+			new_len = ass_seq->len + (m_eg->len - gap->size);
+			if (new_len > ass_seq->full_len) {
+				ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq, sizeof(ubyte_t)
+						* new_len);
+				ass_seq->full_len = new_len;
+				ass_seq->len = new_len;
+			}
+		}
+		memcpy(&ass_seq->seq[start], m_seq->seq, m_eg->len);
+	} else {
+		if (m_eg->len < gap->size) {
+			start = gap->s_index + (gap->size - m_eg->len) / 2;
+		} else { // If the m_eg is longer than the gap size, spare some more space for it.
+			new_len = ass_seq->len + (m_eg->len - gap->size);
+			if (new_len > ass_seq->full_len) {
+				ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq, sizeof(ubyte_t)
+						* new_len);
+				ass_seq->full_len = new_len;
+				ass_seq->len = new_len;
+			}
+			memmove(&ass_seq->seq[gap->s_index + ass_eg->len],
+					&ass_seq->seq[gap->s_index + gap->size], ass_eg->len
+							- (gap->s_index + gap->size));
+		}
+		memcpy(&ass_seq->seq[start], m_seq->seq, m_eg->len);
+	}
+}
+
 void clear_used_reads(edge *eg, const int reset_ctg_id) {
 	int i = 0;
 	bwa_seq_t *r;

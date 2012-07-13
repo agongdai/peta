@@ -12,6 +12,7 @@
 
 #define MAX_N_EDGE_OUT 10
 #define MAX_N_EDGE_IN 16
+#define INIT_N_GAPS 4
 #define INIT_N_READ_USED 256
 #define INIT_N_READ_PAIRED 256
 
@@ -38,6 +39,15 @@ struct edge {
 	int alive;
 	int is_root;
 	int ori;			// Orientation
+	GPtrArray *gaps;
 };
+
+typedef struct {
+	int s_index;
+	int size;
+	int ori;
+} eg_gap;
+
+eg_gap *init_gap(int s_index, int size, int ori);
 
 #endif /* EDGE_H_ */

@@ -155,7 +155,7 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	qsort(kmer_ordered, n_kmers, sizeof(uint16_t), cmp_int);
 	show_debug_msg(__func__, "Getting k_freq upper and lower bounds...\n");
 	for (i = 0; i < n_kmers; i++) {
-		if (kmer_ordered[i] < 5) {
+		if (kmer_ordered[i] < 10) {
 			zero_point = i;
 			show_debug_msg(__func__, "There are %d 0-kmers.\n", (n_kmers - zero_point));
 			break;
@@ -164,7 +164,7 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	tmp = ((zero_point) * 0.005);
 	show_debug_msg(__func__, "Upper index k_freq: %d\n", tmp);
 	fre_upper = kmer_ordered[tmp];
-	tmp = ((zero_point) * 0.6);
+	tmp = ((zero_point) * 0.1);
 	show_debug_msg(__func__, "Lower index k_freq: %d\n", tmp);
 	fre_lower = kmer_ordered[tmp];
 	show_debug_msg(__func__, "Lower bound k_freq: %d\n", fre_lower);

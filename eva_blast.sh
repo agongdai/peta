@@ -22,8 +22,8 @@ bwa index read/$query.fa
 bwa aln -t 8 read/$query.fa read/$reads_used > read/$reads_used.sai
 bwa samse read/$query.fa read/$reads_used.sai read/$reads_used > read/$reads_used.sam
 
-#bwa aln -t 8 read/$query.fa read/$raw_reads.fa > read/$raw_reads.sg.sai
-#bwa samse read/$query.fa read/$raw_reads.sg.sai read/$raw_reads.fa > read/$raw_reads.sg.sam
+bwa aln -t 8 read/$query.fa read/$raw_reads.fa > read/$raw_reads.sg.sai
+bwa samse read/$query.fa read/$raw_reads.sg.sai read/$raw_reads.fa > read/$raw_reads.sg.sam
 
 echo
 

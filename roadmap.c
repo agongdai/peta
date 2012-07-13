@@ -319,15 +319,17 @@ edge *new_eg() {
 	eg->alive = 1;
 	eg->is_root = 0;
 	eg->ori = 0;
+	eg->gaps = g_ptr_array_sized_new(INIT_N_GAPS);
 	return eg;
 }
 
 void destroy_eg(edge *eg) {
 	if (eg) {
-		//bwa_free_read_seq(1, eg->contig); // bug if free it
+		bwa_free_read_seq(1, eg->contig); // bug if free it
 		g_ptr_array_free(eg->in_egs, TRUE);
 		g_ptr_array_free(eg->out_egs, TRUE);
 		g_ptr_array_free(eg->reads, TRUE);
+		g_ptr_array_free(eg->gaps, TRUE);
 		free(eg);
 	}
 }
