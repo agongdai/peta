@@ -19,6 +19,7 @@ extern "C" {
 #define GAP_OL			8
 #define NOT_FOUND		-1
 #define INVALID			-1
+#define STOP_PAIRING	400
 
 void g_ptr_array_add_index(GPtrArray *array, gpointer data, const int index);
 void g_ptr_array_replace_index(GPtrArray *array, gpointer data, const int index);
@@ -41,6 +42,7 @@ void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift, const int
 		const int ori);
 void clear_used_reads(edge *eg, const int reset_ctg_id);
 void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap, const int nm, const int rl);
+eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori);
 
 #ifdef __cplusplus
 }

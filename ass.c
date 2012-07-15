@@ -928,10 +928,6 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 	return m;
 }
 
-int order_edges(edge *left_eg, edge *right_eg) {
-
-}
-
 int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		const int type, const int ori) {
 	bwa_seq_t *mate = 0, *query = 0;
@@ -1231,9 +1227,9 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	left_rm = new_rm();
 
 	s_index = 0;
-	e_index = 1;
+	e_index = 7000;
 	while (ht->n_seqs * STOP_THRE > n_reads_consumed) {
-		if (fgets(line, 80, solid_reads) != NULL && counter <= 10000)
+		if (fgets(line, 80, solid_reads) != NULL && counter <= 4000)
 			index = atoi(line);
 		else
 			index = (int) (rand_f() * ht->n_seqs);
@@ -1244,8 +1240,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		if (counter >= e_index)
 			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
-		p = &ht->seqs[5226253];
-		//p = &ht->seqs[index];
+		p = &ht->seqs[index];
 		if (p->used) {
 			show_msg(__func__, "Read used: %s\n", p->name);
 			continue;
@@ -1265,7 +1260,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		eg = pe_ass_ctg(left_rm, p, ht);
 		p->used = 1;
 		if (eg->len == p->len) {
-			destroy_eg(eg);
+			//destroy_eg(eg);
 			contig_id--;
 			n_reads_consumed++;
 		} else {

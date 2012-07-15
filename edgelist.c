@@ -14,6 +14,18 @@
 #include "peseq.h"
 #include "utils.h"
 
+gint cmp_read_by_shift(gpointer a, gpointer b) {
+	bwa_seq_t *read_a = *((bwa_seq_t**) a);
+	bwa_seq_t *read_b = *((bwa_seq_t**) b);
+	return (read_a->shift - read_b->shift);
+}
+
+gint cmp_read_by_name(gpointer a, gpointer b) {
+	bwa_seq_t *read_a = *((bwa_seq_t**) a);
+	bwa_seq_t *read_b = *((bwa_seq_t**) b);
+	return (atoi(read_a->name) - atoi(read_b->name));
+}
+
 void g_ptr_array_add_index(GPtrArray *array, gpointer data, const int index) {
 	gpointer s, r;
 	if (index < 0 || index > array->len)
@@ -169,19 +181,26 @@ readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs,
 	return paired;
 }
 
+/**
+ * Assume large_ra and small_ra are sorted by name increasingly.
+ */
 int has_counter_pair(readarray *large_ra, readarray *small_ra,
 		const int lower_bound, const int upper_bound) {
-	int i = 0, j = 0, ori = 0, pair_ori = 0;
+	int i = 0, j = 0, ori = 0, pair_ori = 0, matched_pairs = 0;
+	int large_cursor = 0, small_cursor = 0;
 	bwa_seq_t *s_read, *l_read;
 	for (i = 0; i < small_ra->len; i++) {
 		s_read = g_ptr_array_index(small_ra, i);
-		for (j = 0; j < large_ra->len; j++) {
+		for (j = large_cursor; j < large_ra->len; j++) {
 			l_read = g_ptr_array_index(large_ra, j);
+			if (atoi(l_read->name) - atoi(s_read->name) > 1)
+				break;
+			large_cursor = j;
 			if ((l_read->shift < 0 || l_read->shift >= lower_bound) // Shift could be negative
 					&& l_read->shift <= upper_bound && strcmp(s_read->name,
 					get_mate_name(l_read->name)) == 0) {
-				p_query("Hangling edge: ", s_read);
-				p_query("Assembled edge:", l_read);
+				//p_query("Hangling edge: ", s_read);
+				//p_query("Assembled edge:", l_read);
 				if (is_left_mate(s_read->name)) {
 					pair_ori = 1;
 				} else
@@ -194,6 +213,7 @@ int has_counter_pair(readarray *large_ra, readarray *small_ra,
 		} else {
 			if (pair_ori != ori)
 				return 1;
+			matched_pairs++;
 		}
 	}
 	return 0;
@@ -205,15 +225,17 @@ eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
 	readarray *ra = ass_eg->reads;
 	readarray *m_ra = m_eg->reads;
 	// The edge m_eg could be put at the end (ori == 0) or at the beginning (ori == 1)
-	show_debug_msg(__func__, "Looking for holes...");
-	p_readarray(ra);
-	p_readarray(m_ra);
+	show_debug_msg(__func__, "Looking for holes... \n");
+	g_ptr_array_sort(ra, (GCompareFunc) cmp_read_by_name);
+	g_ptr_array_sort(m_ra, (GCompareFunc) cmp_read_by_name);
 	if (!has_counter_pair(ra, m_ra, lower, upper)) {
 		gap = init_gap(-1, -1, ori);
+//		show_debug_msg(__func__, "Returning a gap: %d + %d, ori %d \n",
+//						gap->s_index, gap->size, gap->ori);
 		return gap;
 	}
 	// The edge m_eg should be put into some hole
-	for (i = ass_eg->gaps->len; i >= 0; i--) {
+	for (i = ass_eg->gaps->len - 1; i >= 0; i--) {
 		gap = g_ptr_array_index(ass_eg->gaps, i);
 		show_debug_msg(__func__, "Found a hole: %d + %d, ori %d \n",
 				gap->s_index, gap->size, gap->ori);
@@ -222,18 +244,20 @@ eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
 		if (!has_counter_pair(ra, m_ra, lower, upper))
 			return gap;
 	}
+	g_ptr_array_sort(ra, (GCompareFunc) cmp_read_by_shift);
+	g_ptr_array_sort(m_ra, (GCompareFunc) cmp_read_by_shift);
 	return 0; // All counter gaps, no where to place.
 }
 
-void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap
-		, const int nm, const int rl) {
+void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
+		const int nm, const int rl) {
 	int start = 0, new_len = 0, ol_len = 0, left_ol = 0, right_ol = 0;
 	bwa_seq_t *ass_seq = ass_eg->contig, *m_seq = m_eg->contig;
 	bwa_seq_t *left_seq, *right_seq;
-	if (ori) {
+	if (ori) { // Extending to the left
 		left_seq
 				= new_seq(ass_seq, (ass_eg->len - gap->s_index - gap->size), 0);
-		right_seq = new_seq(ass_seq, 0, gap->s_index + gap->size);
+		right_seq = new_seq(ass_seq, gap->s_index, ass_eg->len - gap->s_index);
 		ol_len = find_ol(left_seq, m_seq, nm);
 		if (ol_len > GAP_OL && ol_len < rl + GAP_OL) {
 			trun_seq(m_seq, ol_len);
@@ -246,44 +270,106 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap
 			right_ol = 1;
 		}
 		m_eg->len = m_seq->len;
+		// Just replace the gap with the new edge
 		if (left_ol && right_ol) {
-			ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq, sizeof(ubyte_t)
-					* (ass_eg->len - gap->size + m_eg->len));
-			memmove(&ass_seq->seq[(ass_seq->len - gap->s_index - gap->size) + m_eg->len],
-					&ass_seq->seq[ass_seq->len - gap->s_index], right_seq->len);
-			memcpy(&ass_seq->seq[ass_seq->len - gap->s_index - gap->size], m_seq->seq, m_seq->len);
-		} else {
-			if (m_eg->len < gap->size) {
-				start = (ass_eg->len - gap->s_index - gap->size) + (gap->size
-						- m_eg->len) / 2;
-			} else { // If the m_eg is longer than the gap size, spare some more space for it.
+			if (m_seq->len > gap->size)
+				ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq, sizeof(ubyte_t)
+						* (ass_eg->len - gap->size + m_eg->len));
+			// Move the right part to the correct position
+			memmove(&ass_seq->seq[(ass_seq->len - gap->s_index - gap->size)
+					+ m_eg->len], &ass_seq->seq[ass_seq->len - gap->s_index],
+					right_seq->len);
+			memcpy(&ass_seq->seq[ass_seq->len - gap->s_index - gap->size],
+					m_seq->seq, m_seq->len);
+			ass_seq->len -= gap->size - m_seq->len;
+			ass_seq->seq[ass_seq->len] = '\0';
+			ass_eg->len = ass_seq->len;
+		} else { // Put the edge somewhere in the middle of the gap
+			if (m_eg->len > gap->size) { // If the new edge length is larger than the gap, remove the gap
+				// spare some more space for it.
 				new_len = ass_seq->len + (m_eg->len - gap->size);
 				if (new_len > ass_seq->full_len) {
 					ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq,
 							sizeof(ubyte_t) * new_len);
 					ass_seq->full_len = new_len;
 					ass_seq->len = new_len;
+					ass_seq->seq[ass_seq->len] = '\0';
 				}
+				// Here the length of contig is changed, but length of edge is not!
+				memmove(&ass_seq->seq[(ass_eg->len - gap->s_index - gap->size)
+						+ m_eg->len],
+						&ass_seq->seq[ass_eg->len - gap->s_index],
+						right_seq->len);
+				start = ass_eg->len - gap->s_index - gap->size;
+				ass_eg->len = ass_seq->len; // Set them to be correct
+			} else {
+				if (left_ol)
+					start = ass_seq->len - gap->s_index - gap->size;
+				if (right_ol)
+					start = (ass_seq->len - gap->s_index - gap->size)
+							+ (gap->size - m_eg->len);
+				if (!left_ol && !right_ol)
+					start = (ass_seq->len - gap->s_index - gap->size)
+							+ (gap->size - m_eg->len) / 2;
 			}
 			memcpy(&ass_seq->seq[start], m_seq->seq, m_eg->len);
 		}
-	} else {
-		if (m_eg->len < gap->size) {
-			start = gap->s_index + (gap->size - m_eg->len) / 2;
-		} else { // If the m_eg is longer than the gap size, spare some more space for it.
-			new_len = ass_seq->len + (m_eg->len - gap->size);
-			if (new_len > ass_seq->full_len) {
-				ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq, sizeof(ubyte_t)
-						* new_len);
-				ass_seq->full_len = new_len;
-				ass_seq->len = new_len;
-			}
-			memmove(&ass_seq->seq[gap->s_index + ass_eg->len],
-					&ass_seq->seq[gap->s_index + gap->size], ass_eg->len
-							- (gap->s_index + gap->size));
+	} else { // Extending to the right
+		left_seq = new_seq(ass_seq, gap->s_index, 0);
+		right_seq = new_seq(ass_seq, ass_eg->len - gap->size - gap->s_index,
+				gap->size + gap->s_index);
+		ol_len = find_ol(left_seq, m_seq, nm);
+		if (ol_len > GAP_OL && ol_len < rl + GAP_OL) {
+			trun_seq(m_seq, ol_len);
+			left_ol = 1;
 		}
-		memcpy(&ass_seq->seq[start], m_seq->seq, m_eg->len);
+		ol_len = find_ol(m_seq, right_seq, nm);
+		if (ol_len > GAP_OL && ol_len < rl + GAP_OL) {
+			m_seq->len -= ol_len;
+			m_seq->seq[m_seq->len] = '\0';
+			right_ol = 1;
+		}
+		m_eg->len = m_seq->len;
+		// Just replace the gap with the new edge
+		if (left_ol && right_ol) {
+			if (m_seq->len > gap->size)
+				ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq, sizeof(ubyte_t)
+						* (ass_eg->len - gap->size + m_eg->len));
+			// Move the right part to the correct position
+			memmove(&ass_seq->seq[gap->s_index + m_eg->len],
+					&ass_seq->seq[gap->s_index + gap->size], right_seq->len);
+			memcpy(&ass_seq->seq[gap->s_index], m_seq->seq, m_seq->len);
+			ass_seq->len -= gap->size - m_seq->len;
+			ass_seq->seq[ass_seq->len] = '\0';
+			ass_eg->len = ass_seq->len;
+		} else {
+			if (m_eg->len > gap->size) { // If the new edge length is larger than the gap, remove the gap
+				// spare some more space for it.
+				new_len = ass_seq->len + (m_eg->len - gap->size);
+				if (new_len > ass_seq->full_len) {
+					ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq,
+							sizeof(ubyte_t) * new_len);
+					ass_seq->full_len = new_len;
+					ass_seq->len = new_len;
+					ass_seq->seq[ass_seq->len] = '\0';
+				}
+				memmove(&ass_seq->seq[gap->s_index + m_eg->len],
+						&ass_seq->seq[gap->s_index + gap->size], right_seq->len);
+				start = ass_eg->len - gap->s_index - gap->size;
+				ass_eg->len = ass_seq->len; // Set them to be correct
+			} else {
+				if (left_ol)
+					start = gap->s_index;
+				if (right_ol)
+					start = gap->s_index + (gap->size - m_eg->len);
+				if (!left_ol && !right_ol)
+					start = gap->s_index + (gap->size - m_eg->len) / 2;
+			}
+			memcpy(&ass_seq->seq[start], m_seq->seq, m_eg->len);
+		}
 	}
+	bwa_free_read_seq(1, left_seq);
+	bwa_free_read_seq(1, right_seq);
 }
 
 void clear_used_reads(edge *eg, const int reset_ctg_id) {
@@ -349,12 +435,6 @@ void merge_eg_to_right(edge *left_eg, edge *right_eg, const int gap) {
 			gap);
 	right_eg->len = right_eg->contig->len;
 	left_eg->alive = 0;
-}
-
-gint cmp_read_by_shift(gpointer a, gpointer b) {
-	bwa_seq_t *read_a = *((bwa_seq_t**) a);
-	bwa_seq_t *read_b = *((bwa_seq_t**) b);
-	return (read_a->shift - read_b->shift);
 }
 
 int get_mid_pos(readarray *ra, const int ori, const int lib_mean) {

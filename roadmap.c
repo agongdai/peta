@@ -325,7 +325,7 @@ edge *new_eg() {
 
 void destroy_eg(edge *eg) {
 	if (eg) {
-		bwa_free_read_seq(1, eg->contig); // bug if free it
+		// bwa_free_read_seq(1, eg->contig); // bug if free it
 		g_ptr_array_free(eg->in_egs, TRUE);
 		g_ptr_array_free(eg->out_egs, TRUE);
 		g_ptr_array_free(eg->reads, TRUE);
