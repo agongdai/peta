@@ -746,13 +746,13 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 	if (to_merge) {
 		show_debug_msg(__func__, "Gap size: %d \n", gap);
 		if (ori) {
-			merge_eg_to_right(left_eg, right_eg, gap);
 			added_gap = init_gap(right_eg->len, gap, ori);
 			g_ptr_array_add(right_eg->gaps, added_gap);
+			merge_eg_to_right(left_eg, right_eg, gap);
 		} else {
-			merge_eg_to_left(left_eg, right_eg, gap);
 			added_gap = init_gap(left_eg->len, gap, ori);
 			g_ptr_array_add(left_eg->gaps, added_gap);
+			merge_eg_to_left(left_eg, right_eg, gap);
 		}
 	}
 	free_pool(cur_pool);
@@ -1011,13 +1011,14 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 			exi_gap = find_hole(ass_eg, m_eg, ori);
 			if (exi_gap) {
 				// If should be concatenated directly
+				show_debug_msg(__func__, "Existing Gap: %d + %d, ori %d \n", exi_gap->s_index, exi_gap->size, exi_gap->ori);
 				if (exi_gap->s_index == -1) {
 					if (ori)
 						fill_in_gap(m_eg, ass_eg, reason_gap, ht, ori);
 					else
 						fill_in_gap(ass_eg, m_eg, reason_gap, ht, ori);
 				} else {
-					fill_in_hole(ass_eg, m_eg, ori, exi_gap);
+					fill_in_hole(ass_eg, m_eg, ori, exi_gap, opt->nm, opt->rl);
 				}
 			}
 		}

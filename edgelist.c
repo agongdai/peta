@@ -180,6 +180,8 @@ int has_counter_pair(readarray *large_ra, readarray *small_ra,
 			if ((l_read->shift < 0 || l_read->shift >= lower_bound) // Shift could be negative
 					&& l_read->shift <= upper_bound && strcmp(s_read->name,
 					get_mate_name(l_read->name)) == 0) {
+				p_query("Hangling edge: ", s_read);
+				p_query("Assembled edge:", l_read);
 				if (is_left_mate(s_read->name)) {
 					pair_ori = 1;
 				} else
@@ -191,10 +193,10 @@ int has_counter_pair(readarray *large_ra, readarray *small_ra,
 			ori = pair_ori; // If there is no mate, the pair_ori remains 0
 		} else {
 			if (pair_ori != ori)
-				return 0;
+				return 1;
 		}
 	}
-	return 1;
+	return 0;
 }
 
 eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
@@ -203,6 +205,9 @@ eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
 	readarray *ra = ass_eg->reads;
 	readarray *m_ra = m_eg->reads;
 	// The edge m_eg could be put at the end (ori == 0) or at the beginning (ori == 1)
+	show_debug_msg(__func__, "Looking for holes...");
+	p_readarray(ra);
+	p_readarray(m_ra);
 	if (!has_counter_pair(ra, m_ra, lower, upper)) {
 		gap = init_gap(-1, -1, ori);
 		return gap;
@@ -210,6 +215,8 @@ eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
 	// The edge m_eg should be put into some hole
 	for (i = ass_eg->gaps->len; i >= 0; i--) {
 		gap = g_ptr_array_index(ass_eg->gaps, i);
+		show_debug_msg(__func__, "Found a hole: %d + %d, ori %d \n",
+				gap->s_index, gap->size, gap->ori);
 		lower = ori ? gap->s_index : 0;
 		upper = ori ? ass_eg->len : gap->s_index;
 		if (!has_counter_pair(ra, m_ra, lower, upper))
@@ -218,22 +225,48 @@ eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
 	return 0; // All counter gaps, no where to place.
 }
 
-void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap) {
-	int start = 0, new_len = 0;
+void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap
+		, const int nm, const int rl) {
+	int start = 0, new_len = 0, ol_len = 0, left_ol = 0, right_ol = 0;
 	bwa_seq_t *ass_seq = ass_eg->contig, *m_seq = m_eg->contig;
+	bwa_seq_t *left_seq, *right_seq;
 	if (ori) {
-		if (m_eg->len < gap->size) {
-			start = (ass_eg->len - gap->s_index - gap->size) + (gap->size - m_eg->len) / 2;
-		} else { // If the m_eg is longer than the gap size, spare some more space for it.
-			new_len = ass_seq->len + (m_eg->len - gap->size);
-			if (new_len > ass_seq->full_len) {
-				ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq, sizeof(ubyte_t)
-						* new_len);
-				ass_seq->full_len = new_len;
-				ass_seq->len = new_len;
-			}
+		left_seq
+				= new_seq(ass_seq, (ass_eg->len - gap->s_index - gap->size), 0);
+		right_seq = new_seq(ass_seq, 0, gap->s_index + gap->size);
+		ol_len = find_ol(left_seq, m_seq, nm);
+		if (ol_len > GAP_OL && ol_len < rl + GAP_OL) {
+			trun_seq(m_seq, ol_len);
+			left_ol = 1;
 		}
-		memcpy(&ass_seq->seq[start], m_seq->seq, m_eg->len);
+		ol_len = find_ol(m_seq, right_seq, nm);
+		if (ol_len > GAP_OL && ol_len < rl + GAP_OL) {
+			m_seq->len -= ol_len;
+			m_seq->seq[m_seq->len] = '\0';
+			right_ol = 1;
+		}
+		m_eg->len = m_seq->len;
+		if (left_ol && right_ol) {
+			ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq, sizeof(ubyte_t)
+					* (ass_eg->len - gap->size + m_eg->len));
+			memmove(&ass_seq->seq[(ass_seq->len - gap->s_index - gap->size) + m_eg->len],
+					&ass_seq->seq[ass_seq->len - gap->s_index], right_seq->len);
+			memcpy(&ass_seq->seq[ass_seq->len - gap->s_index - gap->size], m_seq->seq, m_seq->len);
+		} else {
+			if (m_eg->len < gap->size) {
+				start = (ass_eg->len - gap->s_index - gap->size) + (gap->size
+						- m_eg->len) / 2;
+			} else { // If the m_eg is longer than the gap size, spare some more space for it.
+				new_len = ass_seq->len + (m_eg->len - gap->size);
+				if (new_len > ass_seq->full_len) {
+					ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq,
+							sizeof(ubyte_t) * new_len);
+					ass_seq->full_len = new_len;
+					ass_seq->len = new_len;
+				}
+			}
+			memcpy(&ass_seq->seq[start], m_seq->seq, m_eg->len);
+		}
 	} else {
 		if (m_eg->len < gap->size) {
 			start = gap->s_index + (gap->size - m_eg->len) / 2;

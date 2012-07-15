@@ -16,6 +16,7 @@ extern "C" {
 
 #define LIST_SIZE		64
 #define TRIVIAL_DIFF	4
+#define GAP_OL			8
 #define NOT_FOUND		-1
 #define INVALID			-1
 
@@ -39,7 +40,7 @@ void log_edge(const edge *eg);
 void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift, const int gap,
 		const int ori);
 void clear_used_reads(edge *eg, const int reset_ctg_id);
-eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori);
+void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap, const int nm, const int rl);
 
 #ifdef __cplusplus
 }
