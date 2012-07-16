@@ -1227,9 +1227,9 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	left_rm = new_rm();
 
 	s_index = 0;
-	e_index = 7000;
+	e_index = 8000;
 	while (ht->n_seqs * STOP_THRE > n_reads_consumed) {
-		if (fgets(line, 80, solid_reads) != NULL && counter <= 4000)
+		if (fgets(line, 80, solid_reads) != NULL && counter <= 6000)
 			index = atoi(line);
 		else
 			index = (int) (rand_f() * ht->n_seqs);

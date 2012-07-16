@@ -230,8 +230,8 @@ eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
 	g_ptr_array_sort(m_ra, (GCompareFunc) cmp_read_by_name);
 	if (!has_counter_pair(ra, m_ra, lower, upper)) {
 		gap = init_gap(-1, -1, ori);
-//		show_debug_msg(__func__, "Returning a gap: %d + %d, ori %d \n",
-//						gap->s_index, gap->size, gap->ori);
+		//		show_debug_msg(__func__, "Returning a gap: %d + %d, ori %d \n",
+		//						gap->s_index, gap->size, gap->ori);
 		return gap;
 	}
 	// The edge m_eg should be put into some hole
@@ -272,9 +272,15 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 		m_eg->len = m_seq->len;
 		// Just replace the gap with the new edge
 		if (left_ol && right_ol) {
-			if (m_seq->len > gap->size)
-				ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq, sizeof(ubyte_t)
-						* (ass_eg->len - gap->size + m_eg->len));
+			if (m_seq->len > gap->size) {
+				new_len = (ass_eg->len - gap->size + m_eg->len);
+				if (new_len > ass_seq->full_len) {
+					kroundup32(new_len);
+					ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq,
+							sizeof(ubyte_t) * new_len);
+					ass_seq->full_len = new_len;
+				}
+			}
 			// Move the right part to the correct position
 			memmove(&ass_seq->seq[(ass_seq->len - gap->s_index - gap->size)
 					+ m_eg->len], &ass_seq->seq[ass_seq->len - gap->s_index],
@@ -289,10 +295,11 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 				// spare some more space for it.
 				new_len = ass_seq->len + (m_eg->len - gap->size);
 				if (new_len > ass_seq->full_len) {
+					ass_seq->len = new_len;
+					kroundup32(new_len);
 					ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq,
 							sizeof(ubyte_t) * new_len);
 					ass_seq->full_len = new_len;
-					ass_seq->len = new_len;
 					ass_seq->seq[ass_seq->len] = '\0';
 				}
 				// Here the length of contig is changed, but length of edge is not!
@@ -332,9 +339,15 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 		m_eg->len = m_seq->len;
 		// Just replace the gap with the new edge
 		if (left_ol && right_ol) {
-			if (m_seq->len > gap->size)
-				ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq, sizeof(ubyte_t)
-						* (ass_eg->len - gap->size + m_eg->len));
+			if (m_seq->len > gap->size) {
+				new_len = (ass_eg->len - gap->size + m_eg->len);
+				if (m_seq->full_len < new_len) {
+					kroundup32(new_len);
+					ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq,
+							sizeof(ubyte_t) * new_len);
+					m_seq->full_len = new_len;
+				}
+			}
 			// Move the right part to the correct position
 			memmove(&ass_seq->seq[gap->s_index + m_eg->len],
 					&ass_seq->seq[gap->s_index + gap->size], right_seq->len);
@@ -347,10 +360,11 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 				// spare some more space for it.
 				new_len = ass_seq->len + (m_eg->len - gap->size);
 				if (new_len > ass_seq->full_len) {
+					ass_seq->len = new_len;
+					kroundup32(new_len);
 					ass_seq->seq = (ubyte_t*) realloc(ass_seq->seq,
 							sizeof(ubyte_t) * new_len);
 					ass_seq->full_len = new_len;
-					ass_seq->len = new_len;
 					ass_seq->seq[ass_seq->len] = '\0';
 				}
 				memmove(&ass_seq->seq[gap->s_index + m_eg->len],
