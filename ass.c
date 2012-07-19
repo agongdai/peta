@@ -765,7 +765,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
  */
 bwa_seq_t *get_init_q(edge *ass_eg, bwa_seq_t *init_q, const int ori) {
 	bwa_seq_t *query = 0;
-	if (ass_eg->len >= opt->ol) {
+	if (ass_eg && ass_eg->len >= opt->ol) {
 		if (ori)
 			query = new_seq(ass_eg->contig, opt->ol, 0);
 		else
@@ -1007,7 +1007,8 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 			exi_gap = find_hole(ass_eg, m_eg, ori);
 			if (exi_gap) {
 				// If should be concatenated directly
-				show_debug_msg(__func__, "Existing Gap: %d + %d, ori %d \n", exi_gap->s_index, exi_gap->size, exi_gap->ori);
+				show_debug_msg(__func__, "Existing Gap: %d + %d, ori %d \n",
+						exi_gap->s_index, exi_gap->size, exi_gap->ori);
 				if (exi_gap->s_index == -1) {
 					if (ori)
 						fill_in_gap(m_eg, ass_eg, reason_gap, ht, ori);
@@ -1103,6 +1104,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 			if (used->contig_id != ass_eg->id && !ori) {
 				// Set the shifted pos, such that it is able to recover the original transcript
 				tmp_eg = (edge*) g_ptr_array_index(all_edges, used->contig_id);
+				show_debug_msg(__func__, "Right contig is %d \n", tmp_eg->id);
 				ass_eg->r_shift = used->shift + used->cursor - 1;
 				ass_eg->right_ctg = tmp_eg;
 				ass_eg->out_egs = tmp_eg->out_egs;
@@ -1157,6 +1159,8 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	int i = 0, r_ext_len = 0;
 	readarray *reads;
 	bwa_seq_t *r;
+	FILE *debug = xopen("debug.txt", "w");
+	char content[BUFSIZ];
 
 	p_query(__func__, read);
 	c_pool = get_init_pool(ht, read, 0);
@@ -1176,18 +1180,16 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	// or it connects to some existing contigs right away, just remove it
 	if (cur_eg->len <= opt->rl + 4 && (cur_eg->right_ctg
 			|| (cur_eg->out_egs->len == 0 && cur_eg->in_egs->len == 0))) {
+		show_msg(__func__, "Not extended. Edge destroyed. \n");
+		g_ptr_array_remove_index(all_edges, contig_id - 1);
 		if (cur_eg->right_ctg) {
-			for (i = 0; i < cur_eg->in_egs->len; i++) {
-				eg_i = g_ptr_array_index(cur_eg->in_egs, i);
-				if (eg_i == cur_eg) {
-					g_ptr_array_remove_index_fast(cur_eg->in_egs, i);
-					break;
-				}
-			}
+			eg_i = cur_eg->right_ctg;
+			g_ptr_array_remove_index(eg_i->in_egs, eg_i->in_egs->len - 1);
 		}
-		cur_eg->right_ctg = 0;
-		cur_eg->alive = 0;
-		return cur_eg;
+		destroy_eg(cur_eg);
+		contig_id--;
+		n_reads_consumed++;
+		return 0;
 	}
 	for (i = 0; i < reads->len; i++) {
 		r = g_ptr_array_index(reads, i);
@@ -1196,12 +1198,21 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 
 	for (i = 0; i < all_edges->len; i++) {
 		eg_i = g_ptr_array_index(all_edges, i);
-		if (eg_i->in_egs->len == 0 && eg_i->alive) {
+		if (eg_i && eg_i->in_egs->len == 0 && eg_i->alive) {
 			g_ptr_array_add(rm->start_egs, eg_i);
 			rm->start_eg_n++;
 			eg_i->is_root = 1;
 		}
+		sprintf(content, "---------- Contig id %d ---------- \n", contig_id);
+		fputs(content, debug);
+		w_flat_eg(eg_i, debug);
+		if (eg_i->l_shift > 0) {
+			sprintf(content, "SUSPECISOUS CONTIG %d \n", eg_i->id);
+			fputs(content, debug);
+			exit(1);
+		}
 	}
+	fclose(debug);
 	return cur_eg;
 }
 
@@ -1251,7 +1262,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 			continue;
 		}
 		//counter++;
-		show_msg(__func__, "Reads Consumed: %d\n", n_reads_consumed);
+		show_msg(__func__, "Reads Consumed: %d; ctg id: %d, %d\n", n_reads_consumed, contig_id, all_edges->len);
 		sprintf(msg, "Processing read %d: %s... \n", counter, p->name);
 		show_msg(__func__, msg);
 		show_debug_msg(__func__, msg);
@@ -1259,11 +1270,8 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		fputs("\n", start_reads);
 		eg = pe_ass_ctg(left_rm, p, ht);
 		p->used = 1;
-		if (eg->len == p->len) {
-			//destroy_eg(eg);
-			contig_id--;
-			n_reads_consumed++;
-		} else {
+		if (eg) {
+			p->contig_id = eg->id;
 			counter++;
 			for (i = pre_ctg_id; i < all_edges->len; i++) {
 				eg_i = g_ptr_array_index(all_edges, i);
@@ -1273,7 +1281,6 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 			}
 		}
 		pre_ctg_id = all_edges->len;
-		p->contig_id = eg->id;
 
 		sprintf(msg, "-------------------------------------- %.2f sec \n",
 				t_eclipsed);

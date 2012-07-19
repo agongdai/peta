@@ -321,7 +321,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 			= p->n_gapo = p->n_gape = p->mapQ = p->score = p->n_aln = p->aln
 					= p->n_multi = p->multi = p->sa = p->pos = p->c1 = p->c2
 							= p->n_cigar = p->cigar = p->seQ = p->nm = p->md
-									= 0;
+									= NULL;
 
 	p->shift = p->is_in_c_pool = 0;
 	p->used = query->used;

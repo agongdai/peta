@@ -308,9 +308,9 @@ edge *new_eg() {
 	eg->in_egs = g_ptr_array_sized_new(MAX_N_EDGE_IN);
 	eg->out_egs = g_ptr_array_sized_new(MAX_N_EDGE_OUT);
 	eg->reads = g_ptr_array_sized_new(INIT_N_READ_USED);
-	eg->name = 0;
-	eg->right_ctg = 0;
-	eg->left_ctg = 0;
+	eg->name = NULL;
+	eg->right_ctg = NULL;
+	eg->left_ctg = NULL;
 	eg->len = 0;
 	eg->r_shift = 0;
 	eg->l_shift = 0;
@@ -325,9 +325,11 @@ edge *new_eg() {
 
 void destroy_eg(edge *eg) {
 	if (eg) {
-		// bwa_free_read_seq(1, eg->contig); // bug if free it
+		bwa_free_read_seq(1, eg->contig); // bug if free it
 		g_ptr_array_free(eg->in_egs, TRUE);
-		g_ptr_array_free(eg->out_egs, TRUE);
+		if (!eg->right_ctg)
+			// If eg's right contig is not null, its out_egs is set to be right contig's out_egs
+			g_ptr_array_free(eg->out_egs, TRUE);
 		g_ptr_array_free(eg->reads, TRUE);
 		g_ptr_array_free(eg->gaps, TRUE);
 		free(eg);

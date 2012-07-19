@@ -10,11 +10,11 @@
 #include "bwase.h"
 #include "glib.h"
 
-#define MAX_N_EDGE_OUT 10
-#define MAX_N_EDGE_IN 16
-#define INIT_N_GAPS 4
-#define INIT_N_READ_USED 256
-#define INIT_N_READ_PAIRED 256
+#define MAX_N_EDGE_OUT 7
+#define MAX_N_EDGE_IN 7
+#define INIT_N_GAPS 3
+#define INIT_N_READ_USED 7
+#define INIT_N_READ_PAIRED 63
 
 struct edge;
 

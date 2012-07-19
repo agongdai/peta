@@ -91,7 +91,7 @@ typedef struct {
 	tf_flag used;
 	tf_flag is_in_c_pool;
 	tf_flag rev_com; // Whether use reverse complement in pool
-	int contig_id;
+	uint32_t contig_id;
 	int shift;
 } bwa_seq_t;
 

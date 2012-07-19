@@ -33,9 +33,32 @@ void p_flat_eg(const edge *eg) {
 		show_debug_msg(__func__, "\t In: [%p] [%d: %d]\n", eg_i, eg_i->id,
 				eg_i->len);
 	}
-	if (eg_i->right_ctg)
-		show_debug_msg(__func__, "\t Right: [%p] [%d: %d]\n", eg_i->right_ctg,
-				eg_i->right_ctg->id, eg_i->right_ctg->len);
+	if (eg->right_ctg)
+		show_debug_msg(__func__, "\t Right: [%p] [%d: %d]\n", eg->right_ctg,
+				eg->right_ctg->id, eg->right_ctg->len);
+}
+
+void w_flat_eg(const edge *eg, FILE *debug) {
+	edge *eg_i;
+	int i = 0;
+	char content[BUFSIZE];
+	sprintf(content, "[%p] [%d: %d]\n", eg, eg->id, eg->len);
+	fputs(content, debug);
+	for (i = 0; i < eg->out_egs->len; i++) {
+		eg_i = g_ptr_array_index(eg->out_egs, i);
+		sprintf(content, "\t Out: [%p] [%d: %d]\n", eg_i, eg_i->id, eg_i->len);
+		fputs(content, debug);
+	}
+	for (i = 0; i < eg->in_egs->len; i++) {
+		eg_i = g_ptr_array_index(eg->in_egs, i);
+		sprintf(content, "\t In: [%p] [%d: %d]\n", eg_i, eg_i->id, eg_i->len);
+		fputs(content, debug);
+	}
+	if (eg->right_ctg) {
+		sprintf(content, "\t Right: [%p] [%d: %d]\n", eg->right_ctg,
+				eg->right_ctg->id, eg->right_ctg->len);
+		fputs(content, debug);
+	}
 }
 
 void p_eg(const edge *root, int level) {

@@ -14,6 +14,7 @@
 #include "stdio.h"
 
 void p_flat_eg(const edge *eg);
+void w_flat_eg(const edge *eg, FILE *debug);
 void p_eg(const edge *root, int level);
 void p_rm(const roadmap *rm);
 void graph_rm(const roadmap *rm, char *dotfile);
