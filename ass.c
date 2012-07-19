@@ -389,6 +389,7 @@ pool *get_mate_pool(const edge *eg, const hash_table *ht, const int ori,
 				pool_uni_add(mate_pool, mate);
 		}
 	}
+	g_ptr_array_free(reads, TRUE);
 	//p_pool("Mate pool: ", mate_pool);
 	return mate_pool;
 }
@@ -533,7 +534,6 @@ void add_pool_by_ol(pool *p, bwa_seq_t *query, bwa_seq_t *read, const int ori) {
 void fill_in_pool(pool *p, edgearray *reads, bwa_seq_t *query, const int ori) {
 	int i = 0;
 	bwa_seq_t *read;
-	//p_query(query);
 	for (i = 0; i < reads->len; i++) {
 		read = g_ptr_array_index(reads, i);
 		if (!read->used)
@@ -588,7 +588,10 @@ int est_gap(const edge *left_eg, const edge *right_eg, const hash_table *ht) {
 	l_par_reads = get_parents_reads(left_eg, 0);
 	r_par_reads = get_parents_reads(right_eg, 1);
 	ea = get_paired_reads(l_par_reads, r_par_reads, ht->seqs, 0);
+	g_ptr_array_free(l_par_reads, TRUE);
+	g_ptr_array_free(r_par_reads, TRUE);
 	if (ea->len == 0) {
+		g_ptr_array_free(ea, TRUE);
 		show_debug_msg(__func__, "No reads spanning the two edges\n");
 		return INVALID;
 	}
@@ -608,6 +611,7 @@ int est_gap(const edge *left_eg, const edge *right_eg, const hash_table *ht) {
 		gap_sum += opt->mean - len;
 		p_count++;
 	}
+	g_ptr_array_free(ea, TRUE);
 	//show_debug_msg(__func__, "gan_sum = %d, p_count = %d \n", gap_sum, p_count);
 	gap_sum = (gap_sum > 0) ? gap_sum : 0;
 	if (p_count > 0) {
@@ -786,7 +790,6 @@ bwa_seq_t *ext_by_mates(edge *ass_eg, const hash_table *ht, pool *cur_pool,
 	bwa_seq_t *query;
 	int ori_len = 0;
 
-	// @TODO: if ori is 1, the shift value of reads is messy.
 	ori_len = ass_eg->len;
 	query = get_init_q(ass_eg, init_q, ori);
 	mate_pool = get_mate_pool(ass_eg, ht, ori, 0, 0);
@@ -815,8 +818,8 @@ bwa_seq_t *ext_by_mates(edge *ass_eg, const hash_table *ht, pool *cur_pool,
 	if (ass_eg->len > ori_len) {
 		upd_reads(ass_eg, opt->nm);
 	}
-	//free_pool(cur_pool);
-	//p_query(__func__, ass_eg->contig);
+	free_pool(mate_pool);
+	bwa_free_read_seq(1, init_q);
 	return query;
 }
 
@@ -930,7 +933,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 
 int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		const int type, const int ori) {
-	bwa_seq_t *mate = 0, *query = 0;
+	bwa_seq_t *mate = 0, *query = 0, *tmp = 0;
 	int ori_len = 0, extended = 0, len_init = 0, len_le = 0, len_re = 0,
 			reason_gap = 0, max_try_times = 4;
 	edge *m_eg;
@@ -941,8 +944,9 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 	if (ass_eg->len >= opt->ol && (type != REP_EXTEND && type != QUE_PFD)) {
 		query = get_init_q(ass_eg, 0, ori);
 		c_pool = new_pool();
-		ext_by_mates(ass_eg, ht, c_pool, query, ori);
+		tmp = ext_by_mates(ass_eg, ht, c_pool, query, ori);
 		free_pool(c_pool);
+		bwa_free_read_seq(1, tmp);
 		if (ass_eg->len > ori_len)
 			return 1;
 	}
@@ -969,6 +973,7 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		show_debug_msg(__func__, "Mate query, %d times [%p]: \n",
 				max_try_times, mate);
 		p_query(__func__, mate);
+		// c_pool is freed in single_ext()
 		c_pool = get_init_pool(ht, mate, 0);
 		//p_pool("Initial pool: ", c_pool, 0);
 		m = single_ext(m_eg, c_pool, 0, ht, 0);
@@ -1038,7 +1043,7 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
  */
 edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 		bwa_seq_t *init_query, const hash_table *ht, int level, int ori) {
-	bwa_seq_t *query, *contig, *used, *sub_query;
+	bwa_seq_t *query, *contig, *used, *sub_query, *tmp;
 	int c_index = 0, no_sub_path = 0;
 	int *c = 0, extended = 0;
 	edge *ass_eg, *tmp_eg;
@@ -1104,9 +1109,9 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 			if (used->contig_id != ass_eg->id && !ori) {
 				// Set the shifted pos, such that it is able to recover the original transcript
 				tmp_eg = (edge*) g_ptr_array_index(all_edges, used->contig_id);
-				show_debug_msg(__func__, "Right contig is %d \n", tmp_eg->id);
 				ass_eg->r_shift = used->shift + used->cursor - 1;
 				ass_eg->right_ctg = tmp_eg;
+				g_ptr_array_free(ass_eg->out_egs, TRUE);
 				ass_eg->out_egs = tmp_eg->out_egs;
 				g_ptr_array_add(tmp_eg->in_egs, ass_eg);
 			}
@@ -1131,6 +1136,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 					show_debug_msg(__func__, "Subpath is feasible to go \n");
 					tmp_eg = pe_ass_edge(ass_eg, 0, 0, sub_query, ht,
 							level + 1, ori);
+					bwa_free_read_seq(1, sub_query);
 					no_sub_path = 0;
 				}
 				c_index++;
@@ -1159,7 +1165,7 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	int i = 0, r_ext_len = 0;
 	readarray *reads;
 	bwa_seq_t *r;
-	FILE *debug = xopen("debug.txt", "w");
+	FILE *debug = xopen("debug.txt", "a+");
 	char content[BUFSIZ];
 
 	p_query(__func__, read);
@@ -1176,9 +1182,23 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 			"Extending to the left ***************************** [%d, %d]\n",
 			cur_eg->id, cur_eg->len);
 	pe_ass_edge(0, cur_eg, c_pool, read, ht, 0, 1);
+
+	sprintf(content, "---------- Contig id %d ---------- \n", contig_id);
+	fputs(content, debug);
+	for (i = 0; i < all_edges->len; i++) {
+		eg_i = g_ptr_array_index(all_edges, i);
+		p_flat_eg(eg_i);
+		w_flat_eg(eg_i, debug);
+		if (eg_i->l_shift > 0) {
+			sprintf(content, "SUSPECISOUS CONTIG %d \n", eg_i->id);
+			fputs(content, debug);
+			fclose(debug);
+			exit(1);
+		}
+	}
 	// If the read is not extendable;
 	// or it connects to some existing contigs right away, just remove it
-	if (cur_eg->len <= opt->rl + 4 && (cur_eg->right_ctg
+	if (cur_eg->len <= opt->rl + 1 && (cur_eg->right_ctg
 			|| (cur_eg->out_egs->len == 0 && cur_eg->in_egs->len == 0))) {
 		show_msg(__func__, "Not extended. Edge destroyed. \n");
 		g_ptr_array_remove_index(all_edges, contig_id - 1);
@@ -1186,6 +1206,10 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 			eg_i = cur_eg->right_ctg;
 			g_ptr_array_remove_index(eg_i->in_egs, eg_i->in_egs->len - 1);
 		}
+		sprintf(content, "Freed: edge %d %p; in_edges %p; out_edges %p\n",
+				cur_eg->id, cur_eg, cur_eg->in_egs, cur_eg->out_egs);
+		fputs(content, debug);
+		fclose(debug);
 		destroy_eg(cur_eg);
 		contig_id--;
 		n_reads_consumed++;
@@ -1203,15 +1227,8 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 			rm->start_eg_n++;
 			eg_i->is_root = 1;
 		}
-		sprintf(content, "---------- Contig id %d ---------- \n", contig_id);
-		fputs(content, debug);
-		w_flat_eg(eg_i, debug);
-		if (eg_i->l_shift > 0) {
-			sprintf(content, "SUSPECISOUS CONTIG %d \n", eg_i->id);
-			fputs(content, debug);
-			exit(1);
-		}
 	}
+	fflush(debug);
 	fclose(debug);
 	return cur_eg;
 }
@@ -1238,7 +1255,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	left_rm = new_rm();
 
 	s_index = 0;
-	e_index = 8000;
+	e_index = 1000;
 	while (ht->n_seqs * STOP_THRE > n_reads_consumed) {
 		if (fgets(line, 80, solid_reads) != NULL && counter <= 6000)
 			index = atoi(line);
@@ -1262,7 +1279,8 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 			continue;
 		}
 		//counter++;
-		show_msg(__func__, "Reads Consumed: %d; ctg id: %d, %d\n", n_reads_consumed, contig_id, all_edges->len);
+		show_msg(__func__, "Reads Consumed: %d; ctg id: %d, %d\n",
+				n_reads_consumed, contig_id, all_edges->len);
 		sprintf(msg, "Processing read %d: %s... \n", counter, p->name);
 		show_msg(__func__, msg);
 		show_debug_msg(__func__, msg);
@@ -1302,6 +1320,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	save_edges(all_edges, ass_contigs, 0, 0, opt->rl * 1.5);
 
 	free(h);
+	free(msg);
 	fclose(solid_reads);
 	fclose(ass_fa);
 	fclose(ass_contigs);

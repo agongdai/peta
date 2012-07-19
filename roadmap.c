@@ -327,9 +327,10 @@ void destroy_eg(edge *eg) {
 	if (eg) {
 		bwa_free_read_seq(1, eg->contig); // bug if free it
 		g_ptr_array_free(eg->in_egs, TRUE);
-		if (!eg->right_ctg)
+		if (!eg->right_ctg) {
 			// If eg's right contig is not null, its out_egs is set to be right contig's out_egs
 			g_ptr_array_free(eg->out_egs, TRUE);
+		}
 		g_ptr_array_free(eg->reads, TRUE);
 		g_ptr_array_free(eg->gaps, TRUE);
 		free(eg);

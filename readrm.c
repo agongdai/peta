@@ -23,11 +23,13 @@ void p_flat_eg(const edge *eg) {
 	edge *eg_i;
 	int i = 0;
 	show_debug_msg(__func__, "[%p] [%d: %d]\n", eg, eg->id, eg->len);
+	show_debug_msg(__func__, "\t Out: %p \n", eg->out_egs);
 	for (i = 0; i < eg->out_egs->len; i++) {
 		eg_i = g_ptr_array_index(eg->out_egs, i);
 		show_debug_msg(__func__, "\t Out: [%p] [%d: %d]\n", eg_i, eg_i->id,
 				eg_i->len);
 	}
+	show_debug_msg(__func__, "\t In: %p \n", eg->in_egs);
 	for (i = 0; i < eg->in_egs->len; i++) {
 		eg_i = g_ptr_array_index(eg->in_egs, i);
 		show_debug_msg(__func__, "\t In: [%p] [%d: %d]\n", eg_i, eg_i->id,
@@ -44,11 +46,15 @@ void w_flat_eg(const edge *eg, FILE *debug) {
 	char content[BUFSIZE];
 	sprintf(content, "[%p] [%d: %d]\n", eg, eg->id, eg->len);
 	fputs(content, debug);
+	sprintf(content, "\t Out: %p \n", eg->out_egs);
+	fputs(content, debug);
 	for (i = 0; i < eg->out_egs->len; i++) {
 		eg_i = g_ptr_array_index(eg->out_egs, i);
 		sprintf(content, "\t Out: [%p] [%d: %d]\n", eg_i, eg_i->id, eg_i->len);
 		fputs(content, debug);
 	}
+	sprintf(content, "\t In: %p \n", eg->in_egs);
+	fputs(content, debug);
 	for (i = 0; i < eg->in_egs->len; i++) {
 		eg_i = g_ptr_array_index(eg->in_egs, i);
 		sprintf(content, "\t In: [%p] [%d: %d]\n", eg_i, eg_i->id, eg_i->len);
