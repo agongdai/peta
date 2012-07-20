@@ -1165,7 +1165,7 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	int i = 0, r_ext_len = 0;
 	readarray *reads;
 	bwa_seq_t *r;
-	FILE *debug = xopen("debug.txt", "a+");
+//	FILE *debug = xopen("debug.txt", "a+");
 	char content[BUFSIZ];
 
 	p_query(__func__, read);
@@ -1183,33 +1183,33 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 			cur_eg->id, cur_eg->len);
 	pe_ass_edge(0, cur_eg, c_pool, read, ht, 0, 1);
 
-	sprintf(content, "---------- Contig id %d ---------- \n", contig_id);
-	fputs(content, debug);
-	for (i = 0; i < all_edges->len; i++) {
-		eg_i = g_ptr_array_index(all_edges, i);
-		p_flat_eg(eg_i);
-		w_flat_eg(eg_i, debug);
-		if (eg_i->l_shift > 0) {
-			sprintf(content, "SUSPECISOUS CONTIG %d \n", eg_i->id);
-			fputs(content, debug);
-			fclose(debug);
-			exit(1);
-		}
-	}
+//	sprintf(content, "---------- Contig id %d ---------- \n", contig_id);
+//	fputs(content, debug);
+//	for (i = 0; i < all_edges->len; i++) {
+//		eg_i = g_ptr_array_index(all_edges, i);
+//		p_flat_eg(eg_i);
+//		w_flat_eg(eg_i, debug);
+//		if (eg_i->l_shift > 0) {
+//			sprintf(content, "SUSPECISOUS CONTIG %d \n", eg_i->id);
+//			fputs(content, debug);
+//			fclose(debug);
+//			exit(1);
+//		}
+//	}
 	// If the read is not extendable;
 	// or it connects to some existing contigs right away, just remove it
-	if (cur_eg->len <= opt->rl + 1 && (cur_eg->right_ctg
-			|| (cur_eg->out_egs->len == 0 && cur_eg->in_egs->len == 0))) {
+	if (cur_eg->len <= opt->rl + 4 && (cur_eg->in_egs->len == 0) && (cur_eg->right_ctg
+			|| cur_eg->out_egs->len == 0)) {
 		show_msg(__func__, "Not extended. Edge destroyed. \n");
 		g_ptr_array_remove_index(all_edges, contig_id - 1);
 		if (cur_eg->right_ctg) {
 			eg_i = cur_eg->right_ctg;
 			g_ptr_array_remove_index(eg_i->in_egs, eg_i->in_egs->len - 1);
 		}
-		sprintf(content, "Freed: edge %d %p; in_edges %p; out_edges %p\n",
-				cur_eg->id, cur_eg, cur_eg->in_egs, cur_eg->out_egs);
-		fputs(content, debug);
-		fclose(debug);
+//		sprintf(content, "Freed: edge %d %p; in_edges %p; out_edges %p\n",
+//				cur_eg->id, cur_eg, cur_eg->in_egs, cur_eg->out_egs);
+//		fputs(content, debug);
+//		fclose(debug);
 		destroy_eg(cur_eg);
 		contig_id--;
 		n_reads_consumed++;
@@ -1228,8 +1228,8 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 			eg_i->is_root = 1;
 		}
 	}
-	fflush(debug);
-	fclose(debug);
+//	fflush(debug);
+//	fclose(debug);
 	return cur_eg;
 }
 
@@ -1255,7 +1255,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	left_rm = new_rm();
 
 	s_index = 0;
-	e_index = 1000;
+	e_index = 10000;
 	while (ht->n_seqs * STOP_THRE > n_reads_consumed) {
 		if (fgets(line, 80, solid_reads) != NULL && counter <= 6000)
 			index = atoi(line);

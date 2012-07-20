@@ -1,17 +1,13 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
+
 int main() {
-	int calendar[12][31];
-	int month, day, counter = 0;
-	for (month = 0; month < 12; month++) {
-		for (day = 0; day < 31; day++) {
-			calendar[month][day] = counter++;
-		}
-	}
-	printf("[0][0] = %d \n", calendar[0][0]);
-	printf("[9][1] = %d \n", calendar[9][1]);
-	printf("[9][1] = %d \n", *(*(calendar + 9) + 1));
-	printf("[9][1] = %d \n", **(&(calendar[9]) + 1));
+	int test = 100;
+	int some = test;
+	printf("%d \n", test);
+	kroundup32(test);
+	printf("%d \n", test);
 	return 0;
 }

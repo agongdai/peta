@@ -296,7 +296,6 @@ void free_pool(pool *r_pool) {
 			r_pool->n = 0;
 			if (reads) {
 				g_ptr_array_free(reads, TRUE);
-				r_pool->reads = 0;
 			}
 		}
 		free(r_pool);

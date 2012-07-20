@@ -1,27 +1,4021 @@
 digraph g { 
 	rankdir = LR 
-	0 [shape=box, label="0:1260"] 
-	2 [shape=box, label="2:370"] 
-	2 -> 0
-	31 [shape=box, label="31:2985"] 
-	33 [shape=box, label="33:87"] 
-	35 [shape=box, label="35:185"] 
-	35 -> 36
-	35 -> 39
-	36 [shape=box, label="36:192"] 
-	36 -> 37
-	36 -> 38
-	37 [shape=box, label="37:252"] 
-	37 -> 36 [label="s=63"] 
-	38 [shape=box, label="38:64"] 
-	39 [shape=box, label="39:70"] 
-	39 -> 36 [label="s=71"] 
-	40 [shape=box, label="40:138"] 
-	40 -> 35
-	41 [shape=box, label="41:1066"] 
-	41 -> 40
+	0 [shape=box, label="0:688"] 
+	2 [shape=box, label="2:2844"] 
+	3 [shape=box, label="3:1722"] 
+	4 [shape=box, label="4:2451"] 
+	8 [shape=box, label="8:4620"] 
+	10 [shape=box, label="10:1370"] 
+	10 -> 11
+	11 [shape=box, label="11:739"] 
+	12 [shape=box, label="12:145"] 
+	12 -> 10
+	13 [shape=box, label="13:140"] 
+	13 -> 12
+	14 [shape=box, label="14:1344"] 
+	14 -> 12
+	15 [shape=box, label="15:70"] 
+	15 -> 10
+	16 [shape=box, label="16:2872"] 
+	17 [shape=box, label="17:87"] 
+	17 -> 16
+	18 [shape=box, label="18:69"] 
+	18 -> 16
+	20 [shape=box, label="20:4686"] 
+	22 [shape=box, label="22:717"] 
+	25 [shape=box, label="25:2641"] 
+	26 [shape=box, label="26:2201"] 
+	29 [shape=box, label="29:848"] 
+	29 -> 30
+	29 -> 35
+	30 [shape=box, label="30:198"] 
+	30 -> 32
+	30 -> 34
+	32 [shape=box, label="32:136"] 
+	34 [shape=box, label="34:70"] 
+	34 -> 32 [label="s=70"] 
+	35 [shape=box, label="35:81"] 
+	35 -> 30 [label="s=81"] 
+	36 [shape=box, label="36:84"] 
+	36 -> 29
+	37 [shape=box, label="37:66"] 
+	37 -> 29
+	38 [shape=box, label="38:1275"] 
+	39 [shape=box, label="39:224"] 
+	39 -> 38
+	40 [shape=box, label="40:720"] 
+	40 -> 39
+	41 [shape=box, label="41:70"] 
+	41 -> 39
 	42 [shape=box, label="42:70"] 
-	42 -> 40
-	43 [shape=box, label="43:70"] 
-	43 -> 35
+	42 -> 38
+	43 [shape=box, label="43:98"] 
+	44 [shape=box, label="44:3"] 
+	44 -> 43
+	45 [shape=box, label="45:15"] 
+	45 -> 44
+	46 [shape=box, label="46:42"] 
+	46 -> 45
+	47 [shape=box, label="47:78"] 
+	47 -> 46
+	48 [shape=box, label="48:322"] 
+	48 -> 47
+	49 [shape=box, label="49:101"] 
+	49 -> 48
+	50 [shape=box, label="50:106"] 
+	50 -> 48
+	51 [shape=box, label="51:70"] 
+	51 -> 47
+	52 [shape=box, label="52:70"] 
+	52 -> 46
+	53 [shape=box, label="53:72"] 
+	53 -> 45
+	54 [shape=box, label="54:70"] 
+	54 -> 44
+	55 [shape=box, label="55:70"] 
+	55 -> 43
+	56 [shape=box, label="56:4098"] 
+	57 [shape=box, label="57:3016"] 
+	58 [shape=box, label="58:96"] 
+	58 -> 57
+	60 [shape=box, label="60:97"] 
+	60 -> 61
+	60 -> 72
+	60 -> 69
+	61 [shape=box, label="61:57"] 
+	61 -> 62
+	61 -> 63
+	62 [shape=box, label="62:389"] 
+	63 [shape=box, label="63:37"] 
+	63 -> 62 [label="s=37"] 
+	69 [shape=box, label="69:120"] 
+	69 -> 70
+	70 [shape=box, label="70:70"] 
+	70 -> 60 [label="s=50"] 
+	72 [shape=box, label="72:47"] 
+	72 -> 69 [label="s=47"] 
+	73 [shape=box, label="73:8275"] 
+	74 [shape=box, label="74:88"] 
+	74 -> 73
+	75 [shape=box, label="75:69"] 
+	75 -> 73
+	76 [shape=box, label="76:332"] 
+	76 -> 78
+	78 [shape=box, label="78:167"] 
+	81 [shape=box, label="81:372"] 
+	81 -> 76
+	82 [shape=box, label="82:166"] 
+	82 -> 81
+	83 [shape=box, label="83:305"] 
+	83 -> 81
+	84 [shape=box, label="84:70"] 
+	84 -> 76
+	85 [shape=box, label="85:275"] 
+	85 -> 86
+	85 -> 87
+	86 [shape=box, label="86:296"] 
+	87 [shape=box, label="87:3"] 
+	87 -> 86 [label="s=3"] 
+	88 [shape=box, label="88:337"] 
+	88 -> 85
+	89 [shape=box, label="89:853"] 
+	89 -> 90
+	90 [shape=box, label="90:78"] 
+	90 -> 10 [label="s=1230"] 
+	91 [shape=box, label="91:141"] 
+	91 -> 89
+	92 [shape=box, label="92:73"] 
+	92 -> 89
+	93 [shape=box, label="93:250"] 
+	93 -> 10 [label="s=1456"] 
+	94 [shape=box, label="94:95"] 
+	94 -> 95
+	94 -> 111
+	95 [shape=box, label="95:33"] 
+	95 -> 98
+	95 -> 109
+	98 [shape=box, label="98:69"] 
+	98 -> 99
+	98 -> 104
+	99 [shape=box, label="99:99"] 
+	99 -> 100
+	99 -> 103
+	100 [shape=box, label="100:120"] 
+	100 -> 101
+	100 -> 102
+	101 [shape=box, label="101:255"] 
+	102 [shape=box, label="102:41"] 
+	102 -> 101 [label="s=41"] 
+	103 [shape=box, label="103:81"] 
+	103 -> 100 [label="s=81"] 
+	104 [shape=box, label="104:70"] 
+	104 -> 100 [label="s=-29"] 
+	109 [shape=box, label="109:3"] 
+	109 -> 98 [label="s=3"] 
+	111 [shape=box, label="111:6"] 
+	111 -> 109 [label="s=-27"] 
+	113 [shape=box, label="113:851"] 
+	113 -> 94
+	114 [shape=box, label="114:70"] 
+	114 -> 94
+	115 [shape=box, label="115:1030"] 
+	119 [shape=box, label="119:242"] 
+	123 [shape=box, label="123:255"] 
+	123 -> 119
+	124 [shape=box, label="124:269"] 
+	124 -> 123
+	125 [shape=box, label="125:161"] 
+	125 -> 124
+	126 [shape=box, label="126:6"] 
+	126 -> 124
+	127 [shape=box, label="127:82"] 
+	127 -> 126
+	128 [shape=box, label="128:75"] 
+	128 -> 126
+	129 [shape=box, label="129:83"] 
+	129 -> 128
+	130 [shape=box, label="130:6"] 
+	130 -> 128
+	131 [shape=box, label="131:888"] 
+	131 -> 130
+	132 [shape=box, label="132:75"] 
+	132 -> 130
+	133 [shape=box, label="133:70"] 
+	133 -> 123
+	134 [shape=box, label="134:70"] 
+	134 -> 119
+	135 [shape=box, label="135:1979"] 
+	136 [shape=box, label="136:276"] 
+	137 [shape=box, label="137:670"] 
+	137 -> 136
+	140 [shape=box, label="140:4"] 
+	140 -> 136
+	141 [shape=box, label="141:66"] 
+	141 -> 140
+	142 [shape=box, label="142:70"] 
+	142 -> 140
+	145 [shape=box, label="145:459"] 
+	150 [shape=box, label="150:129"] 
+	150 -> 145
+	151 [shape=box, label="151:749"] 
+	151 -> 150
+	152 [shape=box, label="152:68"] 
+	152 -> 150
+	153 [shape=box, label="153:70"] 
+	153 -> 145
+	155 [shape=box, label="155:324"] 
+	155 -> 25 [label="s=4836"] 
+	157 [shape=box, label="157:181"] 
+	157 -> 155
+	158 [shape=box, label="158:218"] 
+	158 -> 157
+	160 [shape=box, label="160:70"] 
+	160 -> 157
+	161 [shape=box, label="161:139"] 
+	161 -> 155
+	162 [shape=box, label="162:70"] 
+	162 -> 161
+	163 [shape=box, label="163:70"] 
+	163 -> 161
+	164 [shape=box, label="164:1846"] 
+	165 [shape=box, label="165:74"] 
+	165 -> 164
+	166 [shape=box, label="166:111"] 
+	166 -> 164
+	167 [shape=box, label="167:3415"] 
+	168 [shape=box, label="168:443"] 
+	169 [shape=box, label="169:324"] 
+	169 -> 168
+	170 [shape=box, label="170:489"] 
+	170 -> 169
+	173 [shape=box, label="173:1172"] 
+	173 -> 174
+	173 -> 177
+	174 [shape=box, label="174:507"] 
+	174 -> 175
+	174 -> 176
+	175 [shape=box, label="175:72"] 
+	176 [shape=box, label="176:71"] 
+	177 [shape=box, label="177:36"] 
+	180 [shape=box, label="180:588"] 
+	180 -> 173
+	181 [shape=box, label="181:761"] 
+	181 -> 180
+	182 [shape=box, label="182:70"] 
+	182 -> 180
+	183 [shape=box, label="183:70"] 
+	183 -> 173
+	184 [shape=box, label="184:604"] 
+	185 [shape=box, label="185:4601"] 
+	186 [shape=box, label="186:84"] 
+	186 -> 185
+	187 [shape=box, label="187:1857"] 
+	187 -> 185
+	188 [shape=box, label="188:2087"] 
+	189 [shape=box, label="189:553"] 
+	190 [shape=box, label="190:78"] 
+	190 -> 189
+	191 [shape=box, label="191:72"] 
+	191 -> 190
+	192 [shape=box, label="192:75"] 
+	192 -> 191
+	193 [shape=box, label="193:84"] 
+	193 -> 192
+	194 [shape=box, label="194:879"] 
+	194 -> 193
+	196 [shape=box, label="196:61"] 
+	196 -> 193
+	197 [shape=box, label="197:70"] 
+	197 -> 192
+	198 [shape=box, label="198:70"] 
+	198 -> 191
+	199 [shape=box, label="199:70"] 
+	199 -> 190
+	200 [shape=box, label="200:70"] 
+	200 -> 189
+	201 [shape=box, label="201:1055"] 
+	202 [shape=box, label="202:3009"] 
+	203 [shape=box, label="203:2356"] 
+	204 [shape=box, label="204:170"] 
+	204 -> 205
+	205 [shape=box, label="205:109"] 
+	207 [shape=box, label="207:75"] 
+	207 -> 204
+	208 [shape=box, label="208:812"] 
+	208 -> 207
+	210 [shape=box, label="210:70"] 
+	210 -> 207
+	211 [shape=box, label="211:70"] 
+	211 -> 204
+	214 [shape=box, label="214:152"] 
+	214 -> 215
+	215 [shape=box, label="215:114"] 
+	215 -> 216
+	215 -> 217
+	216 [shape=box, label="216:688"] 
+	217 [shape=box, label="217:70"] 
+	217 -> 216 [label="s=70"] 
+	223 [shape=box, label="223:192"] 
+	223 -> 214
+	226 [shape=box, label="226:70"] 
+	226 -> 214
+	227 [shape=box, label="227:329"] 
+	227 -> 228
+	227 -> 229
+	228 [shape=box, label="228:62"] 
+	229 [shape=box, label="229:42"] 
+	233 [shape=box, label="233:397"] 
+	233 -> 85 [label="s=185"] 
+	237 [shape=box, label="237:557"] 
+	238 [shape=box, label="238:76"] 
+	238 -> 237
+	239 [shape=box, label="239:553"] 
+	239 -> 237
+	244 [shape=box, label="244:584"] 
+	244 -> 11 [label="s=498"] 
+	245 [shape=box, label="245:569"] 
+	248 [shape=box, label="248:349"] 
+	251 [shape=box, label="251:778"] 
+	251 -> 248
+	253 [shape=box, label="253:70"] 
+	253 -> 248
+	254 [shape=box, label="254:489"] 
+	254 -> 255
+	254 -> 256
+	255 [shape=box, label="255:3328"] 
+	256 [shape=box, label="256:110"] 
+	256 -> 254 [label="s=238"] 
+	257 [shape=box, label="257:880"] 
+	257 -> 254
+	258 [shape=box, label="258:60"] 
+	258 -> 254
+	259 [shape=box, label="259:2034"] 
+	259 -> 38 [label="s=1882"] 
+	260 [shape=box, label="260:78"] 
+	260 -> 259
+	261 [shape=box, label="261:267"] 
+	261 -> 259
+	262 [shape=box, label="262:1655"] 
+	265 [shape=box, label="265:230"] 
+	265 -> 266
+	265 -> 267
+	266 [shape=box, label="266:230"] 
+	267 [shape=box, label="267:70"] 
+	267 -> 266 [label="s=169"] 
+	270 [shape=box, label="270:72"] 
+	270 -> 265
+	271 [shape=box, label="271:73"] 
+	271 -> 270
+	272 [shape=box, label="272:163"] 
+	272 -> 271
+	273 [shape=box, label="273:124"] 
+	273 -> 272
+	274 [shape=box, label="274:97"] 
+	274 -> 272
+	275 [shape=box, label="275:92"] 
+	275 -> 271
+	276 [shape=box, label="276:70"] 
+	276 -> 270
+	277 [shape=box, label="277:70"] 
+	277 -> 265
+	278 [shape=box, label="278:146"] 
+	278 -> 90 [label="s=62"] 
+	280 [shape=box, label="280:421"] 
+	280 -> 281
+	280 -> 282
+	281 [shape=box, label="281:524"] 
+	282 [shape=box, label="282:182"] 
+	286 [shape=box, label="286:607"] 
+	286 -> 280
+	287 [shape=box, label="287:83"] 
+	287 -> 280
+	288 [shape=box, label="288:135"] 
+	288 -> 90 [label="s=64"] 
+	289 [shape=box, label="289:138"] 
+	289 -> 90 [label="s=60"] 
+	290 [shape=box, label="290:135"] 
+	290 -> 90 [label="s=66"] 
+	291 [shape=box, label="291:135"] 
+	291 -> 90 [label="s=66"] 
+	292 [shape=box, label="292:135"] 
+	292 -> 90 [label="s=66"] 
+	293 [shape=box, label="293:543"] 
+	295 [shape=box, label="295:135"] 
+	295 -> 90 [label="s=68"] 
+	296 [shape=box, label="296:1217"] 
+	299 [shape=box, label="299:85"] 
+	299 -> 136 [label="s=70"] 
+	300 [shape=box, label="300:154"] 
+	300 -> 136 [label="s=79"] 
+	305 [shape=box, label="305:143"] 
+	305 -> 205 [label="s=62"] 
+	306 [shape=box, label="306:155"] 
+	306 -> 204 [label="s=123"] 
+	307 [shape=box, label="307:173"] 
+	308 [shape=box, label="308:137"] 
+	308 -> 204 [label="s=123"] 
+	309 [shape=box, label="309:135"] 
+	309 -> 204 [label="s=123"] 
+	310 [shape=box, label="310:99"] 
+	310 -> 315
+	315 [shape=box, label="315:93"] 
+	315 -> 316
+	316 [shape=box, label="316:122"] 
+	323 [shape=box, label="323:396"] 
+	323 -> 310
+	324 [shape=box, label="324:359"] 
+	324 -> 323
+	325 [shape=box, label="325:96"] 
+	325 -> 323
+	326 [shape=box, label="326:70"] 
+	326 -> 310
+	327 [shape=box, label="327:3180"] 
+	327 -> 204 [label="s=123"] 
+	329 [shape=box, label="329:135"] 
+	329 -> 204 [label="s=123"] 
+	331 [shape=box, label="331:70"] 
+	331 -> 315 [label="s=3"] 
+	334 [shape=box, label="334:70"] 
+	334 -> 315 [label="s=3"] 
+	337 [shape=box, label="337:70"] 
+	337 -> 315 [label="s=3"] 
+	340 [shape=box, label="340:70"] 
+	340 -> 315 [label="s=3"] 
+	343 [shape=box, label="343:70"] 
+	343 -> 315 [label="s=3"] 
+	346 [shape=box, label="346:70"] 
+	346 -> 315 [label="s=3"] 
+	348 [shape=box, label="348:105"] 
+	348 -> 87 [label="s=-36"] 
+	350 [shape=box, label="350:70"] 
+	350 -> 315 [label="s=3"] 
+	352 [shape=box, label="352:3373"] 
+	353 [shape=box, label="353:75"] 
+	353 -> 352
+	354 [shape=box, label="354:79"] 
+	354 -> 352
+	356 [shape=box, label="356:70"] 
+	356 -> 315 [label="s=3"] 
+	359 [shape=box, label="359:70"] 
+	359 -> 315 [label="s=3"] 
+	361 [shape=box, label="361:2387"] 
+	362 [shape=box, label="362:84"] 
+	362 -> 361
+	363 [shape=box, label="363:76"] 
+	363 -> 361
+	364 [shape=box, label="364:559"] 
+	364 -> 204 [label="s=128"] 
+	365 [shape=box, label="365:135"] 
+	365 -> 136 [label="s=74"] 
+	367 [shape=box, label="367:77"] 
+	367 -> 368
+	368 [shape=box, label="368:36"] 
+	368 -> 369
+	368 -> 371
+	369 [shape=box, label="369:94"] 
+	371 [shape=box, label="371:42"] 
+	377 [shape=box, label="377:72"] 
+	377 -> 367
+	378 [shape=box, label="378:180"] 
+	378 -> 377
+	379 [shape=box, label="379:369"] 
+	379 -> 378
+	381 [shape=box, label="381:70"] 
+	381 -> 378
+	382 [shape=box, label="382:70"] 
+	382 -> 377
+	383 [shape=box, label="383:70"] 
+	383 -> 367
+	384 [shape=box, label="384:135"] 
+	384 -> 136 [label="s=74"] 
+	386 [shape=box, label="386:4487"] 
+	387 [shape=box, label="387:434"] 
+	387 -> 386
+	388 [shape=box, label="388:141"] 
+	388 -> 386
+	389 [shape=box, label="389:186"] 
+	389 -> 391
+	391 [shape=box, label="391:183"] 
+	391 -> 70 [label="s=21"] 
+	396 [shape=box, label="396:102"] 
+	399 [shape=box, label="399:1473"] 
+	399 -> 400
+	399 -> 401
+	400 [shape=box, label="400:75"] 
+	400 -> 61 [label="s=-36"] 
+	401 [shape=box, label="401:70"] 
+	401 -> 400 [label="s=70"] 
+	405 [shape=box, label="405:2899"] 
+	408 [shape=box, label="408:90"] 
+	408 -> 409
+	408 -> 420
+	409 [shape=box, label="409:270"] 
+	409 -> 411
+	409 -> 412
+	411 [shape=box, label="411:1828"] 
+	412 [shape=box, label="412:198"] 
+	412 -> 25 [label="s=4819"] 
+	420 [shape=box, label="420:54"] 
+	420 -> 409 [label="s=54"] 
+	422 [shape=box, label="422:503"] 
+	422 -> 408
+	426 [shape=box, label="426:70"] 
+	426 -> 408
+	427 [shape=box, label="427:97"] 
+	427 -> 368 [label="s=-11"] 
+	428 [shape=box, label="428:3590"] 
+	429 [shape=box, label="429:281"] 
+	429 -> 428
+	430 [shape=box, label="430:65"] 
+	430 -> 428
+	431 [shape=box, label="431:86"] 
+	431 -> 432
+	432 [shape=box, label="432:144"] 
+	432 -> 433
+	432 -> 434
+	433 [shape=box, label="433:704"] 
+	434 [shape=box, label="434:70"] 
+	434 -> 433 [label="s=167"] 
+	446 [shape=box, label="446:75"] 
+	446 -> 431
+	447 [shape=box, label="447:392"] 
+	447 -> 446
+	450 [shape=box, label="450:70"] 
+	450 -> 447
+	451 [shape=box, label="451:70"] 
+	451 -> 447
+	452 [shape=box, label="452:70"] 
+	452 -> 446
+	453 [shape=box, label="453:70"] 
+	453 -> 431
+	454 [shape=box, label="454:1707"] 
+	455 [shape=box, label="455:178"] 
+	455 -> 454
+	456 [shape=box, label="456:69"] 
+	456 -> 454
+	457 [shape=box, label="457:906"] 
+	458 [shape=box, label="458:145"] 
+	458 -> 457
+	459 [shape=box, label="459:266"] 
+	459 -> 457
+	460 [shape=box, label="460:2494"] 
+	464 [shape=box, label="464:119"] 
+	464 -> 465
+	464 -> 472
+	465 [shape=box, label="465:84"] 
+	465 -> 467
+	465 -> 471
+	467 [shape=box, label="467:195"] 
+	467 -> 468
+	467 -> 469
+	468 [shape=box, label="468:403"] 
+	469 [shape=box, label="469:49"] 
+	469 -> 468 [label="s=162"] 
+	471 [shape=box, label="471:70"] 
+	471 -> 467 [label="s=70"] 
+	472 [shape=box, label="472:34"] 
+	472 -> 465 [label="s=34"] 
+	478 [shape=box, label="478:72"] 
+	478 -> 464
+	479 [shape=box, label="479:954"] 
+	479 -> 478
+	480 [shape=box, label="480:130"] 
+	480 -> 478
+	481 [shape=box, label="481:64"] 
+	481 -> 480
+	482 [shape=box, label="482:64"] 
+	482 -> 480
+	483 [shape=box, label="483:70"] 
+	483 -> 464
+	484 [shape=box, label="484:67"] 
+	484 -> 464 [label="s=67"] 
+	485 [shape=box, label="485:70"] 
+	485 -> 484
+	486 [shape=box, label="486:70"] 
+	486 -> 484
+	488 [shape=box, label="488:1663"] 
+	489 [shape=box, label="489:74"] 
+	489 -> 488
+	490 [shape=box, label="490:74"] 
+	490 -> 488
+	491 [shape=box, label="491:67"] 
+	491 -> 464 [label="s=67"] 
+	492 [shape=box, label="492:70"] 
+	492 -> 491
+	493 [shape=box, label="493:70"] 
+	493 -> 491
+	494 [shape=box, label="494:67"] 
+	494 -> 464 [label="s=67"] 
+	495 [shape=box, label="495:70"] 
+	495 -> 494
+	496 [shape=box, label="496:70"] 
+	496 -> 494
+	497 [shape=box, label="497:67"] 
+	497 -> 464 [label="s=67"] 
+	498 [shape=box, label="498:70"] 
+	498 -> 497
+	499 [shape=box, label="499:70"] 
+	499 -> 497
+	500 [shape=box, label="500:67"] 
+	500 -> 464 [label="s=67"] 
+	501 [shape=box, label="501:70"] 
+	501 -> 500
+	502 [shape=box, label="502:70"] 
+	502 -> 500
+	503 [shape=box, label="503:67"] 
+	503 -> 464 [label="s=67"] 
+	504 [shape=box, label="504:70"] 
+	504 -> 503
+	505 [shape=box, label="505:70"] 
+	505 -> 503
+	506 [shape=box, label="506:255"] 
+	507 [shape=box, label="507:1119"] 
+	507 -> 506
+	508 [shape=box, label="508:70"] 
+	508 -> 506
+	509 [shape=box, label="509:297"] 
+	510 [shape=box, label="510:211"] 
+	510 -> 509
+	512 [shape=box, label="512:140"] 
+	512 -> 509
+	514 [shape=box, label="514:82"] 
+	514 -> 173 [label="s=323"] 
+	515 [shape=box, label="515:930"] 
+	516 [shape=box, label="516:574"] 
+	516 -> 515
+	517 [shape=box, label="517:89"] 
+	518 [shape=box, label="518:232"] 
+	518 -> 517
+	519 [shape=box, label="519:90"] 
+	519 -> 518
+	520 [shape=box, label="520:103"] 
+	520 -> 518
+	521 [shape=box, label="521:3"] 
+	521 -> 517
+	522 [shape=box, label="522:44"] 
+	522 -> 521
+	523 [shape=box, label="523:44"] 
+	523 -> 521
+	528 [shape=box, label="528:272"] 
+	528 -> 529
+	528 -> 530
+	529 [shape=box, label="529:142"] 
+	530 [shape=box, label="530:80"] 
+	530 -> 529 [label="s=28"] 
+	537 [shape=box, label="537:826"] 
+	537 -> 528
+	538 [shape=box, label="538:70"] 
+	538 -> 528
+	540 [shape=box, label="540:260"] 
+	540 -> 541
+	540 -> 544
+	541 [shape=box, label="541:75"] 
+	541 -> 542
+	541 -> 543
+	542 [shape=box, label="542:5491"] 
+	543 [shape=box, label="543:42"] 
+	543 -> 542 [label="s=125"] 
+	544 [shape=box, label="544:70"] 
+	544 -> 542 [label="s=-5"] 
+	546 [shape=box, label="546:2207"] 
+	546 -> 540
+	547 [shape=box, label="547:70"] 
+	547 -> 540
+	548 [shape=box, label="548:2581"] 
+	549 [shape=box, label="549:82"] 
+	549 -> 548
+	550 [shape=box, label="550:35"] 
+	550 -> 548
+	553 [shape=box, label="553:1748"] 
+	558 [shape=box, label="558:270"] 
+	558 -> 553
+	559 [shape=box, label="559:448"] 
+	559 -> 558
+	560 [shape=box, label="560:70"] 
+	560 -> 559
+	561 [shape=box, label="561:70"] 
+	561 -> 559
+	562 [shape=box, label="562:70"] 
+	562 -> 558
+	563 [shape=box, label="563:70"] 
+	563 -> 553
+	564 [shape=box, label="564:1925"] 
+	567 [shape=box, label="567:95"] 
+	567 -> 415 [label="s=-31"] 
+	569 [shape=box, label="569:72"] 
+	569 -> 415 [label="s=-31"] 
+	571 [shape=box, label="571:72"] 
+	571 -> 415 [label="s=-31"] 
+	573 [shape=box, label="573:72"] 
+	573 -> 415 [label="s=-31"] 
+	575 [shape=box, label="575:72"] 
+	575 -> 415 [label="s=-31"] 
+	579 [shape=box, label="579:73"] 
+	579 -> 507 [label="s=1049"] 
+	586 [shape=box, label="586:73"] 
+	586 -> 507 [label="s=1049"] 
+	591 [shape=box, label="591:199"] 
+	591 -> 76 [label="s=431"] 
+	594 [shape=box, label="594:73"] 
+	594 -> 507 [label="s=1049"] 
+	601 [shape=box, label="601:73"] 
+	601 -> 507 [label="s=1049"] 
+	608 [shape=box, label="608:73"] 
+	608 -> 507 [label="s=1049"] 
+	613 [shape=box, label="613:885"] 
+	616 [shape=box, label="616:77"] 
+	616 -> 94 [label="s=44"] 
+	618 [shape=box, label="618:1089"] 
+	618 -> 619
+	618 -> 626
+	619 [shape=box, label="619:121"] 
+	619 -> 620
+	619 -> 625
+	620 [shape=box, label="620:137"] 
+	620 -> 621
+	620 -> 624
+	621 [shape=box, label="621:73"] 
+	621 -> 622
+	621 -> 623
+	622 [shape=box, label="622:278"] 
+	623 [shape=box, label="623:35"] 
+	624 [shape=box, label="624:70"] 
+	624 -> 623 [label="s=38"] 
+	625 [shape=box, label="625:70"] 
+	625 -> 620 [label="s=70"] 
+	626 [shape=box, label="626:70"] 
+	626 -> 619 [label="s=70"] 
+	627 [shape=box, label="627:3621"] 
+	630 [shape=box, label="630:184"] 
+	630 -> 631
+	630 -> 636
+	631 [shape=box, label="631:90"] 
+	631 -> 632
+	631 -> 635
+	632 [shape=box, label="632:72"] 
+	632 -> 633
+	633 [shape=box, label="633:110"] 
+	635 [shape=box, label="635:70"] 
+	635 -> 633 [label="s=78"] 
+	636 [shape=box, label="636:70"] 
+	636 -> 631 [label="s=70"] 
+	639 [shape=box, label="639:1031"] 
+	639 -> 630
+	640 [shape=box, label="640:70"] 
+	640 -> 630
+	641 [shape=box, label="641:91"] 
+	641 -> 378 [label="s=133"] 
+	642 [shape=box, label="642:81"] 
+	642 -> 641
+	643 [shape=box, label="643:70"] 
+	643 -> 641
+	644 [shape=box, label="644:67"] 
+	644 -> 641 [label="s=67"] 
+	645 [shape=box, label="645:70"] 
+	645 -> 644
+	646 [shape=box, label="646:70"] 
+	646 -> 644
+	647 [shape=box, label="647:67"] 
+	647 -> 641 [label="s=67"] 
+	648 [shape=box, label="648:70"] 
+	648 -> 647
+	649 [shape=box, label="649:70"] 
+	649 -> 647
+	650 [shape=box, label="650:67"] 
+	650 -> 641 [label="s=67"] 
+	651 [shape=box, label="651:70"] 
+	651 -> 650
+	652 [shape=box, label="652:70"] 
+	652 -> 650
+	653 [shape=box, label="653:67"] 
+	653 -> 641 [label="s=67"] 
+	654 [shape=box, label="654:70"] 
+	654 -> 653
+	655 [shape=box, label="655:70"] 
+	655 -> 653
+	656 [shape=box, label="656:67"] 
+	656 -> 641 [label="s=67"] 
+	657 [shape=box, label="657:70"] 
+	657 -> 656
+	658 [shape=box, label="658:70"] 
+	658 -> 656
+	659 [shape=box, label="659:67"] 
+	659 -> 641 [label="s=67"] 
+	660 [shape=box, label="660:70"] 
+	660 -> 659
+	661 [shape=box, label="661:70"] 
+	661 -> 659
+	662 [shape=box, label="662:67"] 
+	662 -> 641 [label="s=67"] 
+	663 [shape=box, label="663:70"] 
+	663 -> 662
+	664 [shape=box, label="664:70"] 
+	664 -> 662
+	665 [shape=box, label="665:67"] 
+	665 -> 641 [label="s=67"] 
+	666 [shape=box, label="666:70"] 
+	666 -> 665
+	667 [shape=box, label="667:70"] 
+	667 -> 665
+	668 [shape=box, label="668:67"] 
+	668 -> 641 [label="s=67"] 
+	669 [shape=box, label="669:70"] 
+	669 -> 668
+	670 [shape=box, label="670:70"] 
+	670 -> 668
+	671 [shape=box, label="671:67"] 
+	671 -> 641 [label="s=67"] 
+	672 [shape=box, label="672:70"] 
+	672 -> 671
+	673 [shape=box, label="673:70"] 
+	673 -> 671
+	674 [shape=box, label="674:67"] 
+	674 -> 641 [label="s=67"] 
+	675 [shape=box, label="675:70"] 
+	675 -> 674
+	676 [shape=box, label="676:70"] 
+	676 -> 674
+	677 [shape=box, label="677:67"] 
+	677 -> 641 [label="s=67"] 
+	678 [shape=box, label="678:70"] 
+	678 -> 677
+	679 [shape=box, label="679:70"] 
+	679 -> 677
+	680 [shape=box, label="680:67"] 
+	680 -> 641 [label="s=67"] 
+	681 [shape=box, label="681:70"] 
+	681 -> 680
+	682 [shape=box, label="682:70"] 
+	682 -> 680
+	683 [shape=box, label="683:67"] 
+	683 -> 641 [label="s=67"] 
+	684 [shape=box, label="684:70"] 
+	684 -> 683
+	685 [shape=box, label="685:70"] 
+	685 -> 683
+	686 [shape=box, label="686:67"] 
+	686 -> 641 [label="s=67"] 
+	687 [shape=box, label="687:70"] 
+	687 -> 686
+	688 [shape=box, label="688:70"] 
+	688 -> 686
+	689 [shape=box, label="689:67"] 
+	689 -> 641 [label="s=67"] 
+	690 [shape=box, label="690:70"] 
+	690 -> 689
+	691 [shape=box, label="691:70"] 
+	691 -> 689
+	692 [shape=box, label="692:929"] 
+	693 [shape=box, label="693:1976"] 
+	696 [shape=box, label="696:93"] 
+	696 -> 641 [label="s=66"] 
+	697 [shape=box, label="697:70"] 
+	697 -> 696
+	698 [shape=box, label="698:70"] 
+	698 -> 696
+	699 [shape=box, label="699:67"] 
+	699 -> 248 [label="s=68"] 
+	700 [shape=box, label="700:70"] 
+	700 -> 699
+	701 [shape=box, label="701:70"] 
+	701 -> 699
+	702 [shape=box, label="702:67"] 
+	702 -> 248 [label="s=68"] 
+	703 [shape=box, label="703:70"] 
+	703 -> 702
+	704 [shape=box, label="704:70"] 
+	704 -> 702
+	705 [shape=box, label="705:67"] 
+	705 -> 248 [label="s=68"] 
+	706 [shape=box, label="706:70"] 
+	706 -> 705
+	707 [shape=box, label="707:70"] 
+	707 -> 705
+	708 [shape=box, label="708:67"] 
+	708 -> 248 [label="s=68"] 
+	709 [shape=box, label="709:70"] 
+	709 -> 708
+	710 [shape=box, label="710:70"] 
+	710 -> 708
+	712 [shape=box, label="712:387"] 
+	714 [shape=box, label="714:355"] 
+	714 -> 712
+	715 [shape=box, label="715:70"] 
+	715 -> 712
+	716 [shape=box, label="716:70"] 
+	716 -> 699 [label="s=63"] 
+	719 [shape=box, label="719:70"] 
+	719 -> 699 [label="s=63"] 
+	722 [shape=box, label="722:70"] 
+	722 -> 699 [label="s=63"] 
+	725 [shape=box, label="725:70"] 
+	725 -> 699 [label="s=63"] 
+	728 [shape=box, label="728:70"] 
+	728 -> 699 [label="s=63"] 
+	735 [shape=box, label="735:158"] 
+	735 -> 736
+	735 -> 737
+	736 [shape=box, label="736:170"] 
+	737 [shape=box, label="737:49"] 
+	737 -> 736 [label="s=131"] 
+	746 [shape=box, label="746:150"] 
+	746 -> 735
+	747 [shape=box, label="747:75"] 
+	747 -> 746
+	748 [shape=box, label="748:236"] 
+	748 -> 747
+	749 [shape=box, label="749:59"] 
+	749 -> 747
+	750 [shape=box, label="750:70"] 
+	750 -> 746
+	751 [shape=box, label="751:66"] 
+	751 -> 735
+	752 [shape=box, label="752:70"] 
+	752 -> 699 [label="s=63"] 
+	755 [shape=box, label="755:70"] 
+	755 -> 699 [label="s=63"] 
+	758 [shape=box, label="758:309"] 
+	758 -> 761
+	758 -> 762
+	758 -> 767
+	758 -> 783
+	761 [shape=box, label="761:9"] 
+	761 -> 521 [label="s=38"] 
+	762 [shape=box, label="762:75"] 
+	767 [shape=box, label="767:15"] 
+	767 -> 517 [label="s=50"] 
+	783 [shape=box, label="783:39"] 
+	783 -> 762 [label="s=30"] 
+	787 [shape=box, label="787:69"] 
+	787 -> 215 [label="s=30"] 
+	788 [shape=box, label="788:70"] 
+	788 -> 699 [label="s=63"] 
+	791 [shape=box, label="791:70"] 
+	791 -> 699 [label="s=63"] 
+	794 [shape=box, label="794:70"] 
+	794 -> 515 [label="s=96"] 
+	797 [shape=box, label="797:70"] 
+	797 -> 515 [label="s=96"] 
+	800 [shape=box, label="800:90"] 
+	801 [shape=box, label="801:70"] 
+	801 -> 515 [label="s=96"] 
+	804 [shape=box, label="804:70"] 
+	804 -> 515 [label="s=96"] 
+	807 [shape=box, label="807:70"] 
+	807 -> 515 [label="s=96"] 
+	810 [shape=box, label="810:70"] 
+	810 -> 515 [label="s=96"] 
+	813 [shape=box, label="813:70"] 
+	813 -> 515 [label="s=96"] 
+	816 [shape=box, label="816:70"] 
+	816 -> 515 [label="s=96"] 
+	819 [shape=box, label="819:70"] 
+	819 -> 515 [label="s=96"] 
+	822 [shape=box, label="822:70"] 
+	822 -> 515 [label="s=96"] 
+	825 [shape=box, label="825:70"] 
+	825 -> 515 [label="s=96"] 
+	828 [shape=box, label="828:70"] 
+	828 -> 515 [label="s=96"] 
+	831 [shape=box, label="831:70"] 
+	831 -> 515 [label="s=96"] 
+	834 [shape=box, label="834:70"] 
+	834 -> 515 [label="s=96"] 
+	837 [shape=box, label="837:70"] 
+	837 -> 515 [label="s=96"] 
+	840 [shape=box, label="840:70"] 
+	840 -> 515 [label="s=96"] 
+	843 [shape=box, label="843:70"] 
+	843 -> 515 [label="s=96"] 
+	846 [shape=box, label="846:70"] 
+	846 -> 515 [label="s=96"] 
+	849 [shape=box, label="849:70"] 
+	849 -> 515 [label="s=96"] 
+	852 [shape=box, label="852:135"] 
+	852 -> 10 [label="s=706"] 
+	853 [shape=box, label="853:1370"] 
+	854 [shape=box, label="854:704"] 
+	858 [shape=box, label="858:422"] 
+	858 -> 854
+	861 [shape=box, label="861:77"] 
+	861 -> 854
+	864 [shape=box, label="864:741"] 
+	867 [shape=box, label="867:135"] 
+	867 -> 616 [label="s=43"] 
+	868 [shape=box, label="868:135"] 
+	868 -> 467 [label="s=64"] 
+	869 [shape=box, label="869:73"] 
+	869 -> 364 [label="s=834"] 
+	876 [shape=box, label="876:210"] 
+	876 -> 515 [label="s=241"] 
+	877 [shape=box, label="877:73"] 
+	877 -> 364 [label="s=834"] 
+	886 [shape=box, label="886:587"] 
+	889 [shape=box, label="889:979"] 
+	889 -> 886
+	891 [shape=box, label="891:70"] 
+	891 -> 886
+	892 [shape=box, label="892:585"] 
+	893 [shape=box, label="893:571"] 
+	893 -> 892
+	895 [shape=box, label="895:82"] 
+	895 -> 893
+	896 [shape=box, label="896:70"] 
+	896 -> 892
+	897 [shape=box, label="897:92"] 
+	898 [shape=box, label="898:90"] 
+	898 -> 897
+	900 [shape=box, label="900:688"] 
+	900 -> 898
+	901 [shape=box, label="901:125"] 
+	901 -> 900
+	903 [shape=box, label="903:70"] 
+	903 -> 898
+	907 [shape=box, label="907:87"] 
+	907 -> 897
+	912 [shape=box, label="912:1137"] 
+	915 [shape=box, label="915:67"] 
+	915 -> 916
+	915 -> 917
+	916 [shape=box, label="916:3"] 
+	916 -> 364 [label="s=64"] 
+	917 [shape=box, label="917:3"] 
+	917 -> 208 [label="s=62"] 
+	919 [shape=box, label="919:70"] 
+	919 -> 208 [label="s=62"] 
+	922 [shape=box, label="922:70"] 
+	922 -> 208 [label="s=62"] 
+	925 [shape=box, label="925:70"] 
+	925 -> 208 [label="s=62"] 
+	928 [shape=box, label="928:70"] 
+	928 -> 208 [label="s=62"] 
+	931 [shape=box, label="931:70"] 
+	931 -> 208 [label="s=62"] 
+	934 [shape=box, label="934:70"] 
+	934 -> 208 [label="s=62"] 
+	936 [shape=box, label="936:235"] 
+	936 -> 938
+	936 -> 942
+	938 [shape=box, label="938:92"] 
+	938 -> 939
+	938 -> 940
+	939 [shape=box, label="939:35"] 
+	940 [shape=box, label="940:107"] 
+	942 [shape=box, label="942:3"] 
+	942 -> 940 [label="s=28"] 
+	945 [shape=box, label="945:70"] 
+	945 -> 208 [label="s=62"] 
+	948 [shape=box, label="948:101"] 
+	948 -> 951
+	951 [shape=box, label="951:533"] 
+	956 [shape=box, label="956:897"] 
+	956 -> 948
+	960 [shape=box, label="960:70"] 
+	960 -> 948
+	961 [shape=box, label="961:71"] 
+	961 -> 962
+	962 [shape=box, label="962:3"] 
+	962 -> 169 [label="s=236"] 
+	964 [shape=box, label="964:67"] 
+	964 -> 698 [label="s=53"] 
+	965 [shape=box, label="965:70"] 
+	965 -> 964
+	966 [shape=box, label="966:70"] 
+	966 -> 964
+	967 [shape=box, label="967:195"] 
+	967 -> 391 [label="s=-8"] 
+	970 [shape=box, label="970:78"] 
+	971 [shape=box, label="971:1637"] 
+	972 [shape=box, label="972:70"] 
+	972 -> 446 [label="s=40"] 
+	974 [shape=box, label="974:79"] 
+	974 -> 976
+	976 [shape=box, label="976:88"] 
+	976 -> 979
+	976 -> 990
+	979 [shape=box, label="979:1976"] 
+	990 [shape=box, label="990:76"] 
+	990 -> 979 [label="s=73"] 
+	994 [shape=box, label="994:199"] 
+	994 -> 974
+	995 [shape=box, label="995:75"] 
+	995 -> 994
+	996 [shape=box, label="996:755"] 
+	996 -> 995
+	998 [shape=box, label="998:70"] 
+	998 -> 995
+	999 [shape=box, label="999:70"] 
+	999 -> 994
+	1000 [shape=box, label="1000:70"] 
+	1000 -> 974
+	1002 [shape=box, label="1002:1560"] 
+	1006 [shape=box, label="1006:136"] 
+	1006 -> 974 [label="s=27"] 
+	1007 [shape=box, label="1007:180"] 
+	1007 -> 974 [label="s=27"] 
+	1008 [shape=box, label="1008:114"] 
+	1008 -> 1007
+	1009 [shape=box, label="1009:66"] 
+	1009 -> 1007
+	1010 [shape=box, label="1010:139"] 
+	1010 -> 974 [label="s=27"] 
+	1011 [shape=box, label="1011:60"] 
+	1011 -> 1010
+	1012 [shape=box, label="1012:60"] 
+	1012 -> 1010
+	1013 [shape=box, label="1013:212"] 
+	1013 -> 168 [label="s=267"] 
+	1014 [shape=box, label="1014:105"] 
+	1014 -> 1013
+	1015 [shape=box, label="1015:9"] 
+	1015 -> 1013
+	1016 [shape=box, label="1016:57"] 
+	1016 -> 1015
+	1017 [shape=box, label="1017:57"] 
+	1017 -> 1015
+	1020 [shape=box, label="1020:135"] 
+	1020 -> 971 [label="s=55"] 
+	1021 [shape=box, label="1021:391"] 
+	1022 [shape=box, label="1022:83"] 
+	1022 -> 1021
+	1023 [shape=box, label="1023:368"] 
+	1023 -> 1021
+	1024 [shape=box, label="1024:550"] 
+	1025 [shape=box, label="1025:108"] 
+	1025 -> 1024
+	1026 [shape=box, label="1026:191"] 
+	1026 -> 1025
+	1027 [shape=box, label="1027:76"] 
+	1027 -> 1025
+	1028 [shape=box, label="1028:209"] 
+	1028 -> 1024
+	1029 [shape=box, label="1029:159"] 
+	1029 -> 972 [label="s=48"] 
+	1030 [shape=box, label="1030:70"] 
+	1030 -> 1029
+	1031 [shape=box, label="1031:70"] 
+	1031 -> 1029
+	1032 [shape=box, label="1032:148"] 
+	1032 -> 972 [label="s=48"] 
+	1033 [shape=box, label="1033:401"] 
+	1034 [shape=box, label="1034:821"] 
+	1034 -> 1033
+	1035 [shape=box, label="1035:77"] 
+	1035 -> 1033
+	1036 [shape=box, label="1036:86"] 
+	1036 -> 948 [label="s=74"] 
+	1037 [shape=box, label="1037:75"] 
+	1037 -> 1036
+	1038 [shape=box, label="1038:75"] 
+	1038 -> 1037
+	1039 [shape=box, label="1039:185"] 
+	1039 -> 1038
+	1040 [shape=box, label="1040:70"] 
+	1040 -> 1038
+	1041 [shape=box, label="1041:70"] 
+	1041 -> 1037
+	1042 [shape=box, label="1042:70"] 
+	1042 -> 1036
+	1043 [shape=box, label="1043:147"] 
+	1043 -> 868 [label="s=49"] 
+	1044 [shape=box, label="1044:328"] 
+	1044 -> 868 [label="s=49"] 
+	1045 [shape=box, label="1045:73"] 
+	1052 [shape=box, label="1052:67"] 
+	1059 [shape=box, label="1059:73"] 
+	1059 -> 1052 [label="s=46"] 
+	1066 [shape=box, label="1066:73"] 
+	1066 -> 1052 [label="s=46"] 
+	1073 [shape=box, label="1073:73"] 
+	1073 -> 1052 [label="s=46"] 
+	1081 [shape=box, label="1081:78"] 
+	1081 -> 190 [label="s=47"] 
+	1083 [shape=box, label="1083:77"] 
+	1083 -> 76 [label="s=443"] 
+	1084 [shape=box, label="1084:143"] 
+	1084 -> 1087
+	1084 -> 1088
+	1087 [shape=box, label="1087:29"] 
+	1088 [shape=box, label="1088:12"] 
+	1088 -> 1087 [label="s=3"] 
+	1093 [shape=box, label="1093:696"] 
+	1093 -> 1084
+	1094 [shape=box, label="1094:70"] 
+	1094 -> 1084
+	1096 [shape=box, label="1096:70"] 
+	1096 -> 190 [label="s=47"] 
+	1099 [shape=box, label="1099:70"] 
+	1099 -> 190 [label="s=47"] 
+	1102 [shape=box, label="1102:70"] 
+	1102 -> 190 [label="s=47"] 
+	1105 [shape=box, label="1105:70"] 
+	1105 -> 190 [label="s=47"] 
+	1108 [shape=box, label="1108:70"] 
+	1108 -> 190 [label="s=47"] 
+	1110 [shape=box, label="1110:442"] 
+	1112 [shape=box, label="1112:73"] 
+	1112 -> 364 [label="s=834"] 
+	1119 [shape=box, label="1119:217"] 
+	1120 [shape=box, label="1120:612"] 
+	1120 -> 962 [label="s=-25"] 
+	1121 [shape=box, label="1121:1454"] 
+	1123 [shape=box, label="1123:884"] 
+	1123 -> 1126
+	1123 -> 1133
+	1123 -> 1136
+	1126 [shape=box, label="1126:42"] 
+	1126 -> 1127
+	1127 [shape=box, label="1127:126"] 
+	1127 -> 1128
+	1127 -> 1131
+	1128 [shape=box, label="1128:112"] 
+	1128 -> 1129
+	1128 -> 1130
+	1129 [shape=box, label="1129:1239"] 
+	1130 [shape=box, label="1130:26"] 
+	1131 [shape=box, label="1131:19"] 
+	1131 -> 1130 [label="s=256"] 
+	1133 [shape=box, label="1133:36"] 
+	1133 -> 1127 [label="s=-6"] 
+	1136 [shape=box, label="1136:5"] 
+	1136 -> 1130 [label="s=74"] 
+	1138 [shape=box, label="1138:68"] 
+	1138 -> 12 [label="s=68"] 
+	1139 [shape=box, label="1139:169"] 
+	1139 -> 1138
+	1140 [shape=box, label="1140:70"] 
+	1140 -> 876 [label="s=56"] 
+	1143 [shape=box, label="1143:70"] 
+	1143 -> 876 [label="s=56"] 
+	1146 [shape=box, label="1146:70"] 
+	1146 -> 876 [label="s=56"] 
+	1149 [shape=box, label="1149:70"] 
+	1149 -> 876 [label="s=56"] 
+	1152 [shape=box, label="1152:70"] 
+	1152 -> 876 [label="s=56"] 
+	1155 [shape=box, label="1155:70"] 
+	1155 -> 876 [label="s=56"] 
+	1158 [shape=box, label="1158:70"] 
+	1158 -> 876 [label="s=56"] 
+	1161 [shape=box, label="1161:70"] 
+	1161 -> 876 [label="s=56"] 
+	1165 [shape=box, label="1165:70"] 
+	1165 -> 507 [label="s=1058"] 
+	1168 [shape=box, label="1168:70"] 
+	1168 -> 507 [label="s=1058"] 
+	1171 [shape=box, label="1171:70"] 
+	1171 -> 507 [label="s=1058"] 
+	1173 [shape=box, label="1173:70"] 
+	1173 -> 876 [label="s=56"] 
+	1177 [shape=box, label="1177:70"] 
+	1177 -> 507 [label="s=1058"] 
+	1179 [shape=box, label="1179:70"] 
+	1179 -> 876 [label="s=56"] 
+	1182 [shape=box, label="1182:70"] 
+	1182 -> 876 [label="s=56"] 
+	1185 [shape=box, label="1185:70"] 
+	1185 -> 876 [label="s=56"] 
+	1188 [shape=box, label="1188:70"] 
+	1188 -> 876 [label="s=56"] 
+	1192 [shape=box, label="1192:70"] 
+	1192 -> 507 [label="s=1058"] 
+	1195 [shape=box, label="1195:80"] 
+	1195 -> 1037 [label="s=32"] 
+	1197 [shape=box, label="1197:185"] 
+	1197 -> 141 [label="s=63"] 
+	1198 [shape=box, label="1198:202"] 
+	1198 -> 936 [label="s=276"] 
+	1199 [shape=box, label="1199:92"] 
+	1199 -> 1200
+	1200 [shape=box, label="1200:87"] 
+	1200 -> 1202
+	1200 -> 1204
+	1202 [shape=box, label="1202:337"] 
+	1204 [shape=box, label="1204:84"] 
+	1204 -> 1202 [label="s=84"] 
+	1208 [shape=box, label="1208:540"] 
+	1208 -> 1199
+	1209 [shape=box, label="1209:70"] 
+	1209 -> 1199
+	1210 [shape=box, label="1210:164"] 
+	1210 -> 714 [label="s=297"] 
+	1211 [shape=box, label="1211:470"] 
+	1212 [shape=box, label="1212:530"] 
+	1212 -> 1211
+	1213 [shape=box, label="1213:75"] 
+	1213 -> 57 [label="s=43"] 
+	1214 [shape=box, label="1214:100"] 
+	1215 [shape=box, label="1215:19"] 
+	1215 -> 1214
+	1217 [shape=box, label="1217:876"] 
+	1217 -> 1215
+	1218 [shape=box, label="1218:79"] 
+	1218 -> 1215
+	1223 [shape=box, label="1223:70"] 
+	1223 -> 1214 [label="s=67"] 
+	1226 [shape=box, label="1226:70"] 
+	1226 -> 1214 [label="s=67"] 
+	1229 [shape=box, label="1229:70"] 
+	1229 -> 1214 [label="s=67"] 
+	1232 [shape=box, label="1232:70"] 
+	1232 -> 1214 [label="s=67"] 
+	1235 [shape=box, label="1235:70"] 
+	1235 -> 1214 [label="s=67"] 
+	1238 [shape=box, label="1238:70"] 
+	1238 -> 1214 [label="s=67"] 
+	1241 [shape=box, label="1241:70"] 
+	1241 -> 1214 [label="s=67"] 
+	1244 [shape=box, label="1244:70"] 
+	1244 -> 1214 [label="s=67"] 
+	1247 [shape=box, label="1247:70"] 
+	1247 -> 1214 [label="s=67"] 
+	1250 [shape=box, label="1250:70"] 
+	1250 -> 1214 [label="s=67"] 
+	1254 [shape=box, label="1254:83"] 
+	1254 -> 310 [label="s=62"] 
+	1256 [shape=box, label="1256:70"] 
+	1256 -> 1214 [label="s=67"] 
+	1259 [shape=box, label="1259:70"] 
+	1259 -> 1214 [label="s=67"] 
+	1262 [shape=box, label="1262:70"] 
+	1262 -> 1214 [label="s=67"] 
+	1265 [shape=box, label="1265:70"] 
+	1265 -> 1214 [label="s=67"] 
+	1268 [shape=box, label="1268:70"] 
+	1268 -> 1214 [label="s=67"] 
+	1271 [shape=box, label="1271:70"] 
+	1271 -> 1214 [label="s=67"] 
+	1274 [shape=box, label="1274:70"] 
+	1274 -> 1214 [label="s=67"] 
+	1277 [shape=box, label="1277:70"] 
+	1277 -> 1214 [label="s=67"] 
+	1280 [shape=box, label="1280:70"] 
+	1280 -> 1214 [label="s=67"] 
+	1283 [shape=box, label="1283:70"] 
+	1283 -> 1214 [label="s=67"] 
+	1286 [shape=box, label="1286:70"] 
+	1286 -> 1214 [label="s=67"] 
+	1289 [shape=box, label="1289:70"] 
+	1289 -> 1214 [label="s=67"] 
+	1292 [shape=box, label="1292:70"] 
+	1292 -> 1214 [label="s=67"] 
+	1295 [shape=box, label="1295:70"] 
+	1295 -> 1214 [label="s=67"] 
+	1298 [shape=box, label="1298:70"] 
+	1298 -> 1214 [label="s=67"] 
+	1301 [shape=box, label="1301:70"] 
+	1301 -> 1214 [label="s=67"] 
+	1304 [shape=box, label="1304:70"] 
+	1304 -> 1214 [label="s=67"] 
+	1307 [shape=box, label="1307:70"] 
+	1307 -> 1214 [label="s=67"] 
+	1310 [shape=box, label="1310:70"] 
+	1310 -> 1214 [label="s=67"] 
+	1313 [shape=box, label="1313:70"] 
+	1313 -> 1214 [label="s=67"] 
+	1316 [shape=box, label="1316:70"] 
+	1316 -> 1214 [label="s=67"] 
+	1319 [shape=box, label="1319:70"] 
+	1319 -> 1214 [label="s=67"] 
+	1322 [shape=box, label="1322:70"] 
+	1322 -> 1214 [label="s=67"] 
+	1325 [shape=box, label="1325:70"] 
+	1325 -> 1214 [label="s=67"] 
+	1328 [shape=box, label="1328:70"] 
+	1328 -> 1214 [label="s=67"] 
+	1331 [shape=box, label="1331:70"] 
+	1331 -> 1214 [label="s=67"] 
+	1334 [shape=box, label="1334:70"] 
+	1334 -> 1214 [label="s=67"] 
+	1337 [shape=box, label="1337:70"] 
+	1337 -> 1214 [label="s=67"] 
+	1340 [shape=box, label="1340:70"] 
+	1340 -> 1214 [label="s=67"] 
+	1343 [shape=box, label="1343:70"] 
+	1343 -> 1214 [label="s=67"] 
+	1346 [shape=box, label="1346:70"] 
+	1346 -> 1214 [label="s=67"] 
+	1349 [shape=box, label="1349:70"] 
+	1349 -> 1214 [label="s=67"] 
+	1352 [shape=box, label="1352:70"] 
+	1352 -> 1214 [label="s=67"] 
+	1355 [shape=box, label="1355:70"] 
+	1355 -> 1214 [label="s=67"] 
+	1358 [shape=box, label="1358:70"] 
+	1358 -> 1214 [label="s=67"] 
+	1361 [shape=box, label="1361:70"] 
+	1361 -> 1214 [label="s=67"] 
+	1364 [shape=box, label="1364:70"] 
+	1364 -> 1214 [label="s=67"] 
+	1367 [shape=box, label="1367:70"] 
+	1367 -> 1214 [label="s=67"] 
+	1370 [shape=box, label="1370:70"] 
+	1370 -> 1214 [label="s=67"] 
+	1373 [shape=box, label="1373:70"] 
+	1373 -> 1214 [label="s=67"] 
+	1376 [shape=box, label="1376:70"] 
+	1376 -> 1214 [label="s=67"] 
+	1379 [shape=box, label="1379:70"] 
+	1379 -> 1214 [label="s=67"] 
+	1382 [shape=box, label="1382:70"] 
+	1382 -> 1214 [label="s=67"] 
+	1385 [shape=box, label="1385:70"] 
+	1385 -> 1214 [label="s=67"] 
+	1388 [shape=box, label="1388:70"] 
+	1388 -> 1214 [label="s=67"] 
+	1391 [shape=box, label="1391:70"] 
+	1391 -> 1214 [label="s=67"] 
+	1394 [shape=box, label="1394:70"] 
+	1394 -> 1214 [label="s=67"] 
+	1397 [shape=box, label="1397:70"] 
+	1397 -> 1214 [label="s=67"] 
+	1400 [shape=box, label="1400:70"] 
+	1400 -> 1214 [label="s=67"] 
+	1403 [shape=box, label="1403:70"] 
+	1403 -> 1214 [label="s=67"] 
+	1406 [shape=box, label="1406:70"] 
+	1406 -> 1214 [label="s=67"] 
+	1409 [shape=box, label="1409:70"] 
+	1409 -> 1214 [label="s=67"] 
+	1412 [shape=box, label="1412:70"] 
+	1412 -> 1214 [label="s=67"] 
+	1415 [shape=box, label="1415:70"] 
+	1415 -> 1214 [label="s=67"] 
+	1418 [shape=box, label="1418:70"] 
+	1418 -> 1214 [label="s=67"] 
+	1421 [shape=box, label="1421:70"] 
+	1421 -> 1214 [label="s=67"] 
+	1424 [shape=box, label="1424:70"] 
+	1424 -> 1214 [label="s=67"] 
+	1427 [shape=box, label="1427:70"] 
+	1427 -> 1214 [label="s=67"] 
+	1430 [shape=box, label="1430:70"] 
+	1430 -> 1214 [label="s=67"] 
+	1433 [shape=box, label="1433:70"] 
+	1433 -> 1214 [label="s=67"] 
+	1436 [shape=box, label="1436:70"] 
+	1436 -> 1214 [label="s=67"] 
+	1439 [shape=box, label="1439:70"] 
+	1439 -> 1214 [label="s=67"] 
+	1442 [shape=box, label="1442:70"] 
+	1442 -> 1214 [label="s=67"] 
+	1445 [shape=box, label="1445:70"] 
+	1445 -> 1214 [label="s=67"] 
+	1448 [shape=box, label="1448:70"] 
+	1448 -> 1214 [label="s=67"] 
+	1451 [shape=box, label="1451:70"] 
+	1451 -> 1214 [label="s=67"] 
+	1454 [shape=box, label="1454:70"] 
+	1454 -> 1214 [label="s=67"] 
+	1457 [shape=box, label="1457:70"] 
+	1457 -> 1214 [label="s=67"] 
+	1460 [shape=box, label="1460:70"] 
+	1460 -> 1214 [label="s=67"] 
+	1463 [shape=box, label="1463:70"] 
+	1463 -> 1214 [label="s=67"] 
+	1466 [shape=box, label="1466:70"] 
+	1466 -> 1214 [label="s=67"] 
+	1469 [shape=box, label="1469:70"] 
+	1469 -> 1214 [label="s=67"] 
+	1472 [shape=box, label="1472:70"] 
+	1472 -> 1214 [label="s=67"] 
+	1475 [shape=box, label="1475:70"] 
+	1475 -> 1214 [label="s=67"] 
+	1478 [shape=box, label="1478:70"] 
+	1478 -> 1214 [label="s=67"] 
+	1481 [shape=box, label="1481:70"] 
+	1481 -> 1214 [label="s=67"] 
+	1484 [shape=box, label="1484:104"] 
+	1484 -> 215 [label="s=74"] 
+	1485 [shape=box, label="1485:70"] 
+	1485 -> 1214 [label="s=67"] 
+	1488 [shape=box, label="1488:70"] 
+	1488 -> 1214 [label="s=67"] 
+	1491 [shape=box, label="1491:70"] 
+	1491 -> 1214 [label="s=67"] 
+	1494 [shape=box, label="1494:70"] 
+	1494 -> 1214 [label="s=67"] 
+	1497 [shape=box, label="1497:70"] 
+	1497 -> 1214 [label="s=67"] 
+	1500 [shape=box, label="1500:70"] 
+	1500 -> 1214 [label="s=67"] 
+	1503 [shape=box, label="1503:70"] 
+	1503 -> 1214 [label="s=67"] 
+	1506 [shape=box, label="1506:70"] 
+	1506 -> 1214 [label="s=67"] 
+	1509 [shape=box, label="1509:70"] 
+	1509 -> 1214 [label="s=67"] 
+	1512 [shape=box, label="1512:70"] 
+	1512 -> 1214 [label="s=67"] 
+	1515 [shape=box, label="1515:70"] 
+	1515 -> 1214 [label="s=67"] 
+	1518 [shape=box, label="1518:70"] 
+	1518 -> 1214 [label="s=67"] 
+	1521 [shape=box, label="1521:70"] 
+	1521 -> 1214 [label="s=67"] 
+	1524 [shape=box, label="1524:70"] 
+	1524 -> 1214 [label="s=67"] 
+	1527 [shape=box, label="1527:70"] 
+	1527 -> 1214 [label="s=67"] 
+	1530 [shape=box, label="1530:70"] 
+	1530 -> 1214 [label="s=67"] 
+	1533 [shape=box, label="1533:70"] 
+	1533 -> 1214 [label="s=67"] 
+	1536 [shape=box, label="1536:70"] 
+	1536 -> 1214 [label="s=67"] 
+	1539 [shape=box, label="1539:70"] 
+	1539 -> 1214 [label="s=67"] 
+	1542 [shape=box, label="1542:70"] 
+	1542 -> 1214 [label="s=67"] 
+	1545 [shape=box, label="1545:70"] 
+	1545 -> 1214 [label="s=67"] 
+	1548 [shape=box, label="1548:70"] 
+	1548 -> 1214 [label="s=67"] 
+	1551 [shape=box, label="1551:70"] 
+	1551 -> 1214 [label="s=67"] 
+	1554 [shape=box, label="1554:70"] 
+	1554 -> 1214 [label="s=67"] 
+	1557 [shape=box, label="1557:70"] 
+	1557 -> 1214 [label="s=67"] 
+	1560 [shape=box, label="1560:70"] 
+	1560 -> 1214 [label="s=67"] 
+	1563 [shape=box, label="1563:70"] 
+	1563 -> 1214 [label="s=67"] 
+	1566 [shape=box, label="1566:70"] 
+	1566 -> 1214 [label="s=67"] 
+	1569 [shape=box, label="1569:70"] 
+	1569 -> 1214 [label="s=67"] 
+	1572 [shape=box, label="1572:70"] 
+	1572 -> 1214 [label="s=67"] 
+	1575 [shape=box, label="1575:70"] 
+	1575 -> 1214 [label="s=67"] 
+	1578 [shape=box, label="1578:70"] 
+	1578 -> 1214 [label="s=67"] 
+	1581 [shape=box, label="1581:70"] 
+	1581 -> 1214 [label="s=67"] 
+	1584 [shape=box, label="1584:70"] 
+	1584 -> 1214 [label="s=67"] 
+	1587 [shape=box, label="1587:67"] 
+	1587 -> 616 [label="s=52"] 
+	1588 [shape=box, label="1588:70"] 
+	1588 -> 1587
+	1589 [shape=box, label="1589:70"] 
+	1589 -> 1587
+	1590 [shape=box, label="1590:67"] 
+	1590 -> 616 [label="s=52"] 
+	1591 [shape=box, label="1591:70"] 
+	1591 -> 1590
+	1592 [shape=box, label="1592:70"] 
+	1592 -> 1590
+	1593 [shape=box, label="1593:79"] 
+	1593 -> 516 [label="s=193"] 
+	1595 [shape=box, label="1595:619"] 
+	1597 [shape=box, label="1597:224"] 
+	1597 -> 1595
+	1598 [shape=box, label="1598:70"] 
+	1598 -> 1595
+	1599 [shape=box, label="1599:1026"] 
+	1600 [shape=box, label="1600:919"] 
+	1601 [shape=box, label="1601:157"] 
+	1601 -> 516 [label="s=197"] 
+	1602 [shape=box, label="1602:72"] 
+	1602 -> 516 [label="s=232"] 
+	1604 [shape=box, label="1604:72"] 
+	1604 -> 516 [label="s=232"] 
+	1606 [shape=box, label="1606:72"] 
+	1606 -> 516 [label="s=232"] 
+	1608 [shape=box, label="1608:72"] 
+	1608 -> 516 [label="s=232"] 
+	1610 [shape=box, label="1610:72"] 
+	1610 -> 516 [label="s=232"] 
+	1612 [shape=box, label="1612:72"] 
+	1612 -> 516 [label="s=232"] 
+	1614 [shape=box, label="1614:72"] 
+	1614 -> 516 [label="s=232"] 
+	1616 [shape=box, label="1616:72"] 
+	1616 -> 516 [label="s=232"] 
+	1618 [shape=box, label="1618:72"] 
+	1618 -> 516 [label="s=232"] 
+	1621 [shape=box, label="1621:2770"] 
+	1625 [shape=box, label="1625:67"] 
+	1625 -> 1627
+	1625 -> 1628
+	1625 -> 1630
+	1625 -> 1631
+	1627 [shape=box, label="1627:6"] 
+	1627 -> 972 [label="s=40"] 
+	1628 [shape=box, label="1628:6"] 
+	1628 -> 876 [label="s=33"] 
+	1630 [shape=box, label="1630:6"] 
+	1630 -> 892 [label="s=33"] 
+	1631 [shape=box, label="1631:6"] 
+	1631 -> 516 [label="s=236"] 
+	1632 [shape=box, label="1632:67"] 
+	1632 -> 1634
+	1632 -> 1635
+	1632 -> 1638
+	1634 [shape=box, label="1634:6"] 
+	1634 -> 853 [label="s=36"] 
+	1635 [shape=box, label="1635:6"] 
+	1635 -> 892 [label="s=33"] 
+	1638 [shape=box, label="1638:6"] 
+	1638 -> 516 [label="s=236"] 
+	1639 [shape=box, label="1639:67"] 
+	1639 -> 1641
+	1639 -> 1642
+	1639 -> 1645
+	1641 [shape=box, label="1641:6"] 
+	1641 -> 853 [label="s=36"] 
+	1642 [shape=box, label="1642:6"] 
+	1642 -> 892 [label="s=33"] 
+	1645 [shape=box, label="1645:6"] 
+	1645 -> 516 [label="s=236"] 
+	1646 [shape=box, label="1646:67"] 
+	1646 -> 1648
+	1646 -> 1649
+	1646 -> 1652
+	1648 [shape=box, label="1648:6"] 
+	1648 -> 853 [label="s=36"] 
+	1649 [shape=box, label="1649:6"] 
+	1649 -> 892 [label="s=33"] 
+	1652 [shape=box, label="1652:6"] 
+	1652 -> 516 [label="s=236"] 
+	1653 [shape=box, label="1653:67"] 
+	1653 -> 1655
+	1653 -> 1656
+	1653 -> 1659
+	1655 [shape=box, label="1655:6"] 
+	1655 -> 853 [label="s=36"] 
+	1656 [shape=box, label="1656:6"] 
+	1656 -> 892 [label="s=33"] 
+	1659 [shape=box, label="1659:6"] 
+	1659 -> 516 [label="s=236"] 
+	1660 [shape=box, label="1660:67"] 
+	1660 -> 1662
+	1660 -> 1663
+	1660 -> 1666
+	1662 [shape=box, label="1662:6"] 
+	1662 -> 853 [label="s=36"] 
+	1663 [shape=box, label="1663:6"] 
+	1663 -> 892 [label="s=33"] 
+	1666 [shape=box, label="1666:6"] 
+	1666 -> 516 [label="s=236"] 
+	1667 [shape=box, label="1667:67"] 
+	1667 -> 1669
+	1667 -> 1670
+	1667 -> 1673
+	1669 [shape=box, label="1669:6"] 
+	1669 -> 853 [label="s=36"] 
+	1670 [shape=box, label="1670:6"] 
+	1670 -> 892 [label="s=33"] 
+	1673 [shape=box, label="1673:6"] 
+	1673 -> 516 [label="s=236"] 
+	1674 [shape=box, label="1674:67"] 
+	1674 -> 1676
+	1674 -> 1677
+	1674 -> 1680
+	1676 [shape=box, label="1676:6"] 
+	1676 -> 853 [label="s=36"] 
+	1677 [shape=box, label="1677:6"] 
+	1677 -> 892 [label="s=33"] 
+	1680 [shape=box, label="1680:6"] 
+	1680 -> 516 [label="s=236"] 
+	1681 [shape=box, label="1681:67"] 
+	1681 -> 1683
+	1681 -> 1684
+	1681 -> 1687
+	1683 [shape=box, label="1683:6"] 
+	1683 -> 853 [label="s=36"] 
+	1684 [shape=box, label="1684:6"] 
+	1684 -> 892 [label="s=33"] 
+	1687 [shape=box, label="1687:6"] 
+	1687 -> 516 [label="s=236"] 
+	1688 [shape=box, label="1688:67"] 
+	1688 -> 1690
+	1688 -> 1691
+	1688 -> 1694
+	1690 [shape=box, label="1690:6"] 
+	1690 -> 853 [label="s=36"] 
+	1691 [shape=box, label="1691:6"] 
+	1691 -> 892 [label="s=33"] 
+	1694 [shape=box, label="1694:6"] 
+	1694 -> 516 [label="s=236"] 
+	1695 [shape=box, label="1695:67"] 
+	1695 -> 1697
+	1695 -> 1698
+	1695 -> 1701
+	1697 [shape=box, label="1697:6"] 
+	1697 -> 853 [label="s=36"] 
+	1698 [shape=box, label="1698:6"] 
+	1698 -> 892 [label="s=33"] 
+	1701 [shape=box, label="1701:6"] 
+	1701 -> 516 [label="s=236"] 
+	1703 [shape=box, label="1703:70"] 
+	1703 -> 1138 [label="s=60"] 
+	1706 [shape=box, label="1706:70"] 
+	1706 -> 1138 [label="s=60"] 
+	1709 [shape=box, label="1709:70"] 
+	1709 -> 1138 [label="s=60"] 
+	1712 [shape=box, label="1712:70"] 
+	1712 -> 1138 [label="s=60"] 
+	1715 [shape=box, label="1715:70"] 
+	1715 -> 1138 [label="s=60"] 
+	1717 [shape=box, label="1717:1577"] 
+	1719 [shape=box, label="1719:304"] 
+	1719 -> 1717
+	1720 [shape=box, label="1720:397"] 
+	1720 -> 1719
+	1721 [shape=box, label="1721:69"] 
+	1721 -> 1719
+	1722 [shape=box, label="1722:70"] 
+	1722 -> 1717
+	1724 [shape=box, label="1724:67"] 
+	1724 -> 1726
+	1724 -> 1727
+	1724 -> 1730
+	1726 [shape=box, label="1726:6"] 
+	1726 -> 853 [label="s=36"] 
+	1727 [shape=box, label="1727:6"] 
+	1727 -> 892 [label="s=33"] 
+	1730 [shape=box, label="1730:6"] 
+	1730 -> 516 [label="s=236"] 
+	1732 [shape=box, label="1732:70"] 
+	1732 -> 1138 [label="s=60"] 
+	1735 [shape=box, label="1735:81"] 
+	1735 -> 1038 [label="s=31"] 
+	1737 [shape=box, label="1737:73"] 
+	1737 -> 1043 [label="s=63"] 
+	1740 [shape=box, label="1740:73"] 
+	1740 -> 1043 [label="s=63"] 
+	1743 [shape=box, label="1743:73"] 
+	1743 -> 1043 [label="s=63"] 
+	1746 [shape=box, label="1746:73"] 
+	1746 -> 1043 [label="s=63"] 
+	1749 [shape=box, label="1749:73"] 
+	1749 -> 1043 [label="s=63"] 
+	1752 [shape=box, label="1752:73"] 
+	1752 -> 1043 [label="s=63"] 
+	1756 [shape=box, label="1756:257"] 
+	1756 -> 1757
+	1756 -> 1771
+	1757 [shape=box, label="1757:138"] 
+	1757 -> 1758
+	1757 -> 1759
+	1758 [shape=box, label="1758:414"] 
+	1759 [shape=box, label="1759:93"] 
+	1759 -> 1758 [label="s=93"] 
+	1771 [shape=box, label="1771:96"] 
+	1771 -> 1757 [label="s=96"] 
+	1776 [shape=box, label="1776:226"] 
+	1776 -> 1756
+	1777 [shape=box, label="1777:70"] 
+	1777 -> 1776
+	1778 [shape=box, label="1778:70"] 
+	1778 -> 1776
+	1779 [shape=box, label="1779:70"] 
+	1779 -> 1756
+	1780 [shape=box, label="1780:73"] 
+	1780 -> 1043 [label="s=63"] 
+	1783 [shape=box, label="1783:3033"] 
+	1784 [shape=box, label="1784:80"] 
+	1784 -> 431 [label="s=41"] 
+	1785 [shape=box, label="1785:147"] 
+	1785 -> 1015 [label="s=59"] 
+	1786 [shape=box, label="1786:1071"] 
+	1787 [shape=box, label="1787:67"] 
+	1787 -> 1791
+	1787 -> 1826
+	1791 [shape=box, label="1791:17"] 
+	1791 -> 1796
+	1791 -> 1819
+	1796 [shape=box, label="1796:22"] 
+	1796 -> 1797
+	1797 [shape=box, label="1797:394"] 
+	1819 [shape=box, label="1819:3"] 
+	1819 -> 1797 [label="s=150"] 
+	1826 [shape=box, label="1826:12"] 
+	1826 -> 1797 [label="s=142"] 
+	1841 [shape=box, label="1841:529"] 
+	1844 [shape=box, label="1844:146"] 
+	1845 [shape=box, label="1845:3"] 
+	1845 -> 1844
+	1846 [shape=box, label="1846:6"] 
+	1846 -> 1845
+	1847 [shape=box, label="1847:742"] 
+	1847 -> 1846
+	1849 [shape=box, label="1849:70"] 
+	1849 -> 1846
+	1850 [shape=box, label="1850:70"] 
+	1850 -> 1845
+	1851 [shape=box, label="1851:70"] 
+	1851 -> 1844
+	1852 [shape=box, label="1852:67"] 
+	1855 [shape=box, label="1855:70"] 
+	1858 [shape=box, label="1858:83"] 
+	1858 -> 1861
+	1861 [shape=box, label="1861:87"] 
+	1861 -> 1862
+	1861 -> 1871
+	1862 [shape=box, label="1862:147"] 
+	1862 -> 1863
+	1862 -> 1868
+	1863 [shape=box, label="1863:586"] 
+	1868 [shape=box, label="1868:41"] 
+	1871 [shape=box, label="1871:51"] 
+	1871 -> 1863 [label="s=349"] 
+	1887 [shape=box, label="1887:499"] 
+	1887 -> 1858
+	1888 [shape=box, label="1888:70"] 
+	1888 -> 1858
+	1889 [shape=box, label="1889:70"] 
+	1892 [shape=box, label="1892:137"] 
+	1892 -> 537 [label="s=285"] 
+	1895 [shape=box, label="1895:70"] 
+	1898 [shape=box, label="1898:137"] 
+	1898 -> 537 [label="s=285"] 
+	1901 [shape=box, label="1901:67"] 
+	1901 -> 1784 [label="s=64"] 
+	1902 [shape=box, label="1902:70"] 
+	1902 -> 1901
+	1903 [shape=box, label="1903:70"] 
+	1903 -> 1901
+	1904 [shape=box, label="1904:67"] 
+	1907 [shape=box, label="1907:70"] 
+	1907 -> 1904 [label="s=59"] 
+	1910 [shape=box, label="1910:70"] 
+	1913 [shape=box, label="1913:67"] 
+	1913 -> 1784 [label="s=64"] 
+	1914 [shape=box, label="1914:70"] 
+	1914 -> 1913
+	1915 [shape=box, label="1915:70"] 
+	1915 -> 1913
+	1917 [shape=box, label="1917:70"] 
+	1917 -> 1038 [label="s=59"] 
+	1920 [shape=box, label="1920:70"] 
+	1920 -> 1038 [label="s=59"] 
+	1923 [shape=box, label="1923:70"] 
+	1923 -> 1038 [label="s=59"] 
+	1926 [shape=box, label="1926:70"] 
+	1926 -> 1038 [label="s=59"] 
+	1929 [shape=box, label="1929:70"] 
+	1929 -> 1038 [label="s=59"] 
+	1932 [shape=box, label="1932:70"] 
+	1932 -> 1038 [label="s=59"] 
+	1935 [shape=box, label="1935:70"] 
+	1935 -> 1038 [label="s=59"] 
+	1939 [shape=box, label="1939:431"] 
+	1939 -> 1940
+	1939 -> 1941
+	1940 [shape=box, label="1940:3796"] 
+	1941 [shape=box, label="1941:49"] 
+	1941 -> 1940 [label="s=101"] 
+	1944 [shape=box, label="1944:90"] 
+	1944 -> 1939
+	1945 [shape=box, label="1945:395"] 
+	1945 -> 1944
+	1946 [shape=box, label="1946:66"] 
+	1946 -> 1944
+	1947 [shape=box, label="1947:70"] 
+	1947 -> 1939
+	1949 [shape=box, label="1949:70"] 
+	1949 -> 1038 [label="s=59"] 
+	1952 [shape=box, label="1952:70"] 
+	1952 -> 1038 [label="s=59"] 
+	1955 [shape=box, label="1955:70"] 
+	1955 -> 1038 [label="s=59"] 
+	1958 [shape=box, label="1958:70"] 
+	1958 -> 1038 [label="s=59"] 
+	1961 [shape=box, label="1961:70"] 
+	1961 -> 1038 [label="s=59"] 
+	1964 [shape=box, label="1964:70"] 
+	1964 -> 1038 [label="s=59"] 
+	1967 [shape=box, label="1967:70"] 
+	1967 -> 1038 [label="s=59"] 
+	1970 [shape=box, label="1970:70"] 
+	1970 -> 1038 [label="s=59"] 
+	1972 [shape=box, label="1972:135"] 
+	1972 -> 951 [label="s=32"] 
+	1973 [shape=box, label="1973:220"] 
+	1975 [shape=box, label="1975:70"] 
+	1975 -> 1038 [label="s=59"] 
+	1978 [shape=box, label="1978:70"] 
+	1978 -> 1038 [label="s=59"] 
+	1982 [shape=box, label="1982:73"] 
+	1982 -> 1784 [label="s=38"] 
+	1989 [shape=box, label="1989:73"] 
+	1989 -> 1784 [label="s=38"] 
+	1996 [shape=box, label="1996:73"] 
+	1996 -> 1784 [label="s=38"] 
+	2003 [shape=box, label="2003:73"] 
+	2003 -> 1784 [label="s=38"] 
+	2008 [shape=box, label="2008:202"] 
+	2008 -> 316 [label="s=26"] 
+	2009 [shape=box, label="2009:135"] 
+	2009 -> 316 [label="s=26"] 
+	2012 [shape=box, label="2012:73"] 
+	2012 -> 1784 [label="s=38"] 
+	2017 [shape=box, label="2017:136"] 
+	2017 -> 316 [label="s=26"] 
+	2020 [shape=box, label="2020:73"] 
+	2020 -> 1784 [label="s=38"] 
+	2027 [shape=box, label="2027:73"] 
+	2027 -> 1784 [label="s=38"] 
+	2034 [shape=box, label="2034:73"] 
+	2034 -> 1784 [label="s=38"] 
+	2041 [shape=box, label="2041:73"] 
+	2041 -> 1784 [label="s=38"] 
+	2048 [shape=box, label="2048:73"] 
+	2048 -> 1784 [label="s=38"] 
+	2053 [shape=box, label="2053:67"] 
+	2053 -> 641 [label="s=70"] 
+	2054 [shape=box, label="2054:70"] 
+	2054 -> 2053
+	2055 [shape=box, label="2055:70"] 
+	2055 -> 2053
+	2056 [shape=box, label="2056:67"] 
+	2056 -> 641 [label="s=70"] 
+	2057 [shape=box, label="2057:70"] 
+	2057 -> 2056
+	2058 [shape=box, label="2058:70"] 
+	2058 -> 2056
+	2059 [shape=box, label="2059:67"] 
+	2059 -> 641 [label="s=70"] 
+	2060 [shape=box, label="2060:70"] 
+	2060 -> 2059
+	2061 [shape=box, label="2061:70"] 
+	2061 -> 2059
+	2064 [shape=box, label="2064:73"] 
+	2064 -> 1784 [label="s=38"] 
+	2069 [shape=box, label="2069:67"] 
+	2069 -> 641 [label="s=70"] 
+	2070 [shape=box, label="2070:70"] 
+	2070 -> 2069
+	2071 [shape=box, label="2071:70"] 
+	2071 -> 2069
+	2072 [shape=box, label="2072:67"] 
+	2072 -> 472 [label="s=23"] 
+	2073 [shape=box, label="2073:70"] 
+	2073 -> 2072
+	2074 [shape=box, label="2074:70"] 
+	2074 -> 2072
+	2075 [shape=box, label="2075:67"] 
+	2075 -> 472 [label="s=23"] 
+	2076 [shape=box, label="2076:70"] 
+	2076 -> 2075
+	2077 [shape=box, label="2077:70"] 
+	2077 -> 2075
+	2078 [shape=box, label="2078:67"] 
+	2078 -> 472 [label="s=23"] 
+	2079 [shape=box, label="2079:70"] 
+	2079 -> 2078
+	2080 [shape=box, label="2080:70"] 
+	2080 -> 2078
+	2081 [shape=box, label="2081:67"] 
+	2081 -> 641 [label="s=70"] 
+	2082 [shape=box, label="2082:70"] 
+	2082 -> 2081
+	2083 [shape=box, label="2083:70"] 
+	2083 -> 2081
+	2084 [shape=box, label="2084:67"] 
+	2084 -> 472 [label="s=23"] 
+	2085 [shape=box, label="2085:70"] 
+	2085 -> 2084
+	2086 [shape=box, label="2086:70"] 
+	2086 -> 2084
+	2087 [shape=box, label="2087:67"] 
+	2087 -> 641 [label="s=70"] 
+	2088 [shape=box, label="2088:70"] 
+	2088 -> 2087
+	2089 [shape=box, label="2089:70"] 
+	2089 -> 2087
+	2090 [shape=box, label="2090:67"] 
+	2090 -> 641 [label="s=70"] 
+	2091 [shape=box, label="2091:70"] 
+	2091 -> 2090
+	2092 [shape=box, label="2092:70"] 
+	2092 -> 2090
+	2093 [shape=box, label="2093:67"] 
+	2093 -> 472 [label="s=23"] 
+	2094 [shape=box, label="2094:70"] 
+	2094 -> 2093
+	2095 [shape=box, label="2095:70"] 
+	2095 -> 2093
+	2096 [shape=box, label="2096:67"] 
+	2096 -> 641 [label="s=70"] 
+	2097 [shape=box, label="2097:70"] 
+	2097 -> 2096
+	2098 [shape=box, label="2098:70"] 
+	2098 -> 2096
+	2099 [shape=box, label="2099:67"] 
+	2099 -> 641 [label="s=70"] 
+	2100 [shape=box, label="2100:70"] 
+	2100 -> 2099
+	2101 [shape=box, label="2101:70"] 
+	2101 -> 2099
+	2102 [shape=box, label="2102:67"] 
+	2102 -> 641 [label="s=70"] 
+	2103 [shape=box, label="2103:70"] 
+	2103 -> 2102
+	2104 [shape=box, label="2104:70"] 
+	2104 -> 2102
+	2105 [shape=box, label="2105:67"] 
+	2105 -> 472 [label="s=23"] 
+	2106 [shape=box, label="2106:70"] 
+	2106 -> 2105
+	2107 [shape=box, label="2107:70"] 
+	2107 -> 2105
+	2108 [shape=box, label="2108:67"] 
+	2108 -> 1038 [label="s=61"] 
+	2109 [shape=box, label="2109:70"] 
+	2109 -> 2108
+	2110 [shape=box, label="2110:70"] 
+	2110 -> 2108
+	2111 [shape=box, label="2111:67"] 
+	2111 -> 472 [label="s=23"] 
+	2112 [shape=box, label="2112:70"] 
+	2112 -> 2111
+	2113 [shape=box, label="2113:70"] 
+	2113 -> 2111
+	2114 [shape=box, label="2114:67"] 
+	2114 -> 641 [label="s=70"] 
+	2115 [shape=box, label="2115:70"] 
+	2115 -> 2114
+	2116 [shape=box, label="2116:70"] 
+	2116 -> 2114
+	2117 [shape=box, label="2117:149"] 
+	2117 -> 1195 [label="s=57"] 
+	2118 [shape=box, label="2118:67"] 
+	2118 -> 472 [label="s=23"] 
+	2119 [shape=box, label="2119:70"] 
+	2119 -> 2118
+	2120 [shape=box, label="2120:70"] 
+	2120 -> 2118
+	2121 [shape=box, label="2121:67"] 
+	2121 -> 472 [label="s=23"] 
+	2122 [shape=box, label="2122:70"] 
+	2122 -> 2121
+	2123 [shape=box, label="2123:70"] 
+	2123 -> 2121
+	2124 [shape=box, label="2124:67"] 
+	2124 -> 472 [label="s=23"] 
+	2125 [shape=box, label="2125:70"] 
+	2125 -> 2124
+	2126 [shape=box, label="2126:70"] 
+	2126 -> 2124
+	2127 [shape=box, label="2127:135"] 
+	2127 -> 1195 [label="s=57"] 
+	2128 [shape=box, label="2128:67"] 
+	2128 -> 472 [label="s=23"] 
+	2129 [shape=box, label="2129:70"] 
+	2129 -> 2128
+	2130 [shape=box, label="2130:70"] 
+	2130 -> 2128
+	2131 [shape=box, label="2131:67"] 
+	2131 -> 641 [label="s=70"] 
+	2132 [shape=box, label="2132:70"] 
+	2132 -> 2131
+	2133 [shape=box, label="2133:70"] 
+	2133 -> 2131
+	2134 [shape=box, label="2134:135"] 
+	2134 -> 1195 [label="s=57"] 
+	2135 [shape=box, label="2135:67"] 
+	2135 -> 641 [label="s=70"] 
+	2136 [shape=box, label="2136:70"] 
+	2136 -> 2135
+	2137 [shape=box, label="2137:70"] 
+	2137 -> 2135
+	2138 [shape=box, label="2138:135"] 
+	2138 -> 1195 [label="s=57"] 
+	2139 [shape=box, label="2139:67"] 
+	2139 -> 472 [label="s=23"] 
+	2140 [shape=box, label="2140:70"] 
+	2140 -> 2139
+	2141 [shape=box, label="2141:70"] 
+	2141 -> 2139
+	2142 [shape=box, label="2142:67"] 
+	2142 -> 472 [label="s=23"] 
+	2143 [shape=box, label="2143:70"] 
+	2143 -> 2142
+	2144 [shape=box, label="2144:70"] 
+	2144 -> 2142
+	2145 [shape=box, label="2145:67"] 
+	2145 -> 641 [label="s=70"] 
+	2146 [shape=box, label="2146:70"] 
+	2146 -> 2145
+	2147 [shape=box, label="2147:70"] 
+	2147 -> 2145
+	2148 [shape=box, label="2148:67"] 
+	2148 -> 472 [label="s=23"] 
+	2149 [shape=box, label="2149:70"] 
+	2149 -> 2148
+	2150 [shape=box, label="2150:70"] 
+	2150 -> 2148
+	2151 [shape=box, label="2151:67"] 
+	2151 -> 641 [label="s=70"] 
+	2152 [shape=box, label="2152:70"] 
+	2152 -> 2151
+	2153 [shape=box, label="2153:70"] 
+	2153 -> 2151
+	2154 [shape=box, label="2154:67"] 
+	2154 -> 472 [label="s=23"] 
+	2155 [shape=box, label="2155:70"] 
+	2155 -> 2154
+	2156 [shape=box, label="2156:70"] 
+	2156 -> 2154
+	2157 [shape=box, label="2157:135"] 
+	2157 -> 2154 [label="s=44"] 
+	2158 [shape=box, label="2158:67"] 
+	2158 -> 1038 [label="s=61"] 
+	2159 [shape=box, label="2159:70"] 
+	2159 -> 2158
+	2160 [shape=box, label="2160:70"] 
+	2160 -> 2158
+	2161 [shape=box, label="2161:67"] 
+	2161 -> 472 [label="s=23"] 
+	2162 [shape=box, label="2162:70"] 
+	2162 -> 2161
+	2163 [shape=box, label="2163:70"] 
+	2163 -> 2161
+	2164 [shape=box, label="2164:213"] 
+	2164 -> 951 [label="s=61"] 
+	2165 [shape=box, label="2165:72"] 
+	2165 -> 1939 [label="s=201"] 
+	2166 [shape=box, label="2166:67"] 
+	2171 [shape=box, label="2171:67"] 
+	2171 -> 1195 [label="s=58"] 
+	2172 [shape=box, label="2172:70"] 
+	2172 -> 2171
+	2173 [shape=box, label="2173:70"] 
+	2173 -> 2171
+	2174 [shape=box, label="2174:347"] 
+	2175 [shape=box, label="2175:75"] 
+	2175 -> 2174
+	2176 [shape=box, label="2176:823"] 
+	2176 -> 2174
+	2179 [shape=box, label="2179:205"] 
+	2179 -> 78 [label="s=70"] 
+	2181 [shape=box, label="2181:738"] 
+	2181 -> 1598 [label="s=64"] 
+	2182 [shape=box, label="2182:79"] 
+	2182 -> 2183
+	2182 -> 2185
+	2183 [shape=box, label="2183:26"] 
+	2183 -> 1861 [label="s=-28"] 
+	2185 [shape=box, label="2185:6"] 
+	2185 -> 1858 [label="s=47"] 
+	2187 [shape=box, label="2187:135"] 
+	2187 -> 2181 [label="s=61"] 
+	2188 [shape=box, label="2188:135"] 
+	2188 -> 2181 [label="s=61"] 
+	2189 [shape=box, label="2189:80"] 
+	2189 -> 81 [label="s=350"] 
+	2190 [shape=box, label="2190:796"] 
+	2190 -> 2189
+	2192 [shape=box, label="2192:71"] 
+	2192 -> 2189
+	2193 [shape=box, label="2193:67"] 
+	2193 -> 2194
+	2193 -> 2195
+	2194 [shape=box, label="2194:3"] 
+	2194 -> 2166 [label="s=60"] 
+	2195 [shape=box, label="2195:3"] 
+	2195 -> 1852 [label="s=54"] 
+	2197 [shape=box, label="2197:70"] 
+	2197 -> 2181 [label="s=56"] 
+	2200 [shape=box, label="2200:70"] 
+	2200 -> 2181 [label="s=56"] 
+	2203 [shape=box, label="2203:70"] 
+	2203 -> 2181 [label="s=56"] 
+	2206 [shape=box, label="2206:70"] 
+	2206 -> 2181 [label="s=56"] 
+	2209 [shape=box, label="2209:70"] 
+	2209 -> 2181 [label="s=56"] 
+	2212 [shape=box, label="2212:70"] 
+	2212 -> 2181 [label="s=56"] 
+	2215 [shape=box, label="2215:70"] 
+	2215 -> 2181 [label="s=56"] 
+	2218 [shape=box, label="2218:70"] 
+	2218 -> 2181 [label="s=56"] 
+	2221 [shape=box, label="2221:70"] 
+	2221 -> 2181 [label="s=56"] 
+	2224 [shape=box, label="2224:70"] 
+	2224 -> 2181 [label="s=56"] 
+	2227 [shape=box, label="2227:70"] 
+	2227 -> 2181 [label="s=56"] 
+	2230 [shape=box, label="2230:70"] 
+	2230 -> 2181 [label="s=56"] 
+	2233 [shape=box, label="2233:70"] 
+	2233 -> 2181 [label="s=56"] 
+	2236 [shape=box, label="2236:70"] 
+	2236 -> 2181 [label="s=56"] 
+	2239 [shape=box, label="2239:70"] 
+	2239 -> 2181 [label="s=56"] 
+	2242 [shape=box, label="2242:70"] 
+	2242 -> 2181 [label="s=56"] 
+	2245 [shape=box, label="2245:70"] 
+	2245 -> 2181 [label="s=56"] 
+	2248 [shape=box, label="2248:70"] 
+	2248 -> 2181 [label="s=56"] 
+	2251 [shape=box, label="2251:70"] 
+	2251 -> 2181 [label="s=56"] 
+	2254 [shape=box, label="2254:70"] 
+	2254 -> 2181 [label="s=56"] 
+	2257 [shape=box, label="2257:70"] 
+	2257 -> 2181 [label="s=56"] 
+	2260 [shape=box, label="2260:70"] 
+	2260 -> 2181 [label="s=56"] 
+	2263 [shape=box, label="2263:70"] 
+	2263 -> 2181 [label="s=56"] 
+	2266 [shape=box, label="2266:70"] 
+	2266 -> 2181 [label="s=56"] 
+	2269 [shape=box, label="2269:70"] 
+	2269 -> 2181 [label="s=56"] 
+	2271 [shape=box, label="2271:85"] 
+	2271 -> 2272
+	2272 [shape=box, label="2272:9"] 
+	2272 -> 192 [label="s=29"] 
+	2274 [shape=box, label="2274:67"] 
+	2274 -> 2275
+	2274 -> 2276
+	2275 [shape=box, label="2275:3"] 
+	2275 -> 208 [label="s=170"] 
+	2276 [shape=box, label="2276:3"] 
+	2276 -> 2189 [label="s=43"] 
+	2278 [shape=box, label="2278:70"] 
+	2278 -> 2189 [label="s=43"] 
+	2281 [shape=box, label="2281:70"] 
+	2281 -> 2189 [label="s=43"] 
+	2284 [shape=box, label="2284:70"] 
+	2284 -> 2189 [label="s=43"] 
+	2286 [shape=box, label="2286:82"] 
+	2286 -> 900 [label="s=636"] 
+	2287 [shape=box, label="2287:1390"] 
+	2289 [shape=box, label="2289:80"] 
+	2289 -> 1199 [label="s=46"] 
+	2293 [shape=box, label="2293:173"] 
+	2293 -> 2294
+	2293 -> 2295
+	2294 [shape=box, label="2294:2478"] 
+	2295 [shape=box, label="2295:845"] 
+	2300 [shape=box, label="2300:198"] 
+	2300 -> 2293
+	2301 [shape=box, label="2301:101"] 
+	2301 -> 2300
+	2302 [shape=box, label="2302:3328"] 
+	2302 -> 2300
+	2303 [shape=box, label="2303:70"] 
+	2303 -> 2293
+	2304 [shape=box, label="2304:67"] 
+	2304 -> 2293 [label="s=67"] 
+	2305 [shape=box, label="2305:70"] 
+	2305 -> 2304
+	2306 [shape=box, label="2306:70"] 
+	2306 -> 2304
+	2307 [shape=box, label="2307:67"] 
+	2307 -> 2293 [label="s=67"] 
+	2308 [shape=box, label="2308:70"] 
+	2308 -> 2307
+	2309 [shape=box, label="2309:70"] 
+	2309 -> 2307
+	2310 [shape=box, label="2310:67"] 
+	2310 -> 2293 [label="s=67"] 
+	2311 [shape=box, label="2311:70"] 
+	2311 -> 2310
+	2312 [shape=box, label="2312:70"] 
+	2312 -> 2310
+	2313 [shape=box, label="2313:67"] 
+	2313 -> 2293 [label="s=67"] 
+	2314 [shape=box, label="2314:70"] 
+	2314 -> 2313
+	2315 [shape=box, label="2315:70"] 
+	2315 -> 2313
+	2316 [shape=box, label="2316:79"] 
+	2316 -> 457 [label="s=694"] 
+	2317 [shape=box, label="2317:67"] 
+	2317 -> 2293 [label="s=67"] 
+	2318 [shape=box, label="2318:70"] 
+	2318 -> 2317
+	2319 [shape=box, label="2319:70"] 
+	2319 -> 2317
+	2320 [shape=box, label="2320:67"] 
+	2320 -> 2293 [label="s=67"] 
+	2321 [shape=box, label="2321:70"] 
+	2321 -> 2320
+	2322 [shape=box, label="2322:70"] 
+	2322 -> 2320
+	2323 [shape=box, label="2323:67"] 
+	2323 -> 2293 [label="s=67"] 
+	2324 [shape=box, label="2324:70"] 
+	2324 -> 2323
+	2325 [shape=box, label="2325:70"] 
+	2325 -> 2323
+	2326 [shape=box, label="2326:67"] 
+	2326 -> 2293 [label="s=67"] 
+	2327 [shape=box, label="2327:70"] 
+	2327 -> 2326
+	2328 [shape=box, label="2328:70"] 
+	2328 -> 2326
+	2329 [shape=box, label="2329:67"] 
+	2329 -> 2293 [label="s=67"] 
+	2330 [shape=box, label="2330:70"] 
+	2330 -> 2329
+	2331 [shape=box, label="2331:70"] 
+	2331 -> 2329
+	2332 [shape=box, label="2332:67"] 
+	2332 -> 2293 [label="s=67"] 
+	2333 [shape=box, label="2333:70"] 
+	2333 -> 2332
+	2334 [shape=box, label="2334:70"] 
+	2334 -> 2332
+	2335 [shape=box, label="2335:67"] 
+	2335 -> 2293 [label="s=67"] 
+	2336 [shape=box, label="2336:70"] 
+	2336 -> 2335
+	2337 [shape=box, label="2337:70"] 
+	2337 -> 2335
+	2338 [shape=box, label="2338:67"] 
+	2338 -> 2293 [label="s=67"] 
+	2339 [shape=box, label="2339:70"] 
+	2339 -> 2338
+	2340 [shape=box, label="2340:70"] 
+	2340 -> 2338
+	2341 [shape=box, label="2341:67"] 
+	2341 -> 2293 [label="s=67"] 
+	2342 [shape=box, label="2342:70"] 
+	2342 -> 2341
+	2343 [shape=box, label="2343:70"] 
+	2343 -> 2341
+	2344 [shape=box, label="2344:67"] 
+	2344 -> 2293 [label="s=67"] 
+	2345 [shape=box, label="2345:70"] 
+	2345 -> 2344
+	2346 [shape=box, label="2346:70"] 
+	2346 -> 2344
+	2347 [shape=box, label="2347:67"] 
+	2347 -> 2293 [label="s=67"] 
+	2348 [shape=box, label="2348:70"] 
+	2348 -> 2347
+	2349 [shape=box, label="2349:70"] 
+	2349 -> 2347
+	2350 [shape=box, label="2350:67"] 
+	2350 -> 2293 [label="s=67"] 
+	2351 [shape=box, label="2351:70"] 
+	2351 -> 2350
+	2352 [shape=box, label="2352:70"] 
+	2352 -> 2350
+	2353 [shape=box, label="2353:67"] 
+	2353 -> 2293 [label="s=67"] 
+	2354 [shape=box, label="2354:70"] 
+	2354 -> 2353
+	2355 [shape=box, label="2355:70"] 
+	2355 -> 2353
+	2356 [shape=box, label="2356:67"] 
+	2356 -> 2293 [label="s=67"] 
+	2357 [shape=box, label="2357:70"] 
+	2357 -> 2356
+	2358 [shape=box, label="2358:70"] 
+	2358 -> 2356
+	2359 [shape=box, label="2359:67"] 
+	2359 -> 2293 [label="s=67"] 
+	2360 [shape=box, label="2360:70"] 
+	2360 -> 2359
+	2361 [shape=box, label="2361:70"] 
+	2361 -> 2359
+	2362 [shape=box, label="2362:67"] 
+	2362 -> 2293 [label="s=67"] 
+	2363 [shape=box, label="2363:70"] 
+	2363 -> 2362
+	2364 [shape=box, label="2364:70"] 
+	2364 -> 2362
+	2365 [shape=box, label="2365:67"] 
+	2365 -> 2293 [label="s=67"] 
+	2366 [shape=box, label="2366:70"] 
+	2366 -> 2365
+	2367 [shape=box, label="2367:70"] 
+	2367 -> 2365
+	2368 [shape=box, label="2368:67"] 
+	2368 -> 2293 [label="s=67"] 
+	2369 [shape=box, label="2369:70"] 
+	2369 -> 2368
+	2370 [shape=box, label="2370:70"] 
+	2370 -> 2368
+	2371 [shape=box, label="2371:67"] 
+	2371 -> 2293 [label="s=67"] 
+	2372 [shape=box, label="2372:70"] 
+	2372 -> 2371
+	2373 [shape=box, label="2373:70"] 
+	2373 -> 2371
+	2374 [shape=box, label="2374:171"] 
+	2375 [shape=box, label="2375:79"] 
+	2375 -> 432 [label="s=102"] 
+	2376 [shape=box, label="2376:67"] 
+	2376 -> 2293 [label="s=67"] 
+	2377 [shape=box, label="2377:70"] 
+	2377 -> 2376
+	2378 [shape=box, label="2378:70"] 
+	2378 -> 2376
+	2380 [shape=box, label="2380:789"] 
+	2380 -> 2381
+	2380 -> 2387
+	2381 [shape=box, label="2381:84"] 
+	2381 -> 2382
+	2381 -> 2386
+	2382 [shape=box, label="2382:72"] 
+	2382 -> 2383
+	2383 [shape=box, label="2383:102"] 
+	2383 -> 2384
+	2384 [shape=box, label="2384:758"] 
+	2386 [shape=box, label="2386:67"] 
+	2386 -> 2383 [label="s=-5"] 
+	2387 [shape=box, label="2387:3"] 
+	2387 -> 2384 [label="s=332"] 
+	2389 [shape=box, label="2389:67"] 
+	2389 -> 2293 [label="s=67"] 
+	2390 [shape=box, label="2390:70"] 
+	2390 -> 2389
+	2391 [shape=box, label="2391:70"] 
+	2391 -> 2389
+	2392 [shape=box, label="2392:85"] 
+	2392 -> 10 [label="s=1640"] 
+	2393 [shape=box, label="2393:67"] 
+	2393 -> 2293 [label="s=67"] 
+	2394 [shape=box, label="2394:70"] 
+	2394 -> 2393
+	2395 [shape=box, label="2395:70"] 
+	2395 -> 2393
+	2396 [shape=box, label="2396:67"] 
+	2396 -> 2293 [label="s=67"] 
+	2397 [shape=box, label="2397:70"] 
+	2397 -> 2396
+	2398 [shape=box, label="2398:70"] 
+	2398 -> 2396
+	2399 [shape=box, label="2399:67"] 
+	2399 -> 2293 [label="s=67"] 
+	2400 [shape=box, label="2400:70"] 
+	2400 -> 2399
+	2401 [shape=box, label="2401:70"] 
+	2401 -> 2399
+	2402 [shape=box, label="2402:67"] 
+	2402 -> 2293 [label="s=67"] 
+	2403 [shape=box, label="2403:70"] 
+	2403 -> 2402
+	2404 [shape=box, label="2404:70"] 
+	2404 -> 2402
+	2405 [shape=box, label="2405:67"] 
+	2405 -> 2293 [label="s=67"] 
+	2406 [shape=box, label="2406:70"] 
+	2406 -> 2405
+	2407 [shape=box, label="2407:70"] 
+	2407 -> 2405
+	2408 [shape=box, label="2408:67"] 
+	2408 -> 2293 [label="s=67"] 
+	2409 [shape=box, label="2409:70"] 
+	2409 -> 2408
+	2410 [shape=box, label="2410:70"] 
+	2410 -> 2408
+	2411 [shape=box, label="2411:67"] 
+	2411 -> 2293 [label="s=67"] 
+	2412 [shape=box, label="2412:70"] 
+	2412 -> 2411
+	2413 [shape=box, label="2413:70"] 
+	2413 -> 2411
+	2414 [shape=box, label="2414:67"] 
+	2414 -> 2293 [label="s=67"] 
+	2415 [shape=box, label="2415:70"] 
+	2415 -> 2414
+	2416 [shape=box, label="2416:70"] 
+	2416 -> 2414
+	2417 [shape=box, label="2417:67"] 
+	2417 -> 2293 [label="s=67"] 
+	2418 [shape=box, label="2418:70"] 
+	2418 -> 2417
+	2419 [shape=box, label="2419:70"] 
+	2419 -> 2417
+	2420 [shape=box, label="2420:67"] 
+	2420 -> 2293 [label="s=67"] 
+	2421 [shape=box, label="2421:70"] 
+	2421 -> 2420
+	2422 [shape=box, label="2422:70"] 
+	2422 -> 2420
+	2423 [shape=box, label="2423:114"] 
+	2423 -> 86 [label="s=100"] 
+	2424 [shape=box, label="2424:67"] 
+	2424 -> 2293 [label="s=67"] 
+	2425 [shape=box, label="2425:70"] 
+	2425 -> 2424
+	2426 [shape=box, label="2426:70"] 
+	2426 -> 2424
+	2427 [shape=box, label="2427:67"] 
+	2427 -> 2293 [label="s=67"] 
+	2428 [shape=box, label="2428:70"] 
+	2428 -> 2427
+	2429 [shape=box, label="2429:70"] 
+	2429 -> 2427
+	2430 [shape=box, label="2430:67"] 
+	2430 -> 2293 [label="s=67"] 
+	2431 [shape=box, label="2431:70"] 
+	2431 -> 2430
+	2432 [shape=box, label="2432:70"] 
+	2432 -> 2430
+	2433 [shape=box, label="2433:67"] 
+	2433 -> 2293 [label="s=67"] 
+	2434 [shape=box, label="2434:70"] 
+	2434 -> 2433
+	2435 [shape=box, label="2435:70"] 
+	2435 -> 2433
+	2436 [shape=box, label="2436:145"] 
+	2436 -> 2375 [label="s=67"] 
+	2437 [shape=box, label="2437:166"] 
+	2437 -> 1756 [label="s=228"] 
+	2438 [shape=box, label="2438:70"] 
+	2438 -> 507 [label="s=1073"] 
+	2439 [shape=box, label="2439:71"] 
+	2439 -> 378 [label="s=64"] 
+	2441 [shape=box, label="2441:71"] 
+	2441 -> 378 [label="s=64"] 
+	2443 [shape=box, label="2443:71"] 
+	2443 -> 378 [label="s=64"] 
+	2445 [shape=box, label="2445:71"] 
+	2445 -> 378 [label="s=64"] 
+	2447 [shape=box, label="2447:71"] 
+	2447 -> 378 [label="s=64"] 
+	2449 [shape=box, label="2449:2168"] 
+	2450 [shape=box, label="2450:153"] 
+	2450 -> 111 [label="s=-8"] 
+	2451 [shape=box, label="2451:237"] 
+	2451 -> 2452
+	2451 -> 2453
+	2452 [shape=box, label="2452:58"] 
+	2453 [shape=box, label="2453:40"] 
+	2454 [shape=box, label="2454:78"] 
+	2454 -> 2451
+	2455 [shape=box, label="2455:90"] 
+	2455 -> 2451
+	2457 [shape=box, label="2457:70"] 
+	2457 -> 1202 [label="s=51"] 
+	2460 [shape=box, label="2460:70"] 
+	2460 -> 1202 [label="s=51"] 
+	2463 [shape=box, label="2463:70"] 
+	2463 -> 1202 [label="s=51"] 
+	2466 [shape=box, label="2466:70"] 
+	2466 -> 1202 [label="s=51"] 
+	2469 [shape=box, label="2469:70"] 
+	2469 -> 1202 [label="s=51"] 
+	2472 [shape=box, label="2472:70"] 
+	2472 -> 1202 [label="s=51"] 
+	2475 [shape=box, label="2475:70"] 
+	2475 -> 1202 [label="s=51"] 
+	2478 [shape=box, label="2478:70"] 
+	2478 -> 1202 [label="s=51"] 
+	2480 [shape=box, label="2480:137"] 
+	2480 -> 537 [label="s=285"] 
+	2482 [shape=box, label="2482:137"] 
+	2482 -> 537 [label="s=285"] 
+	2485 [shape=box, label="2485:70"] 
+	2485 -> 1202 [label="s=51"] 
+	2488 [shape=box, label="2488:70"] 
+	2488 -> 1202 [label="s=51"] 
+	2491 [shape=box, label="2491:70"] 
+	2491 -> 1202 [label="s=51"] 
+	2494 [shape=box, label="2494:70"] 
+	2494 -> 1202 [label="s=51"] 
+	2497 [shape=box, label="2497:70"] 
+	2497 -> 1202 [label="s=51"] 
+	2500 [shape=box, label="2500:202"] 
+	2500 -> 2438 [label="s=63"] 
+	2504 [shape=box, label="2504:70"] 
+	2504 -> 1202 [label="s=51"] 
+	2506 [shape=box, label="2506:303"] 
+	2506 -> 2438 [label="s=30"] 
+	2508 [shape=box, label="2508:70"] 
+	2508 -> 2438 [label="s=63"] 
+	2511 [shape=box, label="2511:70"] 
+	2511 -> 2438 [label="s=63"] 
+	2514 [shape=box, label="2514:70"] 
+	2514 -> 2438 [label="s=63"] 
+	2517 [shape=box, label="2517:70"] 
+	2517 -> 1202 [label="s=51"] 
+	2519 [shape=box, label="2519:70"] 
+	2519 -> 468 [label="s=21"] 
+	2523 [shape=box, label="2523:70"] 
+	2523 -> 1202 [label="s=51"] 
+	2525 [shape=box, label="2525:808"] 
+	2527 [shape=box, label="2527:70"] 
+	2527 -> 2438 [label="s=63"] 
+	2530 [shape=box, label="2530:70"] 
+	2530 -> 2438 [label="s=63"] 
+	2533 [shape=box, label="2533:70"] 
+	2533 -> 2438 [label="s=63"] 
+	2536 [shape=box, label="2536:70"] 
+	2536 -> 1202 [label="s=51"] 
+	2539 [shape=box, label="2539:70"] 
+	2539 -> 2438 [label="s=63"] 
+	2542 [shape=box, label="2542:70"] 
+	2542 -> 2438 [label="s=63"] 
+	2545 [shape=box, label="2545:70"] 
+	2545 -> 2438 [label="s=63"] 
+	2548 [shape=box, label="2548:70"] 
+	2548 -> 2438 [label="s=63"] 
+	2550 [shape=box, label="2550:93"] 
+	2550 -> 1887 [label="s=444"] 
+	2552 [shape=box, label="2552:70"] 
+	2552 -> 53 [label="s=32"] 
+	2554 [shape=box, label="2554:135"] 
+	2554 -> 956 [label="s=62"] 
+	2556 [shape=box, label="2556:70"] 
+	2556 -> 53 [label="s=32"] 
+	2559 [shape=box, label="2559:70"] 
+	2559 -> 53 [label="s=32"] 
+	2562 [shape=box, label="2562:70"] 
+	2562 -> 190 [label="s=56"] 
+	2565 [shape=box, label="2565:70"] 
+	2565 -> 53 [label="s=32"] 
+	2568 [shape=box, label="2568:70"] 
+	2568 -> 53 [label="s=32"] 
+	2571 [shape=box, label="2571:70"] 
+	2571 -> 190 [label="s=56"] 
+	2574 [shape=box, label="2574:70"] 
+	2574 -> 190 [label="s=56"] 
+	2577 [shape=box, label="2577:70"] 
+	2577 -> 53 [label="s=32"] 
+	2580 [shape=box, label="2580:70"] 
+	2580 -> 190 [label="s=56"] 
+	2583 [shape=box, label="2583:70"] 
+	2583 -> 53 [label="s=32"] 
+	2586 [shape=box, label="2586:70"] 
+	2586 -> 190 [label="s=56"] 
+	2589 [shape=box, label="2589:70"] 
+	2589 -> 53 [label="s=32"] 
+	2592 [shape=box, label="2592:70"] 
+	2592 -> 53 [label="s=32"] 
+	2595 [shape=box, label="2595:70"] 
+	2595 -> 190 [label="s=56"] 
+	2597 [shape=box, label="2597:67"] 
+	2597 -> 2598
+	2597 -> 2599
+	2598 [shape=box, label="2598:3"] 
+	2598 -> 616 [label="s=50"] 
+	2599 [shape=box, label="2599:3"] 
+	2599 -> 1590 [label="s=65"] 
+	2601 [shape=box, label="2601:70"] 
+	2601 -> 53 [label="s=32"] 
+	2604 [shape=box, label="2604:70"] 
+	2604 -> 1590 [label="s=65"] 
+	2607 [shape=box, label="2607:70"] 
+	2607 -> 1590 [label="s=65"] 
+	2610 [shape=box, label="2610:70"] 
+	2610 -> 1590 [label="s=65"] 
+	2613 [shape=box, label="2613:70"] 
+	2613 -> 53 [label="s=32"] 
+	2616 [shape=box, label="2616:70"] 
+	2616 -> 1590 [label="s=65"] 
+	2619 [shape=box, label="2619:70"] 
+	2619 -> 53 [label="s=32"] 
+	2622 [shape=box, label="2622:70"] 
+	2622 -> 190 [label="s=56"] 
+	2624 [shape=box, label="2624:67"] 
+	2624 -> 507 [label="s=1075"] 
+	2625 [shape=box, label="2625:56"] 
+	2625 -> 2624
+	2626 [shape=box, label="2626:56"] 
+	2626 -> 2624
+	2628 [shape=box, label="2628:70"] 
+	2628 -> 1590 [label="s=65"] 
+	2630 [shape=box, label="2630:2712"] 
+	2633 [shape=box, label="2633:73"] 
+	2633 -> 1200 [label="s=48"] 
+	2634 [shape=box, label="2634:92"] 
+	2634 -> 76 [label="s=212"] 
+	2635 [shape=box, label="2635:827"] 
+	2637 [shape=box, label="2637:1109"] 
+	2638 [shape=box, label="2638:71"] 
+	2638 -> 971 [label="s=55"] 
+	2639 [shape=box, label="2639:286"] 
+	2639 -> 2637 [label="s=38"] 
+	2640 [shape=box, label="2640:54"] 
+	2640 -> 2639
+	2641 [shape=box, label="2641:54"] 
+	2641 -> 2639
+	2642 [shape=box, label="2642:4520"] 
+	2643 [shape=box, label="2643:135"] 
+	2643 -> 2624 [label="s=59"] 
+	2644 [shape=box, label="2644:135"] 
+	2644 -> 956 [label="s=59"] 
+	2645 [shape=box, label="2645:1480"] 
+	2646 [shape=box, label="2646:67"] 
+	2646 -> 2648
+	2646 -> 2649
+	2646 -> 2651
+	2648 [shape=box, label="2648:6"] 
+	2648 -> 853 [label="s=36"] 
+	2649 [shape=box, label="2649:6"] 
+	2649 -> 2053 [label="s=51"] 
+	2651 [shape=box, label="2651:6"] 
+	2651 -> 516 [label="s=236"] 
+	2653 [shape=box, label="2653:135"] 
+	2653 -> 956 [label="s=59"] 
+	2654 [shape=box, label="2654:67"] 
+	2654 -> 2656
+	2656 [shape=box, label="2656:3"] 
+	2656 -> 2639 [label="s=47"] 
+	2657 [shape=box, label="2657:136"] 
+	2657 -> 2644 [label="s=65"] 
+	2658 [shape=box, label="2658:135"] 
+	2658 -> 1200 [label="s=54"] 
+	2659 [shape=box, label="2659:90"] 
+	2659 -> 265 [label="s=103"] 
+	2660 [shape=box, label="2660:70"] 
+	2660 -> 2659
+	2661 [shape=box, label="2661:70"] 
+	2661 -> 2659
+	2662 [shape=box, label="2662:67"] 
+	2662 -> 2663
+	2662 -> 2664
+	2663 [shape=box, label="2663:3"] 
+	2663 -> 2658 [label="s=66"] 
+	2664 [shape=box, label="2664:3"] 
+	2664 -> 893 [label="s=122"] 
+	2665 [shape=box, label="2665:207"] 
+	2665 -> 2658 [label="s=42"] 
+	2666 [shape=box, label="2666:67"] 
+	2666 -> 465 [label="s=68"] 
+	2667 [shape=box, label="2667:70"] 
+	2667 -> 2666
+	2668 [shape=box, label="2668:70"] 
+	2668 -> 2666
+	2669 [shape=box, label="2669:67"] 
+	2669 -> 465 [label="s=68"] 
+	2670 [shape=box, label="2670:70"] 
+	2670 -> 2669
+	2671 [shape=box, label="2671:70"] 
+	2671 -> 2669
+	2672 [shape=box, label="2672:67"] 
+	2672 -> 465 [label="s=68"] 
+	2673 [shape=box, label="2673:70"] 
+	2673 -> 2672
+	2674 [shape=box, label="2674:70"] 
+	2674 -> 2672
+	2675 [shape=box, label="2675:67"] 
+	2675 -> 465 [label="s=68"] 
+	2676 [shape=box, label="2676:70"] 
+	2676 -> 2675
+	2677 [shape=box, label="2677:70"] 
+	2677 -> 2675
+	2678 [shape=box, label="2678:110"] 
+	2678 -> 1211 [label="s=30"] 
+	2681 [shape=box, label="2681:73"] 
+	2681 -> 101 [label="s=69"] 
+	2686 [shape=box, label="2686:67"] 
+	2686 -> 2687
+	2686 -> 2688
+	2687 [shape=box, label="2687:3"] 
+	2687 -> 1735 [label="s=39"] 
+	2688 [shape=box, label="2688:3"] 
+	2688 -> 1632 [label="s=64"] 
+	2691 [shape=box, label="2691:73"] 
+	2691 -> 101 [label="s=69"] 
+	2696 [shape=box, label="2696:284"] 
+	2697 [shape=box, label="2697:483"] 
+	2697 -> 2696
+	2699 [shape=box, label="2699:70"] 
+	2699 -> 2697
+	2700 [shape=box, label="2700:37"] 
+	2700 -> 2697
+	2702 [shape=box, label="2702:434"] 
+	2702 -> 2696
+	2703 [shape=box, label="2703:70"] 
+	2703 -> 157 [label="s=170"] 
+	2704 [shape=box, label="2704:70"] 
+	2704 -> 2703
+	2705 [shape=box, label="2705:70"] 
+	2705 -> 2703
+	2706 [shape=box, label="2706:135"] 
+	2706 -> 2659 [label="s=70"] 
+	2707 [shape=box, label="2707:137"] 
+	2707 -> 1945 [label="s=342"] 
+	2709 [shape=box, label="2709:137"] 
+	2709 -> 1945 [label="s=342"] 
+	2711 [shape=box, label="2711:137"] 
+	2711 -> 1945 [label="s=342"] 
+	2713 [shape=box, label="2713:137"] 
+	2713 -> 1945 [label="s=342"] 
+	2715 [shape=box, label="2715:137"] 
+	2715 -> 1945 [label="s=342"] 
+	2717 [shape=box, label="2717:88"] 
+	2717 -> 189 [label="s=131"] 
+	2724 [shape=box, label="2724:137"] 
+	2724 -> 1945 [label="s=342"] 
+	2726 [shape=box, label="2726:137"] 
+	2726 -> 1945 [label="s=342"] 
+	2728 [shape=box, label="2728:137"] 
+	2728 -> 1945 [label="s=342"] 
+	2730 [shape=box, label="2730:137"] 
+	2730 -> 1945 [label="s=342"] 
+	2732 [shape=box, label="2732:137"] 
+	2732 -> 1945 [label="s=342"] 
+	2734 [shape=box, label="2734:137"] 
+	2734 -> 1945 [label="s=342"] 
+	2736 [shape=box, label="2736:137"] 
+	2736 -> 1945 [label="s=342"] 
+	2738 [shape=box, label="2738:137"] 
+	2738 -> 1945 [label="s=342"] 
+	2740 [shape=box, label="2740:137"] 
+	2740 -> 1945 [label="s=342"] 
+	2742 [shape=box, label="2742:137"] 
+	2742 -> 1945 [label="s=342"] 
+	2744 [shape=box, label="2744:137"] 
+	2744 -> 1945 [label="s=342"] 
+	2746 [shape=box, label="2746:137"] 
+	2746 -> 1945 [label="s=342"] 
+	2748 [shape=box, label="2748:137"] 
+	2748 -> 1945 [label="s=342"] 
+	2750 [shape=box, label="2750:137"] 
+	2750 -> 1945 [label="s=342"] 
+	2752 [shape=box, label="2752:137"] 
+	2752 -> 1945 [label="s=342"] 
+	2754 [shape=box, label="2754:137"] 
+	2754 -> 1945 [label="s=342"] 
+	2756 [shape=box, label="2756:137"] 
+	2756 -> 1945 [label="s=342"] 
+	2758 [shape=box, label="2758:137"] 
+	2758 -> 1945 [label="s=342"] 
+	2760 [shape=box, label="2760:137"] 
+	2760 -> 1945 [label="s=342"] 
+	2762 [shape=box, label="2762:137"] 
+	2762 -> 1945 [label="s=342"] 
+	2764 [shape=box, label="2764:137"] 
+	2764 -> 1945 [label="s=342"] 
+	2766 [shape=box, label="2766:137"] 
+	2766 -> 1945 [label="s=342"] 
+	2768 [shape=box, label="2768:137"] 
+	2768 -> 1945 [label="s=342"] 
+	2770 [shape=box, label="2770:137"] 
+	2770 -> 1945 [label="s=342"] 
+	2772 [shape=box, label="2772:137"] 
+	2772 -> 1945 [label="s=342"] 
+	2774 [shape=box, label="2774:137"] 
+	2774 -> 1945 [label="s=342"] 
+	2776 [shape=box, label="2776:137"] 
+	2776 -> 1945 [label="s=342"] 
+	2778 [shape=box, label="2778:137"] 
+	2778 -> 1945 [label="s=342"] 
+	2780 [shape=box, label="2780:137"] 
+	2780 -> 1945 [label="s=342"] 
+	2782 [shape=box, label="2782:137"] 
+	2782 -> 1945 [label="s=342"] 
+	2784 [shape=box, label="2784:137"] 
+	2784 -> 1945 [label="s=342"] 
+	2786 [shape=box, label="2786:137"] 
+	2786 -> 1945 [label="s=342"] 
+	2788 [shape=box, label="2788:137"] 
+	2788 -> 1945 [label="s=342"] 
+	2790 [shape=box, label="2790:137"] 
+	2790 -> 1945 [label="s=342"] 
+	2792 [shape=box, label="2792:137"] 
+	2792 -> 1945 [label="s=342"] 
+	2794 [shape=box, label="2794:137"] 
+	2794 -> 1945 [label="s=342"] 
+	2796 [shape=box, label="2796:67"] 
+	2796 -> 2797
+	2796 -> 2798
+	2797 [shape=box, label="2797:3"] 
+	2797 -> 157 [label="s=162"] 
+	2798 [shape=box, label="2798:3"] 
+	2798 -> 2703 [label="s=65"] 
+	2799 [shape=box, label="2799:137"] 
+	2799 -> 1945 [label="s=342"] 
+	2802 [shape=box, label="2802:70"] 
+	2802 -> 157 [label="s=162"] 
+	2804 [shape=box, label="2804:137"] 
+	2804 -> 1945 [label="s=348"] 
+	2807 [shape=box, label="2807:70"] 
+	2807 -> 157 [label="s=162"] 
+	2810 [shape=box, label="2810:70"] 
+	2810 -> 157 [label="s=162"] 
+	2812 [shape=box, label="2812:67"] 
+	2812 -> 2383 [label="s=68"] 
+	2813 [shape=box, label="2813:70"] 
+	2813 -> 2812
+	2814 [shape=box, label="2814:73"] 
+	2814 -> 2812
+	2816 [shape=box, label="2816:67"] 
+	2816 -> 2383 [label="s=68"] 
+	2817 [shape=box, label="2817:70"] 
+	2817 -> 2816
+	2818 [shape=box, label="2818:73"] 
+	2818 -> 2816
+	2820 [shape=box, label="2820:137"] 
+	2820 -> 1945 [label="s=348"] 
+	2822 [shape=box, label="2822:67"] 
+	2822 -> 2383 [label="s=68"] 
+	2823 [shape=box, label="2823:70"] 
+	2823 -> 2822
+	2824 [shape=box, label="2824:73"] 
+	2824 -> 2822
+	2826 [shape=box, label="2826:67"] 
+	2826 -> 2383 [label="s=68"] 
+	2827 [shape=box, label="2827:70"] 
+	2827 -> 2826
+	2828 [shape=box, label="2828:73"] 
+	2828 -> 2826
+	2830 [shape=box, label="2830:67"] 
+	2830 -> 2383 [label="s=68"] 
+	2831 [shape=box, label="2831:70"] 
+	2831 -> 2830
+	2832 [shape=box, label="2832:73"] 
+	2832 -> 2830
+	2834 [shape=box, label="2834:67"] 
+	2834 -> 2383 [label="s=68"] 
+	2835 [shape=box, label="2835:70"] 
+	2835 -> 2834
+	2836 [shape=box, label="2836:73"] 
+	2836 -> 2834
+	2838 [shape=box, label="2838:67"] 
+	2838 -> 2383 [label="s=68"] 
+	2839 [shape=box, label="2839:70"] 
+	2839 -> 2838
+	2840 [shape=box, label="2840:73"] 
+	2840 -> 2838
+	2842 [shape=box, label="2842:67"] 
+	2842 -> 2383 [label="s=68"] 
+	2843 [shape=box, label="2843:70"] 
+	2843 -> 2842
+	2844 [shape=box, label="2844:73"] 
+	2844 -> 2842
+	2846 [shape=box, label="2846:67"] 
+	2846 -> 2383 [label="s=68"] 
+	2847 [shape=box, label="2847:70"] 
+	2847 -> 2846
+	2848 [shape=box, label="2848:73"] 
+	2848 -> 2846
+	2850 [shape=box, label="2850:67"] 
+	2850 -> 2383 [label="s=68"] 
+	2851 [shape=box, label="2851:70"] 
+	2851 -> 2850
+	2852 [shape=box, label="2852:73"] 
+	2852 -> 2850
+	2854 [shape=box, label="2854:67"] 
+	2854 -> 2383 [label="s=68"] 
+	2855 [shape=box, label="2855:70"] 
+	2855 -> 2854
+	2856 [shape=box, label="2856:73"] 
+	2856 -> 2854
+	2858 [shape=box, label="2858:67"] 
+	2858 -> 2383 [label="s=68"] 
+	2859 [shape=box, label="2859:70"] 
+	2859 -> 2858
+	2860 [shape=box, label="2860:73"] 
+	2860 -> 2858
+	2862 [shape=box, label="2862:67"] 
+	2862 -> 2383 [label="s=68"] 
+	2863 [shape=box, label="2863:70"] 
+	2863 -> 2862
+	2864 [shape=box, label="2864:73"] 
+	2864 -> 2862
+	2866 [shape=box, label="2866:67"] 
+	2866 -> 2383 [label="s=68"] 
+	2867 [shape=box, label="2867:70"] 
+	2867 -> 2866
+	2868 [shape=box, label="2868:73"] 
+	2868 -> 2866
+	2870 [shape=box, label="2870:67"] 
+	2870 -> 2383 [label="s=68"] 
+	2871 [shape=box, label="2871:70"] 
+	2871 -> 2870
+	2872 [shape=box, label="2872:73"] 
+	2872 -> 2870
+	2874 [shape=box, label="2874:67"] 
+	2874 -> 2383 [label="s=68"] 
+	2875 [shape=box, label="2875:70"] 
+	2875 -> 2874
+	2876 [shape=box, label="2876:73"] 
+	2876 -> 2874
+	2878 [shape=box, label="2878:67"] 
+	2878 -> 2383 [label="s=68"] 
+	2879 [shape=box, label="2879:70"] 
+	2879 -> 2878
+	2880 [shape=box, label="2880:73"] 
+	2880 -> 2878
+	2882 [shape=box, label="2882:67"] 
+	2882 -> 2383 [label="s=68"] 
+	2883 [shape=box, label="2883:70"] 
+	2883 -> 2882
+	2884 [shape=box, label="2884:73"] 
+	2884 -> 2882
+	2886 [shape=box, label="2886:67"] 
+	2886 -> 2383 [label="s=68"] 
+	2887 [shape=box, label="2887:70"] 
+	2887 -> 2886
+	2888 [shape=box, label="2888:73"] 
+	2888 -> 2886
+	2890 [shape=box, label="2890:67"] 
+	2890 -> 2383 [label="s=68"] 
+	2891 [shape=box, label="2891:70"] 
+	2891 -> 2890
+	2892 [shape=box, label="2892:73"] 
+	2892 -> 2890
+	2894 [shape=box, label="2894:67"] 
+	2894 -> 2383 [label="s=68"] 
+	2895 [shape=box, label="2895:70"] 
+	2895 -> 2894
+	2896 [shape=box, label="2896:73"] 
+	2896 -> 2894
+	2898 [shape=box, label="2898:67"] 
+	2898 -> 2383 [label="s=68"] 
+	2899 [shape=box, label="2899:70"] 
+	2899 -> 2898
+	2900 [shape=box, label="2900:73"] 
+	2900 -> 2898
+	2902 [shape=box, label="2902:67"] 
+	2902 -> 2383 [label="s=68"] 
+	2903 [shape=box, label="2903:70"] 
+	2903 -> 2902
+	2904 [shape=box, label="2904:73"] 
+	2904 -> 2902
+	2906 [shape=box, label="2906:67"] 
+	2906 -> 2383 [label="s=68"] 
+	2907 [shape=box, label="2907:70"] 
+	2907 -> 2906
+	2908 [shape=box, label="2908:73"] 
+	2908 -> 2906
+	2910 [shape=box, label="2910:67"] 
+	2910 -> 2383 [label="s=68"] 
+	2911 [shape=box, label="2911:70"] 
+	2911 -> 2910
+	2912 [shape=box, label="2912:73"] 
+	2912 -> 2910
+	2914 [shape=box, label="2914:67"] 
+	2914 -> 2383 [label="s=68"] 
+	2915 [shape=box, label="2915:70"] 
+	2915 -> 2914
+	2916 [shape=box, label="2916:73"] 
+	2916 -> 2914
+	2918 [shape=box, label="2918:67"] 
+	2918 -> 2383 [label="s=68"] 
+	2919 [shape=box, label="2919:70"] 
+	2919 -> 2918
+	2920 [shape=box, label="2920:73"] 
+	2920 -> 2918
+	2922 [shape=box, label="2922:150"] 
+	2922 -> 591 [label="s=163"] 
+	2923 [shape=box, label="2923:391"] 
+	2923 -> 2383 [label="s=70"] 
+	2924 [shape=box, label="2924:144"] 
+	2924 -> 537 [label="s=278"] 
+	2925 [shape=box, label="2925:67"] 
+	2925 -> 2926
+	2925 -> 2927
+	2926 [shape=box, label="2926:3"] 
+	2926 -> 2659 [label="s=79"] 
+	2927 [shape=box, label="2927:3"] 
+	2927 -> 265 [label="s=69"] 
+	2928 [shape=box, label="2928:67"] 
+	2928 -> 2929
+	2928 -> 2930
+	2929 [shape=box, label="2929:3"] 
+	2929 -> 2659 [label="s=79"] 
+	2930 [shape=box, label="2930:3"] 
+	2930 -> 265 [label="s=69"] 
+	2931 [shape=box, label="2931:67"] 
+	2931 -> 2932
+	2931 -> 2933
+	2932 [shape=box, label="2932:3"] 
+	2932 -> 2659 [label="s=79"] 
+	2933 [shape=box, label="2933:3"] 
+	2933 -> 265 [label="s=69"] 
+	2934 [shape=box, label="2934:67"] 
+	2934 -> 2935
+	2934 -> 2936
+	2935 [shape=box, label="2935:3"] 
+	2935 -> 2659 [label="s=79"] 
+	2936 [shape=box, label="2936:3"] 
+	2936 -> 265 [label="s=69"] 
+	2937 [shape=box, label="2937:67"] 
+	2937 -> 2938
+	2937 -> 2939
+	2938 [shape=box, label="2938:3"] 
+	2938 -> 2659 [label="s=79"] 
+	2939 [shape=box, label="2939:3"] 
+	2939 -> 265 [label="s=69"] 
+	2940 [shape=box, label="2940:70"] 
+	2940 -> 1861 [label="s=53"] 
+	2941 [shape=box, label="2941:67"] 
+	2941 -> 190 [label="s=64"] 
+	2942 [shape=box, label="2942:139"] 
+	2942 -> 2941
+	2943 [shape=box, label="2943:71"] 
+	2943 -> 2941
+	2944 [shape=box, label="2944:116"] 
+	2944 -> 237 [label="s=696"] 
+	2945 [shape=box, label="2945:67"] 
+	2945 -> 190 [label="s=64"] 
+	2946 [shape=box, label="2946:71"] 
+	2946 -> 2945
+	2947 [shape=box, label="2947:139"] 
+	2947 -> 2945
+	2948 [shape=box, label="2948:67"] 
+	2948 -> 190 [label="s=64"] 
+	2949 [shape=box, label="2949:139"] 
+	2949 -> 2948
+	2950 [shape=box, label="2950:71"] 
+	2950 -> 2948
+	2951 [shape=box, label="2951:67"] 
+	2951 -> 190 [label="s=64"] 
+	2952 [shape=box, label="2952:70"] 
+	2952 -> 2951
+	2953 [shape=box, label="2953:70"] 
+	2953 -> 2951
+	2954 [shape=box, label="2954:67"] 
+	2954 -> 190 [label="s=64"] 
+	2955 [shape=box, label="2955:70"] 
+	2955 -> 2954
+	2956 [shape=box, label="2956:70"] 
+	2956 -> 2954
+	2957 [shape=box, label="2957:3044"] 
+	2958 [shape=box, label="2958:78"] 
+	2958 -> 2957
+	2959 [shape=box, label="2959:70"] 
+	2959 -> 2957
+	2960 [shape=box, label="2960:67"] 
+	2960 -> 190 [label="s=64"] 
+	2961 [shape=box, label="2961:70"] 
+	2961 -> 2960
+	2962 [shape=box, label="2962:70"] 
+	2962 -> 2960
+	2963 [shape=box, label="2963:638"] 
+	2964 [shape=box, label="2964:67"] 
+	2964 -> 190 [label="s=64"] 
+	2965 [shape=box, label="2965:70"] 
+	2965 -> 2964
+	2966 [shape=box, label="2966:70"] 
+	2966 -> 2964
+	2967 [shape=box, label="2967:67"] 
+	2967 -> 190 [label="s=64"] 
+	2968 [shape=box, label="2968:70"] 
+	2968 -> 2967
+	2969 [shape=box, label="2969:70"] 
+	2969 -> 2967
+	2970 [shape=box, label="2970:83"] 
+	2970 -> 155 [label="s=120"] 
+	2971 [shape=box, label="2971:67"] 
+	2971 -> 2972
+	2971 -> 2973
+	2972 [shape=box, label="2972:3"] 
+	2972 -> 2940 [label="s=53"] 
+	2973 [shape=box, label="2973:3"] 
+	2973 -> 976 [label="s=-5"] 
+	2975 [shape=box, label="2975:70"] 
+	2975 -> 976 [label="s=-5"] 
+	2978 [shape=box, label="2978:70"] 
+	2978 -> 976 [label="s=-5"] 
+	2981 [shape=box, label="2981:70"] 
+	2981 -> 976 [label="s=-5"] 
+	2984 [shape=box, label="2984:70"] 
+	2984 -> 976 [label="s=-5"] 
+	2987 [shape=box, label="2987:70"] 
+	2987 -> 976 [label="s=-5"] 
+	2990 [shape=box, label="2990:70"] 
+	2990 -> 976 [label="s=-5"] 
+	2993 [shape=box, label="2993:70"] 
+	2993 -> 976 [label="s=-5"] 
+	2995 [shape=box, label="2995:1943"] 
+	2998 [shape=box, label="2998:67"] 
+	2998 -> 2999
+	2998 -> 3000
+	2999 [shape=box, label="2999:3"] 
+	2999 -> 948 [label="s=50"] 
+	3000 [shape=box, label="3000:3"] 
+	3000 -> 1036 [label="s=81"] 
+	3001 [shape=box, label="3001:67"] 
+	3001 -> 3002
+	3001 -> 3003
+	3002 [shape=box, label="3002:3"] 
+	3002 -> 948 [label="s=50"] 
+	3003 [shape=box, label="3003:3"] 
+	3003 -> 1036 [label="s=81"] 
+	3004 [shape=box, label="3004:67"] 
+	3004 -> 3005
+	3004 -> 3006
+	3005 [shape=box, label="3005:3"] 
+	3005 -> 948 [label="s=50"] 
+	3006 [shape=box, label="3006:3"] 
+	3006 -> 1036 [label="s=81"] 
+	3007 [shape=box, label="3007:67"] 
+	3007 -> 3008
+	3007 -> 3009
+	3008 [shape=box, label="3008:3"] 
+	3008 -> 948 [label="s=50"] 
+	3009 [shape=box, label="3009:3"] 
+	3009 -> 1036 [label="s=81"] 
+	3010 [shape=box, label="3010:67"] 
+	3010 -> 3011
+	3010 -> 3012
+	3011 [shape=box, label="3011:3"] 
+	3011 -> 948 [label="s=50"] 
+	3012 [shape=box, label="3012:3"] 
+	3012 -> 1036 [label="s=81"] 
+	3013 [shape=box, label="3013:67"] 
+	3013 -> 3014
+	3013 -> 3015
+	3014 [shape=box, label="3014:3"] 
+	3014 -> 948 [label="s=50"] 
+	3015 [shape=box, label="3015:3"] 
+	3015 -> 1036 [label="s=81"] 
+	3016 [shape=box, label="3016:67"] 
+	3016 -> 3017
+	3016 -> 3018
+	3017 [shape=box, label="3017:3"] 
+	3017 -> 948 [label="s=50"] 
+	3018 [shape=box, label="3018:3"] 
+	3018 -> 1036 [label="s=81"] 
+	3019 [shape=box, label="3019:67"] 
+	3019 -> 3020
+	3019 -> 3021
+	3020 [shape=box, label="3020:3"] 
+	3020 -> 948 [label="s=50"] 
+	3021 [shape=box, label="3021:3"] 
+	3021 -> 1036 [label="s=81"] 
+	3022 [shape=box, label="3022:67"] 
+	3022 -> 3023
+	3022 -> 3024
+	3023 [shape=box, label="3023:3"] 
+	3023 -> 948 [label="s=50"] 
+	3024 [shape=box, label="3024:3"] 
+	3024 -> 1036 [label="s=81"] 
+	3025 [shape=box, label="3025:67"] 
+	3025 -> 3026
+	3025 -> 3027
+	3026 [shape=box, label="3026:3"] 
+	3026 -> 948 [label="s=50"] 
+	3027 [shape=box, label="3027:3"] 
+	3027 -> 1036 [label="s=81"] 
+	3028 [shape=box, label="3028:67"] 
+	3028 -> 3029
+	3028 -> 3030
+	3029 [shape=box, label="3029:3"] 
+	3029 -> 948 [label="s=50"] 
+	3030 [shape=box, label="3030:3"] 
+	3030 -> 1036 [label="s=81"] 
+	3031 [shape=box, label="3031:67"] 
+	3031 -> 3032
+	3031 -> 3033
+	3032 [shape=box, label="3032:3"] 
+	3032 -> 948 [label="s=50"] 
+	3033 [shape=box, label="3033:3"] 
+	3033 -> 1036 [label="s=81"] 
+	3034 [shape=box, label="3034:67"] 
+	3034 -> 3035
+	3034 -> 3036
+	3035 [shape=box, label="3035:3"] 
+	3035 -> 948 [label="s=50"] 
+	3036 [shape=box, label="3036:3"] 
+	3036 -> 1036 [label="s=81"] 
+	3037 [shape=box, label="3037:67"] 
+	3037 -> 3038
+	3037 -> 3039
+	3038 [shape=box, label="3038:3"] 
+	3038 -> 948 [label="s=50"] 
+	3039 [shape=box, label="3039:3"] 
+	3039 -> 1036 [label="s=81"] 
+	3040 [shape=box, label="3040:67"] 
+	3040 -> 3041
+	3040 -> 3042
+	3041 [shape=box, label="3041:3"] 
+	3041 -> 948 [label="s=50"] 
+	3042 [shape=box, label="3042:3"] 
+	3042 -> 1036 [label="s=81"] 
+	3043 [shape=box, label="3043:67"] 
+	3043 -> 3044
+	3043 -> 3045
+	3044 [shape=box, label="3044:3"] 
+	3044 -> 948 [label="s=50"] 
+	3045 [shape=box, label="3045:3"] 
+	3045 -> 1036 [label="s=81"] 
+	3046 [shape=box, label="3046:67"] 
+	3046 -> 3047
+	3046 -> 3048
+	3047 [shape=box, label="3047:3"] 
+	3047 -> 948 [label="s=50"] 
+	3048 [shape=box, label="3048:3"] 
+	3048 -> 1036 [label="s=81"] 
+	3049 [shape=box, label="3049:67"] 
+	3049 -> 3050
+	3049 -> 3051
+	3050 [shape=box, label="3050:3"] 
+	3050 -> 948 [label="s=50"] 
+	3051 [shape=box, label="3051:3"] 
+	3051 -> 1036 [label="s=81"] 
+	3052 [shape=box, label="3052:67"] 
+	3052 -> 3053
+	3052 -> 3054
+	3053 [shape=box, label="3053:3"] 
+	3053 -> 948 [label="s=50"] 
+	3054 [shape=box, label="3054:3"] 
+	3054 -> 1036 [label="s=81"] 
+	3055 [shape=box, label="3055:67"] 
+	3055 -> 3056
+	3055 -> 3057
+	3056 [shape=box, label="3056:3"] 
+	3056 -> 948 [label="s=50"] 
+	3057 [shape=box, label="3057:3"] 
+	3057 -> 1036 [label="s=81"] 
+	3058 [shape=box, label="3058:67"] 
+	3058 -> 3059
+	3058 -> 3060
+	3059 [shape=box, label="3059:3"] 
+	3059 -> 948 [label="s=50"] 
+	3060 [shape=box, label="3060:3"] 
+	3060 -> 1036 [label="s=81"] 
+	3061 [shape=box, label="3061:67"] 
+	3061 -> 3062
+	3061 -> 3063
+	3062 [shape=box, label="3062:3"] 
+	3062 -> 948 [label="s=50"] 
+	3063 [shape=box, label="3063:3"] 
+	3063 -> 1036 [label="s=81"] 
+	3064 [shape=box, label="3064:67"] 
+	3064 -> 3065
+	3064 -> 3066
+	3065 [shape=box, label="3065:3"] 
+	3065 -> 948 [label="s=50"] 
+	3066 [shape=box, label="3066:3"] 
+	3066 -> 1036 [label="s=81"] 
+	3067 [shape=box, label="3067:67"] 
+	3067 -> 3068
+	3067 -> 3069
+	3068 [shape=box, label="3068:3"] 
+	3068 -> 948 [label="s=50"] 
+	3069 [shape=box, label="3069:3"] 
+	3069 -> 1036 [label="s=81"] 
+	3070 [shape=box, label="3070:67"] 
+	3070 -> 3071
+	3070 -> 3072
+	3071 [shape=box, label="3071:3"] 
+	3071 -> 948 [label="s=50"] 
+	3072 [shape=box, label="3072:3"] 
+	3072 -> 1036 [label="s=81"] 
+	3073 [shape=box, label="3073:67"] 
+	3073 -> 3074
+	3073 -> 3075
+	3074 [shape=box, label="3074:3"] 
+	3074 -> 948 [label="s=50"] 
+	3075 [shape=box, label="3075:3"] 
+	3075 -> 1036 [label="s=81"] 
+	3076 [shape=box, label="3076:67"] 
+	3076 -> 3077
+	3076 -> 3078
+	3077 [shape=box, label="3077:3"] 
+	3077 -> 948 [label="s=50"] 
+	3078 [shape=box, label="3078:3"] 
+	3078 -> 1036 [label="s=81"] 
+	3079 [shape=box, label="3079:67"] 
+	3079 -> 3080
+	3079 -> 3081
+	3080 [shape=box, label="3080:3"] 
+	3080 -> 948 [label="s=50"] 
+	3081 [shape=box, label="3081:3"] 
+	3081 -> 1036 [label="s=81"] 
+	3082 [shape=box, label="3082:67"] 
+	3082 -> 3083
+	3082 -> 3084
+	3083 [shape=box, label="3083:3"] 
+	3083 -> 948 [label="s=50"] 
+	3084 [shape=box, label="3084:3"] 
+	3084 -> 1036 [label="s=81"] 
+	3085 [shape=box, label="3085:67"] 
+	3085 -> 3086
+	3085 -> 3087
+	3086 [shape=box, label="3086:3"] 
+	3086 -> 948 [label="s=50"] 
+	3087 [shape=box, label="3087:3"] 
+	3087 -> 1036 [label="s=81"] 
+	3088 [shape=box, label="3088:67"] 
+	3088 -> 3089
+	3088 -> 3090
+	3089 [shape=box, label="3089:3"] 
+	3089 -> 948 [label="s=50"] 
+	3090 [shape=box, label="3090:3"] 
+	3090 -> 1036 [label="s=81"] 
+	3091 [shape=box, label="3091:67"] 
+	3091 -> 3092
+	3091 -> 3093
+	3092 [shape=box, label="3092:3"] 
+	3092 -> 948 [label="s=50"] 
+	3093 [shape=box, label="3093:3"] 
+	3093 -> 1036 [label="s=81"] 
+	3094 [shape=box, label="3094:67"] 
+	3094 -> 3095
+	3094 -> 3096
+	3095 [shape=box, label="3095:3"] 
+	3095 -> 948 [label="s=50"] 
+	3096 [shape=box, label="3096:3"] 
+	3096 -> 1036 [label="s=81"] 
+	3097 [shape=box, label="3097:67"] 
+	3097 -> 3098
+	3097 -> 3099
+	3098 [shape=box, label="3098:3"] 
+	3098 -> 948 [label="s=50"] 
+	3099 [shape=box, label="3099:3"] 
+	3099 -> 1036 [label="s=81"] 
+	3100 [shape=box, label="3100:67"] 
+	3100 -> 3101
+	3100 -> 3102
+	3101 [shape=box, label="3101:3"] 
+	3101 -> 948 [label="s=50"] 
+	3102 [shape=box, label="3102:3"] 
+	3102 -> 1036 [label="s=81"] 
+	3103 [shape=box, label="3103:67"] 
+	3103 -> 3104
+	3103 -> 3105
+	3104 [shape=box, label="3104:3"] 
+	3104 -> 948 [label="s=50"] 
+	3105 [shape=box, label="3105:3"] 
+	3105 -> 1036 [label="s=81"] 
+	3106 [shape=box, label="3106:67"] 
+	3106 -> 3107
+	3106 -> 3108
+	3107 [shape=box, label="3107:3"] 
+	3107 -> 948 [label="s=50"] 
+	3108 [shape=box, label="3108:3"] 
+	3108 -> 1036 [label="s=81"] 
+	3109 [shape=box, label="3109:67"] 
+	3109 -> 3110
+	3109 -> 3111
+	3110 [shape=box, label="3110:3"] 
+	3110 -> 948 [label="s=50"] 
+	3111 [shape=box, label="3111:3"] 
+	3111 -> 1036 [label="s=81"] 
+	3112 [shape=box, label="3112:67"] 
+	3112 -> 3113
+	3112 -> 3114
+	3113 [shape=box, label="3113:3"] 
+	3113 -> 948 [label="s=50"] 
+	3114 [shape=box, label="3114:3"] 
+	3114 -> 1036 [label="s=81"] 
+	3115 [shape=box, label="3115:67"] 
+	3115 -> 3116
+	3115 -> 3117
+	3116 [shape=box, label="3116:3"] 
+	3116 -> 948 [label="s=50"] 
+	3117 [shape=box, label="3117:3"] 
+	3117 -> 1036 [label="s=81"] 
+	3118 [shape=box, label="3118:67"] 
+	3118 -> 3119
+	3118 -> 3120
+	3119 [shape=box, label="3119:3"] 
+	3119 -> 948 [label="s=50"] 
+	3120 [shape=box, label="3120:3"] 
+	3120 -> 1036 [label="s=81"] 
+	3121 [shape=box, label="3121:67"] 
+	3121 -> 3122
+	3121 -> 3123
+	3122 [shape=box, label="3122:3"] 
+	3122 -> 948 [label="s=50"] 
+	3123 [shape=box, label="3123:3"] 
+	3123 -> 1036 [label="s=81"] 
+	3124 [shape=box, label="3124:67"] 
+	3124 -> 3125
+	3124 -> 3126
+	3125 [shape=box, label="3125:3"] 
+	3125 -> 948 [label="s=50"] 
+	3126 [shape=box, label="3126:3"] 
+	3126 -> 1036 [label="s=81"] 
+	3127 [shape=box, label="3127:67"] 
+	3127 -> 3128
+	3127 -> 3129
+	3128 [shape=box, label="3128:3"] 
+	3128 -> 948 [label="s=50"] 
+	3129 [shape=box, label="3129:3"] 
+	3129 -> 1036 [label="s=81"] 
+	3130 [shape=box, label="3130:67"] 
+	3130 -> 3131
+	3130 -> 3132
+	3131 [shape=box, label="3131:3"] 
+	3131 -> 948 [label="s=50"] 
+	3132 [shape=box, label="3132:3"] 
+	3132 -> 1036 [label="s=81"] 
+	3133 [shape=box, label="3133:67"] 
+	3133 -> 3134
+	3133 -> 3135
+	3134 [shape=box, label="3134:3"] 
+	3134 -> 948 [label="s=50"] 
+	3135 [shape=box, label="3135:3"] 
+	3135 -> 1036 [label="s=81"] 
+	3136 [shape=box, label="3136:67"] 
+	3136 -> 1861 [label="s=47"] 
+	3137 [shape=box, label="3137:70"] 
+	3137 -> 3136
+	3138 [shape=box, label="3138:70"] 
+	3138 -> 3136
+	3139 [shape=box, label="3139:135"] 
+	3139 -> 2450 [label="s=55"] 
+	3140 [shape=box, label="3140:67"] 
+	3140 -> 3141
+	3140 -> 3142
+	3141 [shape=box, label="3141:3"] 
+	3141 -> 948 [label="s=50"] 
+	3142 [shape=box, label="3142:3"] 
+	3142 -> 1036 [label="s=81"] 
+	3143 [shape=box, label="3143:67"] 
+	3143 -> 3144
+	3143 -> 3145
+	3144 [shape=box, label="3144:3"] 
+	3144 -> 948 [label="s=50"] 
+	3145 [shape=box, label="3145:3"] 
+	3145 -> 1036 [label="s=81"] 
+	3146 [shape=box, label="3146:67"] 
+	3146 -> 3147
+	3146 -> 3148
+	3147 [shape=box, label="3147:3"] 
+	3147 -> 948 [label="s=50"] 
+	3148 [shape=box, label="3148:3"] 
+	3148 -> 1036 [label="s=81"] 
+	3149 [shape=box, label="3149:67"] 
+	3149 -> 3150
+	3149 -> 3151
+	3150 [shape=box, label="3150:3"] 
+	3150 -> 948 [label="s=50"] 
+	3151 [shape=box, label="3151:3"] 
+	3151 -> 1036 [label="s=81"] 
+	3152 [shape=box, label="3152:67"] 
+	3152 -> 3153
+	3152 -> 3154
+	3153 [shape=box, label="3153:3"] 
+	3153 -> 948 [label="s=50"] 
+	3154 [shape=box, label="3154:3"] 
+	3154 -> 1036 [label="s=81"] 
+	3155 [shape=box, label="3155:67"] 
+	3155 -> 3156
+	3155 -> 3157
+	3156 [shape=box, label="3156:3"] 
+	3156 -> 948 [label="s=50"] 
+	3157 [shape=box, label="3157:3"] 
+	3157 -> 1036 [label="s=81"] 
+	3158 [shape=box, label="3158:67"] 
+	3158 -> 3159
+	3158 -> 3160
+	3159 [shape=box, label="3159:3"] 
+	3159 -> 948 [label="s=50"] 
+	3160 [shape=box, label="3160:3"] 
+	3160 -> 1036 [label="s=81"] 
+	3161 [shape=box, label="3161:67"] 
+	3161 -> 3162
+	3161 -> 3163
+	3162 [shape=box, label="3162:3"] 
+	3162 -> 948 [label="s=50"] 
+	3163 [shape=box, label="3163:3"] 
+	3163 -> 1036 [label="s=81"] 
+	3164 [shape=box, label="3164:67"] 
+	3164 -> 3165
+	3164 -> 3166
+	3165 [shape=box, label="3165:3"] 
+	3165 -> 948 [label="s=50"] 
+	3166 [shape=box, label="3166:3"] 
+	3166 -> 1036 [label="s=81"] 
+	3168 [shape=box, label="3168:70"] 
+	3168 -> 1036 [label="s=81"] 
+	3170 [shape=box, label="3170:67"] 
+	3170 -> 3171
+	3170 -> 3172
+	3171 [shape=box, label="3171:3"] 
+	3171 -> 948 [label="s=50"] 
+	3172 [shape=box, label="3172:3"] 
+	3172 -> 1036 [label="s=81"] 
+	3173 [shape=box, label="3173:67"] 
+	3173 -> 3174
+	3173 -> 3175
+	3174 [shape=box, label="3174:3"] 
+	3174 -> 948 [label="s=50"] 
+	3175 [shape=box, label="3175:3"] 
+	3175 -> 1036 [label="s=81"] 
+	3176 [shape=box, label="3176:67"] 
+	3176 -> 3177
+	3176 -> 3178
+	3177 [shape=box, label="3177:3"] 
+	3177 -> 948 [label="s=50"] 
+	3178 [shape=box, label="3178:3"] 
+	3178 -> 1036 [label="s=81"] 
+	3179 [shape=box, label="3179:67"] 
+	3179 -> 3180
+	3179 -> 3181
+	3180 [shape=box, label="3180:3"] 
+	3180 -> 948 [label="s=50"] 
+	3181 [shape=box, label="3181:3"] 
+	3181 -> 1036 [label="s=81"] 
+	3182 [shape=box, label="3182:67"] 
+	3182 -> 3183
+	3182 -> 3184
+	3183 [shape=box, label="3183:3"] 
+	3183 -> 948 [label="s=50"] 
+	3184 [shape=box, label="3184:3"] 
+	3184 -> 1036 [label="s=81"] 
+	3185 [shape=box, label="3185:67"] 
+	3185 -> 3186
+	3185 -> 3187
+	3186 [shape=box, label="3186:3"] 
+	3186 -> 948 [label="s=50"] 
+	3187 [shape=box, label="3187:3"] 
+	3187 -> 1036 [label="s=81"] 
+	3188 [shape=box, label="3188:67"] 
+	3188 -> 3189
+	3188 -> 3190
+	3189 [shape=box, label="3189:3"] 
+	3189 -> 948 [label="s=50"] 
+	3190 [shape=box, label="3190:3"] 
+	3190 -> 1036 [label="s=81"] 
+	3191 [shape=box, label="3191:67"] 
+	3191 -> 3192
+	3191 -> 3193
+	3192 [shape=box, label="3192:3"] 
+	3192 -> 948 [label="s=50"] 
+	3193 [shape=box, label="3193:3"] 
+	3193 -> 1036 [label="s=81"] 
+	3195 [shape=box, label="3195:70"] 
+	3195 -> 1036 [label="s=81"] 
+	3197 [shape=box, label="3197:67"] 
+	3197 -> 3198
+	3197 -> 3199
+	3198 [shape=box, label="3198:3"] 
+	3198 -> 2995 [label="s=64"] 
+	3199 [shape=box, label="3199:3"] 
+	3199 -> 2272 [label="s=-18"] 
+	3200 [shape=box, label="3200:67"] 
+	3200 -> 1861 [label="s=47"] 
+	3201 [shape=box, label="3201:70"] 
+	3201 -> 3200
+	3202 [shape=box, label="3202:70"] 
+	3202 -> 3200
+	3203 [shape=box, label="3203:67"] 
+	3203 -> 1861 [label="s=47"] 
+	3204 [shape=box, label="3204:70"] 
+	3204 -> 3203
+	3205 [shape=box, label="3205:70"] 
+	3205 -> 3203
+	3206 [shape=box, label="3206:67"] 
+	3206 -> 1861 [label="s=47"] 
+	3207 [shape=box, label="3207:70"] 
+	3207 -> 3206
+	3208 [shape=box, label="3208:70"] 
+	3208 -> 3206
+	3209 [shape=box, label="3209:67"] 
+	3209 -> 1861 [label="s=47"] 
+	3210 [shape=box, label="3210:70"] 
+	3210 -> 3209
+	3211 [shape=box, label="3211:70"] 
+	3211 -> 3209
+	3212 [shape=box, label="3212:67"] 
+	3212 -> 1861 [label="s=47"] 
+	3213 [shape=box, label="3213:70"] 
+	3213 -> 3212
+	3214 [shape=box, label="3214:70"] 
+	3214 -> 3212
+	3215 [shape=box, label="3215:67"] 
+	3215 -> 265 [label="s=77"] 
+	3216 [shape=box, label="3216:70"] 
+	3216 -> 3215
+	3217 [shape=box, label="3217:70"] 
+	3217 -> 3215
+	3218 [shape=box, label="3218:137"] 
+	3218 -> 1945 [label="s=342"] 
+	3220 [shape=box, label="3220:137"] 
+	3220 -> 1945 [label="s=342"] 
+	3222 [shape=box, label="3222:67"] 
+	3222 -> 1861 [label="s=47"] 
+	3223 [shape=box, label="3223:70"] 
+	3223 -> 3222
+	3224 [shape=box, label="3224:70"] 
+	3224 -> 3222
+	3225 [shape=box, label="3225:67"] 
+	3225 -> 1861 [label="s=47"] 
+	3226 [shape=box, label="3226:70"] 
+	3226 -> 3225
+	3227 [shape=box, label="3227:70"] 
+	3227 -> 3225
+	3228 [shape=box, label="3228:67"] 
+	3228 -> 3229
+	3228 -> 3230
+	3229 [shape=box, label="3229:3"] 
+	3229 -> 948 [label="s=50"] 
+	3230 [shape=box, label="3230:3"] 
+	3230 -> 1036 [label="s=81"] 
+	3231 [shape=box, label="3231:67"] 
+	3231 -> 3232
+	3231 -> 3233
+	3232 [shape=box, label="3232:3"] 
+	3232 -> 948 [label="s=50"] 
+	3233 [shape=box, label="3233:3"] 
+	3233 -> 1036 [label="s=81"] 
+	3234 [shape=box, label="3234:67"] 
+	3234 -> 1861 [label="s=47"] 
+	3235 [shape=box, label="3235:70"] 
+	3235 -> 3234
+	3236 [shape=box, label="3236:70"] 
+	3236 -> 3234
+	3237 [shape=box, label="3237:67"] 
+	3237 -> 1861 [label="s=47"] 
+	3238 [shape=box, label="3238:70"] 
+	3238 -> 3237
+	3239 [shape=box, label="3239:70"] 
+	3239 -> 3237
+	3240 [shape=box, label="3240:67"] 
+	3240 -> 3241
+	3240 -> 3242
+	3241 [shape=box, label="3241:3"] 
+	3241 -> 2995 [label="s=64"] 
+	3242 [shape=box, label="3242:3"] 
+	3242 -> 2272 [label="s=-18"] 
+	3243 [shape=box, label="3243:67"] 
+	3243 -> 1861 [label="s=47"] 
+	3244 [shape=box, label="3244:70"] 
+	3244 -> 3243
+	3245 [shape=box, label="3245:70"] 
+	3245 -> 3243
+	3246 [shape=box, label="3246:67"] 
+	3246 -> 1861 [label="s=47"] 
+	3247 [shape=box, label="3247:70"] 
+	3247 -> 3246
+	3248 [shape=box, label="3248:70"] 
+	3248 -> 3246
+	3249 [shape=box, label="3249:137"] 
+	3249 -> 1945 [label="s=342"] 
+	3251 [shape=box, label="3251:137"] 
+	3251 -> 1945 [label="s=342"] 
+	3253 [shape=box, label="3253:137"] 
+	3253 -> 1945 [label="s=342"] 
+	3255 [shape=box, label="3255:137"] 
+	3255 -> 1945 [label="s=342"] 
+	3257 [shape=box, label="3257:67"] 
+	3257 -> 3258
+	3257 -> 3259
+	3258 [shape=box, label="3258:3"] 
+	3258 -> 2995 [label="s=64"] 
+	3259 [shape=box, label="3259:3"] 
+	3259 -> 2272 [label="s=-18"] 
+	3260 [shape=box, label="3260:137"] 
+	3260 -> 1945 [label="s=342"] 
+	3262 [shape=box, label="3262:67"] 
+	3262 -> 2659 [label="s=87"] 
+	3263 [shape=box, label="3263:70"] 
+	3263 -> 3262
+	3264 [shape=box, label="3264:70"] 
+	3264 -> 3262
+	3265 [shape=box, label="3265:137"] 
+	3265 -> 1945 [label="s=342"] 
+	3267 [shape=box, label="3267:67"] 
+	3267 -> 3268
+	3267 -> 3269
+	3268 [shape=box, label="3268:3"] 
+	3268 -> 2995 [label="s=64"] 
+	3269 [shape=box, label="3269:3"] 
+	3269 -> 2272 [label="s=-18"] 
+	3270 [shape=box, label="3270:137"] 
+	3270 -> 1945 [label="s=342"] 
+	3272 [shape=box, label="3272:137"] 
+	3272 -> 1945 [label="s=342"] 
+	3274 [shape=box, label="3274:137"] 
+	3274 -> 1945 [label="s=342"] 
+	3276 [shape=box, label="3276:67"] 
+	3276 -> 3277
+	3276 -> 3278
+	3277 [shape=box, label="3277:3"] 
+	3277 -> 2995 [label="s=64"] 
+	3278 [shape=box, label="3278:3"] 
+	3278 -> 2272 [label="s=-18"] 
+	3279 [shape=box, label="3279:67"] 
+	3279 -> 2659 [label="s=87"] 
+	3280 [shape=box, label="3280:70"] 
+	3280 -> 3279
+	3281 [shape=box, label="3281:70"] 
+	3281 -> 3279
+	3282 [shape=box, label="3282:67"] 
+	3282 -> 1861 [label="s=47"] 
+	3283 [shape=box, label="3283:70"] 
+	3283 -> 3282
+	3284 [shape=box, label="3284:70"] 
+	3284 -> 3282
+	3285 [shape=box, label="3285:137"] 
+	3285 -> 1945 [label="s=342"] 
+	3287 [shape=box, label="3287:67"] 
+	3287 -> 1861 [label="s=47"] 
+	3288 [shape=box, label="3288:70"] 
+	3288 -> 3287
+	3289 [shape=box, label="3289:70"] 
+	3289 -> 3287
+	3290 [shape=box, label="3290:67"] 
+	3290 -> 3291
+	3290 -> 3292
+	3291 [shape=box, label="3291:3"] 
+	3291 -> 2995 [label="s=64"] 
+	3292 [shape=box, label="3292:3"] 
+	3292 -> 2272 [label="s=-18"] 
+	3293 [shape=box, label="3293:137"] 
+	3293 -> 1945 [label="s=342"] 
+	3295 [shape=box, label="3295:67"] 
+	3295 -> 1861 [label="s=47"] 
+	3296 [shape=box, label="3296:70"] 
+	3296 -> 3295
+	3297 [shape=box, label="3297:70"] 
+	3297 -> 3295
+	3298 [shape=box, label="3298:67"] 
+	3298 -> 2659 [label="s=87"] 
+	3299 [shape=box, label="3299:70"] 
+	3299 -> 3298
+	3300 [shape=box, label="3300:70"] 
+	3300 -> 3298
+	3301 [shape=box, label="3301:67"] 
+	3301 -> 3302
+	3301 -> 3303
+	3302 [shape=box, label="3302:3"] 
+	3302 -> 2995 [label="s=64"] 
+	3303 [shape=box, label="3303:3"] 
+	3303 -> 2272 [label="s=-18"] 
+	3304 [shape=box, label="3304:137"] 
+	3304 -> 1945 [label="s=342"] 
+	3306 [shape=box, label="3306:67"] 
+	3306 -> 2659 [label="s=87"] 
+	3307 [shape=box, label="3307:70"] 
+	3307 -> 3306
+	3308 [shape=box, label="3308:70"] 
+	3308 -> 3306
+	3309 [shape=box, label="3309:67"] 
+	3309 -> 3310
+	3309 -> 3311
+	3310 [shape=box, label="3310:3"] 
+	3310 -> 2995 [label="s=64"] 
+	3311 [shape=box, label="3311:3"] 
+	3311 -> 2272 [label="s=-18"] 
+	3312 [shape=box, label="3312:67"] 
+	3312 -> 2659 [label="s=87"] 
+	3313 [shape=box, label="3313:70"] 
+	3313 -> 3312
+	3314 [shape=box, label="3314:70"] 
+	3314 -> 3312
+	3315 [shape=box, label="3315:67"] 
+	3315 -> 3316
+	3315 -> 3317
+	3316 [shape=box, label="3316:3"] 
+	3316 -> 2995 [label="s=64"] 
+	3317 [shape=box, label="3317:3"] 
+	3317 -> 2272 [label="s=-18"] 
+	3318 [shape=box, label="3318:137"] 
+	3318 -> 1945 [label="s=342"] 
+	3320 [shape=box, label="3320:67"] 
+	3320 -> 3321
+	3320 -> 3322
+	3321 [shape=box, label="3321:3"] 
+	3321 -> 2995 [label="s=64"] 
+	3322 [shape=box, label="3322:3"] 
+	3322 -> 2272 [label="s=-18"] 
+	3323 [shape=box, label="3323:137"] 
+	3323 -> 1945 [label="s=342"] 
+	3325 [shape=box, label="3325:67"] 
+	3325 -> 2659 [label="s=87"] 
+	3326 [shape=box, label="3326:70"] 
+	3326 -> 3325
+	3327 [shape=box, label="3327:70"] 
+	3327 -> 3325
+	3328 [shape=box, label="3328:137"] 
+	3328 -> 1945 [label="s=342"] 
+	3330 [shape=box, label="3330:67"] 
+	3330 -> 1861 [label="s=47"] 
+	3331 [shape=box, label="3331:70"] 
+	3331 -> 3330
+	3332 [shape=box, label="3332:70"] 
+	3332 -> 3330
+	3333 [shape=box, label="3333:137"] 
+	3333 -> 1945 [label="s=342"] 
+	3335 [shape=box, label="3335:67"] 
+	3335 -> 3336
+	3335 -> 3337
+	3336 [shape=box, label="3336:3"] 
+	3336 -> 2995 [label="s=64"] 
+	3337 [shape=box, label="3337:3"] 
+	3337 -> 2272 [label="s=-18"] 
+	3338 [shape=box, label="3338:2217"] 
+	3339 [shape=box, label="3339:521"] 
+	3340 [shape=box, label="3340:73"] 
+	3340 -> 3339
+	3341 [shape=box, label="3341:69"] 
+	3341 -> 3339
+	3342 [shape=box, label="3342:137"] 
+	3342 -> 1945 [label="s=342"] 
+	3344 [shape=box, label="3344:67"] 
+	3344 -> 2659 [label="s=87"] 
+	3345 [shape=box, label="3345:70"] 
+	3345 -> 3344
+	3346 [shape=box, label="3346:70"] 
+	3346 -> 3344
+	3347 [shape=box, label="3347:67"] 
+	3347 -> 2659 [label="s=87"] 
+	3348 [shape=box, label="3348:70"] 
+	3348 -> 3347
+	3349 [shape=box, label="3349:70"] 
+	3349 -> 3347
+	3350 [shape=box, label="3350:137"] 
+	3350 -> 1945 [label="s=342"] 
+	3352 [shape=box, label="3352:67"] 
+	3352 -> 3353
+	3352 -> 3354
+	3353 [shape=box, label="3353:3"] 
+	3353 -> 2995 [label="s=64"] 
+	3354 [shape=box, label="3354:3"] 
+	3354 -> 2272 [label="s=-18"] 
+	3355 [shape=box, label="3355:67"] 
+	3355 -> 3356
+	3355 -> 3357
+	3356 [shape=box, label="3356:3"] 
+	3356 -> 2995 [label="s=64"] 
+	3357 [shape=box, label="3357:3"] 
+	3357 -> 2272 [label="s=-18"] 
+	3358 [shape=box, label="3358:67"] 
+	3358 -> 2659 [label="s=87"] 
+	3359 [shape=box, label="3359:70"] 
+	3359 -> 3358
+	3360 [shape=box, label="3360:70"] 
+	3360 -> 3358
+	3361 [shape=box, label="3361:67"] 
+	3361 -> 2659 [label="s=87"] 
+	3362 [shape=box, label="3362:70"] 
+	3362 -> 3361
+	3363 [shape=box, label="3363:70"] 
+	3363 -> 3361
+	3364 [shape=box, label="3364:137"] 
+	3364 -> 1945 [label="s=342"] 
+	3366 [shape=box, label="3366:83"] 
+	3366 -> 365 [label="s=51"] 
+	3367 [shape=box, label="3367:89"] 
+	3368 [shape=box, label="3368:69"] 
+	3368 -> 16 [label="s=2610"] 
+	3369 [shape=box, label="3369:67"] 
+	3369 -> 3370
+	3369 -> 3371
+	3370 [shape=box, label="3370:3"] 
+	3370 -> 2948 [label="s=59"] 
+	3371 [shape=box, label="3371:3"] 
+	3371 -> 190 [label="s=56"] 
+	3372 [shape=box, label="3372:77"] 
+	3372 -> 1600 [label="s=1020"] 
+	3373 [shape=box, label="3373:67"] 
+	3373 -> 3374
+	3373 -> 3375
+	3374 [shape=box, label="3374:3"] 
+	3374 -> 2643 [label="s=39"] 
+	3375 [shape=box, label="3375:3"] 
+	3375 -> 2656 [label="s=-30"] 
+	3377 [shape=box, label="3377:70"] 
+	3377 -> 2639 [label="s=53"] 
+	3379 [shape=box, label="3379:104"] 
+	3379 -> 1595 [label="s=110"] 
+	3381 [shape=box, label="3381:70"] 
+	3381 -> 2639 [label="s=53"] 
+	3384 [shape=box, label="3384:70"] 
+	3384 -> 2639 [label="s=53"] 
+	3386 [shape=box, label="3386:67"] 
+	3386 -> 3387
+	3386 -> 3388
+	3387 [shape=box, label="3387:3"] 
+	3387 -> 2948 [label="s=59"] 
+	3388 [shape=box, label="3388:3"] 
+	3388 -> 190 [label="s=56"] 
+	3390 [shape=box, label="3390:70"] 
+	3390 -> 2639 [label="s=53"] 
+	3393 [shape=box, label="3393:70"] 
+	3393 -> 2639 [label="s=53"] 
+	3396 [shape=box, label="3396:70"] 
+	3396 -> 3381 [label="s=54"] 
+	3399 [shape=box, label="3399:70"] 
+	3399 -> 2706 [label="s=57"] 
+	3402 [shape=box, label="3402:70"] 
+	3402 -> 3381 [label="s=54"] 
+	3405 [shape=box, label="3405:70"] 
+	3405 -> 2639 [label="s=53"] 
+	3407 [shape=box, label="3407:67"] 
+	3407 -> 3408
+	3408 [shape=box, label="3408:30"] 
+	3408 -> 1717 [label="s=29"] 
+	3411 [shape=box, label="3411:70"] 
+	3411 -> 2639 [label="s=53"] 
+	3414 [shape=box, label="3414:70"] 
+	3414 -> 3381 [label="s=54"] 
+	3417 [shape=box, label="3417:70"] 
+	3417 -> 3408 [label="s=3"] 
+	3420 [shape=box, label="3420:70"] 
+	3420 -> 3408 [label="s=3"] 
+	3422 [shape=box, label="3422:224"] 
+	3423 [shape=box, label="3423:74"] 
+	3423 -> 3422
+	3424 [shape=box, label="3424:70"] 
+	3424 -> 3422
+	3425 [shape=box, label="3425:70"] 
+	3425 -> 3424
+	3426 [shape=box, label="3426:70"] 
+	3426 -> 3424
+	3428 [shape=box, label="3428:70"] 
+	3428 -> 2706 [label="s=57"] 
+	3430 [shape=box, label="3430:67"] 
+	3430 -> 3422 [label="s=109"] 
+	3431 [shape=box, label="3431:1"] 
+	3431 -> 3430
+	3432 [shape=box, label="3432:8"] 
+	3432 -> 3431
+	3436 [shape=box, label="3436:53"] 
+	3436 -> 3432
+	3437 [shape=box, label="3437:74"] 
+	3437 -> 3432
+	3449 [shape=box, label="3449:1541"] 
+	3449 -> 3431
+	3453 [shape=box, label="3453:35"] 
+	3453 -> 3430
+	3455 [shape=box, label="3455:70"] 
+	3455 -> 3381 [label="s=54"] 
+	3458 [shape=box, label="3458:70"] 
+	3458 -> 3381 [label="s=54"] 
+	3461 [shape=box, label="3461:70"] 
+	3461 -> 2639 [label="s=53"] 
+	3464 [shape=box, label="3464:70"] 
+	3464 -> 2639 [label="s=53"] 
+	3467 [shape=box, label="3467:70"] 
+	3467 -> 3408 [label="s=3"] 
+	3470 [shape=box, label="3470:70"] 
+	3470 -> 3381 [label="s=54"] 
 } 

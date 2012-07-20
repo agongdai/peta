@@ -21,8 +21,8 @@ void free_hits(GPtrArray *hits) {
 			h = g_ptr_array_index(hits, i);
 			free(h);
 		}
-		g_ptr_array_free(hits, TRUE);
 	}
+	g_ptr_array_free(hits, TRUE);
 }
 
 int compare_hits(gpointer a, gpointer b) {
@@ -75,13 +75,9 @@ void free_alg(alignarray *alns) {
 	if (alns) {
 		for (i = 0; i < alns->len; i++) {
 			a = g_ptr_array_index(alns, i);
-			// printf("[free_alg] %p: %" ID64 ": %d, %" ID64 "\n", a, a->r_id, a->pos, a->q_id);
 			free(a);
 		}
-		if (alns->len > 0)
-			g_ptr_array_free(alns, TRUE);
-		else
-			g_ptr_array_free(alns, FALSE);
+		g_ptr_array_free(alns, TRUE);
 	}
 }
 
@@ -143,9 +139,9 @@ alg *new_alg() {
 	return a;
 }
 
-void extract_alns(const bwa_seq_t *seqs, const bwa_seq_t *query, const ubyte_t *q_seq,
-		GPtrArray *hits, const int mismatches, const int ol, const int is_rc,
-		alignarray *aligns) {
+void extract_alns(const bwa_seq_t *seqs, const bwa_seq_t *query,
+		const ubyte_t *q_seq, GPtrArray *hits, const int mismatches,
+		const int ol, const int is_rc, alignarray *aligns) {
 	pos_tuple *h, *h2;
 	alg *a;
 	int i = 0, diff = 0;
@@ -161,8 +157,8 @@ void extract_alns(const bwa_seq_t *seqs, const bwa_seq_t *query, const ubyte_t *
 			continue;
 		} else {
 			aln_read = &seqs[h->seq_id];
-			diff = is_sub_seq_aln(q_seq, query->len, h->shift, h->offset, aln_read,
-					mismatches, ol);
+			diff = is_sub_seq_aln(q_seq, query->len, h->shift, h->offset,
+					aln_read, mismatches, ol);
 			if (diff != NOT_FOUND) {
 				a = new_alg();
 				a->diff = diff;
@@ -177,8 +173,9 @@ void extract_alns(const bwa_seq_t *seqs, const bwa_seq_t *query, const ubyte_t *
 	}
 }
 
-void pe_aln_query(const bwa_seq_t *query, const ubyte_t *q_seq, const hash_table *ht,
-		const int mismatches, const int ol, const int is_rc, alignarray *aligns) {
+void pe_aln_query(const bwa_seq_t *query, const ubyte_t *q_seq,
+		const hash_table *ht, const int mismatches, const int ol,
+		const int is_rc, alignarray *aligns) {
 	index64 seq_id = 0, pos_index = 0;
 	int i = 0, n_occ = 0, j = 0, locus = 0, n_hits = 0;
 	hash_opt *hash_o;
