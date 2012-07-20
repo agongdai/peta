@@ -89,13 +89,11 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 	fprintf(stderr, "[pe_hash_core] Loading sequences from %s... \n", fa_fn);
 	ks = bwa_open_reads(opt->mode, fa_fn);
 	while ((seqs = bwa_read_seq(ks, 0xa00000, &n_seqs, opt->mode, 0)) != 0) {
-		fprintf(
-				stderr,
+		fprintf(stderr,
 				"[pe_hash_core] %" ID64 " sequences in library %s loaded: %.2f sec... \n",
 				n_seqs, fa_fn, (float) (clock() - t) / CLOCKS_PER_SEC);
 		if (n_seqs < 1) {
-			err_fatal(
-					__func__,
+			err_fatal(__func__,
 					"No sequence in file %s, make sure the format is correct! \n",
 					fa_fn);
 		}
@@ -113,8 +111,7 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 	hash_len = (opt->read_len / opt->k) * opt->k;
 
 	// Round 1: count occurrences of all k-mers
-	fprintf(stderr,
-				"[pe_hash_core] Counting occurrences of all k-mers... \n");
+	fprintf(stderr, "[pe_hash_core] Counting occurrences of all k-mers... \n");
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
 		if (s->len != opt->read_len) {
@@ -124,8 +121,8 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 		}
 		seq_reverse(s->len, s->seq, 0);
 		//p_query(__func__, s);
-		while (block_no < opt->n_hash_block && hash_start <= opt->read_len
-				- opt->k * (opt->interleaving)) {
+		while (block_no < opt->n_hash_block
+				&& hash_start <= opt->read_len - opt->k * (opt->interleaving)) {
 			hash_start = block_no * opt->block_size;
 			key = get_hash_key(s->seq, hash_start, opt->interleaving, opt->k);
 			//printf("Key: %" ID64 "\n", key);
@@ -156,13 +153,15 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 	k_mers_occ_acc[n_k_mers - 1] = n_pos - 1;
 
 	// Round 2: save the hashes.
-	fprintf(stderr, "[pe_hash_core] Pos array size: %" ID64 ", start hashing...\n", n_pos);
+	fprintf(stderr,
+			"[pe_hash_core] Pos array size: %" ID64 ", start hashing...\n",
+			n_pos);
 	pos = (hash_value*) calloc(n_pos, sizeof(hash_value));
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
 
-		while (block_no < opt->n_hash_block && hash_start <= opt->read_len
-				- opt->k * (opt->interleaving)) {
+		while (block_no < opt->n_hash_block
+				&& hash_start <= opt->read_len - opt->k * (opt->interleaving)) {
 			hash_start = block_no * opt->block_size;
 			// Hash two keys for the starting region of a read, interleaving by 1 by default.
 			key = get_hash_key(s->seq, hash_start, opt->interleaving, opt->k);
@@ -183,9 +182,9 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 		hash_start = 0;
 		block_no = 0;
 		if ((index64) (n_seqs * 0.2) == i || (index64) (n_seqs * 0.4) == i
-				|| (index64) (n_seqs * 0.6) == i || (index64) (n_seqs * 0.8) == i) {
-			fprintf(
-					stderr,
+				|| (index64) (n_seqs * 0.6) == i
+				|| (index64) (n_seqs * 0.8) == i) {
+			fprintf(stderr,
 					"[pe_hash_core] %" ID64 " seqs out of %" ID64 " hashed... \n",
 					i, n_seqs);
 		}
@@ -224,32 +223,48 @@ hash_table *pe_load_hash(const char *fa_fn) {
 	FILE *fp;
 	hash_opt *opt;
 	bwa_seqio_t *ks;
-	index64 n_seqs = 0;
-	bwa_seq_t *seqs = 0;
+	uint32_t n_seqs = 0, n_seqs_full = 0;
+	int n_part_seqs = 0;
+	bwa_seq_t *seqs = NULL, *part_seqs = NULL;
 	char *hash_fn = malloc(FNLEN);
+	clock_t t = clock();
 
 	fprintf(stderr, "[pe_load_hash] Loading hash table of %s... \n", fa_fn);
 	h = (hash_table*) malloc(sizeof(hash_table));
 	// Load original rna-seqs.
 	ks = bwa_open_reads(BWA_MODE, fa_fn);
-	while ((seqs = bwa_read_seq(ks, 0xa00000, &n_seqs, BWA_MODE, 0)) != 0) {
-		pe_reverse_seqs(seqs, n_seqs);
-		h->seqs = seqs;
-		h->n_seqs = n_seqs;
+	n_seqs_full = N_DF_MAX_SEQS;
+	seqs = (bwa_seq_t*) calloc(N_DF_MAX_SEQS, sizeof(bwa_seq_t));
+	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, BWA_MODE,
+			0)) != 0) {
+		pe_reverse_seqs(part_seqs, n_part_seqs);
 		fprintf(stderr,
-				"[pe_load_hash] Original sequences loaded: %" ID64 "\n", n_seqs);
-		break;
+				"[pe_clean_core] %d sequences in library %s loaded: %.2f sec... \n",
+				n_seqs + n_part_seqs, fa_fn,
+				(float) (clock() - t) / CLOCKS_PER_SEC);
+		if ((n_seqs + n_part_seqs) > n_seqs_full) {
+			n_seqs_full += n_part_seqs + 2;
+			kroundup32(n_seqs_full);
+			seqs = (bwa_seq_t*) realloc(seqs, sizeof(bwa_seq_t) * n_seqs_full);
+		}
+		memmove(&seqs[n_seqs], part_seqs, sizeof(bwa_seq_t) * n_part_seqs);
+		free(part_seqs);
+		n_seqs += n_part_seqs;
 	}
+	h->seqs = seqs;
+	h->n_seqs = n_seqs;
+	fprintf(stderr, "[pe_load_hash] Original sequences loaded: %d\n",
+			n_seqs);
 
 	// Load the hash table itself
 	sprintf(hash_fn, "%s.hash", fa_fn);
 	opt = (hash_opt*) malloc(sizeof(hash_opt));
 	fp = xopen(hash_fn, "rb");
 	if (!fread(opt, sizeof(hash_opt), 1, fp)) {
-		err_fatal(__func__, "Unable to read from the hash file %s! \n", hash_fn);
+		err_fatal(__func__, "Unable to read from the hash file %s! \n",
+				hash_fn);
 	}
-	fprintf(
-			stderr,
+	fprintf(stderr,
 			"[pe_load_hash] Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 "...\n",
 			opt->k, opt->read_len, opt->n_k_mers, opt->n_pos);
 	h->k_mers_occ_acc = (hash_key*) calloc(opt->n_k_mers, sizeof(hash_key));
@@ -258,8 +273,7 @@ hash_table *pe_load_hash(const char *fa_fn) {
 	fread(h->k_mers_occ_acc, sizeof(hash_key), opt->n_k_mers, fp);
 	fread(h->pos, sizeof(hash_value), opt->n_pos, fp);
 	fclose(fp);
-	fprintf(
-			stderr,
+	fprintf(stderr,
 			"[pe_load_hash] Hash table loaded, k-mer records: %" ID64 ", positions: %" ID64 "\n",
 			opt->n_k_mers, opt->n_pos);
 	bwa_seq_close(ks);
@@ -300,7 +314,7 @@ int pe_hash(int argc, char *argv[]) {
 	}
 
 	pe_hash_core(argv[optind], opt);
-	fprintf(stderr, "[pe_hash] Hashing done: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
+	fprintf(stderr, "[pe_hash] Hashing done: %.2f sec\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return 0;
 }

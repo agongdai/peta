@@ -18,6 +18,8 @@
 #define HASH_VALUE_HIGHER	281474976710655 // 48 1's
 #define HASH_VALUE_LOWER	65535
 #define BWA_MODE			3
+#define N_CHUNK_SEQS		4194304 // # of reads read in every time
+#define N_DF_MAX_SEQS		8388608
 
 typedef uint64_t hash_key;
 typedef uint64_t hash_value;

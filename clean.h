@@ -2,6 +2,8 @@
 #include <inttypes.h>
 
 #define MAX_N16	4294967295
+#define N_CHUNK_SEQS	4194304 // # of reads read in every time
+#define N_DF_MAX_SEQS	4194304
 
 typedef struct {
 	int kmer;
