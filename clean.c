@@ -43,8 +43,9 @@ double mean(double a[], int n) {
 
 counter *init_counter() {
 	counter *mer = (counter*) malloc(sizeof(counter));
-	mer->k_freq = 0;
+	mer->k_freq = 0.0;
 	mer->read_id = 0;
+	mer->k_sd = 0.0;
 	return mer;
 }
 
