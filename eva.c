@@ -913,7 +913,7 @@ void parse_sam(rs_info *info) {
 		}
 		o->evalue = atoi(attr[8]);
 		//p_occ(o);
-		if (o->ali_len <= 60)
+		if (o->ali_len <= 100)
 			continue;
 
 		g_ptr_array_add(info->occ_all, o);

@@ -21,7 +21,6 @@
 #include "pechar.h"
 
 /**
- * PET is not used.
  *
  * Original contig: abcdefghijklmnopqrst
  * PET: bcd, opqr
@@ -123,7 +122,7 @@ void filter_pool(pool *p, edge *ass_eg, const hash_table *ht) {
 void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 		pool *mate_pool, bwa_seq_t *query, const hash_table *ht, edge *ass_eg,
 		const int ori) {
-	int i = 0;
+	int i = 0, is_at_end = 0;
 	int check_c_1 = 0, check_c_2 = 0, confirm_c = 0, confirm_c_2 = 0;
 	index64 index;
 	alg *a;
@@ -174,30 +173,6 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 		//pool_add(mate_pool, mate);
 		// mate->is_in_c_pool = 0; // mate read is not in current pool
 	}
-
-	// Remove those mate reads that would not be useful.
-	//	if (ass_eg->len % opt->rl == 0) {
-	//		filter_pool(mate_pool, ass_eg, ht);
-	//	}
-	// In case the alignment only finds partial results,
-	//   from the mate pool add reads
-	//	for (i = 0; i < mate_pool->n; i++) {
-	//		mate = g_ptr_array_index(mate_pool->reads, i);
-	//		if (mate->used)
-	//			continue;
-	//		sub_index = is_sub_seq(q, 0, mate, opt->nm, 0);
-	//		if (sub_index != NOT_FOUND) {
-	//			mate->cursor = ori ? (sub_index - 1) : (sub_index + opt->ol);
-	//			if (mate->cursor >= mate->len || mate->cursor < 0) {
-	//				mate->cursor = 0;
-	//				continue;
-	//			}
-	//			// Add the mate to the current pool and remove from the mate pool
-	//			pool_uni_add(cur_pool, mate);
-	//			pool_rm_index(mate_pool, i);
-	//			i--;
-	//		}
-	//	}
 	check_c_1 = ori ? query->seq[0] : query->seq[query->len - 1];
 	check_c_2 = ori ? query->seq[1] : query->seq[query->len - 2];
 	for (i = 0; i < cur_pool->n; i++) {
@@ -208,13 +183,14 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 			confirm_c = ori ? s->rseq[s->cursor + 1] : s->rseq[s->cursor - 1];
 			confirm_c_2 = ori ? s->rseq[s->cursor + 2] : s->rseq[s->cursor - 2];
 		}
+		// If the cursor has reached the end, do not remove it.
+		// In case that the read will be removed and not marked as used, which confuses the extending from mates.
+		is_at_end = ori ? (s->cursor <= opt->nm) : (s->cursor >= s->len - opt->nm - 1);
 		// Remove those reads probably at the splicing junction
-		if ((is_sub_seq(q, 0, s, opt->nm, 0) == NOT_FOUND && is_sub_seq_byte(
+		if (!is_at_end && (is_sub_seq(q, 0, s, opt->nm, 0) == NOT_FOUND && is_sub_seq_byte(
 				q->rseq, q->len, 0, s, opt->nm, 0) == NOT_FOUND) || (check_c_1
 				!= confirm_c && check_c_2 != confirm_c_2)) {
-			mate = get_mate(s, seqs);
 			removed = pool_rm_index(cur_pool, i);
-			//pool_rm_fast(mate_pool, mate);
 			if (removed)
 				i--;
 		} else {
@@ -667,8 +643,8 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		return;
 	}
 
-	left_p_reads = get_parents_reads(left_eg, 0);
-	right_p_reads = get_parents_reads(right_eg, 1);
+//	left_p_reads = get_parents_reads(left_eg, 0);
+//	right_p_reads = get_parents_reads(right_eg, 1);
 	// p_readarray(left_p_reads, 1);
 	paired_reads = get_paired_reads(left_p_reads, right_p_reads, ht->seqs, 0);
 	// If no paired reads spanning the two edges, just return.
@@ -748,6 +724,8 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		}
 	}
 	if (to_merge) {
+		p_ctg_seq("Left: ", left_eg->contig);
+		p_ctg_seq("Right:", right_eg->contig);
 		show_debug_msg(__func__, "Gap size: %d \n", gap);
 		if (ori) {
 			added_gap = init_gap(right_eg->len, gap, ori);
@@ -819,6 +797,7 @@ bwa_seq_t *ext_by_mates(edge *ass_eg, const hash_table *ht, pool *cur_pool,
 		upd_reads(ass_eg, opt->nm);
 	}
 	free_pool(mate_pool);
+	free_pool(cur_pool);
 	bwa_free_read_seq(1, init_q);
 	return query;
 }
@@ -945,7 +924,6 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		query = get_init_q(ass_eg, 0, ori);
 		c_pool = new_pool();
 		tmp = ext_by_mates(ass_eg, ht, c_pool, query, ori);
-		free_pool(c_pool);
 		bwa_free_read_seq(1, tmp);
 		if (ass_eg->len > ori_len)
 			return 1;
@@ -1142,13 +1120,13 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 				c_index++;
 			}
 			free(c);
-			if (no_sub_path && opt->pair) {
-				extended = linear_ext(ass_eg, ht, msg->query, msg->type, ori);
-				if (extended)
-					continue;
-				else
-					break;
-			} else
+//			if (no_sub_path && opt->pair) {
+//				extended = linear_ext(ass_eg, ht, msg->query, msg->type, ori);
+//				if (extended)
+//					continue;
+//				else
+//					break;
+//			} else
 				break;
 		} else {
 			break;

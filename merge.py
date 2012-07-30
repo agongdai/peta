@@ -91,6 +91,20 @@ def rename_ids(args):
     fq_file.close()
     renamed.close()
 
+def fq2fa(args):
+    fq = open(args.fq_fn)
+    fa = open(args.fa_fn, 'w')
+    line_no = 0
+    for line in fq:
+        if line_no % 4 == 0:
+            line = line.replace('@', '>')
+            fa.write(line)
+        elif line_no % 4 == 1:
+            fa.write(line)
+        line_no += 1
+    fq.close()
+    fa.close()
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -107,6 +121,11 @@ def main():
     parser_merge = subparsers.add_parser('rename', help='rename read ids to be 0, 1, 2...')
     parser_merge.set_defaults(func=rename_ids)
     parser_merge.add_argument('-f', required=True, help='fastq file', dest='fq', metavar='FILE')
+
+    parser_merge = subparsers.add_parser('fq2fa', help='convert fastq file to fasta file')
+    parser_merge.set_defaults(func=fq2fa)
+    parser_merge.add_argument('-q', required=True, help='fastq file', dest='fq_fn', metavar='FILE')
+    parser_merge.add_argument('-a', required=True, help='fasta file', dest='fa_fn', metavar='FILE')
 
     args = parser.parse_args()
     args.func(args)
