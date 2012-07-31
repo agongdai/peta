@@ -21,3 +21,8 @@ eg_gap *init_gap(int s_index, int size, int ori) {
 	gap->ori = ori;
 	return gap;
 }
+
+void free_eg_gap(eg_gap *gap) {
+	if (gap)
+		free(gap);
+}

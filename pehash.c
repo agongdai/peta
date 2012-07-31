@@ -93,21 +93,14 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 	n_occ = (int*) calloc(n_k_mers, sizeof(int)); // Store how many occs through the iteration
 	hash_len = (opt->read_len / opt->k) * opt->k;
 
-	fprintf(stderr, "[pe_hash_core] Loading sequences from %s... \n", fa_fn);
 	ks = bwa_open_reads(opt->mode, fa_fn);
+	// Round 1: count occurrences of all k-mers
+	fprintf(stderr,
+			"[pe_hash_core] Round 1: Counting occurrences of k-mers... \n");
 	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, opt->mode,
 			0)) != 0) {
 		pe_reverse_seqs(part_seqs, n_part_seqs);
 		n_seqs += n_part_seqs;
-		fprintf(
-				stderr,
-				"[pe_hash_core] %"ID64" sequences in library %s loaded: %.2f sec... \n",
-				n_seqs, fa_fn, (float) (clock() - t)
-				/ CLOCKS_PER_SEC);
-		//		p_query("", part_seqs);
-		// Round 1: count occurrences of all k-mers
-		fprintf(stderr,
-				"[pe_hash_core] Round 1: Counting occurrences of k-mers... \n");
 		for (i = 0; i < n_part_seqs; i++) {
 			s = &part_seqs[i];
 			if (s->len != opt->read_len) {
@@ -135,6 +128,11 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 			hash_start = 0;
 			block_no = 0;
 		}
+		fprintf(
+				stderr,
+				"[pe_hash_core] %"ID64" sequences counted: %.2f sec... \n",
+				n_seqs, (float) (clock() - t)
+				/ CLOCKS_PER_SEC);
 		bwa_free_read_seq(n_part_seqs, part_seqs);
 	}
 	bwa_seq_close(ks);
@@ -161,19 +159,13 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 
 	hash_start = 0;
 	block_no = 0;
-	fprintf(stderr, "[pe_hash_core] Round 2: Loading sequences from %s... \n",
+	fprintf(stderr, "[pe_hash_core] Round 2: Store k-mer pointers %s... \n",
 			fa_fn);
 	ks = bwa_open_reads(opt->mode, fa_fn);
 	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, opt->mode,
 			0)) != 0) {
 		pe_reverse_seqs(part_seqs, n_part_seqs);
 		n_seqs += n_part_seqs;
-		fprintf(
-				stderr,
-				"[pe_hash_core] %"ID64" sequences in library %s loaded: %.2f sec... \n",
-				n_seqs, fa_fn, (float) (clock() - t)
-				/ CLOCKS_PER_SEC);
-
 		for (i = 0; i < n_part_seqs; i++) {
 			s = &part_seqs[i];
 			while (block_no < opt->n_hash_block && hash_start <= opt->read_len
@@ -189,7 +181,8 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 
 				key = get_hash_key(s->seq, hash_start + opt->interleaving - 1,
 						opt->interleaving, opt->k);
-				value = get_hash_value(i_acc, hash_start + opt->interleaving - 1);
+				value = get_hash_value(i_acc,
+						hash_start + opt->interleaving - 1);
 				pos_index = k_mers_occ_acc[key] + n_occ[key];
 				pos[pos_index] = value;
 				n_occ[key]++;
@@ -200,6 +193,11 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 			block_no = 0;
 			i_acc++;
 		}
+		fprintf(
+				stderr,
+				"[pe_hash_core] %"ID64" sequences hashed: %.2f sec... \n",
+				n_seqs, (float) (clock() - t)
+				/ CLOCKS_PER_SEC);
 		bwa_free_read_seq(n_part_seqs, part_seqs);
 	}
 	bwa_seq_close(ks);
@@ -343,8 +341,8 @@ int pe_hash(int argc, char *argv[]) {
 	}
 
 	pe_hash_core(argv[optind], opt);
-//	pe_hash_test(argv[optind], opt);
-//	pe_hash_test("read/SRR097897.fa.correct", opt);
+	//	pe_hash_test(argv[optind], opt);
+	//	pe_hash_test("read/SRR097897.fa.correct", opt);
 	fprintf(stderr, "[pe_hash] Hashing done: %.2f sec\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return 0;

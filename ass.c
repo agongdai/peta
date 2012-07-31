@@ -409,10 +409,12 @@ int vld_ext(edge *parent, bwa_seq_t *query, const hash_table *ht, const int ori)
 	bwa_seq_t *seqs = ht->seqs, *s, *mate;
 	int i = 0, n_on = 0, acc_len = 0, q_pos_on_mate;
 	ubyte_t cursor_char, next_char;
-	readarray *reads = 0;
+	readarray *reads = NULL;
+
 	reads = get_parents_reads(parent, ori);
 	acc_len = get_parents_len(parent, ori);
 	if (!reads || acc_len < opt->mean) {
+		g_ptr_array_free(reads, TRUE);
 		show_debug_msg(__func__, "Accumulated length too short: %d \n", acc_len);
 		return 1;
 	}
@@ -618,11 +620,11 @@ int est_gap(const edge *left_eg, const edge *right_eg, const hash_table *ht) {
 void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		const hash_table *ht, const int ori) {
 	readarray *paired_reads, *mates = 0, *left_p_reads, *right_p_reads;
-	pool *cur_pool, *ass_mate_pool, *left_pool = 0;
+	pool *cur_pool, *ass_mate_pool, *left_pool = NULL;
 	int olpped = 0, gap = 0, ol_len = 0, to_merge = 0, ori_len = 0;
 	int ol = 0;
-	bwa_seq_t *query = 0;
-	eg_gap *added_gap;
+	bwa_seq_t *query = NULL;
+	eg_gap *added_gap = NULL;
 	//	p_query(left_eg->contig);
 	//	p_query(right_eg->contig);
 	//p_ctg_seq(__func__, left_eg->contig);
@@ -650,6 +652,8 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 	right_p_reads = get_parents_reads(right_eg, 1);
 	// p_readarray(left_p_reads, 1);
 	paired_reads = get_paired_reads(left_p_reads, right_p_reads, ht->seqs, 0);
+	g_ptr_array_free(left_p_reads, TRUE);
+	g_ptr_array_free(right_p_reads, TRUE);
 	// If no paired reads spanning the two edges, just return.
 	if (paired_reads->len == 0) {
 		g_ptr_array_free(paired_reads, TRUE);
@@ -657,8 +661,6 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		return;
 	}
 	g_ptr_array_free(paired_reads, TRUE);
-	g_ptr_array_free(left_p_reads, TRUE);
-	g_ptr_array_free(right_p_reads, TRUE);
 
 	cur_pool = new_pool();
 	ass_mate_pool = get_mate_pool(left_eg, ht, 0, 0, 1);
@@ -688,6 +690,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 				ori_len, right_eg->len);
 		clear_pool(cur_pool);
 		rev_reads_pos(right_eg);
+		bwa_free_read_seq(1, query);
 	}
 
 	// If overlapped, stop here.
@@ -724,6 +727,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 				if ((gap - reason_gap) >= TLR_LEN)
 					gap = reason_gap;
 			}
+			bwa_free_read_seq(1, query);
 		}
 	}
 	if (to_merge) {
@@ -739,6 +743,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 			g_ptr_array_add(left_eg->gaps, added_gap);
 			merge_eg_to_left(left_eg, right_eg, gap);
 		}
+		free_eg_gap(added_gap);
 	}
 	free_pool(cur_pool);
 	free_pool(ass_mate_pool);
@@ -1016,6 +1021,7 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 	destroy_eg(m_eg);
 	free_msg(m);
 	free_msg(m2);
+	free_eg_gap(exi_gap);
 	return extended;
 }
 
@@ -1075,7 +1081,6 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 		bwa_free_read_seq(1, query);
 		query = 0;
 		c_pool = 0; // Content has been free in function single_extend.
-//		break;
 		if (msg->type == REP_QUE || msg->type == NOT_EXTEND || msg->type
 				== REP_EXTEND) {
 			if (!opt->pair)

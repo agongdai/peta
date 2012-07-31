@@ -49,5 +49,6 @@ typedef struct {
 } eg_gap;
 
 eg_gap *init_gap(int s_index, int size, int ori);
+void free_eg_gap(eg_gap *gap);
 
 #endif /* EDGE_H_ */
