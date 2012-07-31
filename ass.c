@@ -743,12 +743,10 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 			g_ptr_array_add(left_eg->gaps, added_gap);
 			merge_eg_to_left(left_eg, right_eg, gap);
 		}
-		free_eg_gap(added_gap);
 	}
 	free_pool(cur_pool);
 	free_pool(ass_mate_pool);
 	free_pool(left_pool);
-	bwa_free_read_seq(1, query);
 }
 
 /**
