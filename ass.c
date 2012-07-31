@@ -189,7 +189,6 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 		// If the cursor has reached the end, do not remove it.
 		// In case that the read will be removed and not marked as used, which confuses the extending from mates.
 		is_at_end = ori ? (s->cursor <= opt->nm) : (s->cursor >= s->len - opt->nm - 1);
-		is_at_end = 0;
 		// Remove those reads probably at the splicing junction
 		if (!is_at_end && (is_sub_seq(q, 0, s, opt->nm, 0) == NOT_FOUND && is_sub_seq_byte(
 				q->rseq, q->len, 0, s, opt->nm, 0) == NOT_FOUND) || (check_c_1
@@ -728,8 +727,8 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		}
 	}
 	if (to_merge) {
-		p_ctg_seq("Left: ", left_eg->contig);
-		p_ctg_seq("Right:", right_eg->contig);
+//		p_ctg_seq("Left: ", left_eg->contig);
+//		p_ctg_seq("Right:", right_eg->contig);
 		show_debug_msg(__func__, "Gap size: %d \n", gap);
 		if (ori) {
 			added_gap = init_gap(right_eg->len, gap, ori);
