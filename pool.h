@@ -13,7 +13,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define POOLSIZE 64
+#define POOLSIZE 32
 
 typedef struct {
 	readarray *reads;

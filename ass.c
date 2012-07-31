@@ -59,17 +59,20 @@ ass_opt *init_opt() {
 
 ext_msg *new_msg() {
 	ext_msg *m = (ext_msg*) malloc(sizeof(ext_msg));
-	m->data = 0;
+	m->used = NULL;
 	m->type = 0;
-	m->message = 0;
-	m->query = 0;
+	m->message = NULL;
+	m->query = NULL;
+	m->counter = NULL;
 	return m;
 }
 
 void free_msg(ext_msg *m) {
 	if (m) {
 		free(m->message);
+		free(m->counter);
 		bwa_free_read_seq(1, m->query);
+		bwa_free_read_seq(1, m->used);
 		free(m);
 		m = 0;
 	}
@@ -186,6 +189,7 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 		// If the cursor has reached the end, do not remove it.
 		// In case that the read will be removed and not marked as used, which confuses the extending from mates.
 		is_at_end = ori ? (s->cursor <= opt->nm) : (s->cursor >= s->len - opt->nm - 1);
+		is_at_end = 0;
 		// Remove those reads probably at the splicing junction
 		if (!is_at_end && (is_sub_seq(q, 0, s, opt->nm, 0) == NOT_FOUND && is_sub_seq_byte(
 				q->rseq, q->len, 0, s, opt->nm, 0) == NOT_FOUND) || (check_c_1
@@ -643,8 +647,8 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		return;
 	}
 
-//	left_p_reads = get_parents_reads(left_eg, 0);
-//	right_p_reads = get_parents_reads(right_eg, 1);
+	left_p_reads = get_parents_reads(left_eg, 0);
+	right_p_reads = get_parents_reads(right_eg, 1);
 	// p_readarray(left_p_reads, 1);
 	paired_reads = get_paired_reads(left_p_reads, right_p_reads, ht->seqs, 0);
 	// If no paired reads spanning the two edges, just return.
@@ -797,7 +801,6 @@ bwa_seq_t *ext_by_mates(edge *ass_eg, const hash_table *ht, pool *cur_pool,
 		upd_reads(ass_eg, opt->nm);
 	}
 	free_pool(mate_pool);
-	free_pool(cur_pool);
 	bwa_free_read_seq(1, init_q);
 	return query;
 }
@@ -865,7 +868,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 					next[0], next[1], next[2], next[3], next[4], c[0], c[1],
 					c[2], c[3], c[4], ass_eg->id, ass_eg->len);
 			m->type = MUL_PATH;
-			m->data = c;
+			m->counter = c;
 			//p_query("Query now: ", query);
 			//p_pool("Pool when multi-branching: ", cur_pool, ori, next);
 			break;
@@ -886,7 +889,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 				m->type = REP_EXTEND;
 			} else
 				m->type = QUE_PFD;
-			m->data = used;
+			m->used = new_seq(used, used->len, 0);
 			break;
 		}
 		ext_con(ass_eg->contig, c[0], 0);
@@ -924,6 +927,7 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		query = get_init_q(ass_eg, 0, ori);
 		c_pool = new_pool();
 		tmp = ext_by_mates(ass_eg, ht, c_pool, query, ori);
+		free_pool(c_pool);
 		bwa_free_read_seq(1, tmp);
 		if (ass_eg->len > ori_len)
 			return 1;
@@ -1021,7 +1025,7 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
  */
 edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 		bwa_seq_t *init_query, const hash_table *ht, int level, int ori) {
-	bwa_seq_t *query, *contig, *used, *sub_query, *tmp;
+	bwa_seq_t *query, *contig, *used, *sub_query;
 	int c_index = 0, no_sub_path = 0;
 	int *c = 0, extended = 0;
 	edge *ass_eg, *tmp_eg;
@@ -1072,6 +1076,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 		bwa_free_read_seq(1, query);
 		query = 0;
 		c_pool = 0; // Content has been free in function single_extend.
+//		break;
 		if (msg->type == REP_QUE || msg->type == NOT_EXTEND || msg->type
 				== REP_EXTEND) {
 			if (!opt->pair)
@@ -1082,7 +1087,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 			} else
 				break;
 		} else if (msg->type == QUE_PFD) {
-			used = (bwa_seq_t*) msg->data;
+			used = (bwa_seq_t*) msg->used;
 			// If the ori is reverse, just not set the right_ctg value.
 			if (used->contig_id != ass_eg->id && !ori) {
 				// Set the shifted pos, such that it is able to recover the original transcript
@@ -1101,7 +1106,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 				break;
 			}
 			no_sub_path = 1;
-			c = (int*) msg->data;
+			c = (int*) msg->counter;
 			c_index = 0;
 			while (c[c_index] != INVALID_CHAR) {
 				sub_query = new_seq(msg->query, opt->ol, msg->query->len
@@ -1119,21 +1124,20 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 				}
 				c_index++;
 			}
-			free(c);
-//			if (no_sub_path && opt->pair) {
-//				extended = linear_ext(ass_eg, ht, msg->query, msg->type, ori);
-//				if (extended)
-//					continue;
-//				else
-//					break;
-//			} else
+			if (no_sub_path && opt->pair) {
+				extended = linear_ext(ass_eg, ht, msg->query, msg->type, ori);
+				if (extended)
+					continue;
+				else
+					break;
+			} else
 				break;
 		} else {
 			break;
 		}
 	}
 	free_msg(msg);
-	log_edge(ass_eg);
+	// log_edge(ass_eg);
 	return ass_eg;
 }
 
@@ -1152,7 +1156,6 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	cur_eg = pe_ass_edge(0, 0, c_pool, read, ht, 0, 0);
 	reads = cur_eg->reads;
 	r_ext_len = cur_eg->len;
-	// reset_pool_info(ht->seqs, ht->n_seqs);
 	// The c_pool is freed after extension
 	c_pool = get_init_pool(ht, read, 1);
 	//p_pool("Initial Pool: ", c_pool);
@@ -1233,7 +1236,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	left_rm = new_rm();
 
 	s_index = 0;
-	e_index = 10000;
+	e_index = 12000;
 	while (ht->n_seqs * STOP_THRE > n_reads_consumed) {
 		if (fgets(line, 80, solid_reads) != NULL && counter <= 6000)
 			index = atoi(line);

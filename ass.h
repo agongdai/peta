@@ -36,8 +36,9 @@ enum RESULT_TYPE
 typedef struct {
 	enum RESULT_TYPE type; // 0: no alignment; 1: cannot extend; 2: repetitive query; 3: multiple path; 4: query performed
 	char *message;
-	void *data;
+	void *counter;
 	bwa_seq_t *query;
+	bwa_seq_t *used;
 } ext_msg;
 
 int pe_ass(int argc, char *argv[]);
