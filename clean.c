@@ -10,6 +10,8 @@
 #include "peseq.h"
 #include "utils.h"
 #include "clean.h"
+#include "pehash.h"
+#include "rnaseq.h"
 
 int clean_usage() {
 	fprintf(stderr, "\n");
@@ -46,6 +48,7 @@ counter *init_counter() {
 	mer->k_freq = 0.0;
 	mer->read_id = 0;
 	mer->k_sd = 0.0;
+	mer->k_mean = 0.0;
 	return mer;
 }
 
@@ -95,116 +98,121 @@ int cmp_int(const void *a, const void *b) {
 	return (*(uint16_t*) b - *(uint16_t*) a);
 }
 
+int has_low_kmer(bwa_seq_t *read, uint16_t *kmer_list, clean_opt *opt) {
+	int j = 0, key = 0;
+	for (j = 0; j <= read->len - opt->kmer; j++) {
+		key = get_key(read, j, j + opt->kmer);
+		if (kmer_list[key] <= LOW_KMER) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int kmer_uneven(bwa_seq_t *read, counter *counter, uint16_t *kmer_list,
+		clean_opt *opt, double range) {
+	int i = 0, key = 0, j = 0;
+	double lower_bound = 0, upper_bound = 0;
+	// For every base in the read, count how many kmers covering it.
+	double *base_counter = (double*) calloc(read->len + 1, sizeof(double));
+	for (i = 0; i <= read->len - opt->kmer; i++) {
+		key = get_key(read, j, j + opt->kmer);
+		for (j = i; j < opt->kmer + i; j++) {
+			base_counter[j] += kmer_list[key];
+		}
+	}
+	show_debug_msg(__func__, "Counted \n");
+	counter->k_mean = mean(base_counter, read->len);
+	show_debug_msg(__func__, "Mean: %.2f \n", counter->k_mean);
+	counter->k_sd = std_dev(base_counter, read->len);
+	show_debug_msg(__func__, "SD: %.2f \n", counter->k_sd);
+	lower_bound = counter->k_mean - counter->k_sd * range;
+	upper_bound = counter->k_mean + counter->k_sd * range;
+	show_debug_msg(__func__, "Range: [%.2f, %.2f] \n", lower_bound, upper_bound);
+	for (i = 0; i < read->len; i++) {
+		// If any base in the read has lower or higher coverage then the mean, the read is uneven
+		if (base_counter[i] > upper_bound || base_counter[i] < lower_bound) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 void pe_clean_core(char *fa_fn, clean_opt *opt) {
-	bwa_seq_t *seqs, *part_seqs, *s, *s_pre;
-	bwa_seqio_t *ks;
-	int i = 0, j = 0, key = 0, tmp = 0,	zero_point = 0;
-	uint32_t n_seqs = 0, n_part_seqs = 0, n_seqs_full = 0;
-	int n_dup = 0, n_bad = 0, n_solid = 0, dup_thre = 0;
+	bwa_seq_t *seqs, *s, *s_pre;
+	int i = 0, j = 0, key = 0, tmp = 0, zero_point = 0;
+	int n_dup = 0, n_bad = 0, n_solid = 0, dup_thre = 0, n_uneven = 0;
 	uint32_t n_kmers = 0;
-	char dist_name[BUFSIZE], item[BUFSIZE], solid[BUFSIZE];
+	char item[BUFSIZE], solid[BUFSIZE];
 	FILE *dist_file = 0, *solid_file;
 	clock_t t = clock();
 	uint16_t *kmer_list, *kmer_ordered, fre_upper = 0, fre_lower = 0;
 	counter *k_count = 0, *k_count_pre = 0, *counter_list = 0;
 	double kmer_for_read[BUFSIZE];
+	hash_table *ht = NULL;
 
-	ks = bwa_open_reads(opt->mode, fa_fn);
-	sprintf(dist_name, "%s.kmer.dist", opt->lib_name);
-	dist_file = xopen(dist_name, "w");
 	sprintf(solid, "%s.solid", opt->lib_name);
 	solid_file = xopen(solid, "w");
 
 	show_debug_msg(__func__, "Loading library %s...\n", fa_fn);
-	n_seqs_full = N_CHUNK_SEQS;
-	seqs = (bwa_seq_t*) calloc (N_DF_MAX_SEQS, sizeof(bwa_seq_t));
-	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, opt->mode, 0))
-			!= 0) {
-		fprintf(stderr,
-				"[pe_clean_core] %d sequences in library %s loaded: %.2f sec... \n",
-				n_seqs + n_part_seqs, fa_fn, (float) (clock() - t) / CLOCKS_PER_SEC);
-		pe_reverse_seqs(part_seqs, n_part_seqs);
-
-		if ((n_seqs + n_part_seqs) > n_seqs_full) {
-			n_seqs_full += n_part_seqs + 2;
-			kroundup32(n_seqs_full);
-			seqs = (bwa_seq_t*) realloc(seqs, sizeof(bwa_seq_t) * n_seqs_full);
-		}
-		memmove(&seqs[n_seqs], part_seqs, sizeof(bwa_seq_t) * n_part_seqs);
-		free(part_seqs);
-		n_seqs += n_part_seqs;
-	}
-	if (n_seqs < 1) {
-		err_fatal(__func__,
-				"No sequence in file %s, make sure the format is correct! \n",
-				fa_fn);
-	}
-	counter_list = (counter*) calloc(n_seqs, sizeof(counter));
-	n_solid = n_seqs;
+	ht = pe_load_hash(fa_fn);
+	seqs = ht->seqs;
+	// Each counter corresponds to a read.
+	// It contains the kmer frequencies.
+	counter_list = (counter*) calloc(ht->n_seqs, sizeof(counter));
+	n_solid = ht->n_seqs;
 
 	n_kmers = (1 << (opt->kmer * 2)) + 1;
 	if (opt->kmer >= 16)
 		n_kmers = MAX_N16;
-	show_debug_msg(__func__, "# of kmers: %d\n", n_kmers);
+	show_debug_msg(__func__, "kmer length: %d; # of kmers: %d\n", opt->kmer,
+			n_kmers);
 	kmer_list = (uint16_t*) calloc(n_kmers, sizeof(uint16_t));
 	kmer_ordered = (uint16_t*) calloc(n_kmers, sizeof(uint16_t));
 	for (i = 0; i < n_kmers; i++) {
 		kmer_list[i] = 0;
 		kmer_ordered[i] = 0;
 	}
-	show_debug_msg(__func__, "Calculating k-mer frequency...\n");
-	for (i = 0; i < n_seqs; i++) {
+
+	// For every kmer in the read, count it and store it in kmer_list
+	show_debug_msg(__func__, "Calculating k-mer frequency: %.2f sec...\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
+	for (i = 0; i < ht->n_seqs; i++) {
 		s = &seqs[i];
 		set_kmer_index(s, opt->kmer, kmer_list);
 	}
+	// kmer_ordered is a clone of kmer_list, sorted.
 	memcpy(kmer_ordered, kmer_list, n_kmers);
-//	for (i = 0; i < n_kmers; i++) {
-//		kmer_ordered[i] = kmer_list[i];
-//		sprintf(item, "%d\n", kmer_list[i]);
-//		fputs(item, dist_file);
-//	}
-	show_debug_msg(__func__, "Sorting array of k-mer frequencies...\n");
+
+	show_debug_msg(__func__,
+			"Sorting array of k-mer frequencies: %.2f sec...\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	qsort(kmer_ordered, n_kmers, sizeof(uint16_t), cmp_int);
-	show_debug_msg(__func__, "Getting k_freq upper and lower bounds...\n");
-	for (i = 0; i < n_kmers; i++) {
-		if (kmer_ordered[i] < 5) {
-			zero_point = i;
-			show_debug_msg(__func__, "There are %d 0-kmers.\n",
-					(n_kmers - zero_point));
-			break;
-		}
-	}
-	tmp = ((zero_point) * 0.005);
-	show_debug_msg(__func__, "Upper index k_freq: %d\n", tmp);
-	fre_upper = kmer_ordered[tmp];
-	tmp = ((zero_point) * 0.6);
-	show_debug_msg(__func__, "Lower index k_freq: %d\n", tmp);
-	fre_lower = kmer_ordered[tmp];
-	show_debug_msg(__func__, "Lower bound k_freq: %d\n", fre_lower);
-	show_debug_msg(__func__, "Upper bound k_freq: %d\n", fre_upper);
-	show_debug_msg(__func__, "Ignoring reads with low frequence kmers...\n");
-	for (i = 0; i < n_seqs; i++) {
+	show_debug_msg(
+			__func__,
+			"Ignoring reads having kmers with low kmer frequencies: %.2f sec...\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
+	for (i = 0; i < ht->n_seqs; i++) {
 		s = &seqs[i];
 		k_count = &counter_list[i];
 		k_count->read_id = atoi(s->name);
-		for (j = 0; j <= s->len - opt->kmer; j++) {
-			key = get_key(s, j, j + opt->kmer);
-			if (kmer_list[key] < fre_lower || kmer_list[key] > fre_upper) {
+		if (has_low_kmer(s, kmer_list, opt)) {
+			k_count->k_freq = -1;
+			n_bad++;
+		} else {
+			if (kmer_uneven(read, k_count, kmer_list, opt, UNEVEN_THRE)) {
 				k_count->k_freq = -1;
-				n_bad++;
-				break;
-			} else {
-				k_count->k_freq += kmer_list[key];
+				n_uneven++;
 			}
 		}
-		if ((s->len - opt->kmer + 1) > 0)
-			k_count->k_freq /= (s->len - opt->kmer + 1);
 	}
 	qsort(counter_list, n_solid, sizeof(counter), cmp_kmer);
 	n_solid -= n_bad;
-	show_debug_msg(__func__, "%d bad reads ignored, %d remained.\n", n_bad,
-			n_solid);
-	show_debug_msg(__func__, "Ignoring duplicate reads...\n");
+	n_solid -= n_uneven;
+	show_debug_msg(__func__, "%d bad reads, % uneven reads, %d remained.\n",
+			n_bad, n_uneven, n_solid);
+	show_debug_msg(__func__, "Ignoring duplicate reads: %.2f sec...\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	for (i = 1; i < n_solid; i++) {
 		k_count = &counter_list[i];
 		s = &seqs[k_count->read_id];
@@ -213,6 +221,7 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 		while (k_count_pre->k_freq == -1)
 			k_count_pre = &counter_list[--j];
 		s_pre = &seqs[k_count_pre->read_id];
+		// If two reads has the same kmer frequencies and their sequences are the same, remove it.
 		if (k_count->k_freq == k_count_pre->k_freq && same_q(s, s_pre)) {
 			k_count->k_freq = -1;
 			n_dup++;
@@ -222,7 +231,8 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	n_solid -= n_dup;
 	show_debug_msg(__func__, "%d duplicates, %d bad, %d reads remain. \n",
 			n_dup, n_bad, n_solid);
-	show_debug_msg(__func__, "Saving k-mer frequencies...\n");
+	show_debug_msg(__func__, "Saving k-mer frequencies: %.2f sec...\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	for (i = 0; i < n_solid; i++) {
 		k_count = &counter_list[i];
 		if (k_count->k_freq > 0) {
@@ -230,10 +240,15 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 			fputs(item, solid_file);
 		}
 	}
-
-	bwa_seq_close(ks);
-	fclose(dist_file);
+	show_debug_msg(__func__, "%d solid reads remained: %.2f.\n", n_solid,
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	fclose(solid_file);
+}
+
+void test_clean() {
+	double numbers[] = { 2.0, 4.0, 4.0, 4.0, 5, 5.0, 7.0, 9.0 };
+	printf("Mean: %.3f \n", mean(numbers, 8));
+	printf("SD: %.3f \n", std_dev(numbers, 8));
 }
 
 int clean_reads(int argc, char *argv[]) {
@@ -260,6 +275,7 @@ int clean_reads(int argc, char *argv[]) {
 	}
 
 	pe_clean_core(argv[optind], opt);
+	//	test_clean();
 	fprintf(stderr, "[clean_reads] Cleaning done: %.2f sec\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return 0;

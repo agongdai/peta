@@ -334,10 +334,10 @@ void destroy_eg(edge *eg) {
 			g_ptr_array_free(eg->out_egs, TRUE);
 		}
 		g_ptr_array_free(eg->reads, TRUE);
-//		for (i = 0; i < eg->gaps->len; i++) {
-//			gap = g_ptr_array_index(eg->gaps, i);
-//			free(gap);
-//		}
+		for (i = 0; i < eg->gaps->len; i++) {
+			gap = g_ptr_array_index(eg->gaps, i);
+			free_eg_gap(gap);
+		}
 		g_ptr_array_free(eg->gaps, TRUE);
 		free(eg);
 	}

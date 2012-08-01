@@ -4,7 +4,7 @@ CXX=		g++
 CFLAGS=		-ggdb -g -Wall -O2 -pg $(shell pkg-config --cflags glib-2.0)
 CXXFLAGS=	$(CFLAGS) $(shell pkg-config --cflags glib-2.0)
 DFLAGS=		-DHAVE_PTHREAD #-D_FILE_OFFSET_BITS=64
-OBJS=		rand.o utils.o roadmap.o bwt.o eva.o edge.o clean.c \
+OBJS=		rand.o utils.o roadmap.o bwt.o eva.o edge.o clean.o rnaseq.o \
 			bwtio.o bwtaln.o pet.o pealn.o edgelist.o pehash.o \
 			pechar.o pool.o bwtgap.o is.o bntseq.o peseq.o simu.o \
 			bwtmisc.o bwtindex.o stdaln.o bwaseqio.o bamlite.o \

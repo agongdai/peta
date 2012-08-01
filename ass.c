@@ -1019,7 +1019,6 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 	destroy_eg(m_eg);
 	free_msg(m);
 	free_msg(m2);
-	free_eg_gap(exi_gap);
 	return extended;
 }
 
