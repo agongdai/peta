@@ -50,5 +50,6 @@ hash_key get_hash_key(const ubyte_t *seq, const int start,
 		const int interleaving, const int len);
 hash_value get_hash_value(const index64 seq_id, const int pos_start);
 void read_hash_value(index64 *seq_id, int *pos_start, hash_value value);
+void destroy_ht(hash_table *ht);
 
 #endif /* PEHASH_H_ */

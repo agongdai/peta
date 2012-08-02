@@ -549,7 +549,7 @@ int is_sub_seq_byte(const ubyte_t *query, const int q_len, const int shift,
 	return NOT_FOUND;
 }
 
-// Check whether two seqs share some small portion whose lenght is ol
+// Check whether two seqs share some small portion whose length is ol
 int share_subseq(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 		const int mismatches, const int ol) {
 	int i = 0;

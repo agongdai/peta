@@ -35,6 +35,16 @@ int hash_usage() {
 	return 1;
 }
 
+void destroy_ht(hash_table *ht) {
+	if (ht) {
+		free(ht->o);
+		free(ht->k_mers_occ_acc);
+		free(ht->pos);
+		bwa_free_read_seq(ht->n_seqs, ht->seqs);
+		free(ht);
+	}
+}
+
 hash_key get_hash_key(const ubyte_t *seq, const int start,
 		const int interleaving, const int len) {
 	hash_key key = 0ULL;
@@ -105,14 +115,14 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 		for (i = 0; i < n_part_seqs; i++) {
 			s = &part_seqs[i];
 			if (s->len != opt->read_len) {
-				err_fatal(
-						__func__,
+				err_fatal(__func__,
 						"Sequence length of %s is not as specified: %d vs %d! \n",
 						s->name, s->len, opt->read_len);
 			}
 			//p_query(__func__, s);
-			while (block_no < opt->n_hash_block && hash_start <= opt->read_len
-					- opt->k * (opt->interleaving)) {
+			while (block_no < opt->n_hash_block
+					&& hash_start
+							<= opt->read_len - opt->k * (opt->interleaving)) {
 				hash_start = block_no * opt->block_size;
 				key = get_hash_key(s->seq, hash_start, opt->interleaving,
 						opt->k);
@@ -169,8 +179,9 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 		n_seqs += n_part_seqs;
 		for (i = 0; i < n_part_seqs; i++) {
 			s = &part_seqs[i];
-			while (block_no < opt->n_hash_block && hash_start <= opt->read_len
-					- opt->k * (opt->interleaving)) {
+			while (block_no < opt->n_hash_block
+					&& hash_start
+							<= opt->read_len - opt->k * (opt->interleaving)) {
 				hash_start = block_no * opt->block_size;
 				// Hash two keys for the starting region of a read, interleaving by 1 by default.
 				key = get_hash_key(s->seq, hash_start, opt->interleaving,
@@ -241,8 +252,10 @@ hash_table *pe_load_hash(const char *fa_fn) {
 	opt = (hash_opt*) malloc(sizeof(hash_opt));
 	fp = xopen(hash_fn, "rb");
 	if (!fread(opt, sizeof(hash_opt), 1, fp)) {
-		err_fatal(__func__, "Unable to read from the hash file %s! \n", hash_fn);
-	} show_msg(__func__,
+		err_fatal(__func__, "Unable to read from the hash file %s! \n",
+				hash_fn);
+	}
+	show_msg(__func__,
 			"[pe_load_hash] Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 "...\n",
 			opt->k, opt->read_len, opt->n_k_mers, opt->n_pos);
 	h->k_mers_occ_acc = (hash_key*) calloc(opt->n_k_mers, sizeof(hash_key));

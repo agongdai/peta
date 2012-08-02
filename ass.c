@@ -188,11 +188,13 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 		}
 		// If the cursor has reached the end, do not remove it.
 		// In case that the read will be removed and not marked as used, which confuses the extending from mates.
-		is_at_end = ori ? (s->cursor <= opt->nm) : (s->cursor >= s->len - opt->nm - 1);
+		is_at_end = ori ? (s->cursor <= opt->nm) : (s->cursor >= s->len
+				- opt->nm - 1);
 		// Remove those reads probably at the splicing junction
-		if (!is_at_end && (is_sub_seq(q, 0, s, opt->nm, 0) == NOT_FOUND && is_sub_seq_byte(
-				q->rseq, q->len, 0, s, opt->nm, 0) == NOT_FOUND) || (check_c_1
-				!= confirm_c && check_c_2 != confirm_c_2)) {
+		if (!is_at_end && ((is_sub_seq(q, 0, s, opt->nm, 0) == NOT_FOUND
+				&& is_sub_seq_byte(q->rseq, q->len, 0, s, opt->nm, 0)
+						== NOT_FOUND) || (check_c_1 != confirm_c && check_c_2
+				!= confirm_c_2))) {
 			removed = pool_rm_index(cur_pool, i);
 			if (removed)
 				i--;
@@ -701,8 +703,8 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		// Trying to extend from the left_eg to the right.
 		if (left_eg->len > opt->ol) {
 			ori_len = left_eg->len;
-			query = new_seq(left_eg->contig, opt->rl - TLR_LEN, (left_eg->len
-					- (opt->rl - TLR_LEN)));
+			query = new_seq(left_eg->contig, opt->rl - TLR_LEN,
+					(left_eg->len - (opt->rl - TLR_LEN)));
 			fill_in_pool(cur_pool, mates, query, 0);
 			while (1) {
 				if (is_repetitive_q(query)) {
@@ -731,8 +733,8 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		}
 	}
 	if (to_merge) {
-//		p_ctg_seq("Left: ", left_eg->contig);
-//		p_ctg_seq("Right:", right_eg->contig);
+		//		p_ctg_seq("Left: ", left_eg->contig);
+		//		p_ctg_seq("Right:", right_eg->contig);
 		show_debug_msg(__func__, "Gap size: %d \n", gap);
 		if (ori) {
 			added_gap = init_gap(right_eg->len, gap, ori);
@@ -1110,8 +1112,8 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 			c = (int*) msg->counter;
 			c_index = 0;
 			while (c[c_index] != INVALID_CHAR) {
-				sub_query = new_seq(msg->query, opt->ol, msg->query->len
-						- opt->ol);
+				sub_query = new_seq(msg->query, opt->ol,
+						msg->query->len - opt->ol);
 				ext_que(sub_query, c[c_index], ori);
 				show_debug_msg(__func__,
 						"[%d, %d] Multi-braching %d, level %d\n", ass_eg->id,
@@ -1148,7 +1150,7 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	int i = 0, r_ext_len = 0;
 	readarray *reads;
 	bwa_seq_t *r;
-//	FILE *debug = xopen("debug.txt", "a+");
+	//	FILE *debug = xopen("debug.txt", "a+");
 	char content[BUFSIZ];
 
 	p_query(__func__, read);
@@ -1165,33 +1167,33 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 			cur_eg->id, cur_eg->len);
 	pe_ass_edge(0, cur_eg, c_pool, read, ht, 0, 1);
 
-//	sprintf(content, "---------- Contig id %d ---------- \n", contig_id);
-//	fputs(content, debug);
-//	for (i = 0; i < all_edges->len; i++) {
-//		eg_i = g_ptr_array_index(all_edges, i);
-//		p_flat_eg(eg_i);
-//		w_flat_eg(eg_i, debug);
-//		if (eg_i->l_shift > 0) {
-//			sprintf(content, "SUSPECISOUS CONTIG %d \n", eg_i->id);
-//			fputs(content, debug);
-//			fclose(debug);
-//			exit(1);
-//		}
-//	}
+	//	sprintf(content, "---------- Contig id %d ---------- \n", contig_id);
+	//	fputs(content, debug);
+	//	for (i = 0; i < all_edges->len; i++) {
+	//		eg_i = g_ptr_array_index(all_edges, i);
+	//		p_flat_eg(eg_i);
+	//		w_flat_eg(eg_i, debug);
+	//		if (eg_i->l_shift > 0) {
+	//			sprintf(content, "SUSPECISOUS CONTIG %d \n", eg_i->id);
+	//			fputs(content, debug);
+	//			fclose(debug);
+	//			exit(1);
+	//		}
+	//	}
 	// If the read is not extendable;
 	// or it connects to some existing contigs right away, just remove it
-	if (cur_eg->len <= opt->rl + 4 && (cur_eg->in_egs->len == 0) && (cur_eg->right_ctg
-			|| cur_eg->out_egs->len == 0)) {
+	if (cur_eg->len <= opt->rl + 4 && (cur_eg->in_egs->len == 0)
+			&& (cur_eg->right_ctg || cur_eg->out_egs->len == 0)) {
 		show_msg(__func__, "Not extended. Edge destroyed. \n");
 		g_ptr_array_remove_index(all_edges, contig_id - 1);
 		if (cur_eg->right_ctg) {
 			eg_i = cur_eg->right_ctg;
 			g_ptr_array_remove_index(eg_i->in_egs, eg_i->in_egs->len - 1);
 		}
-//		sprintf(content, "Freed: edge %d %p; in_edges %p; out_edges %p\n",
-//				cur_eg->id, cur_eg, cur_eg->in_egs, cur_eg->out_egs);
-//		fputs(content, debug);
-//		fclose(debug);
+		//		sprintf(content, "Freed: edge %d %p; in_edges %p; out_edges %p\n",
+		//				cur_eg->id, cur_eg, cur_eg->in_egs, cur_eg->out_egs);
+		//		fputs(content, debug);
+		//		fclose(debug);
 		destroy_eg(cur_eg);
 		contig_id--;
 		n_reads_consumed++;
@@ -1210,8 +1212,8 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 			eg_i->is_root = 1;
 		}
 	}
-//	fflush(debug);
-//	fclose(debug);
+	//	fflush(debug);
+	//	fclose(debug);
 	return cur_eg;
 }
 
@@ -1238,8 +1240,9 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 
 	s_index = 0;
 	e_index = 12000;
-	while (ht->n_seqs * STOP_THRE > n_reads_consumed) {
-		if (fgets(line, 80, solid_reads) != NULL && counter <= 6000)
+	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE
+			> n_reads_consumed) {
+		if (counter <= 12000)
 			index = atoi(line);
 		else
 			index = (int) (rand_f() * ht->n_seqs);
@@ -1372,7 +1375,7 @@ int pe_ass(int argc, char *argv[]) {
 
 	free(opt);
 
-	fprintf(stderr, "[pe_ass] Done: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
+	fprintf(stderr, "[pe_ass] Done: %.2f sec\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return 0;
 }
