@@ -416,7 +416,8 @@ int vld_ext(edge *parent, bwa_seq_t *query, const hash_table *ht, const int ori)
 	reads = get_parents_reads(parent, ori);
 	acc_len = get_parents_len(parent, ori);
 	if (!reads || acc_len < opt->mean) {
-		g_ptr_array_free(reads, TRUE);
+		if (reads)
+			g_ptr_array_free(reads, TRUE);
 		show_debug_msg(__func__, "Accumulated length too short: %d \n", acc_len);
 		return 1;
 	}

@@ -20,7 +20,7 @@ int clean_usage() {
 	return 1;
 }
 
-double std_dev(double a[], int n) {
+double std_dev(double a[], double n) {
 	if (n == 0)
 		return 0.0;
 	double sum = 0;
@@ -35,7 +35,7 @@ double std_dev(double a[], int n) {
 	return sqrt(variance);
 }
 
-double mean(double a[], int n) {
+double mean(double a[], double n) {
 	int i = 0;
 	double sum = 0;
 	for (i = 0; i < n; i++) {
@@ -85,7 +85,9 @@ void set_kmer_index(const bwa_seq_t *read, int k, uint16_t *kmer_list) {
 				return;
 		}
 		kmer_list[key]++;
-		//		printf("Kmer: %d -> %d \n", key, kmer_list[key]);
+		if (atoi(read->name) < 1) {
+			printf("Kmer: %d -> %d \n", key, kmer_list[key]);
+		}
 	}
 }
 
@@ -137,20 +139,24 @@ int pick_within_range(bwa_seq_t *read, counter *counter, uint16_t *kmer_list,
 
 void set_k_freq(bwa_seq_t *read, counter *k_count, uint16_t *kmer_list,
 		clean_opt *opt) {
-	int j = 0, key = 0, i = 0, counted_len = read->len - 2 * opt->kmer;
-	double *base_counter = (double*) calloc(counted_len + 1, sizeof(double));
+	int j = 0, key = 0, i = 0;
+	double counted_len = read->len - 2 * opt->kmer;
+	double *base_counter = (double*) calloc(read->len + 1, sizeof(double));
+	double *part_base = (double*) calloc(counted_len + 1, sizeof(double));
 	for (j = 0; j <= read->len - opt->kmer; j++) {
 		key = get_key(read, j, j + opt->kmer);
 		k_count->k_freq += kmer_list[key];
 	}
-	for (i = opt->kmer; i <= counted_len; i++) {
+	for (i = 0; i <= read->len - opt->kmer; i++) {
 		key = get_key(read, i, i + opt->kmer);
 		for (j = i; j < opt->kmer + i; j++) {
-			base_counter[j - opt->kmer] += kmer_list[key];
+			base_counter[j] += kmer_list[key];
 		}
 	}
-	k_count->k_mean = mean(base_counter, counted_len);
-	k_count->k_sd = std_dev(base_counter, counted_len);
+	memcpy(part_base, &base_counter[opt->kmer], counted_len * sizeof(double));
+	k_count->k_mean = mean(part_base, counted_len);
+	k_count->k_sd = std_dev(part_base, counted_len);
+	free(part_base);
 	free(base_counter);
 }
 
@@ -164,7 +170,7 @@ void mark_duplicates(bwa_seq_t *s, hash_table *ht) {
 	seqs = ht->seqs;
 	part_s = new_seq(s, significant_len, 0);
 	pe_aln_query(part_s, part_s->seq, ht, 0, significant_len, 0, aligns);
-	pe_aln_query(part_s, part_s->seq, ht, 0, significant_len, 0, aligns);
+	pe_aln_query(part_s, part_s->seq, ht, 0, significant_len, 1, aligns);
 	for (j = 0; j < aligns->len; j++) {
 		a = g_ptr_array_index(aligns, j);
 		dup_seq = &seqs[a->r_id];
@@ -175,25 +181,24 @@ void mark_duplicates(bwa_seq_t *s, hash_table *ht) {
 }
 
 void pe_clean_core(char *fa_fn, clean_opt *opt) {
-	bwa_seq_t *seqs, *s;
+	bwa_seq_t *seqs, *s, *s_unique = NULL;
 	int i = 0, j = 0;
-	int n_dup = 0, n_bad = 0, n_solid = 0, n_rep = 0;
+	int n_dup = 0, n_bad = 0, n_solid = 0, n_rep = 0, n_has_n = 0;
 	uint32_t n_kmers = 0, n_seqs = 0;
 	char item[BUFSIZE], solid[BUFSIZE];
 	FILE *solid_file;
 	clock_t t = clock();
 	uint16_t *kmer_list;
-	counter *k_count = NULL, *counter_list = NULL, *sorted_counters = NULL;
+	counter *k_count = NULL, *counter_pre = NULL, *counter_list = NULL,
+			*sorted_counters = NULL;
 	GPtrArray *solid_reads = g_ptr_array_sized_new(16384);
-	hash_table *ht = NULL;
+	double thre = 0;
 
 	sprintf(solid, "%s.solid", opt->lib_name);
 	solid_file = xopen(solid, "w");
 
 	show_debug_msg(__func__, "Loading library %s...\n", fa_fn);
-	ht = pe_load_hash(fa_fn);
-	seqs = ht->seqs;
-	n_seqs = ht->n_seqs;
+	seqs = load_reads(fa_fn, &n_seqs);
 	// Each counter corresponds to a read.
 	// It contains the kmer frequencies.
 	counter_list = (counter*) calloc(n_seqs, sizeof(counter));
@@ -214,8 +219,19 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
+		k_count = &counter_list[i];
+		k_count->read_id = atoi(s->name);
+		k_count->checked = 0;
+		if (has_n(s)) {
+			k_count->checked = -1;
+			n_has_n++;
+			continue;
+		}
 		set_kmer_index(s, opt->kmer, kmer_list);
 	}
+
+	show_debug_msg(__func__, "%d reads with 'N' removed: %.2f sec...\n",
+			n_has_n, (float) (clock() - t) / CLOCKS_PER_SEC);
 
 	// Calculate the mean and standard deviation of k_freq
 	show_debug_msg(__func__,
@@ -224,18 +240,23 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
 		k_count = &counter_list[i];
-		k_count->read_id = atoi(s->name);
-		k_count->checked = 0;
+		if (k_count->checked) {
+			continue;
+		}
 		set_k_freq(s, k_count, kmer_list, opt);
 	}
 
-	show_debug_msg(__func__, "Removing repetitive and low k-mer frequency reads: %.2f sec...\n",
+	show_debug_msg(__func__,
+			"Removing repetitive and low k-mer frequency reads: %.2f sec...\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 
 	// Remove repetitive reads and those reads having low frequency kmers.
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
 		k_count = &counter_list[i];
+		if (k_count->checked) {
+			continue;
+		}
 		if (has_rep_pattern(s)) {
 			n_rep++;
 			k_count->checked = 1;
@@ -246,44 +267,64 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 			}
 		}
 	}
-	show_debug_msg(__func__, "Removed %d repetitive reads, %d low k-mer reads. \n",
-				n_rep, n_bad);
+	show_debug_msg(__func__,
+			"Removed %d repetitive reads, %d low k-mer reads. \n", n_rep, n_bad);
 
 	// Sort the counters
 	show_debug_msg(__func__, "Sorting reads by k_freq: %.2f sec...\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	memcpy(sorted_counters, counter_list, sizeof(counter) * n_seqs);
 	qsort(sorted_counters, n_seqs, sizeof(counter), cmp_kmer);
+	free(counter_list);
 
-	show_debug_msg(__func__,
-			"Getting solid reads (duplicates removed): %.2f sec...\n",
+	show_debug_msg(__func__, "Removing duplicates: %.2f sec...\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
-	for (j = 1; j <= TRIAL_TIME; j++) {
-		show_debug_msg(
-				__func__,
-				"Round %d out of %d. %d duplicate reads; %d solid reads: %.2f sec...\n",
-				j, TRIAL_TIME, n_dup, n_solid,
+
+	s_unique = seqs;
+	counter_pre = sorted_counters;
+	for (i = 1; i < n_seqs; i++) {
+		k_count = &sorted_counters[i];
+		s = &seqs[k_count->read_id];
+		if (k_count->k_freq == counter_pre->k_freq && same_q(s, s_unique)) {
+			//			p_query("DUPLICATED", s);
+			k_count->checked = 3;
+			n_dup++;
+		} else {
+			s_unique = s;
+			//			p_query("UNIQUE", s_unique);
+		}
+		counter_pre = k_count;
+	}
+	show_debug_msg(__func__, "%d duplicates removed: %.2f sec...\n", n_dup,
+			(float) (clock() - t) / CLOCKS_PER_SEC);
+	show_debug_msg(__func__, "Getting solid reads: %.2f sec...\n", n_dup,
 				(float) (clock() - t) / CLOCKS_PER_SEC);
+
+	j = 0;
+	thre = LOW_RANGE;
+	while (++j < MAX_TIME && (n_seqs * SOLID_PERCERN) > n_solid) {
+		// For low sd range, there are only few reads are solid
+		// Here is to avoid unnecessary loops on the reads.
+		thre = UNEVEN_THRE * j;
+		if (thre < LOW_RANGE)
+			continue;
+		show_debug_msg(__func__,
+				"Round %d out of max %d. %d solid reads: %.2f sec...\n", j,
+				MAX_TIME, n_solid, (float) (clock() - t) / CLOCKS_PER_SEC);
 		for (i = 0; i < n_seqs; i++) {
 			k_count = &sorted_counters[i];
-			s = &seqs[k_count->read_id];
 			if (k_count->checked)
 				continue;
-			if (s->used) {
-				n_dup++;
-				k_count->checked = 3;
-			}
+			s = &seqs[k_count->read_id];
 			if (pick_within_range(s, k_count, kmer_list, opt, UNEVEN_THRE * j)) {
 				n_solid++;
 				k_count->checked = 4;
 				g_ptr_array_add(solid_reads, s);
-				mark_duplicates(s, ht);
 			}
 		}
 	}
 
-	show_debug_msg(__func__, "%d duplicate reads; %d solid reads.\n", n_dup,
-			n_solid);
+	show_debug_msg(__func__, "%d solid reads remained.\n", n_solid);
 
 	show_debug_msg(__func__, "Saving k-mer frequencies: %.2f sec...\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
@@ -296,9 +337,8 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	show_debug_msg(__func__, "Cleaning done: %.2f.\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	free(kmer_list);
-	free(counter_list);
 	free(sorted_counters);
-	destroy_ht(ht);
+	bwa_free_read_seq(n_seqs, seqs);
 	fclose(solid_file);
 }
 
