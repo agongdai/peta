@@ -141,13 +141,25 @@ int edgearray_find_similar(edgearray *array, edge *eg) {
 		if (diff < TRIVIAL_DIFF)
 			return i;
 		if (eg_right && eg_i_right) {
-			diff = abs((eg->r_shift - eg_right->len) - (eg_i->r_shift
-					- eg_i_right->len));
+			diff = abs(
+					(eg->r_shift - eg_right->len) - (eg_i->r_shift
+							- eg_i_right->len));
 			if (diff < TRIVIAL_DIFF)
 				return i;
 		}
 	}
 	return NOT_FOUND;
+}
+
+void adj_shift(edge *eg, const int trun_len) {
+	int i = 0;
+	bwa_seq_t *r;
+	if (!eg || trun_len < 0)
+		return;
+	for (i = 0; i < eg->reads->len; i++) {
+		r = g_ptr_array_index(eg->reads, i);
+		r->shift -= trun_len;
+	}
 }
 
 // param ori: 0 means ra_1 is at the left, and ra_2 is at the right
@@ -187,7 +199,7 @@ readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs,
 int has_counter_pair(readarray *large_ra, readarray *small_ra,
 		const int lower_bound, const int upper_bound) {
 	int i = 0, j = 0, ori = 0, pair_ori = 0, matched_pairs = 0;
-	int large_cursor = 0, small_cursor = 0;
+	int large_cursor = 0;
 	bwa_seq_t *s_read, *l_read;
 	for (i = 0; i < small_ra->len; i++) {
 		s_read = g_ptr_array_index(small_ra, i);
@@ -219,34 +231,78 @@ int has_counter_pair(readarray *large_ra, readarray *small_ra,
 	return 0;
 }
 
+/**
+ * Return value of the eg_gap:
+ * 1. NULL: no place to put the flying edge;
+ * 2. (-1, -1, ori): put the flying edge to the end or the beginning
+ * 3. others: put into some existing hole
+ */
 eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
-	eg_gap *gap = 0;
+	eg_gap *gap = NULL, *hole = NULL;
 	int i = 0, lower = 0, upper = ass_eg->len;
+	int left_ol_len = 0, right_ol_len = 0;
 	readarray *ra = ass_eg->reads;
 	readarray *m_ra = m_eg->reads;
+	bwa_seq_t *left_seq = 0;
+	bwa_seq_t *right_seq = 0;
 	// The edge m_eg could be put at the end (ori == 0) or at the beginning (ori == 1)
 	show_debug_msg(__func__, "Looking for holes... \n");
 	g_ptr_array_sort(ra, (GCompareFunc) cmp_read_by_name);
 	g_ptr_array_sort(m_ra, (GCompareFunc) cmp_read_by_name);
-	if (!has_counter_pair(ra, m_ra, lower, upper)) {
-		gap = init_gap(-1, -1, ori);
-		//		show_debug_msg(__func__, "Returning a gap: %d + %d, ori %d \n",
-		//						gap->s_index, gap->size, gap->ori);
-		return gap;
+	// If there is no counter read pairs
+	if (has_counter_pair(ra, m_ra, lower, upper)) {
+		// The edge m_eg should be put into some hole
+		for (i = ass_eg->gaps->len - 1; i >= 0; i--) {
+			gap = g_ptr_array_index(ass_eg->gaps, i);
+			show_debug_msg(__func__, "Found a hole: %d + %d, ori %d \n",
+					gap->s_index, gap->size, gap->ori);
+			lower = ori ? gap->s_index : 0;
+			upper = ori ? ass_eg->len : gap->s_index;
+			if (!has_counter_pair(ra, m_ra, lower, upper)) {
+				hole = gap;
+				break;
+			}
+		}
+	} else {
+		hole = init_gap(-1, -1, ori);
 	}
-	// The edge m_eg should be put into some hole
-	for (i = ass_eg->gaps->len - 1; i >= 0; i--) {
-		gap = g_ptr_array_index(ass_eg->gaps, i);
-		show_debug_msg(__func__, "Found a hole: %d + %d, ori %d \n",
-				gap->s_index, gap->size, gap->ori);
-		lower = ori ? gap->s_index : 0;
-		upper = ori ? ass_eg->len : gap->s_index;
-		if (!has_counter_pair(ra, m_ra, lower, upper))
-			return gap;
+
+	// Check overlapping when there is no counter pair and no hole could be put
+	// For example, ass_eg is: aaattccgg......tctcagtg
+	// 				m_eg is:        ccggagac
+	// Here left part of m_eg 'ccgg' overlaps with 'aaattccgg',
+	// Then truncate m_eg, put m_eg into the hole
+	if (hole && hole->size == -1) {
+		for (i = ass_eg->gaps->len - 1; i >= 0; i--) {
+			gap = g_ptr_array_index(ass_eg->gaps, i);
+			if (ori) {
+				left_seq = new_seq(ass_eg->contig,
+						ass_eg->len - gap->s_index - gap->size, 0);
+				right_seq = new_seq(ass_eg->contig, gap->s_index,
+						ass_eg->len - gap->s_index);
+			} else {
+				left_seq = new_seq(ass_eg->contig, gap->s_index, 0);
+				right_seq = new_seq(ass_eg->contig,
+						ass_eg->len - gap->size - gap->s_index,
+						gap->size + gap->s_index);
+			}
+			left_ol_len = find_ol(left_seq, m_eg->contig, 1);
+			right_ol_len = find_ol(m_eg->contig, right_seq, 1);
+			p_query("Left: ", left_seq);
+			p_query("Middle: ", m_eg->contig);
+			p_query("Right: ", right_seq);
+			bwa_free_read_seq(1, left_seq);
+			bwa_free_read_seq(1, right_seq);
+			// If overlapped, return current hole
+			if (left_ol_len > MIN_OL || right_ol_len > MIN_OL) {
+				hole = gap;
+				break;
+			}
+		}
 	}
 	g_ptr_array_sort(ra, (GCompareFunc) cmp_read_by_shift);
 	g_ptr_array_sort(m_ra, (GCompareFunc) cmp_read_by_shift);
-	return 0; // All counter gaps, no where to place.
+	return hole;
 }
 
 void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
@@ -282,9 +338,10 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 				}
 			}
 			// Move the right part to the correct position
-			memmove(&ass_seq->seq[(ass_seq->len - gap->s_index - gap->size)
-					+ m_eg->len], &ass_seq->seq[ass_seq->len - gap->s_index],
-					right_seq->len);
+			memmove(
+					&ass_seq->seq[(ass_seq->len - gap->s_index - gap->size)
+							+ m_eg->len],
+					&ass_seq->seq[ass_seq->len - gap->s_index], right_seq->len);
 			memcpy(&ass_seq->seq[ass_seq->len - gap->s_index - gap->size],
 					m_seq->seq, m_seq->len);
 			ass_seq->len -= gap->size - m_seq->len;
@@ -303,8 +360,9 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 					ass_seq->seq[ass_seq->len] = '\0';
 				}
 				// Here the length of contig is changed, but length of edge is not!
-				memmove(&ass_seq->seq[(ass_eg->len - gap->s_index - gap->size)
-						+ m_eg->len],
+				memmove(
+						&ass_seq->seq[(ass_eg->len - gap->s_index - gap->size)
+								+ m_eg->len],
 						&ass_seq->seq[ass_eg->len - gap->s_index],
 						right_seq->len);
 				start = ass_eg->len - gap->s_index - gap->size;

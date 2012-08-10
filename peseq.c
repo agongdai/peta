@@ -266,7 +266,7 @@ void p_ctg_seq(const char *header, const bwa_seq_t *q) {
 }
 
 void ext_con(bwa_seq_t *contig, const ubyte_t c, const int ori) {
-	if (contig->full_len <= contig->len + 1) {
+	if (contig->full_len <= contig->len + 2) {
 		contig->full_len = contig->len + 2;
 		kroundup32(contig->full_len);
 		contig->seq = (ubyte_t*) realloc(contig->seq, sizeof(ubyte_t)

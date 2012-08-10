@@ -17,12 +17,14 @@
 #define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
 #endif
 
-#define BUFSIZE 1023
-#define LINELEN 50
-#define FNLEN 128
-#define MINCONTIG 35
-#define NO_REPEAT_BASES	4
-#define NO_REPEAT_LEN 25
+#define BUFSIZE 				1023
+#define LINELEN 				50
+#define FNLEN 					128
+#define MINCONTIG 				35
+#define NO_REPEAT_BASES			4
+#define NO_REPEAT_LEN 			15
+#define MIN_OL					8
+#define CLOSE_MIN_OL			4
 
 #ifdef __cplusplus
 extern "C" {

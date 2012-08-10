@@ -96,6 +96,7 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 
 	// All k-mer combinations
 	n_k_mers = (1 << (opt->k * 2)) + 1;
+	fprintf(stderr, "Hashing library %s...\n", fa_fn);
 	fprintf(stderr,
 			"[pe_hash_core] K-mer size: %d; k-mer hashtable size: %" ID64 "\n",
 			opt->k, n_k_mers);
@@ -107,7 +108,7 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 	ks = bwa_open_reads(opt->mode, fa_fn);
 	// Round 1: count occurrences of all k-mers
 	fprintf(stderr,
-			"[pe_hash_core] Round 1: Counting occurrences of k-mers... \n");
+			"[pe_hash_core] Round 1/2: Counting occurrences of k-mers... \n");
 	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, opt->mode,
 			0)) != 0) {
 		pe_reverse_seqs(part_seqs, n_part_seqs);
@@ -170,7 +171,7 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 
 	hash_start = 0;
 	block_no = 0;
-	fprintf(stderr, "[pe_hash_core] Round 2: Store k-mer pointers %s... \n",
+	fprintf(stderr, "[pe_hash_core] Round 2/2: Store k-mer pointers %s... \n",
 			fa_fn);
 	ks = bwa_open_reads(opt->mode, fa_fn);
 	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, opt->mode,
@@ -256,7 +257,7 @@ hash_table *pe_load_hash(const char *fa_fn) {
 				hash_fn);
 	}
 	show_msg(__func__,
-			"[pe_load_hash] Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 "...\n",
+			"Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 "...\n",
 			opt->k, opt->read_len, opt->n_k_mers, opt->n_pos);
 	h->k_mers_occ_acc = (hash_key*) calloc(opt->n_k_mers, sizeof(hash_key));
 	h->pos = (hash_value*) calloc(opt->n_pos, sizeof(hash_value));
@@ -264,7 +265,7 @@ hash_table *pe_load_hash(const char *fa_fn) {
 	fread(h->k_mers_occ_acc, sizeof(hash_key), opt->n_k_mers, fp);
 	fread(h->pos, sizeof(hash_value), opt->n_pos, fp);
 	fclose(fp);
-	show_msg(__func__, "[pe_load_hash] Hash table loaded, k-mer records: %" ID64 ", positions: %" ID64 " %.2f sec\n",
+	show_msg(__func__, "Hash table loaded, k-mer records: %" ID64 ", positions: %" ID64 " %.2f sec\n",
 			opt->n_k_mers, opt->n_pos, (float) (clock() - t) / CLOCKS_PER_SEC);
 	free(hash_fn);
 	return h;
@@ -330,8 +331,8 @@ int pe_hash(int argc, char *argv[]) {
 		return hash_usage();
 	}
 
-//	pe_hash_core(argv[optind], opt);
-	pe_hash_test(argv[optind], opt);
+	pe_hash_core(argv[optind], opt);
+//	pe_hash_test(argv[optind], opt);
 	fprintf(stderr, "[pe_hash] Hashing done: %.2f sec\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return 0;

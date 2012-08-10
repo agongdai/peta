@@ -85,9 +85,6 @@ void set_kmer_index(const bwa_seq_t *read, int k, uint16_t *kmer_list) {
 				return;
 		}
 		kmer_list[key]++;
-		if (atoi(read->name) < 1) {
-			printf("Kmer: %d -> %d \n", key, kmer_list[key]);
-		}
 	}
 }
 
@@ -102,6 +99,9 @@ int cmp_int(const void *a, const void *b) {
 	return (*(uint16_t*) b - *(uint16_t*) a);
 }
 
+/**
+ * Check whether some k-mer in the read is extremely rare (fewer than 2).
+ */
 int has_low_kmer(bwa_seq_t *read, uint16_t *kmer_list, clean_opt *opt) {
 	int j = 0, key = 0;
 	for (j = 0; j <= read->len - opt->kmer; j++) {
@@ -113,6 +113,11 @@ int has_low_kmer(bwa_seq_t *read, uint16_t *kmer_list, clean_opt *opt) {
 	return 0;
 }
 
+/**
+ * A read 80bp, k-mer length 10.
+ * For each base in the read, count the k-mer frequency in the middle [10, 60]
+ * If a k-mer is [20, 30], count the base k-mer frequencies of each base
+ */
 int pick_within_range(bwa_seq_t *read, counter *counter, uint16_t *kmer_list,
 		clean_opt *opt, double range) {
 	int i = 0, j = 0, key = 0;
@@ -137,6 +142,9 @@ int pick_within_range(bwa_seq_t *read, counter *counter, uint16_t *kmer_list,
 	return 1;
 }
 
+/**
+ * Calculate the mean and standard deviation of the k-mer frequency
+ */
 void set_k_freq(bwa_seq_t *read, counter *k_count, uint16_t *kmer_list,
 		clean_opt *opt) {
 	int j = 0, key = 0, i = 0;
@@ -158,26 +166,6 @@ void set_k_freq(bwa_seq_t *read, counter *k_count, uint16_t *kmer_list,
 	k_count->k_sd = std_dev(part_base, counted_len);
 	free(part_base);
 	free(base_counter);
-}
-
-void mark_duplicates(bwa_seq_t *s, hash_table *ht) {
-	int j = 0, significant_len = s->len - 4;
-	bwa_seq_t *seqs, *part_s = NULL, *dup_seq = NULL;
-	alignarray *aligns;
-	alg *a;
-
-	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
-	seqs = ht->seqs;
-	part_s = new_seq(s, significant_len, 0);
-	pe_aln_query(part_s, part_s->seq, ht, 0, significant_len, 0, aligns);
-	pe_aln_query(part_s, part_s->seq, ht, 0, significant_len, 1, aligns);
-	for (j = 0; j < aligns->len; j++) {
-		a = g_ptr_array_index(aligns, j);
-		dup_seq = &seqs[a->r_id];
-		dup_seq->used = 1;
-	}
-	free_alg(aligns);
-	bwa_free_read_seq(1, part_s);
 }
 
 void pe_clean_core(char *fa_fn, clean_opt *opt) {
@@ -257,7 +245,7 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 		if (k_count->checked) {
 			continue;
 		}
-		if (has_rep_pattern(s)) {
+		if (is_repetitive_q(s) || has_rep_pattern(s)) {
 			n_rep++;
 			k_count->checked = 1;
 		} else {
