@@ -17,6 +17,8 @@
 #include "bwase.h"
 #include "peseq.h"
 #include "eva.h"
+#include "rnaseq.h"
+
 int compute_ori = 0;
 char *sam_fn;
 char *exons_fn;
@@ -77,6 +79,8 @@ rs_info *init_rs_info() {
 	i->n_full_len = 0;
 	i->n_one_covered = 0;
 	i->n_not_aligned = 0;
+	i->n_not_reached = 0;
+	i->n_base_not_reached = 0;
 	i->n_sd = 0;
 	i->slots = (int*) calloc(MAX_LEN_FOR_PLOT / SLOT_SIZE + 1, sizeof(int));
 	i->n_slot = MAX_LEN_FOR_PLOT / SLOT_SIZE + 1;
@@ -136,8 +140,8 @@ void occ_p_iter(gpointer key, gpointer value, gpointer user_data) {
 		o_pre = o;
 	}
 	tmp_got_base += n_base_got;
-	printf("\t %d/%d:%f", n_base_got, t_len, ((float) (n_base_got)
-			/ (float) t_len));
+	printf("\t %d/%d:%f", n_base_got, t_len,
+			((float) (n_base_got) / (float) t_len));
 	printf("\t %d", tmp_n_cufflinks);
 	printf("\n");
 }
@@ -357,6 +361,14 @@ void write_ass_rs(rs_info *info) {
 	sprintf(item, "%s\t%d\n", str, info->n_base_not_aligned);
 	fputs(item, rs_fp);
 
+	str = fix_len("Transcripts not reached: ", ATTR_STR_LEN);
+	sprintf(item, "%s\t%d\n", str, info->n_not_reached);
+	fputs(item, rs_fp);
+
+	str = fix_len("Bases not reached: ", ATTR_STR_LEN);
+	sprintf(item, "%s\t%d\n", str, info->n_base_not_reached);
+	fputs(item, rs_fp);
+
 	str = fix_len("N50 value: ", ATTR_STR_LEN);
 	sprintf(item, "%s\t%d\n", str, info->n50);
 	fputs(item, rs_fp);
@@ -529,17 +541,13 @@ int cal_seq_n50(GPtrArray *seqs) {
 }
 
 void read_tx_seqs(tx_info *info) {
-	bwa_seqio_t *ks;
 	int i = 0;
 	bwa_seq_t *seqs, *s;
-	ks = bwa_open_reads(BWA_MODE, tx_fn);
-	while ((seqs = bwa_read_seq(ks, 0xa00000, &(info->n_tx), BWA_MODE, 0)) != 0) {
-		for (i = 0; i < info->n_tx; i++) {
-			s = &seqs[i];
-			info->n_base += s->len;
-			g_ptr_array_add(info->tx_seqs, s);
-		}
-		break;
+	seqs = load_reads(tx_fn, &(info->n_tx));
+	for (i = 0; i < info->n_tx; i++) {
+		s = &seqs[i];
+		info->n_base += s->len;
+		g_ptr_array_add(info->tx_seqs, s);
 	}
 }
 
@@ -828,7 +836,7 @@ void cal_opt_n50(tx_info *info) {
 void trim(char *str) {
 	int i = 0;
 	for (i = 0; i < strlen(str); i++) {
-		if(str[i] == '\n') {
+		if (str[i] == '\n') {
 			str[i] = '\0';
 			return;
 		}
@@ -934,20 +942,15 @@ void parse_sam(rs_info *info) {
 }
 
 void read_contigs(rs_info *info) {
-	bwa_seqio_t *ks;
 	int i = 0;
 	bwa_seq_t *seqs, *s;
-	ks = bwa_open_reads(BWA_MODE, contigs_fn);
-	while ((seqs = bwa_read_seq(ks, 0xa00000, &(info->n_ctgs), BWA_MODE, 0))
-			!= 0) {
-		pe_reverse_seqs(seqs, info->n_ctgs);
-		for (i = 0; i < info->n_ctgs; i++) {
-			s = &seqs[i];
-			info->max_len = (info->max_len > s->len) ? info->max_len : s->len;
-			g_ptr_array_add(info->contigs, s);
-			info->n_base += s->len;
-		}
-		break;
+	seqs = load_reads(contigs_fn, &(info->n_ctgs));
+	pe_reverse_seqs(seqs, info->n_ctgs);
+	for (i = 0; i < info->n_ctgs; i++) {
+		s = &seqs[i];
+		info->max_len = (info->max_len > s->len) ? info->max_len : s->len;
+		g_ptr_array_add(info->contigs, s);
+		info->n_base += s->len;
 	}
 }
 
@@ -1023,8 +1026,8 @@ void get_ori_info() {
 
 void get_ass_info() {
 	int i = 0, len = 0, j = 0;
-	char name[BUFSIZ];
-	bwa_seq_t *t;
+	char *name;
+	bwa_seq_t *t, *s;
 
 	occarray *o_arr_i = 0;
 	rs_info *info = init_rs_info();
@@ -1032,18 +1035,14 @@ void get_ass_info() {
 	parse_sam(info);
 	g_hash_table_foreach(info->hits, (GHFunc) occ_c_iter, info);
 	//g_hash_table_foreach(info->hits, (GHFunc) occ_p_iter, info);
-	for (i = 1; i < 3874; i++) {
-		sprintf(name, "CUFF.%d.1", i);
+	for (i = 1; i < ori_info->tx_seqs->len; i++) {
+		s = g_ptr_array_index(ori_info->tx_seqs, i);
+		name = s->name;
 		o_arr_i = g_hash_table_lookup(info->hits, name);
 		if (o_arr_i == NULL) {
-			for (j = 0; j < ori_info->tx_seqs->len; j++) {
-				t = g_ptr_array_index(ori_info->tx_seqs, j);
-				if (strcmp(t->name, name) == 0) {
-					len = t->len;
-					break;
-				}
-			}
-			printf("%s: no touched! length %d\n", name, len);
+			info->n_not_reached++;
+			info->n_base_not_reached += s->len;
+			printf("%s: no touched! length %d\n", name, s->len);
 		} else {
 			occ_p_iter(name, o_arr_i, NULL);
 		}
@@ -1089,7 +1088,7 @@ int eva_main(int argc, char *argv[]) {
 	}
 	get_ori_info();
 	get_ass_info();
-	show_msg(__func__, "Done: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
+	show_msg(__func__, "Done: %.2f sec\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return 0;
 }

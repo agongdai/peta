@@ -180,7 +180,6 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	counter *k_count = NULL, *counter_pre = NULL, *counter_list = NULL,
 			*sorted_counters = NULL;
 	GPtrArray *solid_reads = g_ptr_array_sized_new(16384);
-	double thre = 0;
 
 	sprintf(solid, "%s.solid", opt->lib_name);
 	solid_file = xopen(solid, "w");
@@ -245,7 +244,7 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 		if (k_count->checked) {
 			continue;
 		}
-		if (is_repetitive_q(s) || has_rep_pattern(s)) {
+		if (is_biased_q(s) || has_rep_pattern(s) || is_repetitive_q(s)) {
 			n_rep++;
 			k_count->checked = 1;
 		} else {
@@ -289,13 +288,9 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 				(float) (clock() - t) / CLOCKS_PER_SEC);
 
 	j = 0;
-	thre = LOW_RANGE;
 	while (++j < MAX_TIME && (n_seqs * SOLID_PERCERN) > n_solid) {
 		// For low sd range, there are only few reads are solid
 		// Here is to avoid unnecessary loops on the reads.
-		thre = UNEVEN_THRE * j;
-		if (thre < LOW_RANGE)
-			continue;
 		show_debug_msg(__func__,
 				"Round %d out of max %d. %d solid reads: %.2f sec...\n", j,
 				MAX_TIME, n_solid, (float) (clock() - t) / CLOCKS_PER_SEC);

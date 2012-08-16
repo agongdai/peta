@@ -256,7 +256,7 @@ bwa_seq_t *get_query_ol(edge *ass_eg, bwa_seq_t *seqs, pool *m_pool,
 	start = get_mid_pos(ass_eg->reads, ori, opt->mean);
 	start_copy = start;
 	//p_readarray(ass_eg->reads, 1);
-	show_debug_msg(__func__, "Starting point: %d\n", start);
+	show_msg(__func__, "Starting point: %d\n", start);
 	// From start to the end
 	start = (start < 0) ? 0 : start;
 	while (start < ass_eg->reads->len) {
@@ -264,7 +264,7 @@ bwa_seq_t *get_query_ol(edge *ass_eg, bwa_seq_t *seqs, pool *m_pool,
 		if ((ori && is_right_mate(read->name))
 				|| (!ori && is_left_mate(read->name))) {
 			mate = get_mate(read, seqs);
-			if (!mate->used && !has_n(mate))
+			if (!mate->used && !has_n(mate) && mate->contig_id != -1)
 				return mate;
 		}
 		start++;
@@ -276,7 +276,7 @@ bwa_seq_t *get_query_ol(edge *ass_eg, bwa_seq_t *seqs, pool *m_pool,
 		if ((ori && is_right_mate(read->name))
 				|| (!ori && is_left_mate(read->name))) {
 			mate = get_mate(read, seqs);
-			if (!mate->used)
+			if (!mate->used && !has_n(mate) && mate->contig_id != -1)
 				return mate;
 		}
 		start--;
@@ -286,7 +286,7 @@ bwa_seq_t *get_query_ol(edge *ass_eg, bwa_seq_t *seqs, pool *m_pool,
 		read = g_ptr_array_index(m_pool->reads, i);
 		if ((!ori && is_right_mate(read->name))
 				|| (ori && is_left_mate(read->name))) {
-			if (!read->used)
+			if (!read->used && !has_n(read) && read->contig_id != -1)
 				return read;
 		}
 	}
@@ -358,7 +358,7 @@ pool *get_mate_pool(const edge *eg, const hash_table *ht, const int ori,
 		start = (eg->len > max_rg) ? (eg->len - max_rg) : 0;
 		end = eg->len;
 	}
-	//show_debug_msg(__func__, "start = %d, end = %d \n", start, end);
+	//show_msg(__func__, "start = %d, end = %d \n", start, end);
 	// Add the mates of the reads in the middle first
 	for (i = 0; i < reads->len; i++) {
 		s = g_ptr_array_index(reads, i);
@@ -399,7 +399,7 @@ pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 					ori ? (s->len - opt->ol - 1 - a->pos) : (s->len - a->pos);
 		else
 			s->cursor = ori ? (a->pos - 1) : (a->pos + s->len);
-		if (s->used || s->cursor < 0 || s->cursor >= s->len) {
+		if (s->contig_id == -1 || s->used || s->cursor < 0 || s->cursor >= s->len) {
 			s->cursor = 0;
 			continue;
 		}
@@ -421,7 +421,7 @@ int vld_ext(edge *parent, bwa_seq_t *query, const hash_table *ht, const int ori)
 	if (!reads || acc_len < opt->mean) {
 		if (reads)
 			g_ptr_array_free(reads, TRUE);
-		show_debug_msg(__func__, "Accumulated length too short: %d \n",
+		show_msg(__func__, "Accumulated length too short: %d \n",
 				acc_len);
 		return 1;
 	}
@@ -441,7 +441,7 @@ int vld_ext(edge *parent, bwa_seq_t *query, const hash_table *ht, const int ori)
 					next_char =
 							ori ? mate->rseq[q_pos_on_mate] : mate->rseq[q_pos_on_mate
 									+ mate->len - 1];
-					//					show_debug_msg(__func__,
+					//					show_msg(__func__,
 					//							"next_char: %d; cursor_char: %d\n", next_char,
 					//							cursor_char);
 					if (next_char == cursor_char)
@@ -453,7 +453,7 @@ int vld_ext(edge *parent, bwa_seq_t *query, const hash_table *ht, const int ori)
 					next_char =
 							ori ? mate->seq[q_pos_on_mate] : mate->seq[q_pos_on_mate
 									+ query->len - 1];
-					//					show_debug_msg(__func__,
+					//					show_msg(__func__,
 					//							"next_char: %d; cursor_char: %d\n", next_char,
 					//							cursor_char);
 					if (next_char == cursor_char)
@@ -463,7 +463,7 @@ int vld_ext(edge *parent, bwa_seq_t *query, const hash_table *ht, const int ori)
 		}
 	}
 
-	show_debug_msg(__func__, "n_on: %d \n", n_on);
+	show_msg(__func__, "n_on: %d \n", n_on);
 	g_ptr_array_free(reads, TRUE);
 	if (n_on >= N_MIN_VAL_EXT)
 		return 1;
@@ -490,7 +490,7 @@ void add_pool_by_ol(pool *p, bwa_seq_t *query, bwa_seq_t *read, const int ori) {
 
 	confirm_c = ori ? query->seq[0] : query->seq[query->len - 1];
 	confirm_c_2 = ori ? query->seq[1] : query->seq[query->len - 2];
-	//	show_debug_msg(__func__, "confirm_c: %d; confirm_c_2: %d \n", confirm_c, confirm_c_2);
+	//	show_msg(__func__, "confirm_c: %d; confirm_c_2: %d \n", confirm_c, confirm_c_2);
 	//	p_query(__func__, query);
 	//	p_query(__func__, read);
 	if (read->rev_com) {
@@ -565,7 +565,7 @@ int est_gap(const edge *left_eg, const edge *right_eg, const hash_table *ht) {
 	bwa_seq_t *read, *mate;
 	int i = 0, l_index = 0, r_index = 0, len = 0;
 	int p_count = 0, gap_sum = 0, gap_ave = 0;
-	show_debug_msg(__func__, "left_eg = [%d, %d], right_eg = [%d, %d] \n",
+	show_msg(__func__, "left_eg = [%d, %d], right_eg = [%d, %d] \n",
 			left_eg->id, left_eg->len, right_eg->id, right_eg->len);
 	l_par_reads = get_parents_reads(left_eg, 0);
 	r_par_reads = get_parents_reads(right_eg, 1);
@@ -574,7 +574,7 @@ int est_gap(const edge *left_eg, const edge *right_eg, const hash_table *ht) {
 	g_ptr_array_free(r_par_reads, TRUE);
 	if (ea->len == 0) {
 		g_ptr_array_free(ea, TRUE);
-		show_debug_msg(__func__, "No reads spanning the two edges\n");
+		show_msg(__func__, "No reads spanning the two edges\n");
 		return INVALID;
 	}
 	//p_readarray(ea, 1);
@@ -589,12 +589,12 @@ int est_gap(const edge *left_eg, const edge *right_eg, const hash_table *ht) {
 		//			continue;
 		//		}
 		len = (left_eg->len - l_index) + r_index;
-		//show_debug_msg(__func__, "left = %d, right = %d \n", l_index, r_index);
+		//show_msg(__func__, "left = %d, right = %d \n", l_index, r_index);
 		gap_sum += opt->mean - len;
 		p_count++;
 	}
 	g_ptr_array_free(ea, TRUE);
-	//show_debug_msg(__func__, "gan_sum = %d, p_count = %d \n", gap_sum, p_count);
+	//show_msg(__func__, "gan_sum = %d, p_count = %d \n", gap_sum, p_count);
 	gap_sum = (gap_sum > 0) ? gap_sum : 0;
 	if (p_count > 0) {
 		gap_ave = gap_sum / p_count;
@@ -631,7 +631,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 	//p_ctg_seq(__func__, left_eg->contig);
 	//p_ctg_seq(__func__, right_eg->contig);
 	ol_len = find_ol(left_eg->contig, right_eg->contig, opt->nm + 2);
-	show_debug_msg(__func__, "Filling the gap...\n");
+	show_msg(__func__, "Filling the gap...\n");
 	// If the overlapped length is above some threshold
 	ol = ol_len >= MIN_OL && ol_len < (opt->rl + MIN_OL);
 	if (ol || reason_gap < MIN_OL) {
@@ -644,10 +644,11 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 			merge_eg_to_right(left_eg, right_eg, 0);
 		else
 			merge_eg_to_left(left_eg, right_eg, 0);
-		show_debug_msg(__func__, "Overlapped left_eg and right_eg: %d\n",
+		show_msg(__func__, "Overlapped left_eg and right_eg: %d\n",
 				ol_len);
 		return;
 	}
+	show_msg(__func__, "Checking mates spanning left and right edges...\n");
 
 	left_p_reads = get_parents_reads(left_eg, 0);
 	right_p_reads = get_parents_reads(right_eg, 1);
@@ -658,7 +659,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 	// If no paired reads spanning the two edges, just return.
 	if (paired_reads->len == 0) {
 		g_ptr_array_free(paired_reads, TRUE);
-		show_debug_msg(__func__, "No reads spanning left_eg and right_eg \n");
+		show_msg(__func__, "No reads spanning left_eg and right_eg \n");
 		return;
 	}
 	g_ptr_array_free(paired_reads, TRUE);
@@ -671,6 +672,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 	// p_readarray(mates, 0);
 
 	// Trying to extend from the right_eg to the left.
+	show_msg(__func__, "Trying to extend from the right_eg to the left...\n");
 	if (right_eg->len > opt->ol) {
 		ori_len = right_eg->len;
 		query = new_seq(right_eg->contig, opt->ol, 0);
@@ -687,7 +689,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 			forward_by_ra(right_eg, cur_pool, mates, query, 1);
 			//p_pool("Pool in gap: ", cur_pool);
 		}
-		show_debug_msg(__func__, "Right edge extended from %d to %d\n", ori_len,
+		show_msg(__func__, "Right edge extended from %d to %d\n", ori_len,
 				right_eg->len);
 		clear_pool(cur_pool);
 		rev_reads_pos(right_eg);
@@ -700,6 +702,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		to_merge = 1;
 	} else {
 		// Trying to extend from the left_eg to the right.
+		show_msg(__func__, "Trying to extend from the left_eg to the right...\n");
 		if (left_eg->len > opt->ol) {
 			ori_len = left_eg->len;
 			query = new_seq(left_eg->contig, opt->rl - TLR_LEN,
@@ -715,7 +718,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 					break;
 				forward_by_ra(left_eg, cur_pool, mates, query, 0);
 			} // end of extension
-			show_debug_msg(__func__, "Left edge extended from %d to %d\n",
+			show_msg(__func__, "Left edge extended from %d to %d\n",
 					ori_len, left_eg->len);
 			if (olpped) {
 				trun_seq(right_eg->contig, CLOSE_MIN_OL);
@@ -734,7 +737,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 	if (to_merge) {
 		//		p_ctg_seq("Left: ", left_eg->contig);
 		//		p_ctg_seq("Right:", right_eg->contig);
-		show_debug_msg(__func__, "Gap size: %d \n", gap);
+		show_msg(__func__, "Gap size: %d \n", gap);
 		if (ori) {
 			added_gap = init_gap(right_eg->len, gap, ori);
 			g_ptr_array_add(right_eg->gaps, added_gap);
@@ -788,17 +791,17 @@ bwa_seq_t *ext_by_mates(edge *ass_eg, const hash_table *ht, pool *cur_pool,
 	while (ass_eg->len < (opt->rl + 2 + ori_len)) {
 		//p_query(__func__, query);
 
-		//show_debug_msg(__func__, "Extended by %d \n", (ass_eg->len - ori_len));
+		//show_msg(__func__, "Extended by %d \n", (ass_eg->len - ori_len));
 		// p_pool("In sub path: ", cur_pool, 0, 0);
 		if (is_repetitive_q(query) || cur_pool->n == 0) {
 			break;
 		}
 		forward_by_ra(ass_eg, cur_pool, mate_pool->reads, query, ori);
 		//p_ctg_seq(__func__, ass_eg->contig);
-		//show_debug_msg(__func__, "[%d, %d] \n", ass_eg->id, ass_eg->len);
+		//show_msg(__func__, "[%d, %d] \n", ass_eg->id, ass_eg->len);
 		//p_query(__func__, ass_eg->contig);
 	}
-	show_debug_msg(__func__, "Edge %d extended by mates from %d to %d \n",
+	show_msg(__func__, "Edge %d extended by mates from %d to %d \n",
 			ass_eg->id, ori_len, ass_eg->len);
 	if (ass_eg->len > ori_len) {
 		upd_reads(ass_eg, opt->nm);
@@ -818,7 +821,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 	ext_msg *m = new_msg();
 
 	printf("\n");
-	show_debug_msg(__func__,
+	show_msg(__func__,
 			"******************* Starting of Single Extension ******************\n");
 	cur_pool = c_pool ? c_pool : new_pool();
 	contig = ass_eg->contig;
@@ -833,15 +836,15 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 	p_query(__func__, query);
 	while (1) {
 		if (ass_eg->len % 50 == 0) {
-			show_debug_msg(__func__, "Assembling... [%d, %d] \n", ass_eg->id,
+			show_msg(__func__, "Assembling... [%d, %d] \n", ass_eg->id,
 					ass_eg->len);
 		}
 		reset_c(next, c); // Reset the counter
-		// show_debug_msg(__func__, "Current edge: [%d, %d] \n", ass_eg->id,
+		// show_msg(__func__, "Current edge: [%d, %d] \n", ass_eg->id,
 		// 		ass_eg->len);
 		//p_query(__func__, query);
 		if (is_repetitive_q(query)) {
-			show_debug_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n",
+			show_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n",
 					ass_eg->id, ass_eg->len);
 			m->type = REP_QUE;
 			p_query(__func__, query);
@@ -860,12 +863,12 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		// If cannot extend, or multiple path, just stop here
 		if (c[0] == INVALID_CHAR) {
 			m->type = NOT_EXTEND;
-			show_debug_msg(__func__, "Not extended any more: [%d, %d] \n",
+			show_msg(__func__, "Not extended any more: [%d, %d] \n",
 					ass_eg->id, ass_eg->len);
 			break;
 		}
 		if (c[1] != INVALID_CHAR) {
-			show_debug_msg(__func__,
+			show_msg(__func__,
 					"Multiple branching: a:c:g:t:n => %d:%d:%d:%d:%d \t %d:%d:%d:%d:%d [%d, %d]\n",
 					next[0], next[1], next[2], next[3], next[4], c[0], c[1],
 					c[2], c[3], c[4], ass_eg->id, ass_eg->len);
@@ -878,7 +881,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		// Only consider one branch. If some reads are used, stop
 		used = forward(cur_pool, c[0], ass_eg, ori); // The read used.
 		if (used && ass_eg->len >= MIN_LEN_BF_CHECK) {
-			show_debug_msg(__func__,
+			show_msg(__func__,
 					"The read has been used before: %s used in %d at %d [%d, %d]\n",
 					used->name, used->contig_id, used->shift, ass_eg->id,
 					ass_eg->len);
@@ -909,7 +912,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 	free_pool(cur_pool);
 	free_pool(mate_pool);
 	bwa_free_read_seq(1, query);
-	show_debug_msg(__func__,
+	show_msg(__func__,
 			"******************* Ending of Single Extension ******************\n\n");
 	return m;
 }
@@ -919,7 +922,7 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 	bwa_seq_t *mate = 0, *query = 0, *tmp = 0;
 	int ori_len = 0, extended = 0, len_init = 0, len_le = 0, len_re = 0,
 			reason_gap = 0, max_try_times = 4;
-	edge *m_eg;
+	edge *m_eg = NULL;
 	ext_msg *m = 0, *m2 = 0;
 	pool *m_pool = 0, *c_pool = 0;
 	ori_len = ass_eg->len;
@@ -934,14 +937,15 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 			return 1;
 	}
 
-	show_debug_msg(__func__, "Trying to extend [%d, %d] from the mates.\n",
+	show_msg(__func__, "Trying to extend [%d, %d] from the mates.\n",
 			ass_eg->id, ass_eg->len);
 	while (max_try_times-- > 0 && len_le == len_init) {
+		destroy_eg(m_eg); // If tried multiple times, the m_eg must be destroyed.
 		m_pool = get_mate_pool(ass_eg, ht, ori, 1, 0);
 		mate = get_query_ol(ass_eg, ht->seqs, m_pool, ori);
 		free_pool(m_pool);
 		if (!mate) {
-			show_debug_msg(__func__, "Mates are empty, return \n");
+			show_msg(__func__, "Mates are empty, return \n");
 			return 0;
 		}
 
@@ -955,7 +959,7 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		m_eg->len = m_eg->contig->len;
 		len_re = len_le = len_init = m_eg->len;
 
-		show_debug_msg(__func__, "Mate query, %d times [%p]: \n", max_try_times,
+		show_msg(__func__, "Mate query, %d times [%p]: \n", max_try_times,
 				mate);
 		p_query(__func__, mate);
 		// c_pool is freed in single_ext()
@@ -973,13 +977,17 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		mate->shift = len_le - len_re;
 		mate->contig_id = m_eg->id;
 		g_ptr_array_add(m_eg->reads, mate);
+		free_msg(m);
+		free_msg(m2);
+		m = NULL;
+		m2 = NULL;
 	}
 
-	show_debug_msg(__func__, "Lengths: %d->%d->%d\n", len_init, len_re, len_le);
+	show_msg(__func__, "Lengths: %d->%d->%d\n", len_init, len_re, len_le);
 	reason_gap =
 			ori ? (opt->mean - opt->rl - (len_re - len_init)) : (opt->mean
 							- opt->rl - (len_le - len_re));
-	show_debug_msg(__func__, "Reasonable gap: %d\n", reason_gap);
+	show_msg(__func__, "Reasonable gap: %d\n", reason_gap);
 
 	reason_gap = reason_gap > 0 ? reason_gap : 0;
 
@@ -994,13 +1002,13 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		}
 		// If not extended, try to merge the edges
 		if (!extended) {
-			show_debug_msg(__func__, "Reasonable Gap: %d \n", reason_gap);
+			show_msg(__func__, "Reasonable Gap: %d \n", reason_gap);
 //			p_readarray(ass_eg->reads, 1);
 //			p_readarray(m_eg->reads, 1);
 			exi_gap = find_hole(ass_eg, m_eg, ori);
 			if (exi_gap) {
 				// If should be concatenated directly
-				show_debug_msg(__func__, "Existing Gap: %d + %d, ori %d \n",
+				show_msg(__func__, "Existing Gap: %d + %d, ori %d \n",
 						exi_gap->s_index, exi_gap->size, exi_gap->ori);
 				if (exi_gap->s_index == -1) {
 					free_eg_gap(exi_gap);
@@ -1016,14 +1024,12 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 
 		if (ass_eg->len > ori_len) {
 			extended = 1;
-			show_debug_msg(__func__, "Edge %d extended from %d to %d \n",
+			show_msg(__func__, "Edge %d extended from %d to %d \n",
 					ass_eg->id, ori_len, ass_eg->len);
 		}
 	}
 	upd_reads(ass_eg, opt->nm);
 	destroy_eg(m_eg);
-	free_msg(m);
-	free_msg(m2);
 	return extended;
 }
 
@@ -1070,7 +1076,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 	while (1) {
 		free_msg(msg);
 		if (parent) {
-			show_debug_msg(__func__,
+			show_msg(__func__,
 					"[%d, %d] In sub path: extending by mates... \n",
 					ass_eg->id, ass_eg->len);
 			// p_readarray(p_er, 0);
@@ -1095,7 +1101,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 		} else if (msg->type == QUE_PFD) {
 			used = (bwa_seq_t*) msg->used;
 			// If the ori is reverse, just not set the right_ctg value.
-			if (used->contig_id != ass_eg->id && !ori) {
+			if (used->contig_id >= 0 && used->contig_id != ass_eg->id && !ori) {
 				// Set the shifted pos, such that it is able to recover the original transcript
 				tmp_eg = (edge*) g_ptr_array_index(all_edges, used->contig_id);
 				ass_eg->r_shift = used->shift + used->cursor - 1;
@@ -1107,7 +1113,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 			break;
 		} else if (msg->type == MUL_PATH) {
 			if (level > MAX_BRANCH_LEVEL) {
-				show_debug_msg(__func__, "%d Branching too deep, STOP!!! \n",
+				show_msg(__func__, "%d Branching too deep, STOP!!! \n",
 						ass_eg->id);
 				break;
 			}
@@ -1118,11 +1124,11 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 				sub_query = new_seq(msg->query, opt->ol,
 						msg->query->len - opt->ol);
 				ext_que(sub_query, c[c_index], ori);
-				show_debug_msg(__func__,
+				show_msg(__func__,
 						"[%d, %d] Multi-braching %d, level %d\n", ass_eg->id,
 						ass_eg->len, c_index, level);
 				if (vld_ext(ass_eg, sub_query, ht, ori)) {
-					show_debug_msg(__func__, "Subpath is feasible to go \n");
+					show_msg(__func__, "Subpath is feasible to go \n");
 					tmp_eg = pe_ass_edge(ass_eg, 0, 0, sub_query, ht, level + 1,
 							ori);
 					bwa_free_read_seq(1, sub_query);
@@ -1154,7 +1160,6 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	readarray *reads;
 	bwa_seq_t *r;
 	//	FILE *debug = xopen("debug.txt", "a+");
-	char content[BUFSIZ];
 
 	p_query(__func__, read);
 	c_pool = get_init_pool(ht, read, 0);
@@ -1165,7 +1170,7 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	// The c_pool is freed after extension
 	c_pool = get_init_pool(ht, read, 1);
 	//p_pool("Initial Pool: ", c_pool);
-	show_debug_msg(__func__,
+	show_msg(__func__,
 			"Extending to the left ***************************** [%d, %d]\n",
 			cur_eg->id, cur_eg->len);
 	pe_ass_edge(0, cur_eg, c_pool, read, ht, 0, 1);
@@ -1242,19 +1247,19 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	left_rm = new_rm();
 
 	s_index = 0;
-	e_index = 20;
+	e_index = 10;
 	while (fgets(line, 80, solid_reads) != NULL
 			&& ht->n_seqs * STOP_THRE > n_reads_consumed) {
-		if (counter <= 12000)
+//		if (counter <= 12000)
 			index = atoi(line);
-		else
-			index = (int) (rand_f() * ht->n_seqs);
-		if (counter < s_index) {
-			counter++;
-			continue;
-		}
-		if (counter >= e_index)
-			break;
+//		else
+//			index = (int) (rand_f() * ht->n_seqs);
+//		if (counter < s_index) {
+//			counter++;
+//			continue;
+//		}
+//		if (counter >= e_index)
+//			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
 		p = &ht->seqs[index];
 		if (p->used) {
@@ -1262,7 +1267,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 			continue;
 		}
 		if (has_rep_pattern(p)) {
-			show_debug_msg(__func__, "Read has repeat pattern, skip.\n");
+			show_msg(__func__, "Read has repeat pattern, skip.\n");
 			p_query(__func__, p);
 			continue;
 		}
@@ -1271,7 +1276,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 				n_reads_consumed, contig_id, all_edges->len);
 		sprintf(msg, "Processing read %d: %s... \n", counter, p->name);
 		show_msg(__func__, msg);
-		show_debug_msg(__func__, msg);
+		show_msg(__func__, msg);
 		fputs(p->name, start_reads);
 		fputs("\n", start_reads);
 		eg = pe_ass_ctg(left_rm, p, ht);
@@ -1291,7 +1296,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		sprintf(msg, "-------------------------------------- %.2f sec \n",
 				t_eclipsed);
 		show_msg(__func__, msg);
-		show_debug_msg(__func__, msg);
+		show_msg(__func__, msg);
 		//post_pro(left_rm, all_edges, contig_id, opt);
 	} // All RNA-PETs are read.
 

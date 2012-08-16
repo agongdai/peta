@@ -23,7 +23,7 @@
 #define MINCONTIG 				35
 #define NO_REPEAT_BASES			4
 #define NO_REPEAT_LEN 			15
-#define MIN_OL					8
+#define MIN_OL					4
 #define CLOSE_MIN_OL			4
 
 #ifdef __cplusplus
@@ -82,6 +82,7 @@ index64 get_index(const char *seq_id);
 void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp);
 indexes *load_index(const char *fn);
 int same_q(const bwa_seq_t *query, const bwa_seq_t *seq);
+int is_biased_q(const bwa_seq_t *query);
 int is_sub_seq_aln(const ubyte_t *query, const int q_len, const int shift,
 		const int offset, const bwa_seq_t *seq, int mismatches, const int ol);
 int is_sub_seq(const bwa_seq_t *query, const int shift,

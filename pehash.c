@@ -327,7 +327,7 @@ int pe_hash(int argc, char *argv[]) {
 		}
 	}
 
-	if (optind + 1 > argc) {
+	if (optind + 1 > argc || opt->block_size < 2) {
 		return hash_usage();
 	}
 

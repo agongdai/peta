@@ -83,6 +83,8 @@ typedef struct {
 	int n_sd;
 	int max_len;
 	int n_not_aligned;
+	int n_not_reached;
+	int n_base_not_reached;
 	int *slots;
 	int n_slot;
 	GPtrArray *contigs;

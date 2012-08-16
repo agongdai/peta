@@ -618,6 +618,23 @@ int is_repetitive_q(const bwa_seq_t *query) {
 	return 0;
 }
 
+int is_biased_q(const bwa_seq_t *query) {
+	int *c = (int*) calloc(5, sizeof(int));
+	int i = 0, is_biased = 0;
+	int thre = query->len / 4 / 3;
+	for(i = 0; i < query->len; i++) {
+		c[query->seq[i]]++;
+	}
+	for(i = 0; i < 4; i++) {
+		if(c[i] < thre) {
+			is_biased = 1;
+			break;
+		}
+	}
+	free(c);
+	return is_biased;
+}
+
 int has_rep_pattern(bwa_seq_t *read) {
 	int i = 0, j = 0, is_rep = 1;
 	ubyte_t c = 0, c2 = 0;

@@ -102,7 +102,7 @@ def rename_ids(args):
     counter = 0
     line = fq_file.readline()
     while line:
-        if line.startwith('@'):
+        if line.startswith('@'):
             renamed.write('@' + str(counter) + '\n')
             line = fq_file.readline()
             renamed.write(line)
