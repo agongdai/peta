@@ -123,8 +123,7 @@ void filter_pool(pool *p, edge *ass_eg, const hash_table *ht) {
  * To increase the reliability, only if the last bases of current contig and the aligned seq
  * are identical, we extend to next base.
  */
-void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
-		pool *mate_pool, bwa_seq_t *query, const hash_table *ht, edge *ass_eg,
+void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool, bwa_seq_t *query, const hash_table *ht, edge *ass_eg,
 		const int ori) {
 	int i = 0, is_at_end = 0;
 	int check_c_1 = 0, check_c_2 = 0, confirm_c = 0, confirm_c_2 = 0;
@@ -379,11 +378,16 @@ pool *get_mate_pool(const edge *eg, const hash_table *ht, const int ori,
 }
 
 pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
-	alignarray *alns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
+	alignarray *alns = NULL;
 	int i = 0;
-	pool *init_pool = new_pool();
+	pool *init_pool = NULL;
 	bwa_seq_t *seqs = ht->seqs, *s;
 	alg *a;
+	if (is_repetitive_q(init_read) || has_rep_pattern(init_read)) {
+		return NULL;
+	}
+	init_pool = new_pool();
+	alns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
 	p_query(__func__, init_read);
 	pe_aln_query(init_read, init_read->seq, ht, opt->nm + 2, opt->ol, 0, alns);
 	if (opt->nsp) {
@@ -815,7 +819,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		const hash_table *ht, const int ori) {
 	bwa_seq_t *query, *contig, *used = 0;
 	alignarray *aligns;
-	pool *cur_pool = 0, *mate_pool = new_pool();
+	pool *cur_pool = NULL;
 	int *next = (int*) calloc(5, sizeof(int));
 	int *c = (int*) calloc(5, sizeof(int));
 	ext_msg *m = new_msg();
@@ -856,7 +860,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		}
 		//p_align(aligns);
 		// Extend the contig, update the counter and sequence pool
-		upd_cur_pool(aligns, next, cur_pool, mate_pool, query, ht, ass_eg, ori);
+		upd_cur_pool(aligns, next, cur_pool, query, ht, ass_eg, ori);
 		reset_alg(aligns);
 		// p_pool("Current pool: ", cur_pool, next);
 		c = get_most(next);
@@ -910,7 +914,6 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		free(c);
 	free_alg(aligns);
 	free_pool(cur_pool);
-	free_pool(mate_pool);
 	bwa_free_read_seq(1, query);
 	show_msg(__func__,
 			"******************* Ending of Single Extension ******************\n\n");
@@ -930,7 +933,7 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 	if (ass_eg->len >= opt->ol && (type != REP_EXTEND && type != QUE_PFD)) {
 		query = get_init_q(ass_eg, 0, ori);
 		c_pool = new_pool();
-		tmp = ext_by_mates(ass_eg, ht, c_pool, query, ori);
+		tmp = ext_by_mates(ass_eg, ht, c_pool, query, ori); // query freed here.
 		free_pool(c_pool);
 		bwa_free_read_seq(1, tmp);
 		if (ass_eg->len > ori_len)
@@ -962,15 +965,15 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		show_msg(__func__, "Mate query, %d times [%p]: \n", max_try_times,
 				mate);
 		p_query(__func__, mate);
-		// c_pool is freed in single_ext()
+
 		c_pool = get_init_pool(ht, mate, 0);
-		//p_pool("Initial pool: ", c_pool, 0);
-		m = single_ext(m_eg, c_pool, 0, ht, 0);
+		if (c_pool) // c_pool is freed in single_ext()
+			m = single_ext(m_eg, c_pool, 0, ht, 0);
 
 		len_re = m_eg->len;
 		c_pool = get_init_pool(ht, mate, 1);
-		//p_pool("Initial pool: ", c_pool, 1);
-		m2 = single_ext(m_eg, c_pool, 0, ht, 1);
+		if (c_pool)
+			m2 = single_ext(m_eg, c_pool, 0, ht, 1);
 		len_le = m_eg->len;
 
 		mate->used = 1;
@@ -1131,9 +1134,9 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 					show_msg(__func__, "Subpath is feasible to go \n");
 					tmp_eg = pe_ass_edge(ass_eg, 0, 0, sub_query, ht, level + 1,
 							ori);
-					bwa_free_read_seq(1, sub_query);
 					no_sub_path = 0;
 				}
+				bwa_free_read_seq(1, sub_query);
 				c_index++;
 			}
 			if (no_sub_path && opt->pair) {
@@ -1246,8 +1249,8 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	ht = pe_load_hash(fa_fn);
 	left_rm = new_rm();
 
-	s_index = 0;
-	e_index = 10;
+	s_index = 4010;
+	e_index = 4030;
 	while (fgets(line, 80, solid_reads) != NULL
 			&& ht->n_seqs * STOP_THRE > n_reads_consumed) {
 //		if (counter <= 12000)
@@ -1262,11 +1265,11 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 //			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
 		p = &ht->seqs[index];
-		if (p->used) {
+		if (p->used || p->contig_id < 0) {
 			show_msg(__func__, "Read used: %s\n", p->name);
 			continue;
 		}
-		if (has_rep_pattern(p)) {
+		if (has_rep_pattern(p) || is_repetitive_q(p)) {
 			show_msg(__func__, "Read has repeat pattern, skip.\n");
 			p_query(__func__, p);
 			continue;

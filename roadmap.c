@@ -339,6 +339,7 @@ void destroy_eg(edge *eg) {
 			free_eg_gap(gap);
 		}
 		g_ptr_array_free(eg->gaps, TRUE);
+		free(eg->name);
 		free(eg);
 	}
 }
