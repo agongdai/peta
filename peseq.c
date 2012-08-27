@@ -353,7 +353,7 @@ bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol,
 }
 
 bwa_seq_t *new_rev_seq(const bwa_seq_t *query) {
-	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
+	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t)), *tmp = NULL;
 	int i = 0;
 	for (i = 0; i < 16; i++) {
 		p->bc[i] = 0;
@@ -372,8 +372,9 @@ bwa_seq_t *new_rev_seq(const bwa_seq_t *query) {
 	p->shift = query->shift;
 	p->name = query->name;
 
+	tmp = p->seq;
 	p->seq = query->rseq;
-	p->rseq = query->seq;
+	p->rseq = tmp;
 	return p;
 }
 

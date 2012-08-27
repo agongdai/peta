@@ -18,7 +18,6 @@
 #include "edge.h"
 #include "edgelist.h"
 #include "readrm.h"
-#include "pechar.h"
 
 /**
  *

@@ -7,7 +7,7 @@
 #ifndef ASS_H_
 #define ASS_H_
 #include "bwase.h"
-#define MAX_BRANCH_LEVEL		128
+#define MAX_BRANCH_LEVEL		32
 #define THRE_USE_PAIRED			5
 #define INIT_ARR_SIZE			16
 #define N_BACK_LEVEL			3

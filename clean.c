@@ -20,30 +20,6 @@ int clean_usage() {
 	return 1;
 }
 
-double std_dev(double a[], double n) {
-	if (n == 0)
-		return 0.0;
-	double sum = 0;
-	double sq_sum = 0;
-	int i = 0;
-	for (i = 0; i < n; ++i) {
-		sum += a[i];
-		sq_sum += a[i] * a[i];
-	}
-	double mean = sum / n;
-	double variance = sq_sum / n - mean * mean;
-	return sqrt(variance);
-}
-
-double mean(double a[], double n) {
-	int i = 0;
-	double sum = 0;
-	for (i = 0; i < n; i++) {
-		sum += a[i];
-	}
-	return sum / n;
-}
-
 counter *init_counter() {
 	counter *mer = (counter*) malloc(sizeof(counter));
 	mer->k_freq = 0.0;

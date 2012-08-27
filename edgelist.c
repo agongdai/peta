@@ -288,9 +288,9 @@ eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
 			}
 			left_ol_len = find_ol(left_seq, m_eg->contig, 1);
 			right_ol_len = find_ol(m_eg->contig, right_seq, 1);
-			p_query("Left: ", left_seq);
-			p_query("Middle: ", m_eg->contig);
-			p_query("Right: ", right_seq);
+//			p_query("Left: ", left_seq);
+//			p_query("Middle: ", m_eg->contig);
+//			p_query("Right: ", right_seq);
 			bwa_free_read_seq(1, left_seq);
 			bwa_free_read_seq(1, right_seq);
 			// If overlapped, return current hole

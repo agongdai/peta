@@ -24,6 +24,8 @@ extern "C" {
 	FILE *err_xopen_core(const char *func, const char *fn, const char *mode);
 	FILE *err_xreopen_core(const char *func, const char *fn, const char *mode, FILE *fp);
 	gzFile err_xzopen_core(const char *func, const char *fn, const char *mode);
+	double std_dev(double a[], double n);
+	double mean(double a[], double n);
 
 #ifdef __cplusplus
 }

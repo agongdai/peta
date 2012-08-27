@@ -65,8 +65,10 @@ char compl(const char nt) {
 }
 
 void reset_c(int *sta, int *c) {
-	sta[0] = sta[1] = sta[2] = sta[3] = sta[4] = 0;
-	c[0] = c[1] = c[2] = c[3] = c[4] = INVALID_CHAR;
+	if (sta)
+		sta[0] = sta[1] = sta[2] = sta[3] = sta[4] = 0;
+	if (c)
+		c[0] = c[1] = c[2] = c[3] = c[4] = INVALID_CHAR;
 }
 
 void check_c(int *sta, uint8_t c) {
@@ -75,6 +77,20 @@ void check_c(int *sta, uint8_t c) {
 
 int sum_c(const int *sta) {
 	return sta[0] + sta[1] + sta[2] + sta[3] + sta[4];
+}
+
+/**
+ * Only get the char with the largest count
+ */
+int get_abs_most(const int *sta, const double threshold) {
+	int thre = 0, index = 0;
+	int total = sta[0] + sta[1] + sta[2] + sta[3] + sta[4];
+	thre = total * threshold;
+	for (index = 0; index < 4; index++) {
+		if (sta[index] > thre)
+			return index;
+	}
+	return -1;
 }
 
 int *get_most(const int *sta) {

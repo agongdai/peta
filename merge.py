@@ -128,6 +128,29 @@ def fq2fa(args):
         line_no += 1
     fq.close()
     fa.close()
+    
+def check_dataset(args):
+    fa = open(args.dataset)
+    lengths = []
+    l = 0
+    line_no = 0
+    n_seqs = 0.0
+    n_bases = 0.0
+    ave_len = 0.0
+    for line in fa:
+        line = line.strip()
+        if '>' in line:
+            n_seqs += 1
+            lengths.append(len)
+            l = 0
+        else:
+            l += len(line)
+            n_bases += len(line)
+    lengths.append(l)
+    fa.close()
+    print 'Total Base: ' + str(n_bases)
+    print '# of seqs: ' + str(n_seqs)
+    print 'Average length: ' + str(n_bases / n_seqs)
 
 def main():
     parser = ArgumentParser()
@@ -156,6 +179,10 @@ def main():
     parser_app_pair_suffix.add_argument('-q', required=True, help='fastq file', dest='fq', metavar='FILE')
     parser_app_pair_suffix.add_argument('-o', required=True, help='output fastq file', dest='fq_with_tag', metavar='FILE')
     parser_app_pair_suffix.add_argument('-d', required=True, default='left', help='left or right', dest='ori')
+
+    parser_app_dataset_suffix = subparsers.add_parser('check', help='report statistics of a dataset')
+    parser_app_dataset_suffix.set_defaults(func=check_dataset)
+    parser_app_dataset_suffix.add_argument('-f', required=True, help='FASTA/FASTQ file', dest='dataset', metavar='FILE')
 
     args = parser.parse_args()
     args.func(args)

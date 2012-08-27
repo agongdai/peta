@@ -1,5 +1,5 @@
 #!/bin/bash
-query="Trinity"
+query="ass_contigs"
 db="cufflinks.fa"
 start_reads="read/start_reads.txt"
 start_reads_gene="read/start_reads_gene.txt"
@@ -8,7 +8,7 @@ similarity=90
 cp read/$query.fa $blastdb
 cp read/$db $blastdb
 
-#makeblastdb -in $blastdb/$db -out $blastdb/$db -dbtype nucl
+makeblastdb -in $blastdb/$db -out $blastdb/$db -dbtype nucl
 
 echo "Blasting $query.fa to $blastdb/$db: -perc_identity $similarity -evalue 0.001 ..." 1>&2
 

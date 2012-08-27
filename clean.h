@@ -1,3 +1,5 @@
+#ifndef CLEAN_H_
+#define CLEAN_H_
 #include <stdint.h>
 #include <inttypes.h>
 
@@ -28,3 +30,4 @@ typedef struct {
 } counter;
 
 int clean_reads(int argc, char *argv[]);
+#endif
