@@ -33,6 +33,15 @@ extern "C" {
 typedef GPtrArray seqarray;
 typedef GArray posarray;
 
+enum READ_STATUS
+{
+    FRESH,
+    USED,
+    HANG,
+    HAS_N,
+    REPETITIVE
+};
+
 typedef struct {
 	size_t l; // length of real sequence
 	size_t m; // total memory allocated

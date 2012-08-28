@@ -124,6 +124,24 @@ void syn_pools(pool *cur_pool, pool *mate_pool, const bwa_seq_t *seqs,
 	}
 }
 
+void pool_get_majority(pool *cur_pool, const char c, edge *ass_eg) {
+	bwa_seq_t *s = NULL;
+	readarray *reads = cur_pool->reads;
+	int i = 0;
+	char cursor_char = 0;
+
+	for (i = 0; i < reads->len; i++) {
+		s = g_ptr_array_index(reads, i);
+		cursor_char = s->rev_com ? s->rseq[s->cursor] : s->seq[s->cursor];
+		if (cursor_char != c) {
+			pool_rm_index(cur_pool, i);
+			s->used = 2; // Will be reused later.
+			s->contig_id = ass_eg->id; // Indicates this read will not be used by this edge anymore.
+			i--;
+		}
+	}
+}
+
 /**
  * Moving forward by updating the pools
  */
@@ -165,6 +183,10 @@ bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int ori) {
 			p->is_in_c_pool = 0;
 			pool_rm_index(cur_pool, i);
 			g_ptr_array_add(ass_eg->reads, p);
+			if (p->shift < 0) {
+				p_query("Shift<=0", p);
+				p_ctg_seq("Contig now", ass_eg->contig);
+			}
 			i--;
 		}
 	}

@@ -36,7 +36,7 @@ int sum_c(const int *sta);
 int *get_most(const int *sta);
 char compl(const char nt);
 char mutate(const char c);
-int get_abs_most(const int *sta, const double threshold);
+int *get_abs_most(const int *sta, const double threshold);
 
 #ifdef __cplusplus
 }

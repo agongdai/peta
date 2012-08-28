@@ -38,7 +38,7 @@ gboolean pool_rm_fast(pool *p, bwa_seq_t *read);
 gboolean pool_rm_index(pool *p, const int i);
 void syn_pools(pool *cur_pool, pool *mate_pool, const bwa_seq_t *seqs, const int ori);
 void clear_pool(pool *r_pool);
-
+void pool_get_majority(pool *cur_pool, const char c, edge *ass_eg);
 
 #ifdef __cplusplus
 }

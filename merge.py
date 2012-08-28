@@ -18,6 +18,20 @@ def add_file(fq_file, combined, counter):
     openf.close()
     return counter
 
+def rev_comp_fa(args):
+    fasta = open(args.fa, 'r')
+    rev = open(args.fa + '.rev', 'w')
+    counter = 0
+    for line in fasta:
+        if counter % 2 == 0:
+            rev.write(line)
+        else:
+            line = line.strip()
+            line = rev_comp(line) + '\n'
+            rev.write(line)
+    fasta.close()
+    rev.close()
+
 def combine(args):
     files = args.inputs.split(',')
     name = args.output
@@ -183,6 +197,10 @@ def main():
     parser_app_dataset_suffix = subparsers.add_parser('check', help='report statistics of a dataset')
     parser_app_dataset_suffix.set_defaults(func=check_dataset)
     parser_app_dataset_suffix.add_argument('-f', required=True, help='FASTA/FASTQ file', dest='dataset', metavar='FILE')
+
+    parser_app_rev_suffix = subparsers.add_parser('rev', help='reverse complement a fasta file')
+    parser_app_rev_suffix.set_defaults(func=rev_comp_fa)
+    parser_app_rev_suffix.add_argument('-a', required=True, help='fasta file', dest='fa', metavar='FILE')
 
     args = parser.parse_args()
     args.func(args)

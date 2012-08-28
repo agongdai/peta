@@ -82,15 +82,20 @@ int sum_c(const int *sta) {
 /**
  * Only get the char with the largest count
  */
-int get_abs_most(const int *sta, const double threshold) {
-	int thre = 0, index = 0;
+int *get_abs_most(const int *sta, const double threshold) {
+	int thre = 0, index = 0, most = 0;
+	int *status = (int*) calloc(2, sizeof(int));
 	int total = sta[0] + sta[1] + sta[2] + sta[3] + sta[4];
 	thre = total * threshold;
 	for (index = 0; index < 4; index++) {
-		if (sta[index] > thre)
-			return index;
+		if (sta[index] > sta[most])
+			most = index;
 	}
-	return -1;
+	status[0] = most;
+	if (sta[most] < thre)
+		status[0] = -1;
+	status[1] = most;
+	return status;
 }
 
 int *get_most(const int *sta) {
