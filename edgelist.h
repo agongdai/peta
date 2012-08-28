@@ -44,7 +44,7 @@ void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift, const int
 void clear_used_reads(edge *eg, const int reset_ctg_id);
 void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap, const int nm, const int rl);
 eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori);
-double *get_pairs_on_edge(edge *eg, int *n_pairs);
+double* get_pairs_on_edge(edge *eg, int *n_pairs);
 
 #ifdef __cplusplus
 }

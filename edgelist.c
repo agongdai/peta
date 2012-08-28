@@ -161,21 +161,21 @@ void adj_shift(edge *eg, const int trun_len) {
 	}
 }
 
-double *get_pairs_on_edge(edge *eg, int *n_pairs) {
+double* get_pairs_on_edge(edge *eg, int *n_pairs) {
 	int i = 0, index = 0;
 	bwa_seq_t *s = NULL, *next_s = NULL;
 	readarray *reads = eg->reads;
 	double *pairs = (double*) calloc(reads->len / 2 + 1, sizeof(double));
-	pairs = g_ptr_array_sized_new(1024);
 	for (i = 0; i < reads->len - 1; i++) {
-		show_debug_msg(__func__, "i: %d out of %d \n", i, reads->len);
 		s = g_ptr_array_index(reads, i);
 		index = atoi(s->name);
 		if (index % 2 == 0) {
 			next_s = g_ptr_array_index(reads, ++i);
+			show_debug_msg(__func__, "%d pairs now \n", *n_pairs);
 			p_query("Left", s);
 			p_query("Right", next_s);
-			pairs[*n_pairs++] = abs(next_s->shift - s->shift);
+			pairs[*n_pairs] = abs(next_s->shift - s->shift);
+			*n_pairs += 1;
 		}
 	}
 	return pairs;

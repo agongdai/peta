@@ -171,6 +171,7 @@ void pe_lib_core(char *lib_file, char *solid_file) {
 		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_reads_by_name);
 		partial_pairs = get_pairs_on_edge(eg, &n_part_pairs);
 		concat_doubles(pairs, &n_pairs, partial_pairs, n_part_pairs);
+		show_debug_msg(__func__, "%d pairs now \n", n_pairs);
 		n_part_pairs = 0;
 		free(partial_pairs);
 		p_ctg_seq("Contig now", eg->contig);
