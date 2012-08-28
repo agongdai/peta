@@ -88,3 +88,7 @@ double mean(double a[], double n) {
 	}
 	return sum / n;
 }
+
+int abs(int a) {
+	return (a > 0) ? a : (0 - a);
+}
