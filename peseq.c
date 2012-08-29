@@ -329,6 +329,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	p->full_len = p->clip_len = p->len = ol;
 	p->cursor = query->cursor;
 	p->shift = query->shift;
+	p->rev_com = query->rev_com;
 
 	p->name = strdup((const char*) query->name);
 	p->seq = (ubyte_t*) malloc(ol + 1);
@@ -371,6 +372,7 @@ bwa_seq_t *new_rev_seq(const bwa_seq_t *query) {
 	p->cursor = query->cursor;
 	p->shift = query->shift;
 	p->name = query->name;
+	p->rev_com = query->rev_com;
 
 	tmp = p->seq;
 	p->seq = query->rseq;

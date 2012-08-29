@@ -162,31 +162,23 @@ bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int ori) {
 			p->cursor++;
 		// If the cursor char is 'N', just ignore it.
 		if (p->seq[p->cursor] == 4) {
-			g_ptr_array_remove_index_fast(reads, i);
+			pool_rm_index(cur_pool, i);
 			i--;
-			cur_pool->n--;
 			continue;
 		}
 		if ((p->cursor < p->len) && p->cursor >= 0) {
 			if (p->used) {
-				p->is_in_c_pool = 0;
 				if (!used)
 					used = p;
-				g_ptr_array_remove_index_fast(reads, i);
+				pool_rm_index(cur_pool, i);
 				i--;
-				cur_pool->n--;
 			}
 		} else { // If the cursor is out of length, mark it as used!
 			p->used = 1;
 			p->shift = (ass_eg->len - p->cursor + 1);
 			p->contig_id = ass_eg->id;
-			p->is_in_c_pool = 0;
 			pool_rm_index(cur_pool, i);
 			g_ptr_array_add(ass_eg->reads, p);
-			if (p->shift < 0) {
-				p_query("Shift<=0", p);
-				p_ctg_seq("Contig now", ass_eg->contig);
-			}
 			i--;
 		}
 	}

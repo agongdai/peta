@@ -141,8 +141,9 @@ int edgearray_find_similar(edgearray *array, edge *eg) {
 		if (diff < TRIVIAL_DIFF)
 			return i;
 		if (eg_right && eg_i_right) {
-			diff = abs((eg->r_shift - eg_right->len) - (eg_i->r_shift
-					- eg_i_right->len));
+			diff = abs(
+					(eg->r_shift - eg_right->len) - (eg_i->r_shift
+							- eg_i_right->len));
 			if (diff < TRIVIAL_DIFF)
 				return i;
 		}
@@ -166,16 +167,20 @@ double* get_pairs_on_edge(edge *eg, int *n_pairs) {
 	bwa_seq_t *s = NULL, *next_s = NULL;
 	readarray *reads = eg->reads;
 	double *pairs = (double*) calloc(reads->len / 2 + 1, sizeof(double));
+	if (!reads || reads->len <= 0)
+		return pairs;
 	for (i = 0; i < reads->len - 1; i++) {
 		s = g_ptr_array_index(reads, i);
 		index = atoi(s->name);
 		if (index % 2 == 0) {
-			next_s = g_ptr_array_index(reads, ++i);
-			show_debug_msg(__func__, "%d pairs now \n", *n_pairs);
-			p_query("Left", s);
-			p_query("Right", next_s);
-			pairs[*n_pairs] = abs(next_s->shift - s->shift);
-			*n_pairs += 1;
+			next_s = g_ptr_array_index(reads, i + 1);
+			if (atoi(next_s->name) - index == 1) {
+				i++;
+//				p_query("Left", s);
+//				p_query("Right", next_s);
+				pairs[*n_pairs] = abs(next_s->shift - s->shift);
+				*n_pairs += 1;
+			}
 		}
 	}
 	return pairs;
@@ -295,14 +300,15 @@ eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
 		for (i = ass_eg->gaps->len - 1; i >= 0; i--) {
 			gap = g_ptr_array_index(ass_eg->gaps, i);
 			if (ori) {
-				left_seq = new_seq(ass_eg->contig, ass_eg->len - gap->s_index
-						- gap->size, 0);
-				right_seq = new_seq(ass_eg->contig, gap->s_index, ass_eg->len
-						- gap->s_index);
+				left_seq = new_seq(ass_eg->contig,
+						ass_eg->len - gap->s_index - gap->size, 0);
+				right_seq = new_seq(ass_eg->contig, gap->s_index,
+						ass_eg->len - gap->s_index);
 			} else {
 				left_seq = new_seq(ass_eg->contig, gap->s_index, 0);
-				right_seq = new_seq(ass_eg->contig, ass_eg->len - gap->size
-						- gap->s_index, gap->size + gap->s_index);
+				right_seq = new_seq(ass_eg->contig,
+						ass_eg->len - gap->size - gap->s_index,
+						gap->size + gap->s_index);
 			}
 			left_ol_len = find_ol(left_seq, m_eg->contig, 1);
 			right_ol_len = find_ol(m_eg->contig, right_seq, 1);
@@ -356,9 +362,10 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 				}
 			}
 			// Move the right part to the correct position
-			memmove(&ass_seq->seq[(ass_seq->len - gap->s_index - gap->size)
-					+ m_eg->len], &ass_seq->seq[ass_seq->len - gap->s_index],
-					right_seq->len);
+			memmove(
+					&ass_seq->seq[(ass_seq->len - gap->s_index - gap->size)
+							+ m_eg->len],
+					&ass_seq->seq[ass_seq->len - gap->s_index], right_seq->len);
 			memcpy(&ass_seq->seq[ass_seq->len - gap->s_index - gap->size],
 					m_seq->seq, m_seq->len);
 			ass_seq->len -= gap->size - m_seq->len;
@@ -377,8 +384,9 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 					ass_seq->seq[ass_seq->len] = '\0';
 				}
 				// Here the length of contig is changed, but length of edge is not!
-				memmove(&ass_seq->seq[(ass_eg->len - gap->s_index - gap->size)
-						+ m_eg->len],
+				memmove(
+						&ass_seq->seq[(ass_eg->len - gap->s_index - gap->size)
+								+ m_eg->len],
 						&ass_seq->seq[ass_eg->len - gap->s_index],
 						right_seq->len);
 				start = ass_eg->len - gap->s_index - gap->size;
@@ -556,17 +564,22 @@ void upd_reads(edge *eg, const int mismatches) {
 	bwa_seq_t *read, *rev_read = NULL;
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
+		if (eg->len < read->len)
+			return;
 		if (read->shift < 0)
 			continue;
 		rev_read = new_mem_rev_seq(read, read->len, 0);
-		index = read->rev_com ? is_sub_seq(rev_read, 0, eg->contig, mismatches + 2, 0)
-				: is_sub_seq(read, 0, eg->contig, mismatches + 2, 0);
+		index = read->rev_com ? is_sub_seq(rev_read, 0, eg->contig,
+				mismatches + 2, 0) : is_sub_seq(read, 0, eg->contig,
+				mismatches + 2, 0);
+		bwa_free_read_seq(1, rev_read);
 		if (index == NOT_FOUND) {
 			g_ptr_array_remove_index_fast(eg->reads, i);
 			read->used = 0; // This read is used somewhere and cannot be used again; to avoid infinite loop.
 			read->contig_id = -1;
 			read->shift = 0;
 			i--;
+			//p_query("REMOVED", read);
 			continue;
 		}
 		read->shift = index;
