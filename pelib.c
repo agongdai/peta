@@ -31,6 +31,7 @@ void concat_doubles(double *base, int *n_total, double *partial, int n_part) {
 	int i = 0;
 	for (i = 0; i < n_part; i++) {
 		base[i + *n_total] = partial[i];
+//		show_msg(__func__, "%d: %f \n", *n_total, partial[i]);
 	}
 	*n_total += n_part;
 }
@@ -144,7 +145,7 @@ edge *pair_extension(const hash_table *ht, const bwa_seq_t *s, int ori) {
 		free(c);
 		c = NULL;
 		if (eg->len % 100 == 0) {
-			show_msg(__func__, "Assembling... [%d, %d] \n", eg->id, eg->len);
+			show_debug_msg(__func__, "Assembling... [%d, %d] \n", eg->id, eg->len);
 		}
 	}
 	if (ori)
@@ -184,7 +185,7 @@ void pe_lib_core(char *lib_file, char *solid_file) {
 	int s_index = 0, e_index = 0, counter = -1;
 	double *sizes = NULL;
 	edge *eg = NULL, *eg_left = NULL;
-	double *pairs = NULL, *partial_pairs = NULL;
+	double *pairs = NULL, *partial_pairs = NULL, mean_ins_size = 0, sd_ins_size = 0;
 	show_msg(__func__, "Library: %s \n", lib_file);
 	show_msg(__func__, "Solid Reads: %s \n", solid_file);
 
@@ -197,7 +198,7 @@ void pe_lib_core(char *lib_file, char *solid_file) {
 	pairs = (double*) calloc(MAX_PAIRS + 1, sizeof(double));
 	while (fgets(line, 80, solid) != NULL) {
 		index = atoi(line);
-		query = &ht->seqs[index];
+		query = &ht->seqs[340231];
 		if (query->used)
 			continue;
 		counter++;
@@ -208,19 +209,26 @@ void pe_lib_core(char *lib_file, char *solid_file) {
 		eg = pe_ext(ht, query);
 		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_reads_by_name);
 		partial_pairs = get_pairs_on_edge(eg, &n_part_pairs);
+		if (n_part_pairs + n_pairs >= MAX_PAIRS) {
+			free(partial_pairs);
+			destroy_eg(eg);
+			break;
+		}
 		concat_doubles(pairs, &n_pairs, partial_pairs, n_part_pairs);
 		free(partial_pairs);
 		p_ctg_seq("Contig now", eg->contig);
-		show_msg(__func__, "# of reads: %d \n", n_part_pairs, eg->reads->len);
+		show_msg(__func__, "# of reads: %d \n", eg->reads->len);
 		show_msg(__func__, "+%d, %d pairs now \n", n_part_pairs, n_pairs);
 		n_part_pairs = 0;
 		//p_readarray(eg->reads, 1);
 		log_edge(eg);
 		destroy_eg(eg);
-		if (n_pairs > MAX_PAIRS)
-			break;
-//		break;
+		break;
 	}
+	mean_ins_size = mean(pairs, n_pairs);
+	sd_ins_size = std_dev(pairs, n_pairs);
+	show_msg(__func__, "Mean Insert Size: %f \n", mean_ins_size);
+	show_msg(__func__, "Standard Deviation of Insert Size: %f \n", sd_ins_size);
 	free(pairs);
 	free(sizes);
 	fclose(solid);
