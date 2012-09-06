@@ -65,6 +65,15 @@ void err_fatal_simple_core(const char *func, const char *msg) {
 	abort();
 }
 
+double mean(double a[], double n) {
+	int i = 0;
+	double sum = 0;
+	for (i = 0; i < n; i++) {
+		sum += a[i];
+	}
+	return sum / n;
+}
+
 double std_dev(double a[], double n) {
 	if (n == 0)
 		return 0.0;
@@ -78,15 +87,6 @@ double std_dev(double a[], double n) {
 	double mean = sum / n;
 	double variance = sq_sum / n - mean * mean;
 	return sqrt(variance);
-}
-
-double mean(double a[], double n) {
-	int i = 0;
-	double sum = 0;
-	for (i = 0; i < n; i++) {
-		sum += a[i];
-	}
-	return sum / n;
 }
 
 int abs(int a) {

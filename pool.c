@@ -13,6 +13,7 @@
 #include "peseq.h"
 #include "edgelist.h"
 #include "utils.h"
+#include "pelib.h"
 
 /**
  * Assume that the new read has been verified not existed using exists().
@@ -75,6 +76,15 @@ void pool_add(pool *p, bwa_seq_t *new_seq) {
 	p->n++;
 }
 
+void mate_pool_add(pool *p, bwa_seq_t *new_seq) {
+	if (!new_seq)
+		return;
+	g_ptr_array_add(p->reads, new_seq);
+	new_seq->is_in_c_pool = 0;
+	new_seq->is_in_m_pool = 1;
+	p->n = p->reads->len;
+}
+
 void pool_uni_add(pool *p, bwa_seq_t *new_seq) {
 	if (pool_exists(p, new_seq))
 		return;
@@ -94,6 +104,7 @@ gboolean pool_rm_fast(pool *p, bwa_seq_t *read) {
 	r = g_ptr_array_remove(p->reads, read);
 	read->is_in_c_pool = 0;
 	read->rev_com = 0;
+	read->is_in_m_pool = 0;
 	p->n = p->reads->len;
 	return r;
 }
@@ -102,6 +113,7 @@ gboolean pool_rm_index(pool *p, const int i) {
 	gboolean r;
 	bwa_seq_t *read = g_ptr_array_index(p->reads, i);
 	read->is_in_c_pool = 0;
+	read->is_in_m_pool = 0;
 	read->rev_com = 0;
 	r = g_ptr_array_remove_index_fast(p->reads, i);
 	p->n = p->reads->len;
@@ -272,6 +284,81 @@ int binary_exists(const pool *r_pool, const bwa_seq_t *read) {
 	return 0;
 }
 
+/**
+ * Remove reads from current pool, if the read has two bases inconsistencies at the extension point.
+ * The read maybe just share a partial portion
+ * contig: aaaaaaaatg
+ * read:   aaaaaaaactgggggg
+ * 'tg' and not the same as 'ct', remove read from the current pool.
+ */
+
+void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm) {
+	int check_c_1 = 0, check_c_2 = 0, confirm_c = 0, confirm_c_2 = 0;
+	int removed = 0, is_at_end = 0, i = 0;
+	bwa_seq_t *s = NULL;
+	check_c_1 = ori ? query->seq[0] : query->seq[query->len - 1];
+	check_c_2 = ori ? query->seq[1] : query->seq[query->len - 2];
+	for (i = 0; i < cur_pool->n; i++) {
+		s = g_ptr_array_index(cur_pool->reads, i);
+		confirm_c = ori ? s->seq[s->cursor + 1] : s->seq[s->cursor - 1];
+		confirm_c_2 = ori ? s->seq[s->cursor + 2] : s->seq[s->cursor - 2];
+		if (s->rev_com) {
+			confirm_c = ori ? s->rseq[s->cursor + 1] : s->rseq[s->cursor - 1];
+			confirm_c_2 = ori ? s->rseq[s->cursor + 2] : s->rseq[s->cursor - 2];
+		}
+		// If the cursor has reached the end, do not remove it.
+		// In case that the read will be removed and not marked as used, which confuses the extending from mates.
+		is_at_end = ori ? (s->cursor <= nm) : (s->cursor >= s->len - nm - 1);
+		// Remove those reads probably at the splicing junction
+		if (!is_at_end && ((is_sub_seq(query, 0, s, nm, 0) == NOT_FOUND
+				&& is_sub_seq_byte(query->rseq, query->len, 0, s, nm, 0)
+						== NOT_FOUND) || (check_c_1 != confirm_c && check_c_2
+				!= confirm_c_2))) {
+			removed = pool_rm_index(cur_pool, i);
+			if (removed)
+				i--;
+		}
+	}
+}
+
+void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig, const int ori) {
+	int i = 0, overlapped = 0;
+	bwa_seq_t *mate = NULL, *tmp = NULL;
+	// Add the mate reads which overlap with the tail into the current pool
+	for (i = 0; i < mate_pool->n; i++) {
+		mate = g_ptr_array_index(mate_pool->reads, i);
+		if (mate->is_in_c_pool || (is_right_mate(mate->name) && ori)
+				|| (is_left_mate(mate->name) && !ori))
+			continue;
+		tmp = mate;
+		if (mate->rev_com)
+			tmp = new_mem_rev_seq(mate, mate->len, 0);
+		overlapped = ori ? find_ol(tmp, contig, MISMATCHES) : find_ol(contig,
+				tmp, MISMATCHES);
+		if (overlapped >= mate->len / 4) {
+			mate->cursor = ori ? (mate->len - overlapped - 1) : overlapped;
+			pool_add(cur_pool, mate);
+			// p_query("Mate added", mate);
+		}
+		if (mate->rev_com)
+			bwa_free_read_seq(1, tmp);
+	}
+}
+
+void clean_mate_pool(pool *mate_pool) {
+	bwa_seq_t *mate = NULL;
+	int i = 0;
+	if (!mate_pool)
+		return;
+	for (i = 0; i < mate_pool->reads->len; i++) {
+		mate = g_ptr_array_index(mate_pool->reads, i);
+		if (mate->used || mate->is_in_c_pool) {
+			pool_rm_index(mate_pool, i);
+			i--;
+		}
+	}
+}
+
 pool *new_pool() {
 	pool *r_pool = (pool*) malloc(sizeof(pool));
 	readarray *reads = g_ptr_array_sized_new(POOLSIZE);
@@ -288,6 +375,7 @@ void clear_pool(pool *r_pool) {
 	for (i = 0; i < r_pool->n; i++) {
 		r = g_ptr_array_index(reads, i);
 		r->is_in_c_pool = 0;
+		r->is_in_m_pool = 0;
 	}
 	while (reads->len > 0)
 		g_ptr_array_remove_index(r_pool->reads, 0);
@@ -306,6 +394,7 @@ void free_pool(pool *r_pool) {
 			for (i = 0; i < r_pool->n; i++) {
 				r = g_ptr_array_index(reads, i);
 				r->is_in_c_pool = 0;
+				r->is_in_m_pool = 0;
 			}
 			r_pool->n = 0;
 			if (reads) {

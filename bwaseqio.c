@@ -209,6 +209,7 @@ bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int mode,
 		p->contig_id = 0;
 		p->shift = 0;
 		p->is_in_c_pool = 0;
+		p->is_in_m_pool = 0;
 		p->rev_com = 0;
 
 		for (i = 0; i != p->full_len; ++i) {

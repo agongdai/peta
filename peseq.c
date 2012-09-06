@@ -323,7 +323,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 							= p->n_cigar = p->cigar = p->seQ = p->nm = p->md
 									= NULL;
 
-	p->shift = p->is_in_c_pool = 0;
+	p->shift = p->is_in_c_pool = p->is_in_m_pool = 0;
 	p->used = query->used;
 	p->contig_id = query->contig_id;
 	p->full_len = p->clip_len = p->len = ol;
@@ -366,7 +366,7 @@ bwa_seq_t *new_rev_seq(const bwa_seq_t *query) {
 							= p->n_cigar = p->cigar = p->seQ = p->nm = p->md
 									= 0;
 
-	p->used = p->shift = p->is_in_c_pool = 0;
+	p->used = p->shift = p->is_in_c_pool = p->is_in_m_pool = 0;
 	p->contig_id = -1;
 	p->full_len = p->clip_len = p->len = query->len;
 	p->cursor = query->cursor;

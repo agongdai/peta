@@ -176,8 +176,8 @@ double* get_pairs_on_edge(edge *eg, int *n_pairs) {
 			next_s = g_ptr_array_index(reads, i + 1);
 			if (atoi(next_s->name) - index == 1) {
 				i++;
-//				p_query("Left", s);
-//				p_query("Right", next_s);
+				//				p_query("Left", s);
+				//				p_query("Right", next_s);
 				pairs[*n_pairs] = abs(next_s->shift - s->shift);
 				*n_pairs += 1;
 			}
@@ -560,14 +560,25 @@ int get_mid_pos(readarray *ra, const int ori, const int lib_mean) {
 }
 
 void upd_reads(edge *eg, const int mismatches) {
-	int i = 0, index = 0;
+	int i = 0, index = 0, overlap_len = 0;
 	bwa_seq_t *read, *rev_read = NULL;
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		if (eg->len < read->len)
 			return;
-		if (read->shift < 0)
-			continue;
+		if (read->shift < 0) {
+			overlap_len = find_ol(read, eg->contig, mismatches);
+			if (overlap_len > read->len / 4) {
+				read->shift = read->len - overlap_len;
+				continue;
+			} else {
+				overlap_len = find_ol(eg->contig, read, mismatches);
+				if (overlap_len > read->len / 4) {
+					read->shift = eg->len - overlap_len;
+					continue;
+				}
+			}
+		}
 		rev_read = new_mem_rev_seq(read, read->len, 0);
 		index = read->rev_com ? is_sub_seq(rev_read, 0, eg->contig,
 				mismatches + 2, 0) : is_sub_seq(read, 0, eg->contig,

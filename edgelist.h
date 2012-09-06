@@ -5,8 +5,8 @@
  *      Author: carl
  */
 
-#ifndef ARRAYLIST_H_
-#define ARRAYLIST_H_
+#ifndef EDGELIST_H_
+#define EDGELIST_H_
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -49,4 +49,4 @@ double* get_pairs_on_edge(edge *eg, int *n_pairs);
 #ifdef __cplusplus
 }
 #endif
-#endif /* ARRAYLIST_H_ */
+#endif /* EDGELIST_H_ */
