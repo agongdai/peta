@@ -1,14 +1,14 @@
 -------------------------------------------------------------------
-Original transcript file:       	rnaseq/SRX040570/cufflinks.fa
+Original transcript file:       	read/cufflinks.fa
 Exons file:                     	graph/gene_10_edges.txt
-Total base:                     	11985663
+Total base:                     	10142069
 Unique base:                    	0
-# of transcripts:               	2955
+# of transcripts:               	3974
 # of exons:                     	0
 # of stand alone gene:          	0
 # of stand alone base:          	0
 % of stand alone base:          	0.000000
-Optimal N50:                    	5895
+Optimal N50:                    	3347
 
 # of target edges:              	0
 Best N50:                       	0

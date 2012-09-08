@@ -16,7 +16,7 @@ blastn -task blastn -query $blastdb$query.fa -db $blastdb$db -out $blastdb$query
 
 cp $blastdb$query.blastn read/
 
-echo "Mapping contigs to assembled contigs..." 
+echo "Mapping reads to assembled contigs..." 
 
 bwa index read/$query.fa
 bwa aln -t 8 read/$query.fa read/$reads_used > read/$reads_used.sai

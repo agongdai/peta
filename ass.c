@@ -126,8 +126,9 @@ void filter_pool(pool *p, edge *ass_eg, const hash_table *ht) {
  * To increase the reliability, only if the last bases of current contig and the aligned seq
  * are identical, we extend to next base.
  */
-void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool, pool *mate_pool,
-		bwa_seq_t *query, const hash_table *ht, edge *ass_eg, const int ori) {
+void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
+		pool *mate_pool, bwa_seq_t *query, const hash_table *ht, edge *ass_eg,
+		const int ori) {
 	int i = 0;
 	index64 index;
 	alg *a;
@@ -183,6 +184,7 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool, pool *mate_
 	// Add overlapped reads from the mate_pool, the overlapping length is read length / 4.
 	overlap_mate_pool(cur_pool, mate_pool, contig, ori);
 	for (i = 0; i < cur_pool->n; i++) {
+		s = g_ptr_array_index(cur_pool->reads, i);
 		if (s->rev_com)
 			check_c(next, s->rseq[s->cursor]);
 		else
@@ -836,7 +838,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		if (opt->nsp) {
 			pe_aln_query(query, query->rseq, ht, opt->nm, opt->ol, 1, aligns);
 		}
-		//p_align(aligns);
+		// p_align(aligns);
 		// Extend the contig, update the counter and sequence pool
 		upd_cur_pool(aligns, next, cur_pool, mate_pool, query, ht, ass_eg, ori);
 		reset_alg(aligns);
@@ -1119,7 +1121,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 		}
 	}
 	free_msg(msg);
-	// log_edge(ass_eg);
+	 log_edge(ass_eg);
 	return ass_eg;
 }
 
@@ -1216,20 +1218,20 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	ht = pe_load_hash(fa_fn);
 	left_rm = new_rm();
 
-	s_index = 4010;
-	e_index = 4030;
+	s_index = 5000;
+	e_index = 5001;
 	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE
 			> n_reads_consumed) {
-		//		if (counter <= 12000)
-		index = atoi(line);
-		//		else
-		//			index = (int) (rand_f() * ht->n_seqs);
-		//		if (counter < s_index) {
-		//			counter++;
-		//			continue;
-		//		}
-		//		if (counter >= e_index)
-		//			break;
+		if (counter <= 12000)
+			index = atoi(line);
+		else
+			index = (int) (rand_f() * ht->n_seqs);
+		if (counter < s_index) {
+			counter++;
+			continue;
+		}
+		if (counter >= e_index)
+			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
 		p = &ht->seqs[index];
 		if (p->used || p->contig_id < 0) {

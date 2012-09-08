@@ -73,6 +73,7 @@ void pool_add(pool *p, bwa_seq_t *new_seq) {
 		return;
 	g_ptr_array_add(p->reads, new_seq);
 	new_seq->is_in_c_pool = 1;
+	new_seq->is_in_m_pool = 0;
 	p->n++;
 }
 
@@ -95,6 +96,7 @@ gboolean pool_rm(pool *r_pool, bwa_seq_t *rm_seq) {
 	gboolean r;
 	r = g_ptr_array_remove(r_pool->reads, rm_seq);
 	rm_seq->is_in_c_pool = 0;
+	rm_seq->is_in_m_pool = 0;
 	r_pool->n = r_pool->reads->len;
 	return r;
 }
