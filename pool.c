@@ -73,7 +73,6 @@ void pool_add(pool *p, bwa_seq_t *new_seq) {
 		return;
 	g_ptr_array_add(p->reads, new_seq);
 	new_seq->is_in_c_pool = 1;
-	new_seq->is_in_m_pool = 0;
 	p->n++;
 }
 
@@ -81,7 +80,6 @@ void mate_pool_add(pool *p, bwa_seq_t *new_seq) {
 	if (!new_seq)
 		return;
 	g_ptr_array_add(p->reads, new_seq);
-	new_seq->is_in_c_pool = 0;
 	new_seq->is_in_m_pool = 1;
 	p->n = p->reads->len;
 }
@@ -96,7 +94,6 @@ gboolean pool_rm(pool *r_pool, bwa_seq_t *rm_seq) {
 	gboolean r;
 	r = g_ptr_array_remove(r_pool->reads, rm_seq);
 	rm_seq->is_in_c_pool = 0;
-	rm_seq->is_in_m_pool = 0;
 	r_pool->n = r_pool->reads->len;
 	return r;
 }
@@ -106,7 +103,6 @@ gboolean pool_rm_fast(pool *p, bwa_seq_t *read) {
 	r = g_ptr_array_remove(p->reads, read);
 	read->is_in_c_pool = 0;
 	read->rev_com = 0;
-	read->is_in_m_pool = 0;
 	p->n = p->reads->len;
 	return r;
 }
@@ -115,6 +111,32 @@ gboolean pool_rm_index(pool *p, const int i) {
 	gboolean r;
 	bwa_seq_t *read = g_ptr_array_index(p->reads, i);
 	read->is_in_c_pool = 0;
+	read->rev_com = 0;
+	r = g_ptr_array_remove_index_fast(p->reads, i);
+	p->n = p->reads->len;
+	return r;
+}
+
+gboolean mate_pool_rm(pool *r_pool, bwa_seq_t *rm_seq) {
+	gboolean r;
+	r = g_ptr_array_remove(r_pool->reads, rm_seq);
+	rm_seq->is_in_m_pool = 0;
+	r_pool->n = r_pool->reads->len;
+	return r;
+}
+
+gboolean mate_pool_rm_fast(pool *p, bwa_seq_t *read) {
+	gboolean r;
+	r = g_ptr_array_remove(p->reads, read);
+	read->rev_com = 0;
+	read->is_in_m_pool = 0;
+	p->n = p->reads->len;
+	return r;
+}
+
+gboolean mate_pool_rm_index(pool *p, const int i) {
+	gboolean r;
+	bwa_seq_t *read = g_ptr_array_index(p->reads, i);
 	read->is_in_m_pool = 0;
 	read->rev_com = 0;
 	r = g_ptr_array_remove_index_fast(p->reads, i);
@@ -312,10 +334,14 @@ void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm) {
 		// In case that the read will be removed and not marked as used, which confuses the extending from mates.
 		is_at_end = ori ? (s->cursor <= nm) : (s->cursor >= s->len - nm - 1);
 		// Remove those reads probably at the splicing junction
-		if (!is_at_end && ((is_sub_seq(query, 0, s, nm, 0) == NOT_FOUND
-				&& is_sub_seq_byte(query->rseq, query->len, 0, s, nm, 0)
-						== NOT_FOUND) || (check_c_1 != confirm_c && check_c_2
-				!= confirm_c_2))) {
+		if (!is_at_end
+				&& ((is_sub_seq(query, 0, s, nm, 0) == NOT_FOUND
+						&& is_sub_seq_byte(query->rseq, query->len, 0, s, nm, 0)
+								== NOT_FOUND)
+						|| (check_c_1 != confirm_c && check_c_2 != confirm_c_2))) {
+			if (strcmp("6624177", s->name) == 0) {
+				p_query("Removed", s);
+			}
 			removed = pool_rm_index(cur_pool, i);
 			if (removed)
 				i--;
@@ -323,7 +349,8 @@ void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm) {
 	}
 }
 
-void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig, const int ori) {
+void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
+		const int ori) {
 	int i = 0, overlapped = 0;
 	bwa_seq_t *mate = NULL, *tmp = NULL;
 	// Add the mate reads which overlap with the tail into the current pool
@@ -335,11 +362,14 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig, const
 		tmp = mate;
 		if (mate->rev_com)
 			tmp = new_mem_rev_seq(mate, mate->len, 0);
-		overlapped = ori ? find_ol(tmp, contig, MISMATCHES) : find_ol(contig,
-				tmp, MISMATCHES);
+		overlapped =
+				ori ? find_ol(tmp, contig, MISMATCHES) : find_ol(contig, tmp,
+								MISMATCHES);
 		if (overlapped >= mate->len / 4) {
 			mate->cursor = ori ? (mate->len - overlapped - 1) : overlapped;
 			pool_add(cur_pool, mate);
+			if(mate_pool_rm_index(mate_pool, i))
+				i--;
 			// p_query("Mate added", mate);
 		}
 		if (mate->rev_com)
@@ -355,8 +385,8 @@ void clean_mate_pool(pool *mate_pool) {
 	for (i = 0; i < mate_pool->reads->len; i++) {
 		mate = g_ptr_array_index(mate_pool->reads, i);
 		if (mate->used || mate->is_in_c_pool) {
-			pool_rm_index(mate_pool, i);
-			i--;
+			if(mate_pool_rm_index(mate_pool, i))
+				i--;
 		}
 	}
 }

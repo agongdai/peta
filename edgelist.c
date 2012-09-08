@@ -518,6 +518,23 @@ void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift,
 	}
 }
 
+readarray* concate_readarray(readarray *left_reads, readarray *right_reads) {
+	readarray *all = g_ptr_array_sized_new(1024);
+	int i = 0;
+	bwa_seq_t *read = NULL;
+	for (i = 0; i < left_reads->len; i++) {
+		read = g_ptr_array_index(left_reads, i);
+		g_ptr_array_add(all, read);
+	}
+	for (i = 0; i < right_reads->len; i++) {
+		read = g_ptr_array_index(right_reads, i);
+		g_ptr_array_add(all, read);
+	}
+	g_ptr_array_free(left_reads, TRUE);
+	g_ptr_array_free(right_reads, TRUE);
+	return all;
+}
+
 void merge_eg_to_left(edge *left_eg, edge *right_eg, const int gap) {
 	combine_reads(left_eg, right_eg, 1, gap, 0);
 	left_eg->contig = merge_seq_to_left(left_eg->contig, right_eg->contig, gap);

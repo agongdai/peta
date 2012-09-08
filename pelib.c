@@ -88,8 +88,8 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 				tmp, MISMATCHES);
 		if (overlapped >= mate->len / 4) {
 			mate->cursor = ori ? (mate->len - overlapped - 1) : overlapped;
-			pool_add(cur_pool, mate);
-			pool_rm_index(mate_pool, i);
+			mate_pool_add(cur_pool, mate);
+			mate_pool_rm_index(mate_pool, i);
 			i--;
 //			p_query("Mate added", mate);
 		}
