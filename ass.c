@@ -189,14 +189,6 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 			s->cursor = 0;
 			continue;
 		}
-
-		// printf("[extend] Inserting alignment %s:%d into current pool. \n", p->r_id, p->pos);
-		// p_pool("Before inserting: ", r_pool);
-		if (strcmp("6624177", s->name) == 0) {
-			p_ctg_seq("Contig", ass_eg->contig);
-			p_query(__func__, s);
-//			p_pool("Current pool", cur_pool, NULL);
-		}
 		pool_add(cur_pool, s);
 		if (!mate->is_in_m_pool && !mate->is_in_c_pool) {
 			mate_pool_add(mate_pool, mate);
@@ -576,7 +568,7 @@ int est_gap(const edge *left_eg, const edge *right_eg, const hash_table *ht) {
 	bwa_seq_t *read, *mate;
 	int i = 0, l_index = 0, r_index = 0, len = 0;
 	int p_count = 0, gap_sum = 0, gap_ave = 0;
-	show_msg(__func__, "left_eg = [%d, %d], right_eg = [%d, %d] \n",
+	show_debug_msg(__func__, "left_eg = [%d, %d], right_eg = [%d, %d] \n",
 			left_eg->id, left_eg->len, right_eg->id, right_eg->len);
 	l_par_reads = get_parents_reads(left_eg, 0);
 	r_par_reads = get_parents_reads(right_eg, 1);
@@ -915,6 +907,8 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 //			g_ptr_array_free(combined_reads, TRUE);
 //			g_ptr_array_free(cur_reads, TRUE);
 //			if (paired_reads < MIN_VALID_PAIRS) {
+			p_query("USED", used);
+			p_pool("Current pool", cur_pool, next);
 			if (used->contig_id == ass_eg->id) {
 				m->type = REP_EXTEND;
 			} else

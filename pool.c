@@ -339,9 +339,6 @@ void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm) {
 						&& is_sub_seq_byte(query->rseq, query->len, 0, s, nm, 0)
 								== NOT_FOUND)
 						|| (check_c_1 != confirm_c && check_c_2 != confirm_c_2))) {
-			if (strcmp("6624177", s->name) == 0) {
-				p_query("Removed", s);
-			}
 			removed = pool_rm_index(cur_pool, i);
 			if (removed)
 				i--;
