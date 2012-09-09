@@ -423,7 +423,6 @@ void free_pool(pool *r_pool) {
 			for (i = 0; i < r_pool->n; i++) {
 				r = g_ptr_array_index(reads, i);
 				r->is_in_c_pool = 0;
-				r->is_in_m_pool = 0;
 			}
 			r_pool->n = 0;
 			if (reads) {
@@ -432,6 +431,28 @@ void free_pool(pool *r_pool) {
 		}
 		free(r_pool);
 		r_pool = 0;
+	}
+}
+
+void free_mate_pool(pool *mate_pool) {
+	readarray *reads = mate_pool->reads;
+	bwa_seq_t *r = 0;
+	// p_pool("Pool to free: ", mate_pool);
+	int i = 0;
+	// show_debug_msg(__func__, "Pool: %p \n", mate_pool);
+	if (mate_pool) {
+		if (mate_pool->n > 0) {
+			for (i = 0; i < mate_pool->n; i++) {
+				r = g_ptr_array_index(reads, i);
+				r->is_in_m_pool = 0;
+			}
+			mate_pool->n = 0;
+			if (reads) {
+				g_ptr_array_free(reads, TRUE);
+			}
+		}
+		free(mate_pool);
+		mate_pool = 0;
 	}
 }
 

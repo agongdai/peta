@@ -23,6 +23,7 @@ typedef struct {
 
 pool *new_pool();
 void free_pool(pool *r_pool);
+void free_mate_pool(pool *mate_pool);
 void p_edge_reads(const edge *eg);
 void p_readarray(const readarray *ra, const int part);
 void p_pool(const char *header, const pool *r_pool, const int *next);

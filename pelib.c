@@ -167,7 +167,7 @@ edge *pair_extension(const hash_table *ht, const bwa_seq_t *s, int ori) {
 	free(next);
 	free(c);
 	free_pool(cur_pool);
-	free_pool(mate_pool);
+	free_mate_pool(mate_pool);
 	bwa_free_read_seq(1, query);
 	return eg;
 }

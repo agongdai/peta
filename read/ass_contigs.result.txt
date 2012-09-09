@@ -52,7 +52,7 @@ Bases not aligned:              	0
 Transcripts not reached:        	3971
 Bases not reached:              	10118578
 N50 value:                      	2503
-N50 value (Aligned based on all): 	1634169972
+N50 value (Aligned based on all): 	0
 N50 value (based on all):       	0
 Base coverage:                  	0.000398
 Contigs not aligned [id, length]: 

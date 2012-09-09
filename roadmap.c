@@ -345,6 +345,49 @@ void destroy_eg(edge *eg) {
 }
 
 /**
+ * The reads used by this edge could be reused later (set attribute 'used' to be false).
+ */
+void free_eg(edge *eg) {
+	eg_gap *gap = NULL;
+	int i = 0;
+	bwa_seq_t *read = NULL;
+	if (eg) {
+		bwa_free_read_seq(1, eg->contig); // bug if free it
+		g_ptr_array_free(eg->in_egs, TRUE);
+		if (!eg->right_ctg) {
+			// If eg's right contig is not null, its out_egs is set to be right contig's out_egs
+			g_ptr_array_free(eg->out_egs, TRUE);
+		}
+		for (i = 0; i < eg->reads; i++) {
+			read = g_ptr_array_index(eg->reads, i);
+			read->used = 0;
+		}
+		g_ptr_array_free(eg->reads, TRUE);
+		for (i = 0; i < eg->gaps->len; i++) {
+			gap = g_ptr_array_index(eg->gaps, i);
+			free_eg_gap(gap);
+		}
+		g_ptr_array_free(eg->gaps, TRUE);
+		free(eg->name);
+		free(eg);
+	}
+}
+
+void free_branch(edge *eg, const int ori) {
+	edgearray *children = NULL;
+	int i = 0;
+	edge *child = NULL;
+	if (!eg)
+		return;
+	children = ori ? eg->in_egs : eg->out_egs;
+	for (i = 0; i < children->len; i++) {
+		child = g_ptr_array_index(children, i);
+		free_branch(child, ori);
+		free_eg(child);
+	}
+}
+
+/**
  * in_egs              left_eg             out_egs
  * -----------                                 -----------
  * -----------                                 -----------

@@ -756,7 +756,7 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		}
 	}
 	free_pool(cur_pool);
-	free_pool(ass_mate_pool);
+	free_mate_pool(ass_mate_pool);
 	free_pool(left_pool);
 }
 
@@ -812,7 +812,7 @@ bwa_seq_t *ext_by_mates(edge *ass_eg, const hash_table *ht, pool *cur_pool,
 	if (ass_eg->len > ori_len) {
 		upd_reads(ass_eg, opt->nm);
 	}
-	free_pool(mate_pool);
+	free_mate_pool(mate_pool);
 	bwa_free_read_seq(1, init_q);
 	return query;
 }
@@ -885,8 +885,8 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 					c[2], c[3], c[4], ass_eg->id, ass_eg->len);
 			m->type = MUL_PATH;
 			m->counter = c;
-			//p_query("Query now: ", query);
-			//p_pool("Pool when multi-branching: ", cur_pool, ori, next);
+			p_query("Query now: ", query);
+			p_pool("Pool when multi-branching: ", cur_pool, next);
 			break;
 		}
 		// Only consider one branch. If some reads are used, stop
@@ -935,7 +935,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		free(c);
 	free_alg(aligns);
 	free_pool(cur_pool);
-	free_pool(mate_pool);
+	free_mate_pool(mate_pool);
 	bwa_free_read_seq(1, query);
 	show_debug_msg(__func__,
 			"******************* Ending of Single Extension ******************\n\n");
@@ -959,7 +959,7 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		destroy_eg(m_eg); // If tried multiple times, the m_eg must be destroyed.
 		m_pool = get_mate_pool(ass_eg, ht, ori, 1, 0);
 		mate = get_query_ol(ass_eg, ht->seqs, m_pool, ori);
-		free_pool(m_pool);
+		free_mate_pool(m_pool);
 		if (!mate) {
 			show_debug_msg(__func__, "Mates are empty, return \n");
 			return 0;
@@ -1056,9 +1056,12 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 		bwa_seq_t *init_query, const hash_table *ht, int level, int ori) {
 	bwa_seq_t *query, *contig, *used, *sub_query;
 	int c_index = 0, no_sub_path = 0;
-	int *c = 0, extended = 0;
+	int *c = 0, extended = 0, opp_ori = 0;
 	edge *ass_eg, *tmp_eg;
 	ext_msg *msg = 0;
+	readarray *paired_reads = NULL, *main_eg_reads = NULL, *branch_eg_reads = NULL;
+
+	opp_ori = ori ? 0 : 1;
 
 	if (cur_eg) {
 		ass_eg = cur_eg;
@@ -1147,7 +1150,16 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 					show_debug_msg(__func__, "Subpath is feasible to go \n");
 					tmp_eg = pe_ass_edge(ass_eg, 0, 0, sub_query, ht, level + 1,
 							ori);
-					no_sub_path = 0;
+					main_eg_reads = get_parents_reads(ass_eg, ori);
+					branch_eg_reads = get_parents_reads(tmp_eg, opp_ori);
+					paired_reads = get_paired_reads(main_eg_reads, branch_eg_reads, ht->seqs, ori);
+					if (paired_reads->len < MIN_VALID_PAIRS) {
+						free_branch(tmp_eg, ori);
+					} else
+						no_sub_path = 0;
+					g_ptr_array_free(main_eg_reads, TRUE);
+					g_ptr_array_free(branch_eg_reads, TRUE);
+					g_ptr_array_free(paired_reads, TRUE);
 				}
 				bwa_free_read_seq(1, sub_query);
 				c_index++;

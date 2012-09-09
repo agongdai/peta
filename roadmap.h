@@ -42,6 +42,7 @@ typedef struct {
 roadmap *new_rm();
 edge *new_eg();
 void destroy_eg(edge *eg);
+void free_branch(edge *eg, const int ori);
 void post_pro(roadmap *left_rm, edgearray *all_edges,
 		const int max_ctg_id, const ass_opt *opt);
 

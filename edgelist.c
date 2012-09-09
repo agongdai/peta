@@ -187,10 +187,14 @@ double* get_pairs_on_edge(edge *eg, int *n_pairs) {
 }
 
 // param ori: 0 means ra_1 is at the left, and ra_2 is at the right
+/**
+ * ra_1 is the reads from the main edge;
+ * ra_2 is the reads from the branches or jumping edges
+ */
 readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs,
 		const int ori) {
 	readarray *paired = g_ptr_array_sized_new(INIT_N_READ_PAIRED);
-	int i = 0, right_dir = 0;
+	int i = 0, correct_dir = 0;
 	bwa_seq_t *read_1, *read_2;
 	if (!ra_1 || !ra_2 || ra_1->len == 0 || ra_2->len == 0)
 		return paired;
@@ -198,16 +202,16 @@ readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs,
 		read_1 = g_ptr_array_index(ra_1, i);
 		if (ori) {
 			if (is_left_mate(read_1->name))
-				right_dir = 0;
+				correct_dir = 0;
 			else
-				right_dir = 1;
+				correct_dir = 1;
 		} else {
 			if (is_left_mate(read_1->name))
-				right_dir = 1;
+				correct_dir = 1;
 			else
-				right_dir = 0;
+				correct_dir = 0;
 		}
-		if (right_dir) {
+		if (correct_dir) {
 			read_2 = get_mate(read_1, seqs);
 			if (readarray_find(ra_2, read_2) != NOT_FOUND) {
 				g_ptr_array_add(paired, read_1);
