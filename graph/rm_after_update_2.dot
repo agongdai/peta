@@ -12,28 +12,21 @@ digraph g {
 	10 [shape=box, label="10:70"] 
 	10 -> 3
 	11 [shape=box, label="11:596"] 
-	15 [shape=box, label="15:299"] 
-	15 -> 17
-	15 -> 18
-	17 [shape=box, label="17:192"] 
-	18 [shape=box, label="18:70"] 
-	18 -> 17 [label="s=70"] 
-	20 [shape=box, label="20:204"] 
-	20 -> 15
-	22 [shape=box, label="22:484"] 
-	22 -> 20
-	24 [shape=box, label="24:70"] 
-	24 -> 20
-	25 [shape=box, label="25:70"] 
-	25 -> 15
-	26 [shape=box, label="26:1245"] 
-	28 [shape=box, label="28:1842"] 
-	28 -> 29
-	29 [shape=box, label="29:79"] 
-	35 [shape=box, label="35:1608"] 
-	36 [shape=box, label="36:296"] 
-	37 [shape=box, label="37:378"] 
-	37 -> 36
-	39 [shape=box, label="39:71"] 
-	39 -> 36
+	17 [shape=box, label="17:491"] 
+	18 [shape=box, label="18:204"] 
+	18 -> 17
+	20 [shape=box, label="20:484"] 
+	20 -> 18
+	22 [shape=box, label="22:70"] 
+	22 -> 18
+	23 [shape=box, label="23:70"] 
+	23 -> 17
+	24 [shape=box, label="24:1245"] 
+	27 [shape=box, label="27:1921"] 
+	33 [shape=box, label="33:1608"] 
+	34 [shape=box, label="34:296"] 
+	35 [shape=box, label="35:378"] 
+	35 -> 34
+	37 [shape=box, label="37:71"] 
+	37 -> 34
 } 

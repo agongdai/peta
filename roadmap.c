@@ -395,26 +395,26 @@ void cut_connection(edge *ass_eg, edge *tmp_eg, const int ori) {
 	}
 }
 
-void free_branch(edge *eg, const int ori) {
+void free_branch(edge *eg, const int ori, edgearray *all_edges, int *contig_id, int *n_reads_consumed) {
 	edgearray *children = NULL;
 	int i = 0;
 	edge *child = NULL;
 	if (!eg)
 		return;
+	g_ptr_array_remove(all_edges, eg);
+	*contig_id -= 1;
+	*n_reads_consumed -= eg->reads->len;
 	children = ori ? eg->in_egs : eg->out_egs;
 	if (!ori && eg->right_ctg) {
 	} else {
 		for (i = 0; i < children->len; i++) {
 			child = g_ptr_array_index(children, i);
-			show_debug_msg(__func__, "Freeing [%d, %d]\n", child->id,
-					child->len);
-			free_branch(child, ori);
-			free_eg(child, ori);
+			p_flat_eg(child);
+			free_branch(child, ori, all_edges, contig_id, n_reads_consumed);
 		}
 	}
-//	show_debug_msg(__func__, "Freeing edge [%d, %d]\n", eg->id,
-//			eg->len);
-//	free_eg(eg, ori);
+	p_flat_eg(eg);
+	free_eg(eg, ori);
 }
 
 /**
