@@ -283,8 +283,8 @@ eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
 	// If there is no counter read pairs
 	if (has_counter_pair(ra, m_ra, lower, upper)) {
 		show_debug_msg(__func__, "Has counter pairs:");
-		p_readarray(ra, 1);
-		p_readarray(m_ra, 1);
+		// p_readarray(ra, 1);
+		// p_readarray(m_ra, 1);
 		// The edge m_eg should be put into some hole
 		for (i = ass_eg->gaps->len - 1; i >= 0; i--) {
 			gap = g_ptr_array_index(ass_eg->gaps, i);

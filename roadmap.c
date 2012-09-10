@@ -360,23 +360,26 @@ void free_eg(edge *eg, const int ori) {
 	bwa_seq_t *read = NULL;
 	if (eg) {
 		bwa_free_read_seq(1, eg->contig); // bug if free it
-		if (ori)
-			g_ptr_array_free(eg->in_egs, TRUE);
-		if (!eg->right_ctg && !ori) {
-			// If eg's right contig is not null, its out_egs is set to be right contig's out_egs
-			g_ptr_array_free(eg->out_egs, TRUE);
-		}
-		eg->out_egs = NULL;
+//		if (ori)
+//			free_readarray(eg->in_egs);
+//		if (!eg->right_ctg && !ori) {
+//			// If eg's right contig is not null, its out_egs is set to be right contig's out_egs
+//			free_readarray(eg->out_egs);
+//		}
+//		if (eg->right_ctg) {
+//			g_ptr_array_remove(eg->right_ctg->in_egs, eg);
+//		}
+//		eg->out_egs = NULL;
 		for (i = 0; i < eg->reads->len; i++) {
 			read = g_ptr_array_index(eg->reads, i);
 			readarray_remove(eg, read);
 		}
-		g_ptr_array_free(eg->reads, TRUE);
+		free_readarray(eg->reads);
 		for (i = 0; i < eg->gaps->len; i++) {
 			gap = g_ptr_array_index(eg->gaps, i);
 			free_eg_gap(gap);
 		}
-		g_ptr_array_free(eg->gaps, TRUE);
+		free_readarray(eg->gaps);
 		eg->alive = 0;
 		eg->right_ctg = NULL;
 		free(eg->name);
@@ -393,19 +396,25 @@ void cut_connection(edge *ass_eg, edge *tmp_eg, const int ori) {
 }
 
 void free_branch(edge *eg, const int ori) {
-	edgearray *children = NULL, *connections = NULL;
+	edgearray *children = NULL;
 	int i = 0;
 	edge *child = NULL;
 	if (!eg)
 		return;
 	children = ori ? eg->in_egs : eg->out_egs;
-	for (i = 0; i < children->len; i++) {
-		child = g_ptr_array_index(children, i);
-		show_debug_msg(__func__, "Freeing [%d, %d]\n", child->id, child->len);
-		free_branch(child, ori);
-		free_eg(child, ori);
+	if (!ori && eg->right_ctg) {
+	} else {
+		for (i = 0; i < children->len; i++) {
+			child = g_ptr_array_index(children, i);
+			show_debug_msg(__func__, "Freeing [%d, %d]\n", child->id,
+					child->len);
+			free_branch(child, ori);
+			free_eg(child, ori);
+		}
 	}
-	free_eg(eg, ori);
+//	show_debug_msg(__func__, "Freeing edge [%d, %d]\n", eg->id,
+//			eg->len);
+//	free_eg(eg, ori);
 }
 
 /**
@@ -499,8 +508,9 @@ int prune_eg(edge *eg) {
 				//  |-> eg: ----()---------------
 				//  |-> eg->right_ctg (shift = 4)
 				if (is_sbl(eg, eg->right_ctg) && ((eg->len - eg->r_shift)
-						< MINCONTIG || (abs((eg->len + eg->r_shift
-						- eg->right_ctg->len)) < MINCONTIG))) {
+						< MINCONTIG || (abs(
+						(eg->len + eg->r_shift - eg->right_ctg->len))
+						< MINCONTIG))) {
 					return rm_eg(eg);
 				}
 				//                  |-> eg_0: aaaacccgg |-> e
