@@ -46,6 +46,8 @@ void clear_used_reads(edge *eg, const int reset_ctg_id);
 void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap, const int nm, const int rl);
 eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori);
 double* get_pairs_on_edge(edge *eg, int *n_pairs);
+void readarray_add(edge *eg, bwa_seq_t *read);
+void readarray_remove(edge *eg, bwa_seq_t *read);
 
 #ifdef __cplusplus
 }

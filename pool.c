@@ -210,11 +210,9 @@ bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int ori) {
 				i--;
 			}
 		} else { // If the cursor is out of length, mark it as used!
-			p->used = 1;
 			p->shift = (ass_eg->len - p->cursor + 1);
-			p->contig_id = ass_eg->id;
 			pool_rm_index(cur_pool, i);
-			g_ptr_array_add(ass_eg->reads, p);
+			readarray_add(ass_eg, p);
 			i--;
 		}
 	}
@@ -239,10 +237,8 @@ int get_next_char(pool *cur_pool, const int ori, edge *eg) {
 			r->cursor++;
 		if (r->cursor < 0 || r->cursor >= r->len) {
 			pool_rm_fast(cur_pool, r);
-			g_ptr_array_add(eg->reads, r);
 			r->shift = (eg->len - r->cursor + 1);
-			r->used = 1;
-			r->contig_id = eg->id;
+			readarray_add(eg, r);
 			i--;
 		}
 	}

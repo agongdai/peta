@@ -39,31 +39,31 @@ Base range accumulation:
 
 Assembled results by PETA: 
 -------------------------------------------------------------------
-Assembled base:                 	4367
-Assembled unique base:          	4033
-# of contigs:                   	2
+Assembled base:                 	1964
+Assembled unique base:          	1891
+# of contigs:                   	1
 # of Full length:               	0
 Transcripts covered by one contig: 	0
 Stand-alone assembled:          	0
-Average length:                 	2183
-Longest contig:                 	2503
+Average length:                 	1964
+Longest contig:                 	1964
 # of Ctgs not aligned:          	0
 Bases not aligned:              	0
-Transcripts not reached:        	3971
-Bases not reached:              	10118578
-N50 value:                      	2503
-N50 value (Aligned based on all): 	0
+Transcripts not reached:        	3972
+Bases not reached:              	10123631
+N50 value:                      	1964
+N50 value (Aligned based on all): 	1634169972
 N50 value (based on all):       	0
-Base coverage:                  	0.000398
+Base coverage:                  	0.000186
 Contigs not aligned [id, length]: 
 	
 Base range accumulation:
 0	0
 500	0
 1000	0
-1500	1864
+1500	1964
 2000	0
-2500	2503
+2500	0
 3000	0
 3500	0
 4000	0
