@@ -1307,7 +1307,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 //		if (counter >= e_index)
 //			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
-		p = &ht->seqs[4648594];
+		p = &ht->seqs[index];
 		if (p->used || p->contig_id < 0) {
 			show_msg(__func__, "Read used: %s\n", p->name);
 			continue;
@@ -1340,7 +1340,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		sprintf(msg, "-------------------------------------- %.2f sec \n",
 				t_eclipsed);
 		show_msg(__func__, msg);
-		 break;
+		// break;
 	} // All solid reads assembled.
 
 	fprintf(stderr,
