@@ -1092,8 +1092,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 		} else {
 			contig = new_seq(init_query, init_query->len, 0);
 		}
-		init_query->used = 1;
-		init_query->contig_id = ass_eg->id;
+		readarray_add(ass_eg, init_query);
 		init_query->shift = 0;
 		ass_eg->contig = contig;
 		ass_eg->len = contig->len;
@@ -1129,18 +1128,19 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 		} else if (msg->type == QUE_PFD) {
 			used = (bwa_seq_t*) msg->used;
 			// If the ori is reverse, just not set the right_ctg value.
-//			if (used->contig_id >= 0 && used->contig_id != ass_eg->id && !ori) {
-//				// Set the shifted pos, such that it is able to recover the original transcript
-//				tmp_eg = (edge*) g_ptr_array_index(all_edges, used->contig_id);
-//				show_debug_msg(__func__,
-//						"Right connect [%d, %d] to [%d, %d] \n", ass_eg->id,
-//						ass_eg->len, tmp_eg->id, tmp_eg->len);
-//				ass_eg->r_shift = used->shift + used->cursor - 1;
-//				ass_eg->right_ctg = tmp_eg;
-//				g_ptr_array_free(ass_eg->out_egs, TRUE);
-//				ass_eg->out_egs = tmp_eg->out_egs;
-//				g_ptr_array_add(tmp_eg->in_egs, ass_eg);
-//			}
+			if (used->contig_id >= 0 && used->contig_id != ass_eg->id && !ori) {
+				// Set the shifted pos, such that it is able to recover the original transcript
+				tmp_eg = (edge*) g_ptr_array_index(all_edges, used->contig_id);
+				p_query("USED", used);
+				show_debug_msg(__func__,
+						"Right connect [%d, %d] to [%d, %d] \n", ass_eg->id,
+						ass_eg->len, tmp_eg->id, tmp_eg->len);
+				ass_eg->r_shift = used->shift + used->cursor - 1;
+				ass_eg->right_ctg = tmp_eg;
+				g_ptr_array_free(ass_eg->out_egs, TRUE);
+				ass_eg->out_egs = tmp_eg->out_egs;
+				g_ptr_array_add(tmp_eg->in_egs, ass_eg);
+			}
 			break;
 		} else if (msg->type == MUL_PATH) {
 			if (level > MAX_BRANCH_LEVEL) {
@@ -1171,7 +1171,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 						show_debug_msg(__func__,
 								"Branch [%d, %d] abandoned. \n", tmp_eg->id,
 								tmp_eg->len);
-						free_branch(tmp_eg, ori, all_edges, &contig_id, &n_reads_consumed);
+						free_branch(tmp_eg, ori, all_edges, &contig_id);
 						cut_connection(ass_eg, tmp_eg, ori);
 					} else
 						no_sub_path = 0;
@@ -1292,22 +1292,22 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	ht = pe_load_hash(fa_fn);
 	left_rm = new_rm();
 
-	s_index = 5000;
-	e_index = 5009;
+	s_index = 0;
+	e_index = 100;
 	while (fgets(line, 80, solid_reads) != NULL
 			&& ht->n_seqs * STOP_THRE > n_reads_consumed) {
-		if (counter <= 12000)
+//		if (counter <= 12000)
 		index = atoi(line);
-		else
-			index = (int) (rand_f() * ht->n_seqs);
-		if (counter < s_index) {
-			counter++;
-			continue;
-		}
-		if (counter >= e_index)
-			break;
+//		else
+//			index = (int) (rand_f() * ht->n_seqs);
+//		if (counter < s_index) {
+//			counter++;
+//			continue;
+//		}
+//		if (counter >= e_index)
+//			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
-		p = &ht->seqs[index];
+		p = &ht->seqs[4648594];
 		if (p->used || p->contig_id < 0) {
 			show_msg(__func__, "Read used: %s\n", p->name);
 			continue;
@@ -1326,8 +1326,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		fputs("\n", start_reads);
 		eg = pe_ass_ctg(left_rm, p, ht);
 		if (eg) {
-			p->contig_id = eg->id;
-			p->used = 1;
+			readarray_add(eg, p);
 			counter++;
 			for (i = pre_ctg_id; i < all_edges->len; i++) {
 				eg_i = g_ptr_array_index(all_edges, i);
@@ -1341,7 +1340,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		sprintf(msg, "-------------------------------------- %.2f sec \n",
 				t_eclipsed);
 		show_msg(__func__, msg);
-//		break;
+		 break;
 	} // All solid reads assembled.
 
 	fprintf(stderr,

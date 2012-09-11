@@ -744,3 +744,13 @@ void readarray_remove(edge *eg, bwa_seq_t *read) {
 	read->used = 0;
 	read->contig_id = -1;
 }
+
+void readarray_remove_fast(edge *eg, const int index) {
+	bwa_seq_t *read = NULL;
+	if (!eg || index < 0 || index >= eg->reads->len)
+		return;
+	read = g_ptr_array_index(eg->reads, index);
+	read->used = 0;
+	read->contig_id = -1;
+	g_ptr_array_remove_index_fast(eg->reads, index);
+}
