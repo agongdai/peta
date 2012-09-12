@@ -1,8 +1,20 @@
 digraph g { 
 	rankdir = LR 
-	2 [shape=box, label="2:918"] 
-	2 -> 3
-	2 -> 4
-	3 [shape=box, label="3:128"] 
-	4 [shape=box, label="4:348"] 
+	2 [shape=box, label="2:296"] 
+	3 [shape=box, label="3:111"] 
+	3 -> 2
+	4 [shape=box, label="4:111"] 
+	4 -> 3
+	5 [shape=box, label="5:75"] 
+	5 -> 4
+	6 [shape=box, label="6:886"] 
+	6 -> 5
+	7 [shape=box, label="7:70"] 
+	7 -> 5
+	8 [shape=box, label="8:70"] 
+	8 -> 4
+	9 [shape=box, label="9:70"] 
+	9 -> 3
+	10 [shape=box, label="10:73"] 
+	10 -> 2
 } 

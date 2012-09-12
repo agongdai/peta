@@ -76,7 +76,8 @@ int merge_eg(edge *eg) {
 	if (eg->ori && eg->out_egs->len == 1) {
 		right_eg = g_ptr_array_index(eg->out_egs, 0);
 		if (right_eg->alive && !right_eg->ori && right_eg->in_egs->len == 1) {
-			printf("[merge_i] Merging contig %d to %d \n", eg->id, right_eg->id);
+			printf("[merge_i] Merging contig %d to %d \n", eg->id,
+					right_eg->id);
 			merge_seq_to_right(eg->contig, right_eg->contig, 0);
 			right_eg->len = right_eg->contig->len;
 			right_eg->in_egs = eg->in_egs;
@@ -323,6 +324,12 @@ edge *new_eg() {
 	return eg;
 }
 
+void free_readarray(readarray *ra) {
+	if (!ra)
+		return;
+	g_ptr_array_free(ra, TRUE);
+}
+
 void destroy_eg(edge *eg) {
 	eg_gap *gap = NULL;
 	bwa_seq_t *read = NULL;
@@ -354,12 +361,6 @@ void destroy_eg(edge *eg) {
 	}
 }
 
-void free_readarray(readarray *ra) {
-	if (!ra)
-		return;
-	g_ptr_array_free(ra, TRUE);
-}
-
 /**
  * The reads used by this edge could be reused later (set attribute 'used' to be false).
  */
@@ -368,15 +369,15 @@ void free_eg(edge *eg, const int ori) {
 	int i = 0;
 	bwa_seq_t *read = NULL;
 	if (eg) {
-		bwa_free_read_seq(1, eg->contig); // bug if free it
+		bwa_free_read_seq(1, eg->contig);
+		if (eg->right_ctg) {
+			g_ptr_array_remove(eg->right_ctg->in_egs, eg);
+		}
 		if (ori)
 			free_readarray(eg->in_egs);
 		if (!eg->right_ctg && !ori) {
 			// If eg's right contig is not null, its out_egs is set to be right contig's out_egs
 			free_readarray(eg->out_egs);
-		}
-		if (eg->right_ctg) {
-			g_ptr_array_remove(eg->right_ctg->in_egs, eg);
 		}
 		eg->out_egs = NULL;
 		for (i = 0; i < eg->reads->len; i++) {
@@ -517,22 +518,26 @@ int prune_eg(edge *eg) {
 				// If the current edge "hangs" on some contig and length not long enough.
 				//  |-> eg: ----()---------------
 				//  |-> eg->right_ctg (shift = 4)
-				if (is_sbl(eg, eg->right_ctg) && ((eg->len - eg->r_shift)
-						< MINCONTIG || (abs((eg->len + eg->r_shift
-						- eg->right_ctg->len)) < MINCONTIG))) {
+				if (is_sbl(eg, eg->right_ctg)
+						&& ((eg->len - eg->r_shift) < MINCONTIG
+								|| (abs(
+										(eg->len + eg->r_shift
+												- eg->right_ctg->len))
+										< MINCONTIG))) {
 					return rm_eg(eg);
 				}
 				//                  |-> eg_0: aaaacccgg |-> e
 				// sbls:            |-> eg_1
 				//                  eg: aaaaccc (eg->right_ctg = e, shift = -2)
-				if (eg->len < MINCONTIG && eg->right_ctg && eg->r_shift
-						< MINCONTIG && in_egs->len > 0) {
+				if (eg->len < MINCONTIG && eg->right_ctg
+						&& eg->r_shift < MINCONTIG && in_egs->len > 0) {
 					sbls = get_sbls(eg);
 					for (i = 0; i < sbls->len; i++) {
 						eg_i = g_ptr_array_index(sbls, i);
 						if (has_edge(eg_i, eg->right_ctg->id, 0)) {
-							if (abs(eg_i->len - (eg->len - eg->r_shift))
-									< MINCONTIG) {
+							if (abs(
+									eg_i->len
+											- (eg->len - eg->r_shift)) < MINCONTIG) {
 								return rm_eg(eg);
 							}
 						}
@@ -546,13 +551,12 @@ int prune_eg(edge *eg) {
 				e = g_ptr_array_index(out_egs, 0);
 				r_ctg = e->right_ctg;
 				if (r_ctg && is_sbl(eg, r_ctg) && (eg->len + e->len
-						- e->r_shift) < MINCONTIG) {
-					rm_eg(e);
-					return rm_eg(eg);
-				}
+						- e->r_shift) < MINCONTIG) {rm_eg(e);
+				return rm_eg(eg);
 			}
 		}
 	}
+}
 	return 0;
 }
 

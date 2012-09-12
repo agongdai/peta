@@ -642,18 +642,18 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 	left_p_reads = get_parents_reads(left_eg, 0);
 	right_p_reads = get_parents_reads(right_eg, 1);
 	paired_reads = get_paired_reads(left_p_reads, right_p_reads, ht->seqs, 0);
-	g_ptr_array_free(left_p_reads, TRUE);
-	g_ptr_array_free(right_p_reads, TRUE);
+	free_readarray(left_p_reads);
+	free_readarray(right_p_reads);
 	show_debug_msg(__func__, "Checking hangling template \n");
 	//p_readarray(paired_reads, 1);
 	// If no paired reads spanning the two edges, just return.
 	if (paired_reads->len < MIN_VALID_PAIRS) {
-		g_ptr_array_free(paired_reads, TRUE);
+		free_readarray(paired_reads);
 		show_debug_msg(__func__,
 				"Not enough pairs spanning left_eg and right_eg \n");
 		return;
 	}
-	g_ptr_array_free(paired_reads, TRUE);
+	free_readarray(paired_reads);
 
 	// If the overlapped length is above some threshold
 	ol = ol_len >= MIN_OL && ol_len < (opt->rl + MIN_OL);
@@ -1293,7 +1293,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	left_rm = new_rm();
 
 	s_index = 0;
-	e_index = 100;
+	e_index = 2;
 	while (fgets(line, 80, solid_reads) != NULL
 			&& ht->n_seqs * STOP_THRE > n_reads_consumed) {
 //		if (counter <= 12000)
@@ -1340,7 +1340,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		sprintf(msg, "-------------------------------------- %.2f sec \n",
 				t_eclipsed);
 		show_msg(__func__, msg);
-		// break;
+//		 break;
 	} // All solid reads assembled.
 
 	fprintf(stderr,
