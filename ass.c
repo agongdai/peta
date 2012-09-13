@@ -183,7 +183,6 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 			s->cursor = 0;
 			continue;
 		}
-		show_debug_msg(__func__, "cursor: %d \n", s->cursor);
 
 		if (check_ign(ori, s, contig)) {
 			s->cursor = 0;
@@ -400,8 +399,7 @@ pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 		s = &seqs[a->r_id];
 		s->rev_com = a->rev_comp;
 		if (s->rev_com)
-			s->cursor = ori ? (s->len - opt->ol - 1 - a->pos) : (s->len
-					- a->pos);
+			s->cursor = ori ? (0 - a->pos - 1) : (s->len - a->pos);
 		else
 			s->cursor = ori ? (a->pos - 1) : (a->pos + s->len);
 		if (s->contig_id == -1 || s->used || s->cursor < 0 || s->cursor
