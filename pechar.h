@@ -37,6 +37,7 @@ int *get_most(const int *sta);
 char compl(const char nt);
 char mutate(const char c);
 int *get_abs_most(const int *sta, const double threshold);
+int get_pure_most(const int *sta);
 
 #ifdef __cplusplus
 }

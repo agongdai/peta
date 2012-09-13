@@ -98,6 +98,15 @@ int *get_abs_most(const int *sta, const double threshold) {
 	return status;
 }
 
+int get_pure_most(const int *sta) {
+	int index = 0, most = 0;
+	for (index = 0; index < 4; index++) {
+		if (sta[index] > sta[most])
+			most = index;
+	}
+	return sta[most];
+}
+
 int *get_most(const int *sta) {
 	int *next_c = (int*) calloc(6, sizeof(int));
 	unsigned int most = 0, index = 0, total = 0;

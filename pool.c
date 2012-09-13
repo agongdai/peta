@@ -14,6 +14,7 @@
 #include "edgelist.h"
 #include "utils.h"
 #include "pelib.h"
+#include "pechar.h"
 
 /**
  * Assume that the new read has been verified not existed using exists().
@@ -330,11 +331,10 @@ void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm) {
 		// In case that the read will be removed and not marked as used, which confuses the extending from mates.
 		is_at_end = ori ? (s->cursor <= nm) : (s->cursor >= s->len - nm - 1);
 		// Remove those reads probably at the splicing junction
-		if (!is_at_end
-				&& ((is_sub_seq(query, 0, s, nm, 0) == NOT_FOUND
-						&& is_sub_seq_byte(query->rseq, query->len, 0, s, nm, 0)
-								== NOT_FOUND)
-						|| (check_c_1 != confirm_c && check_c_2 != confirm_c_2))) {
+		if (!is_at_end && ((is_sub_seq(query, 0, s, nm, 0) == NOT_FOUND
+				&& is_sub_seq_byte(query->rseq, query->len, 0, s, nm, 0)
+						== NOT_FOUND) || (check_c_1 != confirm_c && check_c_2
+				!= confirm_c_2))) {
 			removed = pool_rm_index(cur_pool, i);
 			if (removed)
 				i--;
@@ -355,19 +355,58 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
 		tmp = mate;
 		if (mate->rev_com)
 			tmp = new_mem_rev_seq(mate, mate->len, 0);
-		overlapped =
-				ori ? find_ol(tmp, contig, MISMATCHES) : find_ol(contig, tmp,
-								MISMATCHES);
+		overlapped = ori ? find_ol(tmp, contig, MISMATCHES) : find_ol(contig,
+				tmp, MISMATCHES);
 		if (overlapped >= mate->len / 4) {
 			mate->cursor = ori ? (mate->len - overlapped - 1) : overlapped;
 			pool_add(cur_pool, mate);
-			if(mate_pool_rm_index(mate_pool, i))
+			p_query("MATE ADDED", mate);
+			if (mate_pool_rm_index(mate_pool, i))
 				i--;
 			// p_query("Mate added", mate);
 		}
 		if (mate->rev_com)
 			bwa_free_read_seq(1, tmp);
 	}
+}
+
+int check_next_cursor(pool *cur_pool, const int *c, const int ori) {
+	bwa_seq_t *read = NULL;
+	int i = 0, index = 0, next_cursor = 0;
+	int next_count = 0, most_count = 0, support_branch = 0;
+	int *sta = (int*) calloc(5, sizeof(int));
+	p_pool("BRNACHING", cur_pool, NULL);
+	while (c[index] != INVALID_CHAR) {
+		for (i = 0; i < cur_pool->reads->len; i++) {
+			read = g_ptr_array_index(cur_pool->reads, i);
+			next_cursor = ori ? read->cursor - 1 : read->cursor + 1;
+			if (next_cursor < 0 || next_cursor >= read->len)
+				continue;
+			support_branch = read->rev_com ? (read->rseq[read->cursor]
+					== c[index]) : (read->seq[read->cursor] == c[index]);
+			if (!support_branch)
+				continue;
+			next_count++;
+			if (read->rev_com) {
+				sta[read->rseq[next_cursor]]++;
+			} else
+				sta[read->seq[next_cursor]]++;
+		}
+		if (next_count > 0) {
+			most_count = get_pure_most(sta);
+			show_debug_msg(__func__, "most_count: %d/%d \n", most_count,
+					next_count);
+			if (most_count < next_count * NEXT_CURSOR_THRE) {
+				free(sta);
+				return 0;
+			}
+		}
+		next_count = 0;
+		index++;
+		reset_c(sta, NULL);
+	}
+	free(sta);
+	return 1;
 }
 
 void clean_mate_pool(pool *mate_pool) {
@@ -378,7 +417,7 @@ void clean_mate_pool(pool *mate_pool) {
 	for (i = 0; i < mate_pool->reads->len; i++) {
 		mate = g_ptr_array_index(mate_pool->reads, i);
 		if (mate->used || mate->is_in_c_pool) {
-			if(mate_pool_rm_index(mate_pool, i))
+			if (mate_pool_rm_index(mate_pool, i))
 				i--;
 		}
 	}

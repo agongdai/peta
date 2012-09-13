@@ -415,8 +415,8 @@ void free_branch(edge *eg, const int ori, edgearray *all_edges, int *contig_id) 
 	edge *child = NULL;
 	if (!eg)
 		return;
-	g_ptr_array_remove(all_edges, eg);
-	*contig_id -= 1;
+	if (g_ptr_array_remove(all_edges, eg))
+		*contig_id -= 1;
 	children = ori ? eg->in_egs : eg->out_egs;
 	if (!ori && eg->right_ctg) {
 	} else {

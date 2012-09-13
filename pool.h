@@ -13,7 +13,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define POOLSIZE 32
+#define POOLSIZE 			32
+#define	NEXT_CURSOR_THRE	0.8
 
 typedef struct {
 	readarray *reads;
@@ -46,6 +47,9 @@ gboolean mate_pool_rm_index(pool *p, const int i);
 void syn_pools(pool *cur_pool, pool *mate_pool, const bwa_seq_t *seqs, const int ori);
 void clear_pool(pool *r_pool);
 void pool_get_majority(pool *cur_pool, const char c, edge *ass_eg);
+void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
+		const int ori);
+int check_next_cursor(pool *cur_pool, const int *c, const int ori);
 
 #ifdef __cplusplus
 }

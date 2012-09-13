@@ -1,5 +1,4 @@
 digraph g { 
 	rankdir = LR 
-	0 [shape=box, label="0:120"] 
-	1 [shape=box, label="1:174"] 
+	0 [shape=box, label="0:105"] 
 } 

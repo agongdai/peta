@@ -222,10 +222,17 @@ void p_query(const char *header, const bwa_seq_t *q) {
 	}
 	printf("[%s] [%s, %d]: ", header, q->name, q->len);
 	for (i = 0; i < q->len; i++) {
-		if (q->seq[i] > 4)
-			printf("%c", q->seq[i]);
-		else
-			printf("%c", "acgtn"[(int) q->seq[i]]);
+		if (q->rev_com) {
+			if (q->rseq[i] > 4)
+				printf("%c", q->rseq[i]);
+			else
+				printf("%c", "acgtn"[(int) q->rseq[i]]);
+		} else {
+			if (q->seq[i] > 4)
+				printf("%c", q->seq[i]);
+			else
+				printf("%c", "acgtn"[(int) q->seq[i]]);
+		}
 	}
 	if (q->is_in_c_pool)
 		printf(" [pool]");
@@ -625,11 +632,11 @@ int is_biased_q(const bwa_seq_t *query) {
 	int *c = (int*) calloc(5, sizeof(int));
 	int i = 0, is_biased = 0;
 	int thre = query->len / 4 / 3;
-	for(i = 0; i < query->len; i++) {
+	for (i = 0; i < query->len; i++) {
 		c[query->seq[i]]++;
 	}
-	for(i = 0; i < 4; i++) {
-		if(c[i] < thre) {
+	for (i = 0; i < 4; i++) {
+		if (c[i] < thre) {
 			is_biased = 1;
 			break;
 		}
