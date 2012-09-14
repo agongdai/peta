@@ -316,6 +316,7 @@ int binary_exists(const pool *r_pool, const bwa_seq_t *read) {
 void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm) {
 	int check_c_1 = 0, check_c_2 = 0, confirm_c = 0, confirm_c_2 = 0;
 	int removed = 0, is_at_end = 0, i = 0;
+	int similar = 1;
 	bwa_seq_t *s = NULL;
 	check_c_1 = ori ? query->seq[0] : query->seq[query->len - 1];
 	check_c_2 = ori ? query->seq[1] : query->seq[query->len - 2];
@@ -331,13 +332,16 @@ void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm) {
 		// In case that the read will be removed and not marked as used, which confuses the extending from mates.
 		is_at_end = ori ? (s->cursor <= nm) : (s->cursor >= s->len - nm - 1);
 		// Remove those reads probably at the splicing junction
-		if (!is_at_end && ((is_sub_seq(query, 0, s, nm, 0) == NOT_FOUND
-				&& is_sub_seq_byte(query->rseq, query->len, 0, s, nm, 0)
-						== NOT_FOUND) || (check_c_1 != confirm_c && check_c_2
-				!= confirm_c_2))) {
-			removed = pool_rm_index(cur_pool, i);
-			if (removed)
-				i--;
+		if (!is_at_end) {
+			similar = s->rev_com ? (is_sub_seq_byte(query->rseq, query->len, 0,
+					s, nm, 0) != NOT_FOUND) : (is_sub_seq(query, 0, s, nm, 0)
+					!= NOT_FOUND);
+			if (!similar
+					|| (check_c_1 != confirm_c && check_c_2 != confirm_c_2)) {
+				removed = pool_rm_index(cur_pool, i);
+				if (removed)
+					i--;
+			}
 		}
 	}
 }
@@ -360,7 +364,6 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
 		if (overlapped >= mate->len / 4) {
 			mate->cursor = ori ? (mate->len - overlapped - 1) : overlapped;
 			pool_add(cur_pool, mate);
-			p_query("MATE ADDED", mate);
 			if (mate_pool_rm_index(mate_pool, i))
 				i--;
 			// p_query("Mate added", mate);
@@ -375,7 +378,6 @@ int check_next_cursor(pool *cur_pool, const int *c, const int ori) {
 	int i = 0, index = 0, next_cursor = 0;
 	int next_count = 0, most_count = 0, support_branch = 0;
 	int *sta = (int*) calloc(5, sizeof(int));
-	p_pool("BRNACHING", cur_pool, NULL);
 	while (c[index] != INVALID_CHAR) {
 		for (i = 0; i < cur_pool->reads->len; i++) {
 			read = g_ptr_array_index(cur_pool->reads, i);

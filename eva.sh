@@ -4,7 +4,7 @@ db="cufflinks.fa"
 start_reads="read/start_reads.txt"
 start_reads_gene="read/start_reads_gene.txt"
 blastdb="../ncbi-blast-2.2.25+/db/"
-similarity=90
+similarity=95
 cp read/$query.fa $blastdb
 cp read/$db $blastdb
 
