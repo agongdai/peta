@@ -197,21 +197,21 @@ readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs,
 	bwa_seq_t *read_1, *read_2;
 	if (!ra_1 || !ra_2 || ra_1->len == 0 || ra_2->len == 0)
 		return paired;
-	for (i = 0; i < ra_1->len; i++) {
-		read_1 = g_ptr_array_index(ra_1, i);
+	for (i = 0; i < ra_2->len; i++) {
+		read_2 = g_ptr_array_index(ra_2, i);
 		if (ori) {
-			correct_dir = read_1->rev_com ? is_right_mate(read_1->name)
-					: is_left_mate(read_1->name);
+			correct_dir = read_2->rev_com ? is_right_mate(read_2->name)
+					: is_left_mate(read_2->name);
 		} else {
-			correct_dir = read_1->rev_com ? is_left_mate(read_1->name)
-					: is_right_mate(read_1->name);
+			correct_dir = read_2->rev_com ? is_left_mate(read_2->name)
+					: is_right_mate(read_2->name);
 		}
 		if (correct_dir) {
-			read_2 = get_mate(read_1, seqs);
-			if (readarray_find(ra_2, read_1) != NOT_FOUND || readarray_find(
-					ra_1, read_2) != NOT_FOUND)
+			read_1 = get_mate(read_2, seqs);
+			if (readarray_find(ra_1, read_1) != NOT_FOUND || readarray_find(
+					ra_1, read_1) != NOT_FOUND)
 				continue;
-			if (readarray_find(ra_2, read_2) != NOT_FOUND) {
+			if (readarray_find(ra_1, read_1) != NOT_FOUND) {
 				//				p_query("PAIR", read_1);
 				//				p_query("PAIR", read_2);
 				g_ptr_array_add(paired, read_1);

@@ -103,7 +103,6 @@ gboolean pool_rm_fast(pool *p, bwa_seq_t *read) {
 	gboolean r;
 	r = g_ptr_array_remove(p->reads, read);
 	read->is_in_c_pool = 0;
-	read->rev_com = 0;
 	p->n = p->reads->len;
 	return r;
 }
@@ -112,7 +111,6 @@ gboolean pool_rm_index(pool *p, const int i) {
 	gboolean r;
 	bwa_seq_t *read = g_ptr_array_index(p->reads, i);
 	read->is_in_c_pool = 0;
-	read->rev_com = 0;
 	r = g_ptr_array_remove_index_fast(p->reads, i);
 	p->n = p->reads->len;
 	return r;
@@ -129,7 +127,6 @@ gboolean mate_pool_rm(pool *r_pool, bwa_seq_t *rm_seq) {
 gboolean mate_pool_rm_fast(pool *p, bwa_seq_t *read) {
 	gboolean r;
 	r = g_ptr_array_remove(p->reads, read);
-	read->rev_com = 0;
 	read->is_in_m_pool = 0;
 	p->n = p->reads->len;
 	return r;
@@ -139,7 +136,6 @@ gboolean mate_pool_rm_index(pool *p, const int i) {
 	gboolean r;
 	bwa_seq_t *read = g_ptr_array_index(p->reads, i);
 	read->is_in_m_pool = 0;
-	read->rev_com = 0;
 	r = g_ptr_array_remove_index_fast(p->reads, i);
 	p->n = p->reads->len;
 	return r;
