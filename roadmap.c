@@ -410,20 +410,19 @@ void cut_connection(edge *ass_eg, edge *tmp_eg, const int ori) {
 	}
 }
 
-void free_branch(edge *eg, const int ori, edgearray *all_edges, int *contig_id) {
+void free_branch(edge *eg, const int ori, edgearray *all_edges) {
 	edgearray *children = NULL;
 	int i = 0;
 	edge *child = NULL;
 	if (!eg)
 		return;
-	if (g_ptr_array_remove(all_edges, eg))
-		*contig_id -= 1;
+	g_ptr_array_remove(all_edges, eg);
 	children = ori ? eg->in_egs : eg->out_egs;
 	if (!ori && eg->right_ctg) {
 	} else {
 		for (i = 0; i < children->len; i++) {
 			child = g_ptr_array_index(children, i);
-			free_branch(child, ori, all_edges, contig_id);
+			free_branch(child, ori, all_edges);
 		}
 	}
 	free_eg(eg, ori);

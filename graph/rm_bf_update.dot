@@ -14,16 +14,16 @@ digraph g {
 	6 -> 3 [label="s=29"] 
 	7 [shape=box, label="7:3"] 
 	7 -> 6 [label="s=-6"] 
-	7 [shape=box, label="7:156"] 
-	7 -> 0
-	8 [shape=box, label="8:230"] 
-	8 -> 7
-	9 [shape=box, label="9:419"] 
+	8 [shape=box, label="8:156"] 
+	8 -> 0
+	9 [shape=box, label="9:230"] 
 	9 -> 8
-	10 [shape=box, label="10:7060"] 
+	10 [shape=box, label="10:419"] 
 	10 -> 9
-	11 [shape=box, label="11:72"] 
-	11 -> 9
-	12 [shape=box, label="12:126"] 
-	12 -> 8
+	11 [shape=box, label="11:7060"] 
+	11 -> 10
+	12 [shape=box, label="12:72"] 
+	12 -> 10
+	13 [shape=box, label="13:126"] 
+	13 -> 9
 } 

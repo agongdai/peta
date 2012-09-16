@@ -32,8 +32,6 @@
  * 4. query expansion.
  * The two component are flagged by the global variable left_max_ctg_id.
  */
-int contig_id = 0;
-// unsigned int left_max_ctg_id = 0; // Record the largest contig id after assembling the left mate.
 roadmap *left_rm = NULL;
 roadmap *right_rm = NULL;
 edgearray *all_edges = NULL;
@@ -74,6 +72,24 @@ void free_msg(ext_msg *m) {
 		free(m);
 		m = 0;
 	}
+}
+
+int apply_new_ctg_id() {
+	edge *tmp_eg = NULL;
+	int next_id = 0, i = 0, largest_id = 0;
+	if (!all_edges)
+		all_edges = g_ptr_array_sized_new(INIT_EDGE_SPACE);
+	if (all_edges->len == 0)
+		return 0;
+	for (i = 0; i < all_edges->len; i++) {
+		tmp_eg = g_ptr_array_index(all_edges, i);
+		if (tmp_eg->id > largest_id)
+			largest_id = tmp_eg->id;
+	}
+	p_flat_eg(tmp_eg);
+	next_id = largest_id + 1;
+	show_debug_msg("NEW_CONTIG", "Next id = %d \n", next_id);
+	return next_id;
 }
 
 /**
@@ -1132,7 +1148,7 @@ int post_vld_branch(edge *ass_eg, edge *child, const hash_table *ht,
 	if (paired_reads->len < MIN_VALID_PAIRS) {
 		show_debug_msg(__func__, "Branch [%d, %d] abandoned. \n", child->id,
 				child->len);
-		free_branch(child, ori, all_edges, &contig_id);
+		free_branch(child, ori, all_edges);
 		cut_connection(ass_eg, child, ori);
 	} else
 		valid = 0;
@@ -1149,7 +1165,7 @@ edge *init_ctg(edge *parent, edge *cur_eg, bwa_seq_t *init_query, const int ori)
 		ass_eg = cur_eg;
 	} else {
 		ass_eg = new_eg();
-		ass_eg->id = contig_id++;
+		ass_eg->id = apply_new_ctg_id();
 		ass_eg->ori = ori;
 		g_ptr_array_add(all_edges, ass_eg);
 		if (parent) { // If is not a root edge
@@ -1309,7 +1325,6 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 			g_ptr_array_remove_fast(eg_i->in_egs, cur_eg);
 		}
 		destroy_eg(cur_eg);
-		contig_id--;
 		n_reads_consumed++;
 		return 0;
 	}
@@ -1393,7 +1408,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 				//log_edge(eg_i);
 			}
 			show_msg(__func__, "Reads Consumed: %d; ctg id: %d, %d\n",
-					n_reads_consumed, contig_id, eg->len);
+					n_reads_consumed, eg->id, eg->len);
 		}
 		pre_ctg_id = all_edges->len;
 
@@ -1411,7 +1426,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	show_msg(__func__, "Post processing the roadmap... \n");
 	graph_by_edges(all_edges, "graph/rm_bf_update.dot");
 	save_edges(all_edges, all_contigs, 0, 1, opt->rl * 1.5);
-	post_pro(left_rm, all_edges, contig_id, opt);
+	post_pro(left_rm, all_edges, all_edges->len + 1, opt);
 	graph_by_edges(all_edges, "graph/rm_after_update.dot");
 	save_edges(all_edges, ass_contigs, 0, 0, opt->rl * 1.5);
 
