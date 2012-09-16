@@ -87,22 +87,24 @@ void free_msg(ext_msg *m) {
  * Starting positions of 's' not the same as contig, return False
  */
 int check_ign(const int ori, bwa_seq_t *s, bwa_seq_t *contig) {
-	int ignore = 0;
+	int ignore = 0, to_check_overlap = 0;
 	bwa_seq_t *tmp = NULL;
+	to_check_overlap = contig->len >= s->len / 4;
 	if (ori) {
 		seq_reverse(contig->len, contig->seq, 0); // Because single_extension reverse the sequence first
 		if (s->rev_com) {
 			if ((s->rseq[s->cursor + 1] != contig->seq[contig->len - 1]))
 				ignore = 1;
 			tmp = new_mem_rev_seq(s, s->len, 0);
-			if (find_ol(tmp, contig, opt->nm) < s->len / 4) {
+			if (to_check_overlap
+					&& find_ol(tmp, contig, opt->nm) < s->len / 4) {
 				ignore = 1;
 			}
 			bwa_free_read_seq(1, tmp);
 		} else {
 			if (s->seq[s->cursor + 1] != contig->seq[contig->len - 1])
 				ignore = 1;
-			if (find_ol(s, contig, opt->nm) < s->len / 4) {
+			if (to_check_overlap && find_ol(s, contig, opt->nm) < s->len / 4) {
 				ignore = 1;
 			}
 		}
@@ -112,13 +114,13 @@ int check_ign(const int ori, bwa_seq_t *s, bwa_seq_t *contig) {
 			if ((s->rseq[s->cursor - 1] != contig->seq[contig->len - 1]))
 				ignore = 1;
 			tmp = new_mem_rev_seq(s, s->len, 0);
-			if (find_ol(contig, tmp, opt->nm) < s->len / 4)
+			if (to_check_overlap && find_ol(contig, tmp, opt->nm) < s->len / 4)
 				ignore = 1;
 			bwa_free_read_seq(1, tmp);
 		} else {
 			if (s->seq[s->cursor - 1] != contig->seq[contig->len - 1])
 				ignore = 1;
-			if (find_ol(contig, s, opt->nm) < s->len / 4)
+			if (to_check_overlap && find_ol(contig, s, opt->nm) < s->len / 4)
 				ignore = 1;
 		}
 	}
@@ -164,22 +166,11 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 		s = &seqs[index];
 		mate = get_mate(s, seqs);
 		// If the read is used already, but the orientation is different, ignore it.
-		if ((s->used && (s->rev_com != a->rev_comp)) || (mate->used && (mate->rev_com != a->rev_comp)))
+		if (s->is_in_c_pool || (s->used && (s->rev_com != a->rev_comp))
+				|| (mate->used && (mate->rev_com != a->rev_comp)))
 			continue;
 		s->rev_com = a->rev_comp;
 		mate->rev_com = s->rev_com;
-		if (ass_eg->len > opt->mean + opt->sd * SD_TIMES + opt->rl) {
-			if (ori && is_left_mate(s->name)) {
-				if ((mate && mate->contig_id != ass_eg->id))
-					continue;
-			}
-			if (!ori && is_right_mate(s->name)) {
-				if ((mate && mate->contig_id != ass_eg->id))
-					continue;
-			}
-		}
-		if (s->is_in_c_pool || (a->pos + opt->ol - 3) > s->len)
-			continue;
 		// cursor points to the next char
 		if (s->rev_com)
 			s->cursor =
@@ -202,9 +193,9 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 		}
 	}
 	// To ensure that current reads are similar to the contig
-	p_pool("Before", cur_pool, NULL);
+	//p_pool("Before", cur_pool, NULL);
 	rm_partial(cur_pool, ori, query, opt->nm);
-	p_pool("After", cur_pool, NULL);
+	//p_pool("After", cur_pool, NULL);
 	// Add overlapped reads from the mate_pool, the overlapping length is read length / 4.
 	overlap_mate_pool(cur_pool, mate_pool, contig, ori);
 	for (i = 0; i < cur_pool->n; i++) {
@@ -616,7 +607,7 @@ int est_gap(const edge *left_eg, const edge *right_eg, const hash_table *ht) {
 			left_eg->id, left_eg->len, right_eg->id, right_eg->len);
 	l_par_reads = get_parents_reads(left_eg, 0);
 	r_par_reads = get_parents_reads(right_eg, 1);
-	ea = get_paired_reads(l_par_reads, r_par_reads, ht->seqs, 0);
+	ea = get_paired_reads(l_par_reads, r_par_reads, ht->seqs);
 	g_ptr_array_free(l_par_reads, TRUE);
 	g_ptr_array_free(r_par_reads, TRUE);
 	if (ea->len == 0) {
@@ -683,13 +674,12 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 	show_debug_msg(__func__,
 			"Checking mates spanning left and right edges...\n");
 	left_p_reads = get_parents_reads(left_eg, 0);
-	p_readarray(left_p_reads, 1);
+	//p_readarray(left_p_reads, 1);
 	right_p_reads = get_parents_reads(right_eg, 1);
-	p_readarray(right_p_reads, 1);
-	paired_reads = get_paired_reads(left_p_reads, right_p_reads, ht->seqs, ori);
+	//p_readarray(right_p_reads, 1);
+	paired_reads = get_paired_reads(left_p_reads, right_p_reads, ht->seqs);
 	free_readarray(left_p_reads);
 	free_readarray(right_p_reads);
-	show_debug_msg(__func__, "Checking hanging template \n");
 	// p_readarray(paired_reads, 1);
 	// If no paired reads spanning the two edges, just return.
 	if (paired_reads->len < MIN_VALID_PAIRS) {
@@ -1133,8 +1123,12 @@ int post_vld_branch(edge *ass_eg, edge *child, const hash_table *ht,
 	int valid = 1;
 	main_eg_reads = get_parents_reads(ass_eg, ori);
 	branch_eg_reads = get_parents_reads(child, opp_ori);
-	paired_reads = get_paired_reads(main_eg_reads, branch_eg_reads, ht->seqs,
-			ori);
+	if (ori)
+		paired_reads = get_paired_reads(branch_eg_reads, main_eg_reads,
+				ht->seqs);
+	else
+		paired_reads = get_paired_reads(main_eg_reads, branch_eg_reads,
+				ht->seqs);
 	if (paired_reads->len < MIN_VALID_PAIRS) {
 		show_debug_msg(__func__, "Branch [%d, %d] abandoned. \n", child->id,
 				child->len);
@@ -1224,7 +1218,13 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 			// If the ori is reverse, just not set the right_ctg value.
 			if (used->contig_id >= 0 && used->contig_id != ass_eg->id && !ori) {
 				// Set the shifted pos, such that it is able to recover the original transcript
-				tmp_eg = (edge*) g_ptr_array_index(all_edges, used->contig_id);
+				tmp_eg = (edge*) edgearray_find_id(all_edges, used->contig_id);
+				if (!tmp_eg) {
+					p_query("ERROR", used);
+					err_fatal(__func__,
+							"There must be something wrong when extending [%d, %d]! Contig %d not found! \n",
+							ass_eg->id, ass_eg->len, used->contig_id);
+				}
 				p_query("USED", used);
 				show_debug_msg(__func__,
 						"Right connect [%d, %d] to [%d, %d] \n", ass_eg->id,
@@ -1255,6 +1255,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 				show_debug_msg(__func__, "Subpath is feasible to go \n");
 				tmp_eg = pe_ass_edge(ass_eg, 0, 0, sub_query, ht, level + 1,
 						ori);
+				p_ctg_seq("BRANCHING", tmp_eg->contig);
 				if (post_vld_branch(ass_eg, tmp_eg, ht, ori))
 					no_sub_path = 0;
 				bwa_free_read_seq(1, sub_query);
@@ -1302,7 +1303,7 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	if (cur_eg->len <= opt->rl + 4 && (cur_eg->in_egs->len == 0)
 			&& (cur_eg->right_ctg || cur_eg->out_egs->len == 0)) {
 		show_msg(__func__, "Not extended. Edge destroyed. \n");
-		g_ptr_array_remove_index(all_edges, contig_id - 1);
+		g_ptr_array_remove_index(all_edges, all_edges->len - 1);
 		if (cur_eg->right_ctg) {
 			eg_i = cur_eg->right_ctg;
 			g_ptr_array_remove_fast(eg_i->in_egs, cur_eg);
@@ -1364,7 +1365,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		if (counter >= e_index)
 			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
-		p = &ht->seqs[1080892];
+		p = &ht->seqs[299911];
 		if (p->used || p->contig_id < 0) {
 			show_msg(__func__, "Read used: %s\n", p->name);
 			continue;
@@ -1406,7 +1407,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 			"[pe_ass_core] ------------------------------------------------------ \n");
 
 	// Post process the roadmaps.
-	log_reads(all_edges);
+	// log_reads(all_edges);
 	show_msg(__func__, "Post processing the roadmap... \n");
 	graph_by_edges(all_edges, "graph/rm_bf_update.dot");
 	save_edges(all_edges, all_contigs, 0, 1, opt->rl * 1.5);

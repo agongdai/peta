@@ -104,7 +104,7 @@ int get_pure_most(const int *sta) {
 		if (sta[index] > sta[most])
 			most = index;
 	}
-	return sta[most];
+	return most;
 }
 
 int *get_most(const int *sta) {

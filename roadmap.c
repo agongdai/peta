@@ -368,6 +368,7 @@ void free_eg(edge *eg, const int ori) {
 	eg_gap *gap = NULL;
 	int i = 0;
 	bwa_seq_t *read = NULL;
+	show_debug_msg("REMOVED", "Edge [%d, %d] removed \n", eg->id, eg->len);
 	if (eg) {
 		bwa_free_read_seq(1, eg->contig);
 		if (eg->right_ctg) {

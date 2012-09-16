@@ -329,9 +329,11 @@ void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm) {
 		is_at_end = ori ? (s->cursor <= nm) : (s->cursor >= s->len - nm - 1);
 		// Remove those reads probably at the splicing junction
 		if (!is_at_end) {
-			similar = s->rev_com ? (is_sub_seq_byte(query->rseq, query->len, 0,
-					s, nm, 0) != NOT_FOUND) : (is_sub_seq(query, 0, s, nm, 0)
-					!= NOT_FOUND);
+			similar =
+					s->rev_com ?
+							(is_sub_seq_byte(query->rseq, query->len, 0, s, nm,
+									0) != NOT_FOUND) :
+							(is_sub_seq(query, 0, s, nm, 0) != NOT_FOUND);
 			if (!similar
 					|| (check_c_1 != confirm_c && check_c_2 != confirm_c_2)) {
 				removed = pool_rm_index(cur_pool, i);
@@ -355,8 +357,9 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
 		tmp = mate;
 		if (mate->rev_com)
 			tmp = new_mem_rev_seq(mate, mate->len, 0);
-		overlapped = ori ? find_ol(tmp, contig, MISMATCHES) : find_ol(contig,
-				tmp, MISMATCHES);
+		overlapped =
+				ori ? find_ol(tmp, contig, MISMATCHES) : find_ol(contig, tmp,
+								MISMATCHES);
 		if (overlapped >= mate->len / 4) {
 			mate->cursor = ori ? (mate->len - overlapped - 1) : overlapped;
 			pool_add(cur_pool, mate);
@@ -369,10 +372,27 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
 	}
 }
 
+/**
+ * Check whether the character after the current cursor are consistent enough.
+ *
+ * Two possible branches: c, t
+ * aaaaaaaaaaaaaaaacg
+ * aaaaaaaaaaaaaaaact
+ * aaaaaaaaaaaaaaaact
+ * aaaaaaaaaaaaaaaacg
+ * aaaaaaaaaaaaaaaatc
+ * aaaaaaaaaaaaaaaatc
+ * aaaaaaaaaaaaaaaatc
+ *
+ * For branch 'c', counting after 'c' is 2 for 't' and 2 for 'g'. So false for 'c', true for 't'
+ * Once if there is one branch not valid, return false
+ *
+ * If all chars after 'c' and 't' are the same, return false
+ */
 int check_next_cursor(pool *cur_pool, const int *c, const int ori) {
 	bwa_seq_t *read = NULL;
 	int i = 0, index = 0, next_cursor = 0;
-	int next_count = 0, most_count = 0, support_branch = 0;
+	int next_count = 0, most_char = 0, support_branch = 0;
 	int *sta = (int*) calloc(5, sizeof(int));
 	while (c[index] != INVALID_CHAR) {
 		for (i = 0; i < cur_pool->reads->len; i++) {
@@ -380,8 +400,10 @@ int check_next_cursor(pool *cur_pool, const int *c, const int ori) {
 			next_cursor = ori ? read->cursor - 1 : read->cursor + 1;
 			if (next_cursor < 0 || next_cursor >= read->len)
 				continue;
-			support_branch = read->rev_com ? (read->rseq[read->cursor]
-					== c[index]) : (read->seq[read->cursor] == c[index]);
+			support_branch =
+					read->rev_com ?
+							(read->rseq[read->cursor] == c[index]) :
+							(read->seq[read->cursor] == c[index]);
 			if (!support_branch)
 				continue;
 			next_count++;
@@ -391,10 +413,10 @@ int check_next_cursor(pool *cur_pool, const int *c, const int ori) {
 				sta[read->seq[next_cursor]]++;
 		}
 		if (next_count > 0) {
-			most_count = get_pure_most(sta);
-			show_debug_msg(__func__, "most_count: %d/%d \n", most_count,
+			most_char = get_pure_most(sta);
+			show_debug_msg(__func__, "most_count: %d/%d \n", sta[most_char],
 					next_count);
-			if (most_count < next_count * NEXT_CURSOR_THRE) {
+			if (sta[most_char] < next_count * NEXT_CURSOR_THRE) {
 				free(sta);
 				return 0;
 			}

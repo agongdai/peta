@@ -112,6 +112,19 @@ int edgearray_find(edgearray *array, edge *eg) {
 	return NOT_FOUND;
 }
 
+edge* edgearray_find_id(edgearray *array, const int ctg_id) {
+	edge *to_return = NULL;
+	int i = 0;
+	if (!array || array->len <= 0 || ctg_id < 0)
+		return NULL;
+	for (i = 0; i < array->len; i++) {
+		to_return = g_ptr_array_index(array, i);
+		if (to_return->id == ctg_id)
+			return to_return;
+	}
+	return NULL;
+}
+
 int readarray_find(readarray *array, bwa_seq_t *r) {
 	int i = 0;
 	if (!array || !r)
@@ -141,8 +154,9 @@ int edgearray_find_similar(edgearray *array, edge *eg) {
 		if (diff < TRIVIAL_DIFF)
 			return i;
 		if (eg_right && eg_i_right) {
-			diff = abs((eg->r_shift - eg_right->len) - (eg_i->r_shift
-					- eg_i_right->len));
+			diff = abs(
+					(eg->r_shift - eg_right->len)
+							- (eg_i->r_shift - eg_i_right->len));
 			if (diff < TRIVIAL_DIFF)
 				return i;
 		}
@@ -185,37 +199,29 @@ double* get_pairs_on_edge(edge *eg, int *n_pairs) {
 	return pairs;
 }
 
-// param ori: 0 means ra_1 is at the left, and ra_2 is at the right
 /**
- * ra_1 is the reads from the main edge;
- * ra_2 is the reads from the branches or jumping edges
+ * ra_1 is at the left, and ra_2 is at the right
  */
-readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs,
-		const int ori) {
+readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs) {
 	readarray *paired = g_ptr_array_sized_new(INIT_N_READ_PAIRED);
 	int i = 0, correct_dir = 0;
 	bwa_seq_t *read_1, *read_2;
 	if (!ra_1 || !ra_2 || ra_1->len == 0 || ra_2->len == 0)
 		return paired;
-	for (i = 0; i < ra_2->len; i++) {
-		read_2 = g_ptr_array_index(ra_2, i);
-		if (ori) {
-			correct_dir = read_2->rev_com ? is_right_mate(read_2->name)
-					: is_left_mate(read_2->name);
-		} else {
-			correct_dir = read_2->rev_com ? is_left_mate(read_2->name)
-					: is_right_mate(read_2->name);
-		}
+	for (i = 0; i < ra_1->len; i++) {
+		read_1 = g_ptr_array_index(ra_1, i);
+		correct_dir =
+				read_1->rev_com ?
+						is_right_mate(read_1->name) :
+						is_left_mate(read_1->name);
 		if (correct_dir) {
-			read_1 = get_mate(read_2, seqs);
-			if (readarray_find(ra_1, read_1) != NOT_FOUND || readarray_find(
-					ra_1, read_1) != NOT_FOUND)
+			read_2 = get_mate(read_1, seqs);
+			if (readarray_find(ra_2, read_1) != NOT_FOUND
+					|| readarray_find(ra_1, read_2) != NOT_FOUND)
 				continue;
-			if (readarray_find(ra_1, read_1) != NOT_FOUND) {
-				//				p_query("PAIR", read_1);
-				//				p_query("PAIR", read_2);
-				g_ptr_array_add(paired, read_1);
-			}
+//			p_query("PAIR", read_1);
+//			p_query("PAIR", read_2);
+			g_ptr_array_add(paired, read_1);
 		}
 	}
 	return paired;
@@ -237,8 +243,8 @@ int has_counter_pair(readarray *large_ra, readarray *small_ra,
 				break;
 			large_cursor = j;
 			if ((l_read->shift < 0 || l_read->shift >= lower_bound) // Shift could be negative
-					&& l_read->shift <= upper_bound && strcmp(s_read->name,
-					get_mate_name(l_read->name)) == 0) {
+			&& l_read->shift <= upper_bound
+					&& strcmp(s_read->name, get_mate_name(l_read->name)) == 0) {
 				if (!s_read->rev_com && is_left_mate(s_read->name)) {
 					pair_ori = 1; // The overall orientation should be: large_ra.....small_ra
 				} else
@@ -306,14 +312,15 @@ eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
 		for (i = ass_eg->gaps->len - 1; i >= 0; i--) {
 			gap = g_ptr_array_index(ass_eg->gaps, i);
 			if (ori) {
-				left_seq = new_seq(ass_eg->contig, ass_eg->len - gap->s_index
-						- gap->size, 0);
-				right_seq = new_seq(ass_eg->contig, gap->s_index, ass_eg->len
-						- gap->s_index);
+				left_seq = new_seq(ass_eg->contig,
+						ass_eg->len - gap->s_index - gap->size, 0);
+				right_seq = new_seq(ass_eg->contig, gap->s_index,
+						ass_eg->len - gap->s_index);
 			} else {
 				left_seq = new_seq(ass_eg->contig, gap->s_index, 0);
-				right_seq = new_seq(ass_eg->contig, ass_eg->len - gap->size
-						- gap->s_index, gap->size + gap->s_index);
+				right_seq = new_seq(ass_eg->contig,
+						ass_eg->len - gap->size - gap->s_index,
+						gap->size + gap->s_index);
 			}
 			left_ol_len = find_ol(left_seq, m_eg->contig, 1);
 			right_ol_len = find_ol(m_eg->contig, right_seq, 1);
@@ -340,8 +347,8 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 	bwa_seq_t *ass_seq = ass_eg->contig, *m_seq = m_eg->contig;
 	bwa_seq_t *left_seq, *right_seq;
 	if (ori) { // Extending to the left
-		left_seq
-				= new_seq(ass_seq, (ass_eg->len - gap->s_index - gap->size), 0);
+		left_seq = new_seq(ass_seq, (ass_eg->len - gap->s_index - gap->size),
+				0);
 		right_seq = new_seq(ass_seq, gap->s_index, ass_eg->len - gap->s_index);
 		ol_len = find_ol(left_seq, m_seq, nm);
 		if (ol_len > GAP_OL && ol_len < rl + GAP_OL) {
@@ -367,9 +374,10 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 				}
 			}
 			// Move the right part to the correct position
-			memmove(&ass_seq->seq[(ass_seq->len - gap->s_index - gap->size)
-					+ m_eg->len], &ass_seq->seq[ass_seq->len - gap->s_index],
-					right_seq->len);
+			memmove(
+					&ass_seq->seq[(ass_seq->len - gap->s_index - gap->size)
+							+ m_eg->len],
+					&ass_seq->seq[ass_seq->len - gap->s_index], right_seq->len);
 			memcpy(&ass_seq->seq[ass_seq->len - gap->s_index - gap->size],
 					m_seq->seq, m_seq->len);
 			ass_seq->len -= gap->size - m_seq->len;
@@ -388,8 +396,9 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 					ass_seq->seq[ass_seq->len] = '\0';
 				}
 				// Here the length of contig is changed, but length of edge is not!
-				memmove(&ass_seq->seq[(ass_eg->len - gap->s_index - gap->size)
-						+ m_eg->len],
+				memmove(
+						&ass_seq->seq[(ass_eg->len - gap->s_index - gap->size)
+								+ m_eg->len],
 						&ass_seq->seq[ass_eg->len - gap->s_index],
 						right_seq->len);
 				start = ass_eg->len - gap->s_index - gap->size;
@@ -453,7 +462,8 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 					ass_seq->seq[ass_seq->len] = '\0';
 				}
 				memmove(&ass_seq->seq[gap->s_index + m_eg->len],
-						&ass_seq->seq[gap->s_index + gap->size], right_seq->len);
+						&ass_seq->seq[gap->s_index + gap->size],
+						right_seq->len);
 				start = ass_eg->len - gap->s_index - gap->size;
 				ass_eg->len = ass_seq->len; // Set them to be correct
 			} else {
@@ -584,7 +594,7 @@ int get_mid_pos(readarray *ra, const int ori, const int lib_mean) {
 void upd_reads(edge *eg, const int mismatches) {
 	int i = 0, index = 0, overlap_len = 0;
 	bwa_seq_t *read, *rev_read = NULL;
-	p_ctg_seq(__func__, eg->contig);
+	//p_ctg_seq(__func__, eg->contig);
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		if (eg->len < read->len)
@@ -603,8 +613,9 @@ void upd_reads(edge *eg, const int mismatches) {
 			}
 		}
 		rev_read = new_mem_rev_seq(read, read->len, 0);
-		index = read->rev_com ? is_sub_seq(rev_read, 0, eg->contig, mismatches
-				+ 2, 0) : is_sub_seq(read, 0, eg->contig, mismatches + 2, 0);
+		index = read->rev_com ?
+				is_sub_seq(rev_read, 0, eg->contig, mismatches + 2, 0) :
+				is_sub_seq(read, 0, eg->contig, mismatches + 2, 0);
 		bwa_free_read_seq(1, rev_read);
 		if (index == NOT_FOUND) {
 			if (g_ptr_array_remove_index_fast(eg->reads, i)) {
