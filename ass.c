@@ -83,7 +83,6 @@ int apply_new_ctg_id() {
 		return 0;
 	for (i = 0; i < all_edges->len; i++) {
 		tmp_eg = g_ptr_array_index(all_edges, i);
-		p_flat_eg(tmp_eg);
 		if (tmp_eg->id > largest_id)
 			largest_id = tmp_eg->id;
 	}
@@ -468,7 +467,7 @@ int vld_ext(edge *parent, bwa_seq_t *query, const hash_table *ht, const int ori)
 
 	//p_readarray(reads, 1);
 	cursor_char = ori ? query->seq[0] : query->seq[query->len - 1];
-	p_query(__func__, query);
+	//p_query(__func__, query);
 	for (i = 0; i < reads->len; i++) {
 		s = g_ptr_array_index(reads, i);
 		mate = get_mate(s, seqs);
@@ -500,7 +499,7 @@ int vld_ext(edge *parent, bwa_seq_t *query, const hash_table *ht, const int ori)
 		}
 	}
 
-	show_debug_msg(__func__, "n_on: %d \n", n_on);
+	//show_debug_msg(__func__, "n_on: %d \n", n_on);
 	g_ptr_array_free(reads, TRUE);
 	if (n_on >= N_MIN_VAL_EXT)
 		return 1;
@@ -844,13 +843,10 @@ bwa_seq_t *ext_by_pool(edge *ass_eg, const hash_table *ht, pool *cur_pool,
 		ext_que(query, most_c, ori);
 		clean_cur_pool(cur_pool);
 		reset_alg(aligns);
-		p_ctg_seq(__func__, ass_eg->contig);
+		// p_ctg_seq(__func__, ass_eg->contig);
 	}
 	show_debug_msg(__func__, "Edge %d extended by pool reads from %d to %d \n",
 			ass_eg->id, ori_len, ass_eg->len);
-	if (ass_eg->len > ori_len) {
-		upd_reads(ass_eg, opt->nm);
-	}
 	bwa_free_read_seq(1, init_q);
 	free(next);
 	free_alg(aligns);
@@ -971,8 +967,6 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 					"The read has been used before: %s used in %d at %d [%d, %d]\n",
 					used->name, used->contig_id, used->shift, ass_eg->id,
 					ass_eg->len);
-			p_query("USED", used);
-			//			p_pool("Current pool", cur_pool, next);
 			if (used->contig_id == ass_eg->id) {
 				m->type = REP_EXTEND;
 			} else
@@ -1030,9 +1024,6 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		m_eg->contig = mate->rev_com ? new_mem_rev_seq(mate, opt->rl, 0)
 				: new_seq(mate, opt->rl, 0);
 		tmp = get_mate(mate, ht->seqs);
-		p_query("USED", tmp);
-		p_query("MATE", mate);
-		p_ctg_seq("INIT_CTG", m_eg->contig);
 		mate->contig_id = -1; // Means used by some hangling template
 		m_eg->id = ass_eg->id;
 		m_eg->len = m_eg->contig->len;
@@ -1085,7 +1076,6 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 			}
 			// If not extended, try to merge the edges
 			if (!extended) {
-				show_debug_msg(__func__, "Reasonable gap: %d \n", reason_gap);
 				//			p_readarray(ass_eg->reads, 1);
 				//			p_readarray(m_eg->reads, 1);
 				exi_gap = find_hole(ass_eg, m_eg, ori);
@@ -1135,21 +1125,23 @@ int post_vld_branch(edge *ass_eg, edge *child, const hash_table *ht,
 	branch_eg_reads = get_parents_reads(child, opp_ori);
 	main_acc_len = get_parents_len(ass_eg, ori);
 	child_acc_len = get_parents_len(child, opp_ori);
-	if (main_acc_len < opt->mean || branch_eg_reads < opt->mean)
-			return 1;
-	if (ori)
-		paired_reads = get_paired_reads(branch_eg_reads, main_eg_reads,
-				ht->seqs);
-	else
-		paired_reads = get_paired_reads(main_eg_reads, branch_eg_reads,
-				ht->seqs);
-	if (paired_reads->len < MIN_VALID_PAIRS) {
-		show_debug_msg(__func__, "Branch [%d, %d] abandoned. \n", child->id,
-				child->len);
-		free_branch(child, ori, all_edges);
-		cut_connection(ass_eg, child, ori);
-	} else
-		valid = 1;
+	if (main_acc_len < opt->mean || branch_eg_reads < opt->mean) {
+		valid = 0;
+	} else {
+		if (ori)
+			paired_reads = get_paired_reads(branch_eg_reads, main_eg_reads,
+					ht->seqs);
+		else
+			paired_reads = get_paired_reads(main_eg_reads, branch_eg_reads,
+					ht->seqs);
+		if (paired_reads->len < MIN_VALID_PAIRS) {
+			show_debug_msg(__func__, "Branch [%d, %d] abandoned. \n",
+					child->id, child->len);
+			free_branch(child, ori, all_edges);
+			cut_connection(ass_eg, child, ori);
+			valid = 0;
+		}
+	}
 	free_readarray(main_eg_reads);
 	free_readarray(branch_eg_reads);
 	free_readarray(paired_reads);
@@ -1240,7 +1232,6 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 							"There must be something wrong when extending [%d, %d]! Contig %d not found! \n",
 							ass_eg->id, ass_eg->len, used->contig_id);
 				}
-				p_query("USED", used);
 				ass_eg->r_shift = used->shift + used->cursor - 1;
 				show_debug_msg(__func__,
 						"Right connect [%d, %d] to [%d, %d], shift %d \n",
@@ -1271,7 +1262,6 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 				show_debug_msg(__func__, "Subpath is feasible to go \n");
 				tmp_eg = pe_ass_edge(ass_eg, 0, 0, sub_query, ht, level + 1,
 						ori);
-				p_ctg_seq("BRANCHING", tmp_eg->contig);
 				if (post_vld_branch(ass_eg, tmp_eg, ht, ori))
 					no_sub_path = 0;
 				bwa_free_read_seq(1, sub_query);
@@ -1369,16 +1359,16 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	e_index = 10;
 	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE
 			> n_reads_consumed) {
-//		if (counter <= 12000)
-			index = atoi(line);
-//		else
-//			index = (int) (rand_f() * ht->n_seqs);
-//		if (counter < s_index) {
-//			counter++;
-//			continue;
-//		}
-//		if (counter >= e_index)
-//			break;
+		//		if (counter <= 12000)
+		index = atoi(line);
+		//		else
+		//			index = (int) (rand_f() * ht->n_seqs);
+		//		if (counter < s_index) {
+		//			counter++;
+		//			continue;
+		//		}
+		//		if (counter >= e_index)
+		//			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
 		p = &ht->seqs[index];
 		if (p->used || p->contig_id < 0) {
@@ -1402,8 +1392,6 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 				eg_i = g_ptr_array_index(all_edges, i);
 				if (eg_i->alive) {
 					n_reads_consumed += eg_i->reads->len;
-					show_debug_msg("CONSUMED", "[%d, %d]: %d\n", eg_i->id,
-							eg_i->len, eg_i->reads->len);
 				}
 				//log_edge(eg_i);
 			}
