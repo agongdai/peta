@@ -588,25 +588,24 @@ int post_pro_edges(edgearray *all_edges) {
 	return updated;
 }
 
-void post_pro(roadmap *left_rm, edgearray *all_edges, const int max_ctg_id,
-		const ass_opt *opt) {
+void post_pro(roadmap *left_rm, edgearray *all_edges, const ass_opt *opt) {
 	int i = 0, updated;
 	edge *eg, *right_ctg;
 	edgearray *right_ctg_connectors;
 	left_roadmap = left_rm;
 	min_edge_len = opt->ol;
-	egs_right_ctg = g_ptr_array_sized_new(max_ctg_id + 2);
+	egs_right_ctg = g_ptr_array_sized_new(all_edges->len + 1);
 	right_ctg_connectors = g_ptr_array_sized_new(RIGHT_CONTIG_CONNETER_COUNT);
 	char *graph_fn = malloc(BUFSIZE);
 
 	// egs_right_ctg: 1 => 2,3,4, meaning that edge 2, 3, and 4's right_ctg is edge 1
-	for (i = 0; i <= max_ctg_id; i++) {
+	for (i = 0; i <= all_edges->len; i++) {
 		right_ctg_connectors = g_ptr_array_sized_new(
 				RIGHT_CONTIG_CONNETER_COUNT);
 		g_ptr_array_add(egs_right_ctg, right_ctg_connectors);
 	}
 
-	for (i = 0; i < max_ctg_id; i++) {
+	for (i = 0; i < all_edges->len; i++) {
 		// Store length of all original contigs.
 		eg = g_ptr_array_index(all_edges, i);
 		if (eg) {

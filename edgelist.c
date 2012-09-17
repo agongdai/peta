@@ -90,7 +90,7 @@ void g_ptr_array_uni_add(GPtrArray *array, gpointer data) {
 }
 
 void g_ptr_array_concat(GPtrArray *array, GPtrArray *array_2) {
-	gpointer *data;
+	gpointer data = NULL;
 	int i = 0;
 	if (!array_2)
 		return;
@@ -112,7 +112,7 @@ int edgearray_find(edgearray *array, edge *eg) {
 	return NOT_FOUND;
 }
 
-edge* edgearray_find_id(edgearray *array, const int ctg_id) {
+edge *edgearray_find_id(edgearray *array, const int ctg_id) {
 	edge *to_return = NULL;
 	int i = 0;
 	if (!array || array->len <= 0 || ctg_id < 0)
@@ -175,7 +175,7 @@ void adj_shift(edge *eg, const int trun_len) {
 	}
 }
 
-double* get_pairs_on_edge(edge *eg, int *n_pairs) {
+double *get_pairs_on_edge(edge *eg, int *n_pairs) {
 	int i = 0, index = 0;
 	bwa_seq_t *s = NULL, *next_s = NULL;
 	readarray *reads = eg->reads;
@@ -270,7 +270,7 @@ int has_counter_pair(readarray *large_ra, readarray *small_ra,
  * 2. (-1, -1, ori): put the flying edge to the end or the beginning
  * 3. others: put into some existing hole
  */
-eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori) {
+eg_gap *find_hole(edge *ass_eg, edge *m_eg, const int ori) {
 	eg_gap *gap = NULL, *hole = NULL;
 	int i = 0, lower = 0, upper = ass_eg->len;
 	int left_ol_len = 0, right_ol_len = 0;
@@ -533,21 +533,13 @@ void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift,
 	}
 }
 
-readarray* concate_readarray(readarray *left_reads, readarray *right_reads) {
-	readarray *all = g_ptr_array_sized_new(1024);
+void concate_readarray(readarray *left_reads, readarray *right_reads) {
 	int i = 0;
 	bwa_seq_t *read = NULL;
-	for (i = 0; i < left_reads->len; i++) {
-		read = g_ptr_array_index(left_reads, i);
-		g_ptr_array_add(all, read);
-	}
 	for (i = 0; i < right_reads->len; i++) {
 		read = g_ptr_array_index(right_reads, i);
-		g_ptr_array_add(all, read);
+		g_ptr_array_add(left_reads, read);
 	}
-	g_ptr_array_free(left_reads, TRUE);
-	g_ptr_array_free(right_reads, TRUE);
-	return all;
 }
 
 void merge_eg_to_left(edge *left_eg, edge *right_eg, const int gap) {
@@ -744,6 +736,14 @@ void readarray_add(edge *eg, bwa_seq_t *read) {
 	if (!eg || !read)
 		return;
 	g_ptr_array_add(eg->reads, read);
+	read->used = 1;
+	read->contig_id = eg->id;
+}
+
+void readarray_uni_add(edge *eg, bwa_seq_t *read) {
+	if (!eg || !read)
+		return;
+	g_ptr_array_uni_add(eg->reads, read);
 	read->used = 1;
 	read->contig_id = eg->id;
 }

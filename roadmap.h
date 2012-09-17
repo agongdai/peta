@@ -45,8 +45,7 @@ void destroy_eg(edge *eg);
 void free_readarray(readarray *ra);
 void free_branch(edge *eg, const int ori, edgearray *all_edges);
 void cut_connection(edge *ass_eg, edge *tmp_eg, const int ori);
-void post_pro(roadmap *left_rm, edgearray *all_edges,
-		const int max_ctg_id, const ass_opt *opt);
+void post_pro(roadmap *left_rm, edgearray *all_edges, const ass_opt *opt);
 
 #ifdef __cplusplus
 }

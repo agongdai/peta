@@ -216,6 +216,19 @@ bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int ori) {
 	return used;
 }
 
+void clean_cur_pool(pool *cur_pool) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	readarray *ra = cur_pool->reads;
+	for (i = 0; i < ra->len; i++) {
+		r = g_ptr_array_index(ra, i);
+		if (r->used) {
+			if(pool_rm_index(ra, i))
+				i--;
+		}
+	}
+}
+
 int get_next_char(pool *cur_pool, const int ori, edge *eg) {
 	readarray *reads = cur_pool->reads;
 	int *c = (int*) calloc(5, sizeof(int));
@@ -394,6 +407,7 @@ int check_next_cursor(pool *cur_pool, const int *c, const int ori) {
 	int i = 0, index = 0, next_cursor = 0;
 	int next_count = 0, most_char = 0, support_branch = 0;
 	int *sta = (int*) calloc(5, sizeof(int));
+	int pre_next_cursor = 0;
 	while (c[index] != INVALID_CHAR) {
 		for (i = 0; i < cur_pool->reads->len; i++) {
 			read = g_ptr_array_index(cur_pool->reads, i);
@@ -416,10 +430,11 @@ int check_next_cursor(pool *cur_pool, const int *c, const int ori) {
 			most_char = get_pure_most(sta);
 			show_debug_msg(__func__, "most_count: %d/%d \n", sta[most_char],
 					next_count);
-			if (sta[most_char] < next_count * NEXT_CURSOR_THRE) {
+			if (sta[most_char] < next_count * NEXT_CURSOR_THRE || pre_next_cursor == most_char) {
 				free(sta);
 				return 0;
 			}
+			pre_next_cursor = most_char;
 		}
 		next_count = 0;
 		index++;

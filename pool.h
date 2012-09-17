@@ -14,6 +14,7 @@
 extern "C" {
 #endif
 #define POOLSIZE 			32
+#define EXT_BY_POOL_SIZE	6
 #define	NEXT_CURSOR_THRE	0.8
 
 typedef struct {
@@ -29,6 +30,7 @@ void p_edge_reads(const edge *eg);
 void p_readarray(const readarray *ra, const int part);
 void p_pool(const char *header, const pool *r_pool, const int *next);
 int binary_exists(const pool *r_pool, const bwa_seq_t *read);
+void clean_cur_pool(pool *cur_pool);
 int get_next_char(pool *cur_pool, const int ori, edge *eg);
 int pool_exists(const pool *p, const bwa_seq_t *read);
 void pool_add(pool *p, bwa_seq_t *new_seq);

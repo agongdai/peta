@@ -29,7 +29,7 @@ void g_ptr_array_uni_add(GPtrArray *array, gpointer data);
 void g_ptr_array_concat(GPtrArray *array, GPtrArray *array_2);
 void p_edgearray(const edgearray *array);
 int edgearray_find(edgearray *array, edge *eg);
-edge* edgearray_find_id(edgearray *array, const int ctg_id);
+edge *edgearray_find_id(edgearray *array, const int ctg_id);
 int readarray_find(readarray *array, bwa_seq_t *r);
 int edgearray_find_similar(edgearray *array, edge *eg);
 void adj_shift(edge *eg, const int trun_len);
@@ -42,12 +42,13 @@ void log_reads(edgearray *ea);
 void log_edge(const edge *eg);
 void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift, const int gap,
 		const int ori);
-readarray* concate_readarray(readarray *left_reads, readarray *right_reads);
+void concate_readarray(readarray *left_reads, readarray *right_reads);
 void clear_used_reads(edge *eg, const int reset_ctg_id);
 void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap, const int nm, const int rl);
-eg_gap* find_hole(edge *ass_eg, edge *m_eg, const int ori);
-double* get_pairs_on_edge(edge *eg, int *n_pairs);
+eg_gap *find_hole(edge *ass_eg, edge *m_eg, const int ori);
+double *get_pairs_on_edge(edge *eg, int *n_pairs);
 void readarray_add(edge *eg, bwa_seq_t *read);
+void readarray_uni_add(edge *eg, bwa_seq_t *read);
 void readarray_remove(edge *eg, bwa_seq_t *read);
 
 #ifdef __cplusplus
