@@ -141,24 +141,6 @@ int check_ign(const int ori, bwa_seq_t *s, bwa_seq_t *contig) {
 	return ignore;
 }
 
-void filter_pool(pool *p, edge *ass_eg, const hash_table *ht) {
-	readarray *reads = p->reads;
-	bwa_seq_t *r = 0, *used_mate;
-	int i = 0, range_l = 0, range_h = 0;
-	for (i = 0; i < reads->len; i++) {
-		r = g_ptr_array_index(reads, i);
-		// When extending to the left, the sequence is reversed first!
-		// So the actual shift value is: length of contig - shift + 1
-		range_l = (ass_eg->len - opt->mean - opt->sd * SD_TIMES);
-		range_h = (ass_eg->len - 1);
-		used_mate = get_mate(r, ht->seqs);
-		if (r->used || used_mate->shift < range_l || used_mate->shift > range_h) {
-			pool_rm_index(p, i);
-			i--;
-		}
-	}
-}
-
 /**
  * To increase the reliability, only if the last bases of current contig and the aligned seq
  * are identical, we extend to next base.
@@ -168,8 +150,8 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 		const int ori) {
 	int i = 0;
 	index64 index;
-	alg *a;
-	bwa_seq_t *s = NULL, *seqs, *contig = ass_eg->contig, *mate;
+	alg *a = NULL;
+	bwa_seq_t *s = NULL, *seqs, *contig = ass_eg->contig, *mate = NULL;
 	seqs = ht->seqs;
 	for (i = 0; i < alns->len; i++) {
 		a = g_ptr_array_index(alns, i);
@@ -410,7 +392,7 @@ pool *get_mate_pool(const edge *eg, const hash_table *ht, const int ori,
 
 pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 	alignarray *alns = NULL;
-	int i = 0;
+	int i = 0, to_free_query = 0;
 	pool *init_pool = NULL;
 	bwa_seq_t *seqs = ht->seqs, *s = NULL, *query = init_read, *mate = NULL;
 	alg *a;
@@ -419,8 +401,10 @@ pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 	}
 	init_pool = new_pool();
 	alns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
-	if (init_read->rev_com)
+	if (init_read->rev_com) {
 		query = new_mem_rev_seq(init_read, init_read->len, 0);
+		to_free_query = 1;
+	}
 	p_query(__func__, query);
 
 	pe_aln_query(query, query->seq, ht, opt->nm + 2, opt->ol, 0, alns);
@@ -445,7 +429,7 @@ pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 		pool_add(init_pool, s);
 	}
 	free_alg(alns);
-	if (init_read->rev_com)
+	if (to_free_query)
 		bwa_free_read_seq(1, query);
 	return init_pool;
 }
@@ -957,6 +941,8 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 					break;
 				}
 				c[0] = valid_c[0];
+				free(valid_c);
+				valid_c = NULL;
 			}
 		}
 		// Only consider one branch. If some reads are used, stop
