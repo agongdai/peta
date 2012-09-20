@@ -402,46 +402,41 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
  *
  * If all chars after 'c' and 't' are the same, return false
  */
-int check_next_cursor(pool *cur_pool, const int *c, const int ori) {
+int check_next_cursor(pool *cur_pool, const int ori) {
 	bwa_seq_t *read = NULL;
-	int i = 0, index = 0, next_cursor = 0;
-	int next_count = 0, most_char = 0, support_branch = 0;
+	int i = 0, index = 0, next_cursor = 0, most_index = 0;
+	int good_count = 0, bad_count = 0, more = 1;
 	int *sta = (int*) calloc(5, sizeof(int));
-	int pre_next_cursor = 0;
-	while (c[index] != INVALID_CHAR) {
+	while (more) {
+		more = 0;
+		index++;
 		for (i = 0; i < cur_pool->reads->len; i++) {
 			read = g_ptr_array_index(cur_pool->reads, i);
-			next_cursor = ori ? read->cursor - 1 : read->cursor + 1;
+			next_cursor = ori ? read->cursor - index : read->cursor + index;
 			if (next_cursor < 0 || next_cursor >= read->len)
 				continue;
-			support_branch =
-					read->rev_com ?
-							(read->rseq[read->cursor] == c[index]) :
-							(read->seq[read->cursor] == c[index]);
-			if (!support_branch)
-				continue;
-			next_count++;
+			more = 1;
 			if (read->rev_com) {
 				sta[read->rseq[next_cursor]]++;
 			} else
 				sta[read->seq[next_cursor]]++;
 		}
-		if (next_count > 0) {
-			most_char = get_pure_most(sta);
-			show_debug_msg(__func__, "most_count: %d/%d \n", sta[most_char],
-					next_count);
-			if (sta[most_char] < next_count * NEXT_CURSOR_THRE || pre_next_cursor == most_char) {
-				free(sta);
-				return 0;
-			}
-			pre_next_cursor = most_char;
+		most_index = get_pure_most(sta);
+		for (i = 0; i < 5; i++) {
+			if (i == most_index)
+				good_count += sta[i];
+			else
+				bad_count += sta[i];
 		}
-		next_count = 0;
-		index++;
 		reset_c(sta, NULL);
 	}
 	free(sta);
-	return 1;
+	show_debug_msg(__func__, "good_count/bad_count: %d/%d \n", good_count, bad_count);
+	if (good_count > 0 && bad_count > 0) {
+		if (good_count < (good_count + bad_count) * NEXT_CURSOR_THRE)
+			return 1;
+	}
+	return 0;
 }
 
 void clean_mate_pool(pool *mate_pool) {
