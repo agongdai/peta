@@ -18,7 +18,7 @@
 #define N_MIN_VAL_EXT			1
 #define TLR_LEN					16
 #define INVALID					-1
-#define STOP_THRE				0.95
+#define STOP_THRE				0.9
 #define GRACE_NM				2
 #define MIN_VALID_PAIRS			2
 
