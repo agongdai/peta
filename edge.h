@@ -10,11 +10,13 @@
 #include "bwase.h"
 #include "glib.h"
 
-#define MAX_N_EDGE_OUT 7
-#define MAX_N_EDGE_IN 7
-#define INIT_N_GAPS 3
-#define INIT_N_READ_USED 7
-#define INIT_N_READ_PAIRED 63
+#define MAX_N_EDGE_OUT 				7
+#define MAX_N_EDGE_IN 				7
+#define INIT_N_GAPS 				3
+#define INIT_N_READ_USED 			7
+#define INIT_N_READ_PAIRED 			63
+#define UNUSED_CONTIG_ID			-1
+#define INVALID_CONTIG_ID			-2	// Means a reads has been tried to extend, but fail, never use later
 
 struct edge;
 

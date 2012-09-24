@@ -374,7 +374,7 @@ bwa_seq_t *new_rev_seq(const bwa_seq_t *query) {
 									= 0;
 
 	p->used = p->shift = p->is_in_c_pool = p->is_in_m_pool = 0;
-	p->contig_id = -1;
+	p->contig_id = query->contig_id;
 	p->full_len = p->clip_len = p->len = query->len;
 	p->cursor = query->cursor;
 	p->shift = query->shift;

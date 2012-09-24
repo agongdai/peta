@@ -50,6 +50,9 @@ double *get_pairs_on_edge(edge *eg, int *n_pairs);
 void readarray_add(edge *eg, bwa_seq_t *read);
 void readarray_uni_add(edge *eg, bwa_seq_t *read);
 void readarray_remove(edge *eg, bwa_seq_t *read);
+void readarray_frozen(readarray *ra, bwa_seq_t *read);
+void readarray_unfrozen(readarray *ra);
+int is_used(bwa_seq_t *read);
 
 #ifdef __cplusplus
 }

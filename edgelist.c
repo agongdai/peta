@@ -483,7 +483,7 @@ void clear_used_reads(edge *eg, const int reset_ctg_id) {
 		for (i = 0; i < eg->reads->len; i++) {
 			r = g_ptr_array_index(eg->reads, i);
 			r->used = 0;
-			r->contig_id = -1;
+			r->contig_id = UNUSED_CONTIG_ID;
 		}
 	}
 	while (eg->reads->len)
@@ -506,7 +506,7 @@ void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift,
 		for (i = 0; i < left_eg->reads->len; i++) {
 			r = g_ptr_array_index(left_eg->reads, i);
 			r->used = 0;
-			r->contig_id = -1; // Reset this read to be not used.
+			r->contig_id = UNUSED_CONTIG_ID; // Reset this read to be not used.
 			if (readarray_find(right_eg->reads, r) == NOT_FOUND) {
 				readarray_add(right_eg, r); // This read will be marked as used by right_eg
 			}
@@ -516,7 +516,7 @@ void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift,
 		for (i = 0; i < right_eg->reads->len; i++) {
 			r = g_ptr_array_index(right_eg->reads, i);
 			r->used = 0;
-			r->contig_id = -1; // Reset this read to be not used.
+			r->contig_id = UNUSED_CONTIG_ID; // Reset this read to be not used.
 			if (readarray_find(left_eg->reads, r) == NOT_FOUND) {
 				readarray_add(left_eg, r);
 			}
@@ -748,7 +748,7 @@ void readarray_remove(edge *eg, bwa_seq_t *read) {
 		return;
 	g_ptr_array_remove(eg->reads, read);
 	read->used = 0;
-	read->contig_id = -1;
+	read->contig_id = UNUSED_CONTIG_ID;
 }
 
 void readarray_remove_fast(edge *eg, const int index) {
@@ -757,6 +757,42 @@ void readarray_remove_fast(edge *eg, const int index) {
 		return;
 	read = g_ptr_array_index(eg->reads, index);
 	read->used = 0;
-	read->contig_id = -1;
+	read->contig_id = UNUSED_CONTIG_ID;
 	g_ptr_array_remove_index_fast(eg->reads, index);
+}
+
+/**
+ * Mark a read as invalid temporarily.
+ * Used for linear extension.
+ * If a mate is tried, but not extended; will mark it as invalid during the linear extension period
+ */
+void readarray_frozen(readarray *ra, bwa_seq_t *read) {
+	if (!ra || !read)
+		return;
+	read->used = 1;
+	read->contig_id = INVALID_CONTIG_ID;
+	g_ptr_array_add(ra, read);
+}
+
+void readarray_unfrozen(readarray *ra) {
+	bwa_seq_t *read = NULL;
+	int i = 0;
+	if (!ra)
+		return;
+	for (i = 0; i < ra->len; i++) {
+		read = g_ptr_array_index(ra, i);
+		if (read->contig_id == INVALID_CONTIG_ID) {
+			read->used = 0;
+			read->contig_id = UNUSED_CONTIG_ID;
+		}
+	}
+	g_ptr_array_free(ra, TRUE);
+}
+
+int is_used(bwa_seq_t *read) {
+	if (!read)
+		return 0;
+	if (read->contig_id != -1)
+		return 1;
+	return 0;
 }

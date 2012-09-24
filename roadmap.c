@@ -344,7 +344,7 @@ void destroy_eg(edge *eg) {
 		for (i = 0; i < eg->reads->len; i++) {
 			read = g_ptr_array_index(eg->reads, i);
 			read->used = 0;
-			read->contig_id = -1;
+			read->contig_id = UNUSED_CONTIG_ID;
 		}
 		while (eg->reads->len > 0) {
 			g_ptr_array_remove_index_fast(eg->reads, 0);
@@ -384,7 +384,7 @@ void free_eg(edge *eg, const int ori) {
 		for (i = 0; i < eg->reads->len; i++) {
 			read = g_ptr_array_index(eg->reads, i);
 			read->used = 0;
-			read->contig_id = -1;
+			read->contig_id = UNUSED_CONTIG_ID;
 		}
 		while (eg->reads->len > 0) {
 			g_ptr_array_remove_index_fast(eg->reads, 0);

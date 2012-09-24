@@ -206,7 +206,7 @@ bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int mode,
 		// For peta!
 		p->cursor = 0;
 		p->used = 0;
-		p->contig_id = 0;
+		p->contig_id = -1; // -1 means unused
 		p->shift = 0;
 		p->is_in_c_pool = 0;
 		p->is_in_m_pool = 0;
