@@ -1426,7 +1426,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		sprintf(msg, "-------------------------------------- %.2f sec \n",
 				t_eclipsed);
 		show_msg(__func__, msg);
-		//break;
+//		break;
 	} // All solid reads assembled.
 
 	fprintf(stderr,

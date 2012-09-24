@@ -477,7 +477,7 @@ void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
 void clear_used_reads(edge *eg, const int reset_ctg_id) {
 	int i = 0;
 	bwa_seq_t *r;
-	if (!eg || eg->alive)
+	if (!eg)
 		return;
 	if (reset_ctg_id) {
 		for (i = 0; i < eg->reads->len; i++) {
@@ -486,8 +486,9 @@ void clear_used_reads(edge *eg, const int reset_ctg_id) {
 			r->contig_id = UNUSED_CONTIG_ID;
 		}
 	}
-	while (eg->reads->len)
-		g_ptr_array_remove_index(eg->reads, 0);
+	while (eg->reads->len > 0) {
+		g_ptr_array_remove_index_fast(eg->reads, 0);
+	}
 }
 
 /**
@@ -590,11 +591,13 @@ void upd_reads(edge *eg, const int mismatches) {
 		if (read->shift < 0) {
 			overlap_len = find_ol(read, eg->contig, mismatches);
 			if (overlap_len > read->len / 4) {
+				read->contig_id = eg->id;
 				read->shift = read->len - overlap_len;
 				continue;
 			} else {
 				overlap_len = find_ol(eg->contig, read, mismatches);
 				if (overlap_len > read->len / 4) {
+					read->contig_id = eg->id;
 					read->shift = eg->len - overlap_len;
 					continue;
 				}
@@ -606,12 +609,11 @@ void upd_reads(edge *eg, const int mismatches) {
 		bwa_free_read_seq(1, rev_read);
 		if (index == NOT_FOUND) {
 			if (g_ptr_array_remove_index_fast(eg->reads, i)) {
-				read->used = 0; // This read is used somewhere and cannot be used again; to avoid infinite loop.
-				read->contig_id = -1;
+				read->used = 0;
+				read->contig_id = UNUSED_CONTIG_ID;
 				read->shift = 0;
 				i--;
 			}
-			//p_query("REMOVED", read);
 			continue;
 		}
 		read->shift = index;
