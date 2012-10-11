@@ -1382,20 +1382,20 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	ht = pe_load_hash(fa_fn);
 	left_rm = new_rm();
 
-	s_index = 3000;
-	e_index = 3100;
+	s_index = 13000;
+	e_index = 13010;
 	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE
 			> n_reads_consumed) {
-		if (counter <= 12000)
+//		if (counter <= 12000)
 			index = atoi(line);
-		else
-			index = (int) (rand_f() * ht->n_seqs);
-		if (counter < s_index) {
-			counter++;
-			continue;
-		}
-		if (counter >= e_index)
-			break;
+//		else
+//			index = (int) (rand_f() * ht->n_seqs);
+//		if (counter < s_index) {
+//			counter++;
+//			continue;
+//		}
+//		if (counter >= e_index)
+//			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
 		p = &ht->seqs[index];
 		if (p->used || p->contig_id == INVALID_CONTIG_ID) {

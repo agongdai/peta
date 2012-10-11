@@ -53,6 +53,7 @@ void get_block_edges(edge *eg, GPtrArray *block) {
 	edgelist *in_out = NULL;
 	edge *in_out_eg = NULL;
 	int i = 0;
+	eg->visited = 1;
 	for (i = 0; i < eg->in_egs->len; i++) {
 		in_out_eg = g_ptr_array_index(eg->in_egs, i);
 		if (in_out_eg->alive && !in_out_eg->visited) {
@@ -84,8 +85,8 @@ void report_path(edgearray *all_edges) {
 		eg = g_ptr_array_index(all_edges, i);
 		if (eg->alive && !eg->visited) {
 			block = g_ptr_array_sized_new(128);
-			get_block_edges(block, eg);
-			show_debug_msg(__func__, "NEW BLOCK");
+			get_block_edges(eg, block);
+			show_debug_msg(__func__, "NEW BLOCK ---------------------------\n");
 			p_flat_eg(eg);
 			for (j = 0; j < block->len; j++) {
 				eg = g_ptr_array_index(block, j);

@@ -182,10 +182,10 @@ int backward_branches(edge *left_eg) {
 	show_debug_msg(__func__, "# of out_egs: %d\n", out_egs->len);
 	for (i = 0; i < out_egs->len; i++) {
 		eg_i = g_ptr_array_index(out_egs, i);
-		show_debug_msg(__func__, "Pointer of out_egs: %p\n", out_egs);
-		show_debug_msg(__func__, "# of out_egs: %d\n", out_egs->len);
-		show_debug_msg(__func__, "Out edges of %d: %d\n", left_eg->id, i);
-		p_flat_eg(eg_i);
+//		show_debug_msg(__func__, "Pointer of out_egs: %p\n", out_egs);
+//		show_debug_msg(__func__, "# of out_egs: %d\n", out_egs->len);
+//		show_debug_msg(__func__, "Out edges of %d: %d\n", left_eg->id, i);
+//		p_flat_eg(eg_i);
 		printf("\n");
 		if (!eg_i->contig->seq)
 			continue;
@@ -577,7 +577,6 @@ int post_pro_edges(edgearray *all_edges) {
 	}
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
-		p_flat_eg(eg);
 		if (eg && eg->alive) {
 			// show_debug_msg(__func__, "Processing edge %d...\n", eg->id);
 			updated = updated | collapse_branches(eg);
