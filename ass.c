@@ -17,6 +17,7 @@
 #include "edge.h"
 #include "edgelist.h"
 #include "readrm.h"
+#include "pepath.h"
 
 /**
  *
@@ -265,7 +266,8 @@ bwa_seq_t *get_query_ol(edge *ass_eg, bwa_seq_t *seqs, pool *m_pool,
 					: is_left_mate(read->name);
 		if (is_correct_ori) {
 			mate = get_mate(read, seqs);
-			if (!mate->used && !has_n(mate) && mate->contig_id != INVALID_CONTIG_ID)
+			if (!mate->used && !has_n(mate) && mate->contig_id
+					!= INVALID_CONTIG_ID)
 				return mate;
 		}
 		start++;
@@ -282,7 +284,8 @@ bwa_seq_t *get_query_ol(edge *ass_eg, bwa_seq_t *seqs, pool *m_pool,
 					: is_left_mate(read->name);
 		if (is_correct_ori) {
 			mate = get_mate(read, seqs);
-			if (!mate->used && !has_n(mate) && mate->contig_id != INVALID_CONTIG_ID)
+			if (!mate->used && !has_n(mate) && mate->contig_id
+					!= INVALID_CONTIG_ID)
 				return mate;
 		}
 		start--;
@@ -297,7 +300,8 @@ bwa_seq_t *get_query_ol(edge *ass_eg, bwa_seq_t *seqs, pool *m_pool,
 			is_correct_ori = read->rev_com ? is_right_mate(read->name)
 					: is_left_mate(read->name);
 		if (is_correct_ori) {
-			if (!read->used && !has_n(read) && mate->contig_id != INVALID_CONTIG_ID)
+			if (!read->used && !has_n(read) && mate->contig_id
+					!= INVALID_CONTIG_ID)
 				return read;
 		}
 	}
@@ -422,8 +426,8 @@ pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 			s->cursor = ori ? (0 - a->pos - 1) : (s->len - a->pos);
 		else
 			s->cursor = ori ? (a->pos - 1) : (a->pos + s->len);
-		if (s->contig_id == INVALID_CONTIG_ID || s->used || s->cursor < 0 || s->cursor
-				>= s->len) {
+		if (s->contig_id == INVALID_CONTIG_ID || s->used || s->cursor < -1
+				|| s->cursor > s->len || s->is_in_c_pool) {
 			s->cursor = 0;
 			continue;
 		}
@@ -1194,7 +1198,6 @@ edge *init_ctg(edge *parent, edge *cur_eg, bwa_seq_t *init_query, const int ori)
 			}
 		} else {
 			contig = new_seq(init_query, init_query->len, 0);
-			readarray_uni_add(ass_eg, init_query); // Only add it for ORIGINAL reads!
 		}
 		init_query->shift = 0;
 		ass_eg->contig = contig;
@@ -1316,15 +1319,11 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	edge *eg_i, *cur_eg;
 	pool *c_pool;
 	int i = 0;
-	readarray *reads;
-	bwa_seq_t *r;
-	//	FILE *debug = xopen("debug.txt", "a+");
 
 	p_query(__func__, read);
 	c_pool = get_init_pool(ht, read, 0);
-	// p_pool("Initial Pool: ", c_pool);
+	// p_pool("Initial Pool: ", c_pool, NULL);
 	cur_eg = pe_ass_edge(0, 0, c_pool, read, ht, 0, 0);
-	reads = cur_eg->reads;
 	// The c_pool is freed after extension
 	c_pool = get_init_pool(ht, read, 1);
 	// p_pool("Initial Pool: ", c_pool, NULL);
@@ -1426,7 +1425,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		sprintf(msg, "-------------------------------------- %.2f sec \n",
 				t_eclipsed);
 		show_msg(__func__, msg);
-//		break;
+		//break;
 	} // All solid reads assembled.
 
 	fprintf(stderr,
@@ -1437,7 +1436,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	show_msg(__func__, "Post processing the roadmap... \n");
 	graph_by_edges(all_edges, "graph/rm_bf_update.dot");
 	save_edges(all_edges, all_contigs, 0, 1, opt->rl * 1.5);
-	post_pro(left_rm, all_edges, opt);
+	post_pro(all_edges, opt);
 	graph_by_edges(all_edges, "graph/rm_after_update.dot");
 	save_edges(all_edges, ass_contigs, 0, 0, opt->rl * 1.5);
 

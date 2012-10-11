@@ -835,12 +835,14 @@ void cal_opt_n50(tx_info *info) {
 
 void trim(char *str) {
 	int i = 0;
+	show_debug_msg(__func__, "%s \n", str);
 	for (i = 0; i < strlen(str); i++) {
 		if (str[i] == '\n') {
 			str[i] = '\0';
 			return;
 		}
 	}
+	show_debug_msg(__func__, "%s \n", str);
 }
 
 void parse_sam(rs_info *info) {

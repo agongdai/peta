@@ -21,7 +21,6 @@
 #include "pechar.h"
 #include "utils.h"
 
-roadmap *left_roadmap = 0, *right_roadmap = 0;
 int min_edge_len = 0; // Minimum contig length, now is user-specified overlapping len.
 // Its index is edge id, say edge A, the value is another edge array, containing edges whose right_ctg is A.
 edgearray *egs_right_ctg = 0;
@@ -588,11 +587,10 @@ int post_pro_edges(edgearray *all_edges) {
 	return updated;
 }
 
-void post_pro(roadmap *left_rm, edgearray *all_edges, const ass_opt *opt) {
+void post_pro(edgearray *all_edges, const ass_opt *opt) {
 	int i = 0, updated;
 	edge *eg, *right_ctg;
 	edgearray *right_ctg_connectors;
-	left_roadmap = left_rm;
 	min_edge_len = opt->ol;
 	egs_right_ctg = g_ptr_array_sized_new(all_edges->len + 1);
 	right_ctg_connectors = g_ptr_array_sized_new(RIGHT_CONTIG_CONNETER_COUNT);
@@ -627,9 +625,4 @@ void post_pro(roadmap *left_rm, edgearray *all_edges, const ass_opt *opt) {
 		graph_by_edges(all_edges, graph_fn);
 	} while (updated);
 	free(graph_fn);
-}
-
-void report_path(edgearray *all_edges) {
-	int block_size = 0;
-
 }
