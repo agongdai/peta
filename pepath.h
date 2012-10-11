@@ -26,6 +26,8 @@ typedef struct {
 	int len;
 } rm_path;
 
+void report_path(edgearray *all_edges);
+
 #ifdef __cplusplus
 }
 #endif

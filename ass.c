@@ -776,12 +776,16 @@ void fill_in_gap(edge *left_eg, edge *right_eg, const int reason_gap,
 		//		p_ctg_seq("Right:", right_eg->contig);
 		show_debug_msg(__func__, "Gap size: %d \n", gap);
 		if (ori) {
-			added_gap = init_gap(right_eg->len, gap, ori);
-			g_ptr_array_add(right_eg->gaps, added_gap);
+			if (gap > 0) {
+				added_gap = init_gap(right_eg->len, gap, ori);
+				g_ptr_array_add(right_eg->gaps, added_gap);
+			}
 			merge_eg_to_right(left_eg, right_eg, gap);
 		} else {
-			added_gap = init_gap(left_eg->len, gap, ori);
-			g_ptr_array_add(left_eg->gaps, added_gap);
+			if (gap > 0) {
+				added_gap = init_gap(left_eg->len, gap, ori);
+				g_ptr_array_add(left_eg->gaps, added_gap);
+			}
 			merge_eg_to_left(left_eg, right_eg, gap);
 		}
 	}
@@ -900,6 +904,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 					ass_eg->len);
 			clean_mate_pool(mate_pool);
 		}
+		// p_ctg_seq("CURRENT CONTIG", ass_eg->contig);
 		reset_c(next, c); // Reset the counter
 		// show_msg(__func__, "Current edge: [%d, %d] \n", ass_eg->id,
 		// 		ass_eg->len);
@@ -1377,20 +1382,20 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	ht = pe_load_hash(fa_fn);
 	left_rm = new_rm();
 
-	s_index = 0;
-	e_index = 10;
+	s_index = 3000;
+	e_index = 3100;
 	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE
 			> n_reads_consumed) {
-//		if (counter <= 12000)
+		if (counter <= 12000)
 			index = atoi(line);
-//		else
-//			index = (int) (rand_f() * ht->n_seqs);
-//		if (counter < s_index) {
-//			counter++;
-//			continue;
-//		}
-//		if (counter >= e_index)
-//			break;
+		else
+			index = (int) (rand_f() * ht->n_seqs);
+		if (counter < s_index) {
+			counter++;
+			continue;
+		}
+		if (counter >= e_index)
+			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
 		p = &ht->seqs[index];
 		if (p->used || p->contig_id == INVALID_CONTIG_ID) {
@@ -1438,6 +1443,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	save_edges(all_edges, all_contigs, 0, 1, opt->rl * 1.5);
 	post_pro(all_edges, opt);
 	graph_by_edges(all_edges, "graph/rm_after_update.dot");
+	report_path(all_edges);
 	save_edges(all_edges, ass_contigs, 0, 0, opt->rl * 1.5);
 
 	free(h);

@@ -76,15 +76,21 @@ void get_block_edges(edge *eg, GPtrArray *block) {
 }
 
 void report_path(edgearray *all_edges) {
-	int block_size = 0, i = 0;
+	int block_size = 0, i = 0, j = 0;
 	GPtrArray *block = NULL;
 	edge *eg = NULL;
 	edgelist *in_out = NULL;
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
-		if (eg->alive && !eg->visited && eg->is_root) {
+		if (eg->alive && !eg->visited) {
 			block = g_ptr_array_sized_new(128);
 			get_block_edges(block, eg);
+			show_debug_msg(__func__, "NEW BLOCK");
+			p_flat_eg(eg);
+			for (j = 0; j < block->len; j++) {
+				eg = g_ptr_array_index(block, j);
+				p_flat_eg(eg);
+			}
 			g_ptr_array_free(block, TRUE);
 		}
 	}
