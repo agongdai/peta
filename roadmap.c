@@ -320,6 +320,7 @@ edge *new_eg() {
 	eg->is_root = 0;
 	eg->ori = 0;
 	eg->gaps = g_ptr_array_sized_new(INIT_N_GAPS);
+	eg->level = -1;
 	return eg;
 }
 

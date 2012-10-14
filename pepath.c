@@ -20,7 +20,7 @@ extern unsigned char nst_nt4_table[256];
 
 rm_path *new_path() {
 	rm_path *p = (rm_path*) malloc(sizeof(rm_path));
-	p->edges = g_ptr_array_sized_new(128);
+	p->edges = g_ptr_array_sized_new(16);
 	p->n_ctgs = 0;
 	p->len = 0;
 	return p;
@@ -39,9 +39,8 @@ void p_path(const rm_path *p) {
 	for (i = 0; i < p->edges->len; i++) {
 		contig = g_ptr_array_index(p->edges, i);
 		printf("[p_path] \t Contig %d [%s]: %d (%d, %d)\n", contig->id,
-							query->name, contig->len,
-							contig->right_ctg ? contig->right_ctg->id : 0,
-							contig->r_shift);
+				query->name, contig->len,
+				contig->right_ctg ? contig->right_ctg->id : 0, contig->r_shift);
 	}
 	printf("[p_path] ----------------------------------------\n");
 }
@@ -76,11 +75,41 @@ void get_block_edges(edge *eg, GPtrArray *block) {
 	}
 }
 
-void report_path(edgearray *all_edges) {
+void iterate_block(GPtrArray *block, GPtrArray *paths) {
+	edge *eg = NULL;
+	rm_path *new_path = new_path();
+	int i = 0, has_fresh = 1;
+
+	if (block->len == 1) {
+		g_ptr_array_add(paths, g_ptr_array_index(block, 0));
+		return;
+	}
+	if (block->len >= 32) {
+		show_debug_msg("Too many edges in this block (>=32) \n");
+		for (i = 0; i < block->len; i++) {
+			eg = g_ptr_array_index(block, i);
+			p_flat_eg(eg);
+		}
+		return;
+	}
+	while (has_fresh) {
+		has_fresh = 0;
+		for (i = 0; i < block->len; i++) {
+			eg = g_ptr_array_index(block, i);
+			if (eg->level == -1) {
+
+			}
+		}
+	}
+}
+
+GPtrArray *report_path(edgearray *all_edges) {
 	int block_size = 0, i = 0, j = 0;
-	GPtrArray *block = NULL;
+	GPtrArray *block = NULL, *paths = NULL;
 	edge *eg = NULL;
 	edgelist *in_out = NULL;
+
+	paths = g_ptr_array_sized_new(1024);
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
 		if (eg->alive && !eg->visited) {
@@ -92,7 +121,9 @@ void report_path(edgearray *all_edges) {
 				eg = g_ptr_array_index(block, j);
 				p_flat_eg(eg);
 			}
+			iterate_block(block, paths);
 			g_ptr_array_free(block, TRUE);
 		}
 	}
+	return paths;
 }

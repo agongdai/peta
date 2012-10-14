@@ -41,6 +41,7 @@ struct edge {
 	int alive;
 	int is_root;
 	int ori;			// Orientation
+	int level;			// For post-processing
 	GPtrArray *gaps;
 };
 
