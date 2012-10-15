@@ -1386,16 +1386,16 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	e_index = 13010;
 	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE
 			> n_reads_consumed) {
-//		if (counter <= 12000)
+		if (counter <= 12000)
 			index = atoi(line);
-//		else
-//			index = (int) (rand_f() * ht->n_seqs);
-//		if (counter < s_index) {
-//			counter++;
-//			continue;
-//		}
-//		if (counter >= e_index)
-//			break;
+		else
+			index = (int) (rand_f() * ht->n_seqs);
+		if (counter < s_index) {
+			counter++;
+			continue;
+		}
+		if (counter >= e_index)
+			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
 		p = &ht->seqs[index];
 		if (p->used || p->contig_id == INVALID_CONTIG_ID) {
@@ -1443,6 +1443,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	save_edges(all_edges, all_contigs, 0, 1, opt->rl * 1.5);
 	post_pro(all_edges, opt);
 	graph_by_edges(all_edges, "graph/rm_after_update.dot");
+	dump_rm(all_edges, "read/roadmap.bin");
 	report_path(all_edges);
 	save_edges(all_edges, ass_contigs, 0, 0, opt->rl * 1.5);
 
