@@ -630,22 +630,46 @@ void post_pro(edgearray *all_edges, const ass_opt *opt) {
 void dump_rm(edgearray *all_edges, const char *rm_dump_file) {
 	FILE *dump_fp = NULL;
 	char edge_str[BUFSIZ];
-	int i = 0;
-	edge *eg = NULL;
+	int i = 0, j = 0;
+	edge *eg = NULL, *in_out_eg = NULL;
+	bwa_seq_t *r = NULL;
 
 	dump_fp = xopen(rm_dump_file, "w");
 	fwrite(all_edges->len, sizeof(guint), 1, dump_fp);
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
-		sprintf(edge_str, "%d\t%s\n", eg->id, );
+		fwrite(eg->id, sizeof(int), 1, dump_fp);
+		fwrite(eg->len, sizeof(int), 1, dump_fp);
+		fwrite(eg->out_egs->len, sizeof(int), 1, dump_fp);
+		for (j = 0; j < eg->out_egs->len; j++) {
+			in_out_eg = g_ptr_array_index(eg->out_egs, j);
+			fwrite(in_out_eg->id, sizeof(int), 1, dump_fp);
+		}
+		fwrite(eg->in_egs->len, sizeof(int), 1, dump_fp);
+		for (j = 0; j < eg->in_egs->len; j++) {
+			in_out_eg = g_ptr_array_index(eg->in_egs, j);
+			fwrite(in_out_eg->id, sizeof(int), 1, dump_fp);
+		}
+		for (j = 0; j < eg->reads->len; j++) {
+			r = g_ptr_array_index(eg->reads, j);
+			fwrite(atoi(r->name), sizeof(int), 1, dump_fp);
+		}
+		fwrite(eg->right_ctg->id, sizeof(int), 1, dump_fp);
 	}
 	fclose(dump_fp);
 	free(edge_str);
 }
 
-edgearray *load_rm(const char *rm_dump_file) {
-	gpointer edges = NULL;
+edgearray *load_rm(const char *rm_dump_file, const hash_table *ht) {
+	edgearray *edges = NULL;
 	FILE *dump_fp = NULL;
+	int i = 0, j = 0, tmp = 0;
+	edge *eg = NULL, *in_out_eg = NULL;
+	bwa_seq_t *r = NULL;
+
 	dump_fp = xopen(rm_dump_file, "r");
+	e
+
+
 	fclose(dump_fp);
 }

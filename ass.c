@@ -1454,6 +1454,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	fclose(ass_contigs);
 	fclose(all_contigs);
 	fclose(start_reads);
+	destroy_ht(ht);
 }
 
 int ass_usage() {
