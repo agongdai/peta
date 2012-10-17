@@ -626,3 +626,26 @@ void post_pro(edgearray *all_edges, const ass_opt *opt) {
 	} while (updated);
 	free(graph_fn);
 }
+
+void dump_rm(edgearray *all_edges, const char *rm_dump_file) {
+	FILE *dump_fp = NULL;
+	char edge_str[BUFSIZ];
+	int i = 0;
+	edge *eg = NULL;
+
+	dump_fp = xopen(rm_dump_file, "w");
+	fwrite(all_edges->len, sizeof(guint), 1, dump_fp);
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		sprintf(edge_str, "%d\t%s\n", eg->id, );
+	}
+	fclose(dump_fp);
+	free(edge_str);
+}
+
+edgearray *load_rm(const char *rm_dump_file) {
+	gpointer edges = NULL;
+	FILE *dump_fp = NULL;
+	dump_fp = xopen(rm_dump_file, "r");
+	fclose(dump_fp);
+}
