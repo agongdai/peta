@@ -1445,7 +1445,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	graph_by_edges(all_edges, "graph/rm_after_update.dot");
 	report_path(all_edges);
 	save_edges(all_edges, ass_contigs, 0, 0, opt->rl * 1.5);
-	dump_rm(all_edges, "read/roadmap.bin");
+	dump_rm(all_edges, "read/roadmap.graph", "read/roadmap.reads");
 
 	free(h);
 	free(msg);

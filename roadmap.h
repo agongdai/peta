@@ -49,7 +49,7 @@ void free_readarray(readarray *ra);
 void free_branch(edge *eg, const int ori, edgearray *all_edges);
 void cut_connection(edge *ass_eg, edge *tmp_eg, const int ori);
 void post_pro(edgearray *all_edges, const ass_opt *opt);
-void dump_rm(edgearray *all_edges, char *rm_dump_file);
+void dump_rm(edgearray *all_edges, const char *rm_dump_file, const char *rm_reads_file);
 
 #ifdef __cplusplus
 }

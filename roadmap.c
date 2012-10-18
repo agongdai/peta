@@ -627,43 +627,23 @@ void post_pro(edgearray *all_edges, const ass_opt *opt) {
 	free(graph_fn);
 }
 
-void dump_rm(edgearray *all_edges, char *rm_dump_file) {
-	FILE *dump_fp = NULL;
+void dump_rm(edgearray *all_edges, const char *rm_dump_file, const char *rm_reads_file) {
+	FILE *dump_fp = NULL, *rm_reads = NULL;
 	char edge_str[BUFSIZ];
 	int i = 71, j = 0, tmp = 0;
 	edge *eg = NULL, *in_out_eg = NULL;
 	bwa_seq_t *r = NULL;
+	char item[BUFSIZ];
 
 	show_msg(__func__, "Dumping the roadmap to %s... \n", rm_dump_file);
 	dump_fp = xopen(rm_dump_file, "w");
-	fwrite(&(all_edges->len), sizeof(int), 1, dump_fp);
+	rm_reads = xopen(rm_reads_file, "w");
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
-		fwrite(eg, sizeof(edge), 1, dump_fp);
-		tmp = eg->out_egs->len;
-		fwrite(&tmp, sizeof(int), 1, dump_fp);
-		for (j = 0; j < eg->out_egs->len; j++) {
-			in_out_eg = g_ptr_array_index(eg->out_egs, j);
-			fwrite(&(in_out_eg->id), sizeof(int), 1, dump_fp);
-		}
-		tmp = eg->in_egs->len;
-		fwrite(&(tmp), sizeof(int), 1, dump_fp);
-		for (j = 0; j < eg->in_egs->len; j++) {
-			in_out_eg = g_ptr_array_index(eg->in_egs, j);
-			fwrite(&(in_out_eg->id), sizeof(int), 1, dump_fp);
-		}
-		tmp = eg->reads->len;
-		fwrite(&(tmp), sizeof(int), 1, dump_fp);
-		for (j = 0; j < eg->reads->len; j++) {
-			r = g_ptr_array_index(eg->reads, j);
-			fwrite(r->name, sizeof(char), strlen(r->name), dump_fp);
-		}
-		if (eg->right_ctg)
-			tmp = eg->right_ctg->id;
-		else
-			tmp = -1;
-		fwrite(&(tmp), sizeof(int), 1, dump_fp);
+		sprintf(item, "%d\t%s\n", str, tx_fn);
+		fputs(item, dump_fp);
 	}
 	fclose(dump_fp);
+	fclose(rm_reads);
 }
 

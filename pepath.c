@@ -155,6 +155,12 @@ edgearray *load_rm(const char *rm_dump_file, const hash_table *ht) {
 			fread(&eg_id, sizeof(int), 1, dump_fp);
 			g_ptr_array_add(eg->in_egs, eg_id);
 		}
+		fread(&tmp, sizeof(int), 1, dump_fp);
+		eg->reads = g_ptr_array_sized_new(tmp);
+		for (j = 0; j < tmp; j++) {
+			fread(&eg_id, sizeof(int), 1, dump_fp);
+			g_ptr_array_add(eg->in_egs, eg_id);
+		}
 		g_ptr_array_add(edges, eg);
 		show_debug_msg(__func__, "Edge [%d, %d] \n", eg->id, eg->len);
 //		p_flat_eg(eg);
