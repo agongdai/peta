@@ -26,7 +26,8 @@ typedef struct {
 	int len;
 } rm_path;
 
-void report_path(edgearray *all_edges);
+GPtrArray *report_path(edgearray *all_edges);
+int pe_path(int argc, char *argv[]);
 
 #ifdef __cplusplus
 }

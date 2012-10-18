@@ -1382,8 +1382,8 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	ht = pe_load_hash(fa_fn);
 	left_rm = new_rm();
 
-	s_index = 13000;
-	e_index = 13010;
+	s_index = 23000;
+	e_index = 23002;
 	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE
 			> n_reads_consumed) {
 		if (counter <= 12000)
@@ -1443,9 +1443,9 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	save_edges(all_edges, all_contigs, 0, 1, opt->rl * 1.5);
 	post_pro(all_edges, opt);
 	graph_by_edges(all_edges, "graph/rm_after_update.dot");
-	dump_rm(all_edges, "read/roadmap.bin");
 	report_path(all_edges);
 	save_edges(all_edges, ass_contigs, 0, 0, opt->rl * 1.5);
+	dump_rm(all_edges, "read/roadmap.bin");
 
 	free(h);
 	free(msg);

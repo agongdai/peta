@@ -7,6 +7,7 @@
 #include "eva.h"
 #include "clean.h"
 #include "pelib.h"
+#include "pepath.h"
 
 #ifndef PACKAGE_VERSION
 #define PACKAGE_VERSION "0.1"
@@ -62,6 +63,8 @@ int main(int argc, char *argv[]) {
 		return clean_reads(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "pair") == 0)
 		return pe_lib(argc - 1, argv + 1);
+	else if (strcmp(argv[1], "graph") == 0)
+		return pe_path(argc - 1, argv + 1);
 	else {
 		fprintf(stderr, "[main] unrecognized command '%s'\n", argv[1]);
 		return 1;

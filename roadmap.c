@@ -627,49 +627,43 @@ void post_pro(edgearray *all_edges, const ass_opt *opt) {
 	free(graph_fn);
 }
 
-void dump_rm(edgearray *all_edges, const char *rm_dump_file) {
+void dump_rm(edgearray *all_edges, char *rm_dump_file) {
 	FILE *dump_fp = NULL;
 	char edge_str[BUFSIZ];
-	int i = 0, j = 0;
+	int i = 71, j = 0, tmp = 0;
 	edge *eg = NULL, *in_out_eg = NULL;
 	bwa_seq_t *r = NULL;
 
+	show_msg(__func__, "Dumping the roadmap to %s... \n", rm_dump_file);
 	dump_fp = xopen(rm_dump_file, "w");
-	fwrite(all_edges->len, sizeof(guint), 1, dump_fp);
+	fwrite(&(all_edges->len), sizeof(int), 1, dump_fp);
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
-		fwrite(eg->id, sizeof(int), 1, dump_fp);
-		fwrite(eg->len, sizeof(int), 1, dump_fp);
-		fwrite(eg->out_egs->len, sizeof(int), 1, dump_fp);
+		fwrite(eg, sizeof(edge), 1, dump_fp);
+		tmp = eg->out_egs->len;
+		fwrite(&tmp, sizeof(int), 1, dump_fp);
 		for (j = 0; j < eg->out_egs->len; j++) {
 			in_out_eg = g_ptr_array_index(eg->out_egs, j);
-			fwrite(in_out_eg->id, sizeof(int), 1, dump_fp);
+			fwrite(&(in_out_eg->id), sizeof(int), 1, dump_fp);
 		}
-		fwrite(eg->in_egs->len, sizeof(int), 1, dump_fp);
+		tmp = eg->in_egs->len;
+		fwrite(&(tmp), sizeof(int), 1, dump_fp);
 		for (j = 0; j < eg->in_egs->len; j++) {
 			in_out_eg = g_ptr_array_index(eg->in_egs, j);
-			fwrite(in_out_eg->id, sizeof(int), 1, dump_fp);
+			fwrite(&(in_out_eg->id), sizeof(int), 1, dump_fp);
 		}
+		tmp = eg->reads->len;
+		fwrite(&(tmp), sizeof(int), 1, dump_fp);
 		for (j = 0; j < eg->reads->len; j++) {
 			r = g_ptr_array_index(eg->reads, j);
-			fwrite(atoi(r->name), sizeof(int), 1, dump_fp);
+			fwrite(r->name, sizeof(char), strlen(r->name), dump_fp);
 		}
-		fwrite(eg->right_ctg->id, sizeof(int), 1, dump_fp);
+		if (eg->right_ctg)
+			tmp = eg->right_ctg->id;
+		else
+			tmp = -1;
+		fwrite(&(tmp), sizeof(int), 1, dump_fp);
 	}
 	fclose(dump_fp);
-	free(edge_str);
 }
 
-edgearray *load_rm(const char *rm_dump_file, const hash_table *ht) {
-	edgearray *edges = NULL;
-	FILE *dump_fp = NULL;
-	int i = 0, j = 0, tmp = 0;
-	edge *eg = NULL, *in_out_eg = NULL;
-	bwa_seq_t *r = NULL;
-
-	dump_fp = xopen(rm_dump_file, "r");
-	e
-
-
-	fclose(dump_fp);
-}
