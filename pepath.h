@@ -28,6 +28,8 @@ typedef struct {
 
 GPtrArray *report_path(edgearray *all_edges);
 int pe_path(int argc, char *argv[]);
+edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
+		const char *rm_reads_file, const char *contig_file);
 
 #ifdef __cplusplus
 }

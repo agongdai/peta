@@ -1383,7 +1383,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	left_rm = new_rm();
 
 	s_index = 23000;
-	e_index = 23002;
+	e_index = 23100;
 	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE
 			> n_reads_consumed) {
 		if (counter <= 12000)

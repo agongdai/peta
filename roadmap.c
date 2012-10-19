@@ -640,8 +640,46 @@ void dump_rm(edgearray *all_edges, const char *rm_dump_file, const char *rm_read
 	rm_reads = xopen(rm_reads_file, "w");
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
-		sprintf(item, "%d\t%s\n", str, tx_fn);
+		if (!eg->alive)
+			continue;
+		p_flat_eg(eg);
+		// Edge id
+		sprintf(item, "%d\t", eg->id);
 		fputs(item, dump_fp);
+		fputs(item, rm_reads);
+
+		// Outgoing edges
+		sprintf(item, "");
+		for (j = 0; j < eg->out_egs->len; j++) {
+			in_out_eg = g_ptr_array_index(eg->out_egs, j);
+			sprintf(item, "%d,", in_out_eg->id);
+			fputs(item, dump_fp);
+		}
+		fputs("\t", dump_fp);
+
+		// Incoming edges
+		sprintf(item, "");
+		for (j = 0; j < eg->in_egs->len; j++) {
+			in_out_eg = g_ptr_array_index(eg->in_egs, j);
+			sprintf(item, "%d,", in_out_eg->id);
+			fputs(item, dump_fp);
+		}
+
+		fputs("\t", dump_fp);
+		// Right contig
+		if (eg->right_ctg) {
+			sprintf(item, "%d,%d", eg->right_ctg->id, eg->r_shift);
+			fputs(item, dump_fp);
+		}
+		// The reads
+		for (j = 0; j < eg->reads->len; j++) {
+			r = g_ptr_array_index(eg->reads, j);
+			sprintf(item, "%s,", r->name);
+			fputs(item, rm_reads);
+		}
+
+		fputs("\n", dump_fp);
+		fputs("\n", rm_reads);
 	}
 	fclose(dump_fp);
 	fclose(rm_reads);
