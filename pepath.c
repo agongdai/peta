@@ -152,29 +152,44 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 	char buf[BUFSIZ];
 	char *read_str = (char*) calloc(char_space, sizeof(char)); // allocate buffer.
 	char *attr[16], ch = 0;
+	char *read_ids = NULL;
 
 	dump_fp = xopen(rm_dump_file, "r");
 	reads_fp = xopen(rm_reads_file, "r");
 	contigs = load_reads(contig_file, &n_ctgs);
 
 	while ((ch = fgetc(reads_fp)) != EOF) {
-		printf("%c", ch);
 		if (char_len >= char_space) { // time to expand ?
 			char_space += 1;
 			kroundup32(char_space); // expand to double the current size of anything similar.
-			show_debug_msg(__func__, "Space: %d; length: %d \n", char_space, char_len);
 			read_str = realloc(read_str, char_space); // re allocate memory.
 		}
 		if (ch == '\n') {
 			i = 0;
 			attr[0] = strtok(read_str, "\t");
-			read_str[char_len] = '\0';
 			while (attr[i] != NULL) { //ensure a pointer was found
 				attr[++i] = strtok(NULL, "\t"); //continue to tokenize the string
 			}
 			eg = new_eg();
 			eg->id = atoi(attr[0]);
-			printf("%s \n", read_str);
+
+			len = count_comma(attr[1], char_len);
+			char *read_ids[len];
+			read_ids[0] = strtok(attr[1], ",");
+			show_debug_msg(__func__, "read_ids[0]: %s, len: %d\n", read_ids[0], len);
+			i = 0;
+			while (read_ids[i] != NULL) { //ensure a pointer was found
+				read_ids[++i] = strtok(NULL, ","); //continue to tokenize the string
+				if (strcmp(read_ids[i], "") == 0) {
+					break;
+				}
+				r = &ht->seqs[atoi(read_ids[i])];
+				g_ptr_array_add(eg->reads, r);
+				show_debug_msg(__func__, read_ids[i]);
+				p_query(__func__, r);
+			}
+			p_flat_eg(eg);
+
 			free(read_str);
 			read_str = (char*) calloc(BUFSIZ, sizeof(char)); // allocate buffer.
 			char_space = BUFSIZ;
