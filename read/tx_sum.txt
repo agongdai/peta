@@ -1,14 +1,14 @@
 -------------------------------------------------------------------
-Original transcript file:       	rnaseq/SRX040570/cufflinks.fa
+Original transcript file:       	rnaseq/SRX040570/spombe_genes.fa
 Exons file:                     	graph/gene_10_edges.txt
-Total base:                     	11967262
+Total base:                     	9182176
 Unique base:                    	0
-# of transcripts:               	2949
+# of transcripts:               	7032
 # of exons:                     	0
 # of stand alone gene:          	0
 # of stand alone base:          	0
 % of stand alone base:          	0.000000
-Optimal N50:                    	5890
+Optimal N50:                    	1743
 
 # of target edges:              	0
 Best N50:                       	0

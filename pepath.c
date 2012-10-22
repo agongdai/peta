@@ -145,19 +145,23 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 		const char *rm_reads_file, const char *contig_file) {
 	edgearray *edges = NULL;
 	FILE *dump_fp = NULL, *reads_fp = NULL, *contigs_fp = NULL;
-	int i = 0, j = 0, len = 0, n_ctgs = 0, char_space = BUFSIZ - 1, char_len = 0;
+	int i = 0, j = 0, len = 0, n_ctgs = 0, k = 0;
+	int char_space = BUFSIZ - 1, char_len = 0;
 	edge *eg = NULL, *in_out_eg = NULL;
 	bwa_seq_t *r = NULL, *contigs = NULL;
 	readarray *reads = NULL;
 	char buf[BUFSIZ];
 	char *read_str = (char*) calloc(char_space, sizeof(char)); // allocate buffer.
-	char *attr[16], ch = 0;
+	char *attr[16], *shifts[3], ch = 0;
 	char *read_ids = NULL;
 
 	dump_fp = xopen(rm_dump_file, "r");
 	reads_fp = xopen(rm_reads_file, "r");
 	contigs = load_reads(contig_file, &n_ctgs);
+	edges = g_ptr_array_sized_new(BUFSIZ);
+	show_msg(__func__, "Loading roadmap from %s and %s... \n", rm_dump_file, rm_reads_file);
 
+	// Reconstruct the edges, pinpoint the reads on them first.
 	while ((ch = fgetc(reads_fp)) != EOF) {
 		if (char_len >= char_space) { // time to expand ?
 			char_space += 1;
@@ -165,6 +169,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 			read_str = realloc(read_str, char_space); // re allocate memory.
 		}
 		if (ch == '\n') {
+			// Every line is in format of: [edge_id]	read_id_1,read_id_2,read_id_3...
 			i = 0;
 			attr[0] = strtok(read_str, "\t");
 			while (attr[i] != NULL) { //ensure a pointer was found
@@ -173,23 +178,22 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 			eg = new_eg();
 			eg->id = atoi(attr[0]);
 
-			len = count_comma(attr[1], char_len);
+			len = count_comma(attr[1], strlen(attr[1]));
 			char *read_ids[len];
 			read_ids[0] = strtok(attr[1], ",");
-			show_debug_msg(__func__, "read_ids[0]: %s, len: %d\n", read_ids[0], len);
 			i = 0;
 			while (read_ids[i] != NULL) { //ensure a pointer was found
 				read_ids[++i] = strtok(NULL, ","); //continue to tokenize the string
-				if (strcmp(read_ids[i], "") == 0) {
+				//show_debug_msg(__func__, "%d: %s\n", i, read_ids[i]);
+				if (read_ids[i] == NULL || strcmp(read_ids[i], "") == 0
+						|| strcmp(read_ids[i], "\n") == 0) {
 					break;
 				}
 				r = &ht->seqs[atoi(read_ids[i])];
 				g_ptr_array_add(eg->reads, r);
-				show_debug_msg(__func__, read_ids[i]);
-				p_query(__func__, r);
+				//p_query(__func__, r);
 			}
-			p_flat_eg(eg);
-
+			g_ptr_array_add(edges, eg);
 			free(read_str);
 			read_str = (char*) calloc(BUFSIZ, sizeof(char)); // allocate buffer.
 			char_space = BUFSIZ;
@@ -200,6 +204,90 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 		}
 	}
 
+	free(read_str);
+	read_str = (char*) calloc(BUFSIZ, sizeof(char)); // allocate buffer.
+	char_space = BUFSIZ;
+	char_len = 0;
+	// Set up the connection among the edges
+	for (i = 0; i < edges->len; i++) {
+		eg = g_ptr_array_index(edges, i);
+		while ((ch = fgetc(dump_fp)) != EOF) {
+			if (char_len >= char_space) { // time to expand ?
+				char_space += 1;
+				kroundup32(char_space); // expand to double the current size of anything similar.
+				read_str = realloc(read_str, char_space); // re allocate memory.
+			}
+			if (ch == '\n') {
+
+				j = 0;
+				attr[0] = strtok(read_str, "\t");
+				while (attr[j] != NULL) { //ensure a pointer was found
+					attr[++j] = strtok(NULL, "\t"); //continue to tokenize the string
+				}
+//				show_debug_msg("OUT", "%s\n", attr[1]);
+//				show_debug_msg("IN", "%s\n", attr[2]);
+//				show_debug_msg("RIGHT", "%s\n", attr[3]);
+
+				// Outgoing edges
+				if (attr[1] != NULL && strcmp(attr[1], "-1") != 0) {
+					len = count_comma(attr[1], strlen(attr[1]));
+					char *out_ids[len];
+					out_ids[0] = strtok(attr[1], ",");
+					j = 0;
+					in_out_eg = edgearray_find_id(edges, atoi(out_ids[0]));
+					g_ptr_array_add(eg->out_egs, in_out_eg);
+					while (out_ids[j] != NULL) { //ensure a pointer was found
+						out_ids[++j] = strtok(NULL, ","); //continue to tokenize the string
+						if (out_ids[j] == NULL || strcmp(out_ids[j], "") == 0) {
+							break;
+						}
+						in_out_eg = edgearray_find_id(edges, atoi(out_ids[j]));
+						g_ptr_array_add(eg->out_egs, in_out_eg);
+					}
+				}
+
+				// Incoming edges
+				if (attr[2] != NULL && strcmp(attr[2], "-1") != 0) {
+					len = count_comma(attr[2], strlen(attr[2]));
+					char *in_ids[len];
+					in_ids[0] = strtok(attr[2], ",");
+					j = 0;
+					in_out_eg = edgearray_find_id(edges, atoi(in_ids[0]));
+					g_ptr_array_add(eg->in_egs, in_out_eg);
+					while (in_ids[j] != NULL) { //ensure a pointer was found
+						in_ids[++j] = strtok(NULL, ","); //continue to tokenize the string
+						if (in_ids[j] == NULL || strcmp(in_ids[j], "") == 0) {
+							break;
+						}
+						in_out_eg = edgearray_find_id(edges, atoi(in_ids[j]));
+						g_ptr_array_add(eg->in_egs, in_out_eg);
+					}
+				}
+
+				// Right contig
+				if (attr[3] != NULL && strcmp(attr[3], "-1") != 0) {
+					len = count_comma(attr[3], strlen(attr[3]));
+					shifts[0] = strtok(attr[3], ","); //continue to tokenize the string
+					shifts[1] = strtok(NULL, ",");
+//					show_debug_msg(__func__, "%s: %s\n", shifts[0], shifts[1]);
+					in_out_eg = edgearray_find_id(edges, atoi(shifts[0]));
+					eg->right_ctg = in_out_eg;
+					eg->r_shift = atoi(shifts[1]);
+				}
+//				p_flat_eg(eg);
+				free(read_str);
+				read_str = (char*) calloc(BUFSIZ, sizeof(char)); // allocate buffer.
+				char_space = BUFSIZ;
+				char_len = 0;
+
+				break; // Go to outside for loop to try next edge
+			} else {
+				read_str[char_len] = ch; // stuff in buffer.
+				char_len++;
+			}
+		}
+	}
+	free(read_str);
 	fclose(reads_fp);
 	fclose(dump_fp);
 }

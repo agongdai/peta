@@ -37,7 +37,7 @@ void p_flat_eg(const edge *eg) {
 	}
 	if (eg->right_ctg)
 		show_debug_msg(__func__, "\t Right: [%p] [%d: %d]\n", eg->right_ctg,
-				eg->right_ctg->id, eg->right_ctg->len);
+				eg->right_ctg->id, eg->r_shift);
 	show_debug_msg(__func__, "\t Reads on: %d \n", eg->reads->len);
 }
 

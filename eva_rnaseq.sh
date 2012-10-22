@@ -1,6 +1,6 @@
 #!/bin/bash
-query="oases"
-db="cufflinks.fa"
+query="cufflinks"
+db="spombe_genes.fa"
 start_reads="read/start_reads.txt"
 start_reads_gene="read/start_reads_gene.txt"
 blastdb="../ncbi-blast-2.2.25+/db/"

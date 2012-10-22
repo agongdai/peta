@@ -75,8 +75,7 @@ int merge_eg(edge *eg) {
 	if (eg->ori && eg->out_egs->len == 1) {
 		right_eg = g_ptr_array_index(eg->out_egs, 0);
 		if (right_eg->alive && !right_eg->ori && right_eg->in_egs->len == 1) {
-			printf("[merge_i] Merging contig %d to %d \n", eg->id,
-					right_eg->id);
+			printf("[merge_i] Merging contig %d to %d \n", eg->id, right_eg->id);
 			merge_seq_to_right(eg->contig, right_eg->contig, 0);
 			right_eg->len = right_eg->contig->len;
 			right_eg->in_egs = eg->in_egs;
@@ -182,10 +181,10 @@ int backward_branches(edge *left_eg) {
 	show_debug_msg(__func__, "# of out_egs: %d\n", out_egs->len);
 	for (i = 0; i < out_egs->len; i++) {
 		eg_i = g_ptr_array_index(out_egs, i);
-//		show_debug_msg(__func__, "Pointer of out_egs: %p\n", out_egs);
-//		show_debug_msg(__func__, "# of out_egs: %d\n", out_egs->len);
-//		show_debug_msg(__func__, "Out edges of %d: %d\n", left_eg->id, i);
-//		p_flat_eg(eg_i);
+		//		show_debug_msg(__func__, "Pointer of out_egs: %p\n", out_egs);
+		//		show_debug_msg(__func__, "# of out_egs: %d\n", out_egs->len);
+		//		show_debug_msg(__func__, "Out edges of %d: %d\n", left_eg->id, i);
+		//		p_flat_eg(eg_i);
 		printf("\n");
 		if (!eg_i->contig->seq)
 			continue;
@@ -518,26 +517,22 @@ int prune_eg(edge *eg) {
 				// If the current edge "hangs" on some contig and length not long enough.
 				//  |-> eg: ----()---------------
 				//  |-> eg->right_ctg (shift = 4)
-				if (is_sbl(eg, eg->right_ctg)
-						&& ((eg->len - eg->r_shift) < MINCONTIG
-								|| (abs(
-										(eg->len + eg->r_shift
-												- eg->right_ctg->len))
-										< MINCONTIG))) {
+				if (is_sbl(eg, eg->right_ctg) && ((eg->len - eg->r_shift)
+						< MINCONTIG || (abs((eg->len + eg->r_shift
+						- eg->right_ctg->len)) < MINCONTIG))) {
 					return rm_eg(eg);
 				}
 				//                  |-> eg_0: aaaacccgg |-> e
 				// sbls:            |-> eg_1
 				//                  eg: aaaaccc (eg->right_ctg = e, shift = -2)
-				if (eg->len < MINCONTIG && eg->right_ctg
-						&& eg->r_shift < MINCONTIG && in_egs->len > 0) {
+				if (eg->len < MINCONTIG && eg->right_ctg && eg->r_shift
+						< MINCONTIG && in_egs->len > 0) {
 					sbls = get_sbls(eg);
 					for (i = 0; i < sbls->len; i++) {
 						eg_i = g_ptr_array_index(sbls, i);
 						if (has_edge(eg_i, eg->right_ctg->id, 0)) {
-							if (abs(
-									eg_i->len
-											- (eg->len - eg->r_shift)) < MINCONTIG) {
+							if (abs(eg_i->len - (eg->len - eg->r_shift))
+									< MINCONTIG) {
 								return rm_eg(eg);
 							}
 						}
@@ -551,12 +546,13 @@ int prune_eg(edge *eg) {
 				e = g_ptr_array_index(out_egs, 0);
 				r_ctg = e->right_ctg;
 				if (r_ctg && is_sbl(eg, r_ctg) && (eg->len + e->len
-						- e->r_shift) < MINCONTIG) {rm_eg(e);
-				return rm_eg(eg);
+						- e->r_shift) < MINCONTIG) {
+					rm_eg(e);
+					return rm_eg(eg);
+				}
 			}
 		}
 	}
-}
 	return 0;
 }
 
@@ -627,7 +623,8 @@ void post_pro(edgearray *all_edges, const ass_opt *opt) {
 	free(graph_fn);
 }
 
-void dump_rm(edgearray *all_edges, const char *rm_dump_file, const char *rm_reads_file) {
+void dump_rm(edgearray *all_edges, const char *rm_dump_file,
+		const char *rm_reads_file) {
 	FILE *dump_fp = NULL, *rm_reads = NULL;
 	char edge_str[BUFSIZ];
 	int i = 71, j = 0, tmp = 0;
@@ -650,19 +647,27 @@ void dump_rm(edgearray *all_edges, const char *rm_dump_file, const char *rm_read
 
 		// Outgoing edges
 		sprintf(item, "");
-		for (j = 0; j < eg->out_egs->len; j++) {
-			in_out_eg = g_ptr_array_index(eg->out_egs, j);
-			sprintf(item, "%d,", in_out_eg->id);
-			fputs(item, dump_fp);
+		if (eg->out_egs->len > 0) {
+			for (j = 0; j < eg->out_egs->len; j++) {
+				in_out_eg = g_ptr_array_index(eg->out_egs, j);
+				sprintf(item, "%d,", in_out_eg->id);
+				fputs(item, dump_fp);
+			}
+		} else {
+			fputs("-1", dump_fp);
 		}
 		fputs("\t", dump_fp);
 
 		// Incoming edges
 		sprintf(item, "");
-		for (j = 0; j < eg->in_egs->len; j++) {
-			in_out_eg = g_ptr_array_index(eg->in_egs, j);
-			sprintf(item, "%d,", in_out_eg->id);
-			fputs(item, dump_fp);
+		if (eg->in_egs->len > 0) {
+			for (j = 0; j < eg->in_egs->len; j++) {
+				in_out_eg = g_ptr_array_index(eg->in_egs, j);
+				sprintf(item, "%d,", in_out_eg->id);
+				fputs(item, dump_fp);
+			}
+		} else {
+			fputs("-1", dump_fp);
 		}
 
 		fputs("\t", dump_fp);
@@ -670,8 +675,10 @@ void dump_rm(edgearray *all_edges, const char *rm_dump_file, const char *rm_read
 		if (eg->right_ctg) {
 			sprintf(item, "%d,%d", eg->right_ctg->id, eg->r_shift);
 			fputs(item, dump_fp);
+		} else {
+			fputs("-1", dump_fp);
 		}
-		// The reads
+		// The reads to another file
 		for (j = 0; j < eg->reads->len; j++) {
 			r = g_ptr_array_index(eg->reads, j);
 			sprintf(item, "%s,", r->name);
