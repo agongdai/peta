@@ -1316,7 +1316,7 @@ edge *pe_ass_edge(edge *parent, edge *cur_eg, pool *c_pool,
 		}
 	}
 	free_msg(msg);
-	log_edge(ass_eg);
+	//log_edge(ass_eg);
 	return ass_eg;
 }
 
@@ -1443,7 +1443,6 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	save_edges(all_edges, all_contigs, 0, 1, opt->rl * 1.5);
 	post_pro(all_edges, opt);
 	graph_by_edges(all_edges, "graph/rm_after_update.dot");
-	report_path(all_edges);
 	save_edges(all_edges, ass_contigs, 0, 0, opt->rl * 1.5);
 	dump_rm(all_edges, "read/roadmap.graph", "read/roadmap.reads");
 

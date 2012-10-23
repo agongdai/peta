@@ -11,7 +11,7 @@
 #include "clean.h"
 #include "pehash.h"
 
-bwa_seq_t *load_reads(char *fa_fn, uint32_t *n_seqs) {
+bwa_seq_t *load_reads(const char *fa_fn, uint32_t *n_seqs) {
 	bwa_seq_t *seqs, *part_seqs;
 	bwa_seqio_t *ks;
 	uint32_t n_part_seqs = 0, n_seqs_full = 0, n_seqs_loaded = 0;
