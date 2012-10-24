@@ -88,7 +88,59 @@ rm_path *clone_path(const rm_path *p) {
 	new_p->n_ctgs = new_p->edges->len;
 	new_p->len = p->len;
 	new_p->alive = 1;
+	new_p->id = p->id;
 	return new_p;
+}
+
+/**
+ * Fork a path from the middle
+ */
+rm_path *fork_path(const rm_path *p, edge *right_connect,
+		const int joint_point) {
+	rm_path *forked = NULL;
+	edge *eg_i = NULL;
+	int i = 0;
+	forked = new_path();
+	add_edge_to_path(forked, right_connect, 0);
+	if (joint_point >= 0 && joint_point < p->n_ctgs) {
+		for (i = joint_point; i < p->n_ctgs; i++) {
+			eg_i = g_ptr_array_index(p->edges, i);
+			add_edge_to_path(forked, eg_i, 0);
+		}
+	}
+	forked->id = p->id;
+	return forked;
+}
+
+int same_paths(rm_path *p1, rm_path *p2) {
+	int i = 0;
+	edge *eg_1 = NULL, *eg_2 = NULL;
+	if (!p1 || !p2 || p1->n_ctgs != p2->n_ctgs)
+		return 0;
+	for (i = 0; i < p1->n_ctgs; i++) {
+		eg_1 = g_ptr_array_index(p1->edges, i);
+		eg_2 = g_ptr_array_index(p2->edges, i);
+		if (eg_1 != eg_2)
+			return 0;
+	}
+	return 1;
+}
+
+int find_path(GPtrArray *paths, rm_path *p) {
+	int i = 0;
+	rm_path *path = NULL;
+	for (i = 0; i < paths->len; i++) {
+		path = g_ptr_array_index(paths, i);
+		if (same_paths(path, p))
+			return i;
+	}
+	return -1;
+}
+
+void add_uni_path(GPtrArray *paths, rm_path *p) {
+	if (find_path(paths, p) == -1) {
+		g_ptr_array_add(paths, p);
+	}
 }
 
 void p_path(const rm_path *p) {
@@ -102,8 +154,8 @@ void p_path(const rm_path *p) {
 	printf("[p_path] Path %d (%p): %d \n", p->id, p, p->len);
 	for (i = 0; i < p->edges->len; i++) {
 		eg = g_ptr_array_index(p->edges, i);
-		printf("[p_path] \t %d: Contig [%d %d] (%d, %d)\n", i, eg->id, eg->len,
-				eg->right_ctg ? eg->right_ctg->id : 0, eg->r_shift);
+		printf("[p_path] \t %d: Contig [%d: %d] (%d, %d)\n", i, eg->id,
+				eg->len, eg->right_ctg ? eg->right_ctg->id : 0, eg->r_shift);
 	}
 	printf("[p_path] ----------------------------------------\n");
 }
@@ -146,10 +198,13 @@ void get_block_edges(edge *eg, GPtrArray *block) {
  * Only if the edge could be added to the head or tail of a path
  */
 int attach_edge_to_paths(GPtrArray *paths, edge *eg) {
-	int i = 0, added_new_path = 0;
+	int i = 0, added_new_path = 0, j = 0;
 	rm_path *p = NULL, *new_p = NULL;
-	edge *head = NULL, *tail = NULL;
+	edge *head = NULL, *tail = NULL, *eg_i = NULL;
 	edgearray *edges = NULL;
+	GPtrArray *paths_to_add = NULL;
+
+	paths_to_add = g_ptr_array_sized_new(8);
 	if (!paths || paths->len == 0 || !eg)
 		return 0;
 	for (i = 0; i < paths->len; i++) {
@@ -161,15 +216,24 @@ int attach_edge_to_paths(GPtrArray *paths, edge *eg) {
 			new_p = clone_path(p);
 			add_edge_to_path(new_p, eg, 0);
 			p->alive = 0;
-			g_ptr_array_add(paths, p);
+			add_uni_path(paths_to_add, new_p);
 			added_new_path = 1;
 		} else {
-			if (edgearray_find(tail->in_egs, eg) != -1) {
+			if (edgearray_find(head->in_egs, eg) != -1) {
 				new_p = clone_path(p);
 				add_edge_to_path(new_p, eg, 1);
 				p->alive = 0;
-				g_ptr_array_add(paths, p);
+				add_uni_path(paths_to_add, new_p);
 				added_new_path = 1;
+			} else {
+				for (j = 0; j < p->n_ctgs; j++) {
+					eg_i = g_ptr_array_index(p->edges, j);
+					if (eg->right_ctg == eg_i) {
+						new_p = fork_path(p, eg, j);
+						add_uni_path(paths_to_add, new_p);
+						added_new_path = 1;
+					}
+				}
 			}
 		}
 	}
@@ -177,24 +241,31 @@ int attach_edge_to_paths(GPtrArray *paths, edge *eg) {
 	for (i = 0; i < paths->len; i++) {
 		p = g_ptr_array_index(paths, i);
 		if (!p->alive) {
-			g_ptr_array_remove_fast(paths, p);
+			g_ptr_array_remove_index_fast(paths, i);
+			i--;
 			destroy_path(p);
 		}
 	}
+	g_ptr_array_concat(paths, paths_to_add);
+	g_ptr_array_free(paths_to_add, TRUE);
 	return added_new_path;
 }
 
-void iterate_block(GPtrArray *block, GPtrArray *paths) {
+GPtrArray *iterate_block(GPtrArray *block) {
 	edge *eg = NULL;
 	rm_path *p = NULL;
 	int i = 0;
 	edgearray *edges_in_paths = NULL;
+	GPtrArray *paths = NULL;
 
+	paths = g_ptr_array_sized_new(8);
 	if (block->len == 1) {
 		p = new_path();
-		add_edge_to_path(p, g_ptr_array_index(block, 0), 0);
+		eg = g_ptr_array_index(block, 0);
+		add_edge_to_path(p, eg, 0);
+		p->id = eg->id;
 		g_ptr_array_add(paths, p);
-		return;
+		return paths;
 	}
 	if (block->len >= 32) {
 		show_debug_msg(__func__, "Too many edges in this block (>=32) \n");
@@ -202,13 +273,14 @@ void iterate_block(GPtrArray *block, GPtrArray *paths) {
 			eg = g_ptr_array_index(block, i);
 			p_flat_eg(eg);
 		}
-		return;
+		return paths;
 	}
 	edges_in_paths = g_ptr_array_sized_new(block->len + 1);
 	for (i = 0; i < block->len; i++) {
 		eg = g_ptr_array_index(block, i);
 		if (eg->is_root) {
 			p = new_path();
+			p->id = eg->id;
 			add_edge_to_path(p, eg, 0);
 			g_ptr_array_add(paths, p);
 			g_ptr_array_add(edges_in_paths, eg);
@@ -226,15 +298,17 @@ void iterate_block(GPtrArray *block, GPtrArray *paths) {
 		}
 	}
 	g_ptr_array_free(edges_in_paths, TRUE);
+	return paths;
 }
 
 GPtrArray *report_paths(edgearray *all_edges) {
-	int i = 0, j = 0;
-	GPtrArray *block = NULL, *paths = NULL;
+	int i = 0;
+	int j = 0;
+	GPtrArray *block = NULL, *all_paths = NULL, *block_paths = NULL;
 	edge *eg = NULL;
 	rm_path *p = NULL;
 
-	paths = g_ptr_array_sized_new(1024);
+	all_paths = g_ptr_array_sized_new(1024);
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
 		if (eg->alive && !eg->visited) {
@@ -245,15 +319,17 @@ GPtrArray *report_paths(edgearray *all_edges) {
 				eg = g_ptr_array_index(block, j);
 				p_flat_eg(eg);
 			}
-			iterate_block(block, paths);
+			block_paths = iterate_block(block);
+			g_ptr_array_concat(all_paths, block_paths);
+			g_ptr_array_free(block_paths, TRUE);
 			g_ptr_array_free(block, TRUE);
 		}
 	}
-	for (i = 0; i < paths->len; i++) {
-		p = g_ptr_array_index(paths, i);
+	for (i = 0; i < all_paths->len; i++) {
+		p = g_ptr_array_index(all_paths, i);
 		p_path(p);
 	}
-	return paths;
+	return all_paths;
 }
 
 /**
@@ -397,9 +473,11 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 					len = count_comma(attr[3], strlen(attr[3]));
 					shifts[0] = strtok(attr[3], ","); //continue to tokenize the string
 					shifts[1] = strtok(NULL, ",");
-					//					show_debug_msg(__func__, "%s: %s\n", shifts[0], shifts[1]);
+					// show_debug_msg(__func__, "%s: %s\n", shifts[0], shifts[1]);
 					in_out_eg = edgearray_find_id(edges, atoi(shifts[0]));
 					eg->right_ctg = in_out_eg;
+					g_ptr_array_free(eg->out_egs, TRUE);
+					eg->out_egs = in_out_eg->out_egs;
 					eg->r_shift = atoi(shifts[1]);
 				}
 				free(read_str);
