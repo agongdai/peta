@@ -48,15 +48,15 @@ void destroy_path(rm_path *p) {
 void add_edge_to_path(rm_path *path, edge *eg, const int head) {
 	GPtrArray *edges = NULL;
 	int i = 0, len = 0;
-	edge *eg = NULL;
+	edge *eg_i = NULL;
 	if (head) {
-		edges = g_ptr_array_sized_new(path->n_ctgs * 2);
+		edges = g_ptr_array_sized_new(path->n_ctgs + 4);
 		g_ptr_array_add(edges, eg); // Put the new one as the first one.
 		len += eg->len;
 		for (i = 0; i < path->edges->len; i++) {
-			eg = g_ptr_array_index(path->edges, i);
-			g_ptr_array_add(edges, eg);
-			len += eg->len;
+			eg_i = g_ptr_array_index(path->edges, i);
+			g_ptr_array_add(edges, eg_i);
+			len += eg_i->len;
 		}
 		path->n_ctgs = edges->len;
 		path->len = len;
@@ -73,20 +73,19 @@ void add_edge_to_path(rm_path *path, edge *eg, const int head) {
  * Clone a path
  */
 rm_path *clone_path(const rm_path *p) {
-	GPtrArray *edges = NULL;
 	int i = 0;
 	edge *eg = NULL;
 	rm_path *new_p = NULL;
 
 	new_p = new_path();
+	new_p->edges = g_ptr_array_sized_new(p->n_ctgs);
 	if (!p)
 		return new_p;
 	for (i = 0; i < p->n_ctgs; i++) {
 		eg = g_ptr_array_index(p->edges, i);
-		g_ptr_array_add(edges, eg);
+		g_ptr_array_add(new_p->edges, eg);
 	}
-	new_p->edges = edges;
-	new_p->n_ctgs = edges->len;
+	new_p->n_ctgs = new_p->edges->len;
 	new_p->len = p->len;
 	new_p->alive = 1;
 	return new_p;
@@ -103,8 +102,8 @@ void p_path(const rm_path *p) {
 	printf("[p_path] Path %d (%p): %d \n", p->id, p, p->len);
 	for (i = 0; i < p->edges->len; i++) {
 		eg = g_ptr_array_index(p->edges, i);
-		printf("[p_path] \t Contig %d [%s]: %d (%d, %d)\n", eg->id, eg->name,
-				eg->len, eg->right_ctg ? eg->right_ctg->id : 0, eg->r_shift);
+		printf("[p_path] \t %d: Contig [%d %d] (%d, %d)\n", i, eg->id, eg->len,
+				eg->right_ctg ? eg->right_ctg->id : 0, eg->r_shift);
 	}
 	printf("[p_path] ----------------------------------------\n");
 }
@@ -113,7 +112,6 @@ void p_path(const rm_path *p) {
  * Recursive method to get all edges reachable by the input edge
  */
 void get_block_edges(edge *eg, GPtrArray *block) {
-	edgelist *in_out = NULL;
 	edge *in_out_eg = NULL;
 	int i = 0;
 	if (!eg->visited) {
@@ -147,30 +145,31 @@ void get_block_edges(edge *eg, GPtrArray *block) {
  *
  * Only if the edge could be added to the head or tail of a path
  */
-void attach_edge_to_paths(GPtrArray *paths, edge *eg) {
-	int i = 0;
+int attach_edge_to_paths(GPtrArray *paths, edge *eg) {
+	int i = 0, added_new_path = 0;
 	rm_path *p = NULL, *new_p = NULL;
-	edge *head = NULL, *tail = NULL, *edges = NULL;
+	edge *head = NULL, *tail = NULL;
+	edgearray *edges = NULL;
 	if (!paths || paths->len == 0 || !eg)
-		return;
+		return 0;
 	for (i = 0; i < paths->len; i++) {
 		p = g_ptr_array_index(paths, i);
 		edges = p->edges;
-		if (edges->len == 0) {
-			add_edge_to_path(p, eg, 1);
+		head = g_ptr_array_index(edges, 0);
+		tail = g_ptr_array_index(edges, edges->len - 1);
+		if (edgearray_find(tail->out_egs, eg) != -1) {
+			new_p = clone_path(p);
+			add_edge_to_path(new_p, eg, 0);
+			p->alive = 0;
+			g_ptr_array_add(paths, p);
+			added_new_path = 1;
 		} else {
-			head = g_ptr_array_index(edges, 0);
-			tail = g_ptr_array_index(edges, edges->len - 1);
-			if (edgearray_find(tail->out_egs, eg) != -1) {
+			if (edgearray_find(tail->in_egs, eg) != -1) {
 				new_p = clone_path(p);
-				add_edge_to_path(p, eg, 0);
+				add_edge_to_path(new_p, eg, 1);
 				p->alive = 0;
-			} else {
-				if (edgearray_find(tail->in_egs, eg) != -1) {
-					new_p = clone_path(p);
-					add_edge_to_path(p, eg, 1);
-					p->alive = 0;
-				}
+				g_ptr_array_add(paths, p);
+				added_new_path = 1;
 			}
 		}
 	}
@@ -182,15 +181,19 @@ void attach_edge_to_paths(GPtrArray *paths, edge *eg) {
 			destroy_path(p);
 		}
 	}
+	return added_new_path;
 }
 
 void iterate_block(GPtrArray *block, GPtrArray *paths) {
 	edge *eg = NULL;
-	rm_path *p = new_path();
-	int i = 0, has_fresh = 1;
+	rm_path *p = NULL;
+	int i = 0;
+	edgearray *edges_in_paths = NULL;
 
 	if (block->len == 1) {
-		g_ptr_array_add(paths, g_ptr_array_index(block, 0));
+		p = new_path();
+		add_edge_to_path(p, g_ptr_array_index(block, 0), 0);
+		g_ptr_array_add(paths, p);
 		return;
 	}
 	if (block->len >= 32) {
@@ -201,22 +204,35 @@ void iterate_block(GPtrArray *block, GPtrArray *paths) {
 		}
 		return;
 	}
-	while (has_fresh) {
-		has_fresh = 0;
+	edges_in_paths = g_ptr_array_sized_new(block->len + 1);
+	for (i = 0; i < block->len; i++) {
+		eg = g_ptr_array_index(block, i);
+		if (eg->is_root) {
+			p = new_path();
+			add_edge_to_path(p, eg, 0);
+			g_ptr_array_add(paths, p);
+			g_ptr_array_add(edges_in_paths, eg);
+		}
+	}
+
+	while (edges_in_paths->len < block->len) {
 		for (i = 0; i < block->len; i++) {
 			eg = g_ptr_array_index(block, i);
-			if (eg->level == -1) {
-
+			if (edgearray_find(edges_in_paths, eg) == -1) {
+				if (attach_edge_to_paths(paths, eg)) {
+					g_ptr_array_add(edges_in_paths, eg);
+				}
 			}
 		}
 	}
+	g_ptr_array_free(edges_in_paths, TRUE);
 }
 
 GPtrArray *report_paths(edgearray *all_edges) {
-	int block_size = 0, i = 0, j = 0;
+	int i = 0, j = 0;
 	GPtrArray *block = NULL, *paths = NULL;
 	edge *eg = NULL;
-	edgelist *in_out = NULL;
+	rm_path *p = NULL;
 
 	paths = g_ptr_array_sized_new(1024);
 	for (i = 0; i < all_edges->len; i++) {
@@ -232,6 +248,10 @@ GPtrArray *report_paths(edgearray *all_edges) {
 			iterate_block(block, paths);
 			g_ptr_array_free(block, TRUE);
 		}
+	}
+	for (i = 0; i < paths->len; i++) {
+		p = g_ptr_array_index(paths, i);
+		p_path(p);
 	}
 	return paths;
 }
@@ -255,10 +275,10 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 		const char *rm_reads_file, const char *contig_file) {
 	edgearray *edges = NULL;
 	FILE *dump_fp = NULL, *reads_fp = NULL;
-	int i = 0, j = 0, len = 0;
+	int i = 0, j = 0, len = 0, no_right_connect_edge = 1;
 	uint32_t n_ctgs = 0;
 	int char_space = BUFSIZ - 1, char_len = 0;
-	edge *eg = NULL, *in_out_eg = NULL;
+	edge *eg = NULL, *in_out_eg = NULL, *eg_i = NULL;
 	bwa_seq_t *r = NULL, *contigs = NULL, *ctg = NULL;
 	char *read_str = (char*) calloc(char_space, sizeof(char)); // allocate buffer.
 	char *attr[16], *shifts[3], ch = 0;
@@ -398,6 +418,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 	// Assign the contig sequences
 	contigs = load_reads(contig_file, &n_ctgs);
 	for (i = 0; i < edges->len; i++) {
+		no_right_connect_edge = 1;
 		eg = g_ptr_array_index(edges, i);
 		for (j = 0; j < n_ctgs; j++) {
 			ctg = &contigs[j];
@@ -405,6 +426,28 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 				eg->contig = ctg;
 				eg->len = ctg->len;
 				break;
+			}
+		}
+		// Set the root edges
+		// If an edge right connects to some other edge, go to the edge
+		while (eg->right_ctg) {
+			eg = eg->right_ctg;
+		}
+		if (eg && eg->alive) {
+			// If an edge has no incoming edges, set the be root
+			if (eg->in_egs->len == 0)
+				eg->is_root = 1;
+			else {
+				// Check all its input edges, if all of them right connect to this edge, set it to root
+				for (j = 0; j < eg->in_egs->len; j++) {
+					eg_i = g_ptr_array_index(eg->in_egs, j);
+					if (!eg_i->right_ctg || eg_i->right_ctg != eg) {
+						no_right_connect_edge = 0;
+						break;
+					}
+				}
+				if (no_right_connect_edge)
+					eg->is_root = 1;
 			}
 		}
 		//		p_flat_eg(eg);
