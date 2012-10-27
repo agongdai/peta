@@ -95,8 +95,7 @@ rm_path *clone_path(const rm_path *p) {
 /**
  * Fork a path from the middle
  */
-rm_path *fork_path(const rm_path *p, edge *right_connect,
-		const int joint_point) {
+rm_path *fork_path(const rm_path *p, edge *right_connect, const int joint_point) {
 	rm_path *forked = NULL;
 	edge *eg_i = NULL;
 	int i = 0;
@@ -124,6 +123,17 @@ int same_paths(rm_path *p1, rm_path *p2) {
 			return 0;
 	}
 	return 1;
+}
+
+int is_sub_path(rm_path *p1, rm_path *p2) {
+	int id_str_len = 0, i = 0;
+	edge *eg_i = 0;
+	char str_id[32];
+	for (i = 0; i < p1->n_ctgs; i++) {
+		eg_i = g_ptr_array_index(p1->edges, i);
+		sprintf(str_id, "%d", eg_i->id);
+		id_str_len += strlen(str_id);
+	}
 }
 
 int find_path(GPtrArray *paths, rm_path *p) {
@@ -154,14 +164,16 @@ void p_path(const rm_path *p) {
 	printf("[p_path] Path %d (%p): %d \n", p->id, p, p->len);
 	for (i = 0; i < p->edges->len; i++) {
 		eg = g_ptr_array_index(p->edges, i);
-		printf("[p_path] \t %d: Contig [%d: %d] (%d, %d)\n", i, eg->id,
-				eg->len, eg->right_ctg ? eg->right_ctg->id : 0, eg->r_shift);
+		printf("[p_path] \t %d: Contig [%d: %d] (%d, %d)\n", i, eg->id, eg->len,
+				eg->right_ctg ? eg->right_ctg->id : 0, eg->r_shift);
 	}
 	printf("[p_path] ----------------------------------------\n");
 }
 
 /*
  * Recursive method to get all edges reachable by the input edge
+ *
+ * Block level indicates how many levels in the graph
  */
 void get_block_edges(edge *eg, GPtrArray *block) {
 	edge *in_out_eg = NULL;
@@ -175,6 +187,7 @@ void get_block_edges(edge *eg, GPtrArray *block) {
 		if (in_out_eg->alive && !in_out_eg->visited) {
 			g_ptr_array_add(block, in_out_eg);
 			in_out_eg->visited = 1;
+			in_out_eg->level = eg->level - 1;
 			get_block_edges(in_out_eg, block);
 		}
 	}
@@ -183,12 +196,14 @@ void get_block_edges(edge *eg, GPtrArray *block) {
 		if (in_out_eg->alive && !in_out_eg->visited) {
 			g_ptr_array_add(block, in_out_eg);
 			in_out_eg->visited = 1;
+			in_out_eg->level = eg->level + 1;
 			get_block_edges(in_out_eg, block);
 		}
 	}
 	if (eg->right_ctg && eg->right_ctg->alive && !eg->right_ctg->visited) {
 		g_ptr_array_add(block, eg->right_ctg);
 		eg->right_ctg->visited = 1;
+		get_block_edges(eg->right_ctg, block);
 	}
 }
 
@@ -197,8 +212,8 @@ void get_block_edges(edge *eg, GPtrArray *block) {
  *
  * Only if the edge could be added to the head or tail of a path
  */
-int attach_edge_to_paths(GPtrArray *paths, edge *eg) {
-	int i = 0, added_new_path = 0, j = 0;
+GPtrArray *attach_edge_to_paths(GPtrArray *paths, edge *eg) {
+	int i = 0, j = 0;
 	rm_path *p = NULL, *new_p = NULL;
 	edge *head = NULL, *tail = NULL, *eg_i = NULL;
 	edgearray *edges = NULL;
@@ -206,7 +221,7 @@ int attach_edge_to_paths(GPtrArray *paths, edge *eg) {
 
 	paths_to_add = g_ptr_array_sized_new(8);
 	if (!paths || paths->len == 0 || !eg)
-		return 0;
+		return paths_to_add;
 	for (i = 0; i < paths->len; i++) {
 		p = g_ptr_array_index(paths, i);
 		edges = p->edges;
@@ -217,46 +232,42 @@ int attach_edge_to_paths(GPtrArray *paths, edge *eg) {
 			add_edge_to_path(new_p, eg, 0);
 			p->alive = 0;
 			add_uni_path(paths_to_add, new_p);
-			added_new_path = 1;
 		} else {
 			if (edgearray_find(head->in_egs, eg) != -1) {
 				new_p = clone_path(p);
 				add_edge_to_path(new_p, eg, 1);
 				p->alive = 0;
 				add_uni_path(paths_to_add, new_p);
-				added_new_path = 1;
 			} else {
 				for (j = 0; j < p->n_ctgs; j++) {
 					eg_i = g_ptr_array_index(p->edges, j);
 					if (eg->right_ctg == eg_i) {
 						new_p = fork_path(p, eg, j);
 						add_uni_path(paths_to_add, new_p);
-						added_new_path = 1;
 					}
 				}
 			}
 		}
 	}
-	// Remove the paths which are not alive already.
+
+	return paths_to_add;
+}
+
+int has_super_path(GPtrArray *paths, rm_path *p) {
+	int i = 0;
+	rm_path *p_i = NULL;
 	for (i = 0; i < paths->len; i++) {
-		p = g_ptr_array_index(paths, i);
-		if (!p->alive) {
-			g_ptr_array_remove_index_fast(paths, i);
-			i--;
-			destroy_path(p);
-		}
+		p_i = g_ptr_array_index(paths, i);
+
 	}
-	g_ptr_array_concat(paths, paths_to_add);
-	g_ptr_array_free(paths_to_add, TRUE);
-	return added_new_path;
 }
 
 GPtrArray *iterate_block(GPtrArray *block) {
 	edge *eg = NULL;
 	rm_path *p = NULL;
-	int i = 0;
+	int i = 0, has_fresh = 1;
 	edgearray *edges_in_paths = NULL;
-	GPtrArray *paths = NULL;
+	GPtrArray *paths = NULL, *block_paths_to_add = NULL;
 
 	paths = g_ptr_array_sized_new(8);
 	if (block->len == 1) {
@@ -265,14 +276,6 @@ GPtrArray *iterate_block(GPtrArray *block) {
 		add_edge_to_path(p, eg, 0);
 		p->id = eg->id;
 		g_ptr_array_add(paths, p);
-		return paths;
-	}
-	if (block->len >= 32) {
-		show_debug_msg(__func__, "Too many edges in this block (>=32) \n");
-		for (i = 0; i < block->len; i++) {
-			eg = g_ptr_array_index(block, i);
-			p_flat_eg(eg);
-		}
 		return paths;
 	}
 	edges_in_paths = g_ptr_array_sized_new(block->len + 1);
@@ -287,23 +290,50 @@ GPtrArray *iterate_block(GPtrArray *block) {
 		}
 	}
 
-	while (edges_in_paths->len < block->len) {
+	while (has_fresh) {
+		has_fresh = 0;
 		for (i = 0; i < block->len; i++) {
 			eg = g_ptr_array_index(block, i);
 			if (edgearray_find(edges_in_paths, eg) == -1) {
-				if (attach_edge_to_paths(paths, eg)) {
-					g_ptr_array_add(edges_in_paths, eg);
+				block_paths_to_add = attach_edge_to_paths(paths, eg); // All paths in the block
+				if (block_paths_to_add->len > 0) {
+					has_fresh = 1;
+					g_ptr_array_concat(paths, block_paths_to_add); // add new paths
+					g_ptr_array_add(edges_in_paths, eg); // Mark this edge has been visited
 				}
+				g_ptr_array_free(block_paths_to_add, TRUE);
 			}
+		}
+	}
+	// Remove the paths which are not alive already.
+	for (i = 0; i < paths->len; i++) {
+		p = g_ptr_array_index(paths, i);
+		if (!p->alive || has_super_path(paths, p)) {
+			g_ptr_array_remove_index_fast(paths, i);
+			i--;
+			destroy_path(p);
 		}
 	}
 	g_ptr_array_free(edges_in_paths, TRUE);
 	return paths;
 }
 
-GPtrArray *report_paths(edgearray *all_edges) {
+int get_level_n(GPtrArray *block) {
+	int min_level = 0, max_level = 0;
 	int i = 0;
-	int j = 0;
+	edge *eg = NULL;
+	for (i = 0; i < block->len; i++) {
+		eg = g_ptr_array_index(block, i);
+		if (eg->level < min_level)
+			min_level = eg->level;
+		if (eg->level > max_level)
+			max_level = eg->level;
+	}
+	return max_level - min_level;
+}
+
+GPtrArray *report_paths(edgearray *all_edges) {
+	int i = 0, j = 0;
 	GPtrArray *block = NULL, *all_paths = NULL, *block_paths = NULL;
 	edge *eg = NULL;
 	rm_path *p = NULL;
@@ -312,16 +342,21 @@ GPtrArray *report_paths(edgearray *all_edges) {
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
 		if (eg->alive && !eg->visited) {
-			block = g_ptr_array_sized_new(128);
+			block = g_ptr_array_sized_new(32);
 			get_block_edges(eg, block);
 			show_debug_msg(__func__, "NEW BLOCK ---------------------------\n");
 			for (j = 0; j < block->len; j++) {
 				eg = g_ptr_array_index(block, j);
 				p_flat_eg(eg);
 			}
-			block_paths = iterate_block(block);
-			g_ptr_array_concat(all_paths, block_paths);
-			g_ptr_array_free(block_paths, TRUE);
+			if (get_level_n(block) >= MAX_ROADMAP_LEVEL) {
+				show_debug_msg(__func__,
+						"Too many level in this block (>=6) \n");
+			} else {
+				block_paths = iterate_block(block);
+				g_ptr_array_concat(all_paths, block_paths);
+				g_ptr_array_free(block_paths, TRUE);
+			}
 			g_ptr_array_free(block, TRUE);
 		}
 	}
@@ -369,7 +404,8 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 	while ((ch = fgetc(reads_fp)) != EOF) {
 		if (char_len >= char_space) { // time to expand ?
 			char_space += 1;
-			kroundup32(char_space); // expand to double the current size of anything similar.
+			kroundup32(char_space);
+			// expand to double the current size of anything similar.
 			read_str = realloc(read_str, char_space); // re allocate memory.
 		}
 		if (ch == '\n') {
@@ -382,20 +418,22 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 			eg = new_eg();
 			eg->id = atoi(attr[0]);
 
-			len = count_comma(attr[1], strlen(attr[1]));
-			char *read_ids[len];
-			read_ids[0] = strtok(attr[1], ",");
-			i = 0;
-			while (read_ids[i] != NULL) { //ensure a pointer was found
-				read_ids[++i] = strtok(NULL, ","); //continue to tokenize the string
-				//show_debug_msg(__func__, "%d: %s\n", i, read_ids[i]);
-				if (read_ids[i] == NULL || strcmp(read_ids[i], "") == 0
-						|| strcmp(read_ids[i], "\n") == 0) {
-					break;
+			if (attr[1] != NULL && strcmp(attr[1], "") != 0) {
+				len = count_comma(attr[1], strlen(attr[1]));
+				char *read_ids[len];
+				read_ids[0] = strtok(attr[1], ",");
+				i = 0;
+				while (read_ids[i] != NULL) { //ensure a pointer was found
+					read_ids[++i] = strtok(NULL, ","); //continue to tokenize the string
+					//show_debug_msg(__func__, "%d: %s\n", i, read_ids[i]);
+					if (read_ids[i] == NULL || strcmp(read_ids[i], "") == 0
+							|| strcmp(read_ids[i], "\n") == 0) {
+						break;
+					}
+					r = &ht->seqs[atoi(read_ids[i])];
+					g_ptr_array_add(eg->reads, r);
+					//p_query(__func__, r);
 				}
-				r = &ht->seqs[atoi(read_ids[i])];
-				g_ptr_array_add(eg->reads, r);
-				//p_query(__func__, r);
 			}
 			g_ptr_array_add(edges, eg);
 			free(read_str);
@@ -418,7 +456,8 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 		while ((ch = fgetc(dump_fp)) != EOF) {
 			if (char_len >= char_space) { // time to expand ?
 				char_space += 1;
-				kroundup32(char_space); // expand to double the current size of anything similar.
+				kroundup32(char_space);
+				// expand to double the current size of anything similar.
 				read_str = realloc(read_str, char_space); // re allocate memory.
 			}
 			if (ch == '\n') {
@@ -528,7 +567,6 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 					eg->is_root = 1;
 			}
 		}
-		//		p_flat_eg(eg);
 		//		p_ctg_seq("CONTIG", eg->contig);
 	}
 	free(read_str);
@@ -551,7 +589,7 @@ int pe_path(int argc, char *argv[]) {
 	edges = load_rm(ht, argv[2], argv[3], argv[4]);
 	report_paths(edges);
 
-	fprintf(stderr, "[pe_path] Done: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
+	fprintf(stderr, "[pe_path] Done: %.2f sec\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return 0;
 }

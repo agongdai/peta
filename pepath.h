@@ -16,8 +16,9 @@ extern "C" {
 #include "edgelist.h"
 #include <glib.h>
 
-#define INIT_PATH_CTGS 64
-#define INIT_PATH_N 1024
+#define INIT_PATH_CTGS 		64
+#define INIT_PATH_N 		1024
+#define MAX_ROADMAP_LEVEL	6
 
 typedef struct {
 	int id;
