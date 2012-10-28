@@ -277,8 +277,8 @@ void ext_con(bwa_seq_t *contig, const ubyte_t c, const int ori) {
 	if (contig->full_len <= contig->len + 2) {
 		contig->full_len = contig->len + 2;
 		kroundup32(contig->full_len);
-		contig->seq = (ubyte_t*) realloc(contig->seq,
-				sizeof(ubyte_t) * contig->full_len);
+		contig->seq = (ubyte_t*) realloc(contig->seq, sizeof(ubyte_t)
+				* contig->full_len);
 	}
 	if (ori) {
 		memmove(&contig->seq[1], contig->seq, contig->len);
@@ -325,11 +325,11 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 		p->bc[i] = 0;
 	}
 	p->tid = -1; // no assigned to a thread
-	p->qual = p->strand = p->type = p->dummy = p->extra_flag = p->n_mm =
-			p->n_gapo = p->n_gape = p->mapQ = p->score = p->n_aln = p->aln =
-					p->n_multi = p->multi = p->sa = p->pos = p->c1 = p->c2 =
-							p->n_cigar = p->cigar = p->seQ = p->nm = p->md =
-									NULL;
+	p->qual = p->strand = p->type = p->dummy = p->extra_flag = p->n_mm
+			= p->n_gapo = p->n_gape = p->mapQ = p->score = p->n_aln = p->aln
+					= p->n_multi = p->multi = p->sa = p->pos = p->c1 = p->c2
+							= p->n_cigar = p->cigar = p->seQ = p->nm = p->md
+									= NULL;
 
 	p->shift = p->is_in_c_pool = p->is_in_m_pool = 0;
 	p->used = query->used;
@@ -368,10 +368,11 @@ bwa_seq_t *new_rev_seq(const bwa_seq_t *query) {
 		p->bc[i] = 0;
 	}
 	p->tid = -1; // no assigned to a thread
-	p->qual = p->strand = p->type = p->dummy = p->extra_flag = p->n_mm =
-			p->n_gapo = p->n_gape = p->mapQ = p->score = p->n_aln = p->aln =
-					p->n_multi = p->multi = p->sa = p->pos = p->c1 = p->c2 =
-							p->n_cigar = p->cigar = p->seQ = p->nm = p->md = 0;
+	p->qual = p->strand = p->type = p->dummy = p->extra_flag = p->n_mm
+			= p->n_gapo = p->n_gape = p->mapQ = p->score = p->n_aln = p->aln
+					= p->n_multi = p->multi = p->sa = p->pos = p->c1 = p->c2
+							= p->n_cigar = p->cigar = p->seQ = p->nm = p->md
+									= 0;
 
 	p->used = p->shift = p->is_in_c_pool = p->is_in_m_pool = 0;
 	p->contig_id = query->contig_id;
@@ -445,16 +446,17 @@ int same_q(const bwa_seq_t *query, const bwa_seq_t *seq) {
 }
 
 int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
-		const int mismatches) {
-	int min_len = 0;
+		const int mismatches, const int score_mat, const int score_mis,
+		const int score_gap) {
+	int min_acceptable_score = 0, min_len = 0;
 	if (!query || !seq || !seq->seq || !query->seq || mismatches < 0)
 		return 0;
 	if (abs(query->len - seq->len) > mismatches)
 		return 0;
-	min_len = seq->len;
-	if (seq->len > query->len)
-		min_len = query->len;
-	if (share_subseq(query, seq, mismatches, min_len))
+	min_len = query->len;
+	min_len = min_len > seq->len ? seq->len : min_len;
+	min_acceptable_score = min_len * score_mat + mismatches * score_mis;
+	if (smith_waterman(query, seq, mismatches, min_len) >= min_acceptable_score)
 		return 1;
 	return 0;
 }
@@ -463,10 +465,10 @@ int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
  * http://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm
  */
 int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
-		const int score_mat, const int score_mis, const int score_gap) {
+		const int score_mat, const int score_mis, const int score_gap, const int min_acceptable_score) {
 	char *previous_row = NULL, *current_row = NULL;
 	int columns = seq_1->len + 1, max_score = 0, rows = seq_2->len + 1;
-	int i = 0, j = 0;
+	int i = 0, j = 0, max = 0;
 	int up_left = 0, up = 0, left = 0;
 	previous_row = (int*) calloc(columns + 1, sizeof(int));
 	current_row = (int*) calloc(columns + 1, sizeof(int));
@@ -474,9 +476,23 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 		for (j = 1; j <= columns; j++) {
 			up = previous_row[j] + score_gap; // not updated, so is the value from previous row
 			left = current_row[j - 1] + score_gap; // updated already, so is the value from current row
-			cells[j] =
+			if (seq_1->seq[j - 1] == seq_2->seq[i - 1])
+				up_left = previous_row[j - 1] + score_mat;
+			else
+				up_left = previous_row[j - 1] + score_mis;
+			max = up > left ? up : left;
+			max = up_left > max ? up_left : max;
+			current_row[j] = max;
 		}
+		for (j = 1; j <= columns; j++) {
+			previous_row[j] = current_row[j];
+			max_score = current_row[j] > max_score ? current_row[j] : max_score;
+		}
+		// If the minimal acceptable score is not reachable, stop and return.
+		if ((max_score + (rows - i) * score_mat) < min_acceptable_score)
+			return -1;
 	}
+	return max_score;
 }
 
 /**
@@ -610,8 +626,8 @@ int share_subseq(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 		int mismatches) {
 	int i = 0;
-	if (!left_seq || !right_seq || ol <= 0 || ol > left_seq->len
-			|| ol > right_seq->len)
+	if (!left_seq || !right_seq || ol <= 0 || ol > left_seq->len || ol
+			> right_seq->len)
 		return 0;
 	for (i = 0; i < ol; i++) {
 		if (left_seq->seq[i + (left_seq->len - ol)] != right_seq->seq[i]) {
