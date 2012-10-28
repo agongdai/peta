@@ -14,11 +14,14 @@ extern "C" {
 #include <stdio.h>
 #include "roadmap.h"
 #include "edgelist.h"
+#include "bwase.h"
 #include <glib.h>
 
 #define INIT_PATH_CTGS 		64
 #define INIT_PATH_N 		1024
-#define MAX_ROADMAP_LEVEL	6
+#define MAX_ROADMAP_LEVEL	8
+#define MIN_TX_LEN			100
+#define MISMATCHES			4
 
 typedef struct {
 	int id;
@@ -26,6 +29,7 @@ typedef struct {
 	int n_ctgs;
 	int len;
 	int alive;
+	bwa_seq_t *seq;
 } rm_path;
 
 GPtrArray *report_paths(edgearray *all_edges);

@@ -29,6 +29,7 @@ rm_path *new_path() {
 	p->n_ctgs = 0;
 	p->len = 0;
 	p->alive = 1;
+	p->seq = NULL;
 	return p;
 }
 
@@ -128,12 +129,38 @@ int same_paths(rm_path *p1, rm_path *p2) {
 int is_sub_path(rm_path *p1, rm_path *p2) {
 	int id_str_len = 0, i = 0;
 	edge *eg_i = 0;
-	char str_id[32];
+	char str_id[32], *ids_1 = NULL, *ids_2 = NULL, *is_sub = NULL;
+	if (p1->n_ctgs < p2->n_ctgs)
+		return 0;
 	for (i = 0; i < p1->n_ctgs; i++) {
 		eg_i = g_ptr_array_index(p1->edges, i);
-		sprintf(str_id, "%d", eg_i->id);
+		sprintf(str_id, "%d,", eg_i->id);
 		id_str_len += strlen(str_id);
 	}
+	ids_1 = (char*) calloc(id_str_len + 1, sizeof(char));
+	for (i = 0; i < p1->n_ctgs; i++) {
+		eg_i = g_ptr_array_index(p1->edges, i);
+		sprintf(str_id, "%d,", eg_i->id);
+		strcat(ids_1, str_id);
+	}
+	for (i = 0; i < p2->n_ctgs; i++) {
+		eg_i = g_ptr_array_index(p2->edges, i);
+		sprintf(str_id, "%d,", eg_i->id);
+		id_str_len += strlen(str_id);
+	}
+	ids_2 = (char*) calloc(id_str_len + 1, sizeof(char));
+	for (i = 0; i < p2->n_ctgs; i++) {
+		eg_i = g_ptr_array_index(p2->edges, i);
+		sprintf(str_id, "%d,", eg_i->id);
+		strcat(ids_2, str_id);
+	}
+	is_sub = strstr(ids_1, ids_2);
+	free(ids_1);
+	free(ids_2);
+	if (is_sub == NULL)
+		return 0;
+	else
+		return 1;
 }
 
 int find_path(GPtrArray *paths, rm_path *p) {
@@ -258,10 +285,15 @@ int has_super_path(GPtrArray *paths, rm_path *p) {
 	rm_path *p_i = NULL;
 	for (i = 0; i < paths->len; i++) {
 		p_i = g_ptr_array_index(paths, i);
-
+		if (p_i != p && is_sub_path(p_i, p))
+			return 1;
 	}
+	return 0;
 }
 
+/*
+ * Get all paths in the block
+ */
 GPtrArray *iterate_block(GPtrArray *block) {
 	edge *eg = NULL;
 	rm_path *p = NULL;
@@ -270,6 +302,7 @@ GPtrArray *iterate_block(GPtrArray *block) {
 	GPtrArray *paths = NULL, *block_paths_to_add = NULL;
 
 	paths = g_ptr_array_sized_new(8);
+	// Add the root edges, each of which is a stand-alone path
 	if (block->len == 1) {
 		p = new_path();
 		eg = g_ptr_array_index(block, 0);
@@ -290,6 +323,7 @@ GPtrArray *iterate_block(GPtrArray *block) {
 		}
 	}
 
+	// If there is no edge which is able to be added, stop
 	while (has_fresh) {
 		has_fresh = 0;
 		for (i = 0; i < block->len; i++) {
@@ -308,6 +342,7 @@ GPtrArray *iterate_block(GPtrArray *block) {
 	// Remove the paths which are not alive already.
 	for (i = 0; i < paths->len; i++) {
 		p = g_ptr_array_index(paths, i);
+		// If a path is a sub-path of another, remove it
 		if (!p->alive || has_super_path(paths, p)) {
 			g_ptr_array_remove_index_fast(paths, i);
 			i--;
@@ -318,6 +353,9 @@ GPtrArray *iterate_block(GPtrArray *block) {
 	return paths;
 }
 
+/**
+ * Get the max difference of levels in the block paths
+ */
 int get_level_n(GPtrArray *block) {
 	int min_level = 0, max_level = 0;
 	int i = 0;
@@ -332,6 +370,64 @@ int get_level_n(GPtrArray *block) {
 	return max_level - min_level;
 }
 
+/**
+ * Check whether there is counter level
+ */
+int has_possible_circles(GPtrArray *block) {
+	int i = 0;
+	edge *eg = NULL, *eg_right = NULL;
+	for (i = 0; i < block->len; i++) {
+		eg = g_ptr_array_index(block, i);
+		if (eg->right_ctg) {
+			eg_right = eg->right_ctg;
+			if (eg_right->level <= eg->level)
+				return 1;
+		}
+	}
+	return 0;
+}
+
+GPtrArray *get_single_block_paths(GPtrArray *block) {
+	GPtrArray *single_paths = NULL;
+	int i = 0;
+	rm_path *p;
+	edge *eg = NULL;
+
+	single_paths = g_ptr_array_sized_new(block->len);
+	for (i = 0; i < block->len; i++) {
+		eg = g_ptr_array_index(block, i);
+		if (eg->len >= MIN_TX_LEN) {
+			p = new_path();
+			add_edge_to_path(p, eg, 0);
+			p->id = eg->id;
+			g_ptr_array_add(single_paths, p);
+		}
+	}
+	return single_paths;
+}
+
+/**
+ * Mark the duplicate edges
+ */
+void mark_duplicate(edgearray *block) {
+	edge *eg_i = NULL, *eg_j = NULL;
+	int i = 0, j = 0;
+	for (i = 0; i < block->len; i++) {
+		eg_i = g_ptr_array_index(block, i);
+		for (j = 0; j < block->len; j++) {
+			eg_j = g_ptr_array_index(block, j);
+			if (eg_i != eg_j && eg_j->alive
+					&& similar_seqs(eg_i, eg_j, MISMATCHES)) {
+				if (eg_i->right_ctg
+						== eg_j->right_ctg && abs(eg_i->r_shift - eg_j->r_shift) <= MISMATCHES) {
+					eg_i->alive = 0;
+					break;
+				}
+			}
+		}
+	}
+}
+
 GPtrArray *report_paths(edgearray *all_edges) {
 	int i = 0, j = 0;
 	GPtrArray *block = NULL, *all_paths = NULL, *block_paths = NULL;
@@ -341,7 +437,7 @@ GPtrArray *report_paths(edgearray *all_edges) {
 	all_paths = g_ptr_array_sized_new(1024);
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
-		if (eg->alive && !eg->visited) {
+		if (!eg->visited) {
 			block = g_ptr_array_sized_new(32);
 			get_block_edges(eg, block);
 			show_debug_msg(__func__, "NEW BLOCK ---------------------------\n");
@@ -352,18 +448,32 @@ GPtrArray *report_paths(edgearray *all_edges) {
 			if (get_level_n(block) >= MAX_ROADMAP_LEVEL) {
 				show_debug_msg(__func__,
 						"Too many level in this block (>=6) \n");
+				block_paths = get_single_block_paths(block);
 			} else {
 				block_paths = iterate_block(block);
-				g_ptr_array_concat(all_paths, block_paths);
-				g_ptr_array_free(block_paths, TRUE);
 			}
+			g_ptr_array_concat(all_paths, block_paths);
+			g_ptr_array_free(block_paths, TRUE);
 			g_ptr_array_free(block, TRUE);
 		}
 	}
+	show_msg(__func__, "%d paths reported. \n", all_paths->len);
 	for (i = 0; i < all_paths->len; i++) {
 		p = g_ptr_array_index(all_paths, i);
-		p_path(p);
+		for (j = 0; j < p->n_ctgs; j++) {
+			eg = g_ptr_array_index(p->edges, j);
+			if (!eg->alive) {
+				g_ptr_array_remove_fast(all_paths, p);
+				p->alive = 0;
+				i--;
+				break;
+			}
+		}
+		if (p->alive)
+			p_path(p);
 	}
+	show_msg(__func__, "%d paths after removing duplicates. \n",
+			all_paths->len);
 	return all_paths;
 }
 
