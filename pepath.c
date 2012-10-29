@@ -39,8 +39,34 @@ rm_path *new_path() {
 void destroy_path(rm_path *p) {
 	if (p) {
 		g_ptr_array_free(p->edges, TRUE);
+		bwa_free_read_seq(1, p->seq);
 		free(p);
 	}
+}
+
+void sync_path(rm_path *p) {
+	bwa_seq_t *seq = NULL;
+	int i = 0, shift = 0;
+	edge *eg = NULL, *eg_next = NULL;
+	p->n_ctgs = p->edges->len;
+	seq = blank_seq();
+	if (p->n_ctgs > 0) {
+		for (i = 0; i < p->n_ctgs; i++) {
+			eg = g_ptr_array_index(p->edges, i);
+			if (shift < eg->len) {
+				merge_seq(seq, eg->contig, shift);
+			} else {
+				if (i + 1 < p->n_ctgs) {
+					eg_next = g_ptr_array_index(p->edges, i + 1);
+					if (eg_next->r_shift == 0)
+						eg->r_shift = shift - eg->len;
+				}
+			}
+			shift = eg->r_shift;
+		}
+	}
+	p->seq = seq;
+	p->len = seq->len;
 }
 
 /**
@@ -191,9 +217,10 @@ void p_path(const rm_path *p) {
 	printf("[p_path] Path %d (%p): %d \n", p->id, p, p->len);
 	for (i = 0; i < p->edges->len; i++) {
 		eg = g_ptr_array_index(p->edges, i);
-		printf("[p_path] \t %d: Contig [%d: %d] (%d, %d)\n", i, eg->id, eg->len,
-				eg->right_ctg ? eg->right_ctg->id : 0, eg->r_shift);
+		printf("[p_path] \t %d: Contig [%d: %d] (%d, %d)\n", i, eg->id,
+				eg->len, eg->right_ctg ? eg->right_ctg->id : 0, eg->r_shift);
 	}
+	p_ctg_seq("Path seq", p->seq);
 	printf("[p_path] ----------------------------------------\n");
 }
 
@@ -409,21 +436,63 @@ GPtrArray *get_single_block_paths(GPtrArray *block) {
 /**
  * Mark the duplicate edges
  */
-void mark_duplicate(edgearray *block) {
+void mark_duplicate_edges(edgearray *block) {
 	edge *eg_i = NULL, *eg_j = NULL;
 	int i = 0, j = 0;
 	for (i = 0; i < block->len; i++) {
 		eg_i = g_ptr_array_index(block, i);
 		for (j = 0; j < block->len; j++) {
 			eg_j = g_ptr_array_index(block, j);
-			if (eg_i != eg_j && eg_j->alive
-					&& similar_seqs(eg_i, eg_j, MISMATCHES)) {
-				if (eg_i->right_ctg
-						== eg_j->right_ctg && abs(eg_i->r_shift - eg_j->r_shift) <= MISMATCHES) {
+			if (eg_i != eg_j && eg_j->alive && similar_seqs(eg_i->contig,
+					eg_j->contig, MISMATCHES, SCORE_MATCH, SCORE_MISMATCH,
+					SCORE_GAP)) {
+				if (eg_i->right_ctg == eg_j->right_ctg && abs(eg_i->r_shift
+						- eg_j->r_shift) <= MISMATCHES) {
 					eg_i->alive = 0;
+					show_debug_msg("DUPLICATE", "[%d: %d] <=> [%d, %d] \n",
+							eg_i->id, eg_i->len, eg_j->id, eg_j->len);
 					break;
 				}
 			}
+		}
+	}
+}
+
+void mark_duplicate_paths(GPtrArray *paths) {
+	int i = 0, j = 0, similarity_score = 0;
+	rm_path *path_i = NULL, *path_j = NULL;
+	edge *eg = NULL;
+	for (i = 0; i < paths->len; i++) {
+		path_i = g_ptr_array_index(paths, i);
+		// If any edge in the path is not alive, remove this path
+		for (j = 0; j < path_i->n_ctgs; j++) {
+			eg = g_ptr_array_index(path_i->edges, j);
+			if (!eg->alive) {
+				path_i->alive = 0;
+				break;
+			}
+		}
+		// If current path has similar seq with another alive path, remove current one.
+		if (path_i->alive) {
+			for (j = 0; j < paths->len; j++) {
+				path_j = g_ptr_array_index(paths, j);
+				if (path_i != path_j && path_j->alive) {
+					similarity_score = similar_seqs(path_i->seq, path_j->seq,
+							MISMATCHES * 4, SCORE_MATCH, SCORE_MISMATCH,
+							SCORE_GAP);
+					if (similarity_score > 0) {
+						path_i->alive = 0;
+						break;
+					}
+				}
+			}
+		}
+		if (!path_i->alive) {
+			g_ptr_array_remove_fast(paths, path_i);
+			i--;
+		} else {
+			sync_path(path_i);
+			p_path(path_i);
 		}
 	}
 }
@@ -440,6 +509,7 @@ GPtrArray *report_paths(edgearray *all_edges) {
 		if (!eg->visited) {
 			block = g_ptr_array_sized_new(32);
 			get_block_edges(eg, block);
+			mark_duplicate_edges(block);
 			show_debug_msg(__func__, "NEW BLOCK ---------------------------\n");
 			for (j = 0; j < block->len; j++) {
 				eg = g_ptr_array_index(block, j);
@@ -458,22 +528,8 @@ GPtrArray *report_paths(edgearray *all_edges) {
 		}
 	}
 	show_msg(__func__, "%d paths reported. \n", all_paths->len);
-	for (i = 0; i < all_paths->len; i++) {
-		p = g_ptr_array_index(all_paths, i);
-		for (j = 0; j < p->n_ctgs; j++) {
-			eg = g_ptr_array_index(p->edges, j);
-			if (!eg->alive) {
-				g_ptr_array_remove_fast(all_paths, p);
-				p->alive = 0;
-				i--;
-				break;
-			}
-		}
-		if (p->alive)
-			p_path(p);
-	}
-	show_msg(__func__, "%d paths after removing duplicates. \n",
-			all_paths->len);
+	mark_duplicate_paths(all_paths);
+	show_msg(__func__, "%d paths after removing duplicates. \n", all_paths->len);
 	return all_paths;
 }
 
@@ -685,6 +741,14 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 	return edges;
 }
 
+int test_sw(const char *fa_fn) {
+	bwa_seq_t *seqs = NULL;
+	int n_seqs = 0, score = 0;
+	seqs = load_reads(fa_fn, &n_seqs);
+	score = similar_seqs(&seqs[0], &seqs[1], 4, 2, -1, -1);
+	show_debug_msg(__func__, "Score: %d \n", score);
+}
+
 int pe_path(int argc, char *argv[]) {
 	clock_t t = clock();
 	hash_table *ht = NULL;
@@ -694,12 +758,14 @@ int pe_path(int argc, char *argv[]) {
 	fprintf(stderr, "%s \n", argv[2]);
 	fprintf(stderr, "%s \n", argv[3]);
 	fprintf(stderr, "%s \n", argv[4]);
-	ht = pe_load_hash(argv[1]);
 
+	ht = pe_load_hash(argv[1]);
 	edges = load_rm(ht, argv[2], argv[3], argv[4]);
 	report_paths(edges);
 
-	fprintf(stderr, "[pe_path] Done: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	//	test_sw(argv[4]);
+
+	fprintf(stderr, "[pe_path] Done: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
 	return 0;
 }

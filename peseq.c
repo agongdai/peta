@@ -140,6 +140,24 @@ bwa_seq_t *merge_seq_to_left(bwa_seq_t *s2, bwa_seq_t *s1, const int gap) {
 	return s2;
 }
 
+/**
+ * Merge partial s2 to s1.
+ * For example, s2->len = 100, shift = 20, concat s2->seq[20:100] to s1->seq
+ */
+bwa_seq_t *merge_seq(bwa_seq_t *s1, bwa_seq_t *s2, const shift) {
+	int i = 0;
+	if (!s1 || !s2)
+		return 0;
+	s1->full_len = (s1->len + s2->len + 1 - shift);
+	kroundup32(s1->full_len);
+	s1->seq = (ubyte_t*) realloc(s1->seq, sizeof(ubyte_t) * s1->full_len);
+	memcpy(&s1->seq[s1->len], &s2->seq[shift], sizeof(ubyte_t) * (s2->len
+			- shift));
+	s1->len += s2->len - shift;
+	s1->seq[s1->len] = '\0';
+	return s1;
+}
+
 void map(bwa_seq_t *bwa_seq) {
 	unsigned int i = 0;
 	for (i = 0; i < bwa_seq->len; i++) {
@@ -329,9 +347,9 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 			= p->n_gapo = p->n_gape = p->mapQ = p->score = p->n_aln = p->aln
 					= p->n_multi = p->multi = p->sa = p->pos = p->c1 = p->c2
 							= p->n_cigar = p->cigar = p->seQ = p->nm = p->md
-									= NULL;
+									= 0;
 
-	p->shift = p->is_in_c_pool = p->is_in_m_pool = 0;
+	p->is_in_c_pool = p->is_in_m_pool = 0;
 	p->used = query->used;
 	p->contig_id = query->contig_id;
 	p->full_len = p->clip_len = p->len = ol;
@@ -352,6 +370,34 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	return p;
 }
 
+bwa_seq_t *blank_seq() {
+	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
+	int i = 0;
+	for (i = 0; i < 16; i++) {
+		p->bc[i] = 0;
+	}
+	p->tid = -1; // no assigned to a thread
+	p->qual = p->strand = p->type = p->dummy = p->extra_flag = p->n_mm
+			= p->n_gapo = p->n_gape = p->mapQ = p->score = p->n_aln = p->aln
+					= p->n_multi = p->multi = p->sa = p->pos = p->c1 = p->c2
+							= p->n_cigar = p->cigar = p->seQ = p->nm = p->md
+									= 0;
+
+	p->is_in_c_pool = p->is_in_m_pool = 0;
+	p->used = 0;
+	p->contig_id = 0;
+	p->full_len = p->clip_len = p->len = 0;
+	p->cursor = 0;
+	p->shift = 0;
+	p->rev_com = 0;
+
+	p->name = NULL;
+	p->seq = (ubyte_t*) calloc(1, sizeof(ubyte_t));
+	p->rseq = (ubyte_t*) calloc(1, sizeof(ubyte_t));
+
+	return p;
+}
+
 bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol,
 		const int shift) {
 	bwa_seq_t *p = new_seq(query, ol, shift);
@@ -362,7 +408,8 @@ bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol,
 }
 
 bwa_seq_t *new_rev_seq(const bwa_seq_t *query) {
-	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t)), *tmp = NULL;
+	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
+	ubyte_t *tmp = NULL;
 	int i = 0;
 	for (i = 0; i < 16; i++) {
 		p->bc[i] = 0;
@@ -445,35 +492,20 @@ int same_q(const bwa_seq_t *query, const bwa_seq_t *seq) {
 	return 1;
 }
 
-int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
-		const int mismatches, const int score_mat, const int score_mis,
-		const int score_gap) {
-	int min_acceptable_score = 0, min_len = 0;
-	if (!query || !seq || !seq->seq || !query->seq || mismatches < 0)
-		return 0;
-	if (abs(query->len - seq->len) > mismatches)
-		return 0;
-	min_len = query->len;
-	min_len = min_len > seq->len ? seq->len : min_len;
-	min_acceptable_score = min_len * score_mat + mismatches * score_mis;
-	if (smith_waterman(query, seq, mismatches, min_len) >= min_acceptable_score)
-		return 1;
-	return 0;
-}
-
 /**
  * http://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm
  */
 int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
-		const int score_mat, const int score_mis, const int score_gap, const int min_acceptable_score) {
-	char *previous_row = NULL, *current_row = NULL;
+		const int score_mat, const int score_mis, const int score_gap,
+		const int min_acceptable_score) {
+	int *previous_row = NULL, *current_row = NULL;
 	int columns = seq_1->len + 1, max_score = 0, rows = seq_2->len + 1;
 	int i = 0, j = 0, max = 0;
 	int up_left = 0, up = 0, left = 0;
 	previous_row = (int*) calloc(columns + 1, sizeof(int));
 	current_row = (int*) calloc(columns + 1, sizeof(int));
-	for (i = 1; i <= rows; i++) {
-		for (j = 1; j <= columns; j++) {
+	for (i = 1; i < rows; i++) {
+		for (j = 1; j < columns; j++) {
 			up = previous_row[j] + score_gap; // not updated, so is the value from previous row
 			left = current_row[j - 1] + score_gap; // updated already, so is the value from current row
 			if (seq_1->seq[j - 1] == seq_2->seq[i - 1])
@@ -484,15 +516,44 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			max = up_left > max ? up_left : max;
 			current_row[j] = max;
 		}
-		for (j = 1; j <= columns; j++) {
+		//printf("Previous row: \n");
+		for (j = 0; j < columns; j++) {
+			//printf("%d,", previous_row[j]);
 			previous_row[j] = current_row[j];
 			max_score = current_row[j] > max_score ? current_row[j] : max_score;
 		}
+		//printf("\n");
+		//printf("Current row: \n");
+		//		for (j = 0; j < columns; j++) {
+		//			printf("%d,", current_row[j]);
+		//		}
+		//		printf("\n");
+		//		printf("Max score: %d \n", max_score);
 		// If the minimal acceptable score is not reachable, stop and return.
 		if ((max_score + (rows - i) * score_mat) < min_acceptable_score)
 			return -1;
 	}
+	free(previous_row);
+	free(current_row);
 	return max_score;
+}
+
+int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
+		const int mismatches, const int score_mat, const int score_mis,
+		const int score_gap) {
+	int min_acceptable_score = 0, min_len = 0;
+	if (!query || !seq || !seq->seq || !query->seq || mismatches < 0)
+		return 0;
+	if (abs(query->len - seq->len) > mismatches)
+		return 0;
+	min_len = query->len;
+	min_len = min_len > seq->len ? seq->len : min_len;
+	min_acceptable_score = min_len * score_mat + mismatches * score_mis + abs(
+			query->len - seq->len) * score_gap;
+	if (smith_waterman(query, seq, score_mat, score_mis, score_gap,
+			min_acceptable_score) >= min_acceptable_score)
+		return 1;
+	return 0;
 }
 
 /**

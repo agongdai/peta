@@ -22,6 +22,9 @@ extern "C" {
 #define MAX_ROADMAP_LEVEL	8
 #define MIN_TX_LEN			100
 #define MISMATCHES			4
+#define SCORE_MATCH			2
+#define SCORE_MISMATCH		-1
+#define SCORE_GAP			-1
 
 typedef struct {
 	int id;
