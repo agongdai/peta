@@ -516,22 +516,25 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			max = up_left > max ? up_left : max;
 			current_row[j] = max;
 		}
-		//printf("Previous row: \n");
+//		printf("Previous row: \n");
 		for (j = 0; j < columns; j++) {
-			//printf("%d,", previous_row[j]);
+//			printf("%d,", previous_row[j]);
 			previous_row[j] = current_row[j];
 			max_score = current_row[j] > max_score ? current_row[j] : max_score;
 		}
-		//printf("\n");
-		//printf("Current row: \n");
-		//		for (j = 0; j < columns; j++) {
-		//			printf("%d,", current_row[j]);
-		//		}
-		//		printf("\n");
-		//		printf("Max score: %d \n", max_score);
+//		printf("\n");
+//		printf("Current row: \n");
+//		for (j = 0; j < columns; j++) {
+//			printf("%d,", current_row[j]);
+//		}
+//		printf("\n");
+//		printf("Max score: %d \n", max_score);
 		// If the minimal acceptable score is not reachable, stop and return.
-		if ((max_score + (rows - i) * score_mat) < min_acceptable_score)
+		if ((max_score + (rows - i) * score_mat) < min_acceptable_score) {
+			free(previous_row);
+			free(current_row);
 			return -1;
+		}
 	}
 	free(previous_row);
 	free(current_row);
@@ -541,7 +544,7 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
 		const int mismatches, const int score_mat, const int score_mis,
 		const int score_gap) {
-	int min_acceptable_score = 0, min_len = 0;
+	int min_acceptable_score = 0, min_len = 0, similarity_score = 0;
 	if (!query || !seq || !seq->seq || !query->seq || mismatches < 0)
 		return 0;
 	if (abs(query->len - seq->len) > mismatches)
@@ -550,9 +553,10 @@ int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
 	min_len = min_len > seq->len ? seq->len : min_len;
 	min_acceptable_score = min_len * score_mat + mismatches * score_mis + abs(
 			query->len - seq->len) * score_gap;
-	if (smith_waterman(query, seq, score_mat, score_mis, score_gap,
-			min_acceptable_score) >= min_acceptable_score)
-		return 1;
+	similarity_score = smith_waterman(query, seq, score_mat, score_mis,
+			score_gap, min_acceptable_score);
+	if (similarity_score >= min_acceptable_score)
+		return similarity_score;
 	return 0;
 }
 

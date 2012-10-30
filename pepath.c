@@ -44,6 +44,30 @@ void destroy_path(rm_path *p) {
 	}
 }
 
+void save_paths(GPtrArray *paths, const char *tx_fn, const int min_len) {
+	char header[BUFSIZE];
+	int i = 0, j = 0;
+	FILE *tx = xopen(tx_fn, "w");
+	rm_path *p = NULL;
+	edge *eg = NULL, *pre_eg = NULL;
+	show_msg(__func__, "Saving transcripts to %s...\n", tx_fn);
+	for (i = 0; i < paths->len; i++) {
+		p = g_ptr_array_index(paths, i);
+		if (p->len >= min_len) {
+			sprintf(header, ">%d path=%d len=%d \n", i, p->id, p->len);
+			save_con(header, p->seq, tx);
+		}
+		for (j = 0; j < p->n_ctgs; j++) {
+			eg = g_ptr_array_index(p->edges, j);
+			if (eg->len >= min_len) {
+				sprintf(header, ">%d.%d path=%d len=%d \n", i, j, p->id, p->len);
+				save_con(header, eg->contig, tx);
+			}
+		}
+	}
+	fclose(tx);
+}
+
 void sync_path(rm_path *p) {
 	bwa_seq_t *seq = NULL;
 	int i = 0, shift = 0;
@@ -459,10 +483,16 @@ void mark_duplicate_edges(edgearray *block) {
 }
 
 void mark_duplicate_paths(GPtrArray *paths) {
-	int i = 0, j = 0, similarity_score = 0;
+	int i = 0, j = 0, similarity_score = 0, report_unit = 0;
 	rm_path *path_i = NULL, *path_j = NULL;
 	edge *eg = NULL;
+	bwa_seq_t *tmp;
+	show_msg(__func__, "Removing paths which have duplicate edges...\n");
+	report_unit = paths->len / 10;
+	// Mark a path as not alive if some edge on it is not alive
 	for (i = 0; i < paths->len; i++) {
+		if ((i + 1) % report_unit == 0)
+			show_msg(__func__, "Progress 1/2: %d/%d...\n", i, paths->len);
 		path_i = g_ptr_array_index(paths, i);
 		// If any edge in the path is not alive, remove this path
 		for (j = 0; j < path_i->n_ctgs; j++) {
@@ -472,7 +502,20 @@ void mark_duplicate_paths(GPtrArray *paths) {
 				break;
 			}
 		}
-		// If current path has similar seq with another alive path, remove current one.
+		if (!path_i->alive) {
+			g_ptr_array_remove_fast(paths, path_i);
+			i--;
+		} else {
+			sync_path(path_i); // Populate the path sequence
+		}
+	}
+	show_msg(__func__,
+			"Smith-waterman algorithm to remove duplicate paths...\n");
+	// Mark a path as not alive if some alive path is similar to it.
+	for (i = 0; i < paths->len; i++) {
+		if ((i + 1) % report_unit == 0)
+			show_msg(__func__, "Progress 2/2: %d/%d...\n", i, paths->len);
+		path_i = g_ptr_array_index(paths, i); // If current path has similar seq with another alive path, remove current one.
 		if (path_i->alive) {
 			for (j = 0; j < paths->len; j++) {
 				path_j = g_ptr_array_index(paths, j);
@@ -481,7 +524,13 @@ void mark_duplicate_paths(GPtrArray *paths) {
 							MISMATCHES * 4, SCORE_MATCH, SCORE_MISMATCH,
 							SCORE_GAP);
 					if (similarity_score > 0) {
-						path_i->alive = 0;
+						//p_path(path_i);
+						//p_path(path_j);
+						// If similar, keep the longer one
+						if (path_i->len < path_j->len)
+							path_i->alive = 0;
+						else
+							path_j->alive = 0;
 						break;
 					}
 				}
@@ -490,9 +539,6 @@ void mark_duplicate_paths(GPtrArray *paths) {
 		if (!path_i->alive) {
 			g_ptr_array_remove_fast(paths, path_i);
 			i--;
-		} else {
-			sync_path(path_i);
-			p_path(path_i);
 		}
 	}
 }
@@ -745,7 +791,9 @@ int test_sw(const char *fa_fn) {
 	bwa_seq_t *seqs = NULL;
 	int n_seqs = 0, score = 0;
 	seqs = load_reads(fa_fn, &n_seqs);
-	score = similar_seqs(&seqs[0], &seqs[1], 4, 2, -1, -1);
+	p_ctg_seq("SEQ1", &seqs[0]);
+	p_ctg_seq("SEQ1", &seqs[1]);
+	score = similar_seqs(&seqs[0], &seqs[1], 16, 2, -1, -1);
 	show_debug_msg(__func__, "Score: %d \n", score);
 }
 
@@ -753,6 +801,7 @@ int pe_path(int argc, char *argv[]) {
 	clock_t t = clock();
 	hash_table *ht = NULL;
 	edgearray *edges = NULL;
+	GPtrArray *final_paths = NULL;
 
 	fprintf(stderr, "%s \n", argv[1]);
 	fprintf(stderr, "%s \n", argv[2]);
@@ -761,9 +810,11 @@ int pe_path(int argc, char *argv[]) {
 
 	ht = pe_load_hash(argv[1]);
 	edges = load_rm(ht, argv[2], argv[3], argv[4]);
-	report_paths(edges);
+	final_paths = report_paths(edges);
+	save_paths(final_paths, "read/peta.fa", 100);
+	g_ptr_array_free(final_paths, TRUE);
 
-	//	test_sw(argv[4]);
+	// test_sw(argv[4]);
 
 	fprintf(stderr, "[pe_path] Done: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
