@@ -77,6 +77,7 @@ rs_info *init_rs_info() {
 	i->n_base_not_aligned = 0;
 	i->n_ctgs = 0;
 	i->n_full_len = 0;
+	i->n_one_on_one = 0;
 	i->n_one_covered = 0;
 	i->n_not_aligned = 0;
 	i->n_not_reached = 0;
@@ -152,7 +153,7 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 	eva_occ *o = 0, *o_pre = 0;
 	int i = 0;
 	float tx_len = 0;
-	int one_covered = 0, n_bases_on_contig = 0;
+	int one_covered = 0, n_bases_on_contig = 0, is_full_length = 0;
 	g_ptr_array_sort(occs, (GCompareFunc) cmp_occ);
 	tx *t;
 	bwa_seq_t *seq;
@@ -167,26 +168,36 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 		}
 	}
 
-	if (occs->len == 1) {
-		o = g_ptr_array_index(occs, 0);
-		if (abs(o->end - o->start) > tx_len * 0.9) {
-			info->n_full_len++;
-			for (i = 0; i < ori_info->n_sd_tx; i++) {
-				t = g_ptr_array_index(ori_info->sd_txs, i);
-				if (strcmp(t->name, key) == 0) {
-					info->n_sd++;
-					g_ptr_array_add(info->ea_sd, t);
-					break;
-				}
-			}
-		}
-	}
+//	if (occs->len == 1) {
+//		o = g_ptr_array_index(occs, 0);
+//		if (abs(o->end - o->start) > tx_len * 0.9) {
+//			info->n_full_len++;
+//			for (i = 0; i < ori_info->n_sd_tx; i++) {
+//				t = g_ptr_array_index(ori_info->sd_txs, i);
+//				if (strcmp(t->name, key) == 0) {
+//					info->n_sd++;
+//					g_ptr_array_add(info->ea_sd, t);
+//					break;
+//				}
+//			}
+//		}
+//	}
 	one_covered = 1;
 	for (i = 0; i < occs->len; i++) {
 		o = g_ptr_array_index(occs, i);
 		if (o->end < o->start) {
 			o_pre = o;
 			continue;
+		}
+		if (o->ali_len > (tx_len * 0.9) && !is_full_length) {
+			if (o->ali_len > (o->q_len * 0.9)) {
+				show_debug_msg(__func__, "Transcript %s covered by %s one-on-one >90% \n", key, o->q_id);
+				info->n_one_on_one++;
+			} else {
+				show_debug_msg(__func__, "Transcript %s covered by %s for >90% \n", key, o->q_id);
+				info->n_full_len++;
+			}
+			is_full_length = 1;
 		}
 		if (i == 0) {
 			info->n_base_shared += o->end - o->start + 1;
@@ -335,6 +346,10 @@ void write_ass_rs(rs_info *info) {
 
 	str = fix_len("# of Full length: ", ATTR_STR_LEN);
 	sprintf(item, "%s\t%d\n", str, info->n_full_len);
+	fputs(item, rs_fp);
+
+	str = fix_len("# of one-on-one transcripts: ", ATTR_STR_LEN);
+	sprintf(item, "%s\t%d\n", str, info->n_one_on_one);
 	fputs(item, rs_fp);
 
 	str = fix_len("Transcripts covered by one contig: ", ATTR_STR_LEN);
@@ -835,14 +850,12 @@ void cal_opt_n50(tx_info *info) {
 
 void trim(char *str) {
 	int i = 0;
-	show_debug_msg(__func__, "%s \n", str);
 	for (i = 0; i < strlen(str); i++) {
 		if (str[i] == '\n') {
 			str[i] = '\0';
 			return;
 		}
 	}
-	show_debug_msg(__func__, "%s \n", str);
 }
 
 void parse_sam(rs_info *info) {
@@ -851,7 +864,6 @@ void parse_sam(rs_info *info) {
 	int i = 0, q_len = 0, contig_id = 0;
 	occarray *o_arr_i = g_ptr_array_sized_new(16);
 	FILE *sam_fp = xopen(sam_fn, "r");
-	FILE *res_fp = xopen(result_fn, "w");
 	eva_occ *o = 0;
 	edge *eg = 0;
 	bwa_seq_t *ctg = 0;
@@ -940,7 +952,6 @@ void parse_sam(rs_info *info) {
 		//			break;
 	}
 	fclose(sam_fp);
-	fclose(res_fp);
 }
 
 void read_contigs(rs_info *info) {

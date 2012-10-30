@@ -59,8 +59,9 @@ void save_paths(GPtrArray *paths, const char *tx_fn, const int min_len) {
 		}
 		for (j = 0; j < p->n_ctgs; j++) {
 			eg = g_ptr_array_index(p->edges, j);
-			if (eg->len >= min_len) {
-				sprintf(header, ">%d.%d path=%d len=%d \n", i, j, p->id, p->len);
+			if (eg->len >= min_len && p->n_ctgs > 1) {
+				sprintf(header, ">%d.%d path=%d len=%d \n", i, j, p->id,
+						eg->len);
 				save_con(header, eg->contig, tx);
 			}
 		}
@@ -78,6 +79,8 @@ void sync_path(rm_path *p) {
 		for (i = 0; i < p->n_ctgs; i++) {
 			eg = g_ptr_array_index(p->edges, i);
 			if (shift < eg->len) {
+				if (shift < 0)
+					shift = 0;
 				merge_seq(seq, eg->contig, shift);
 			} else {
 				if (i + 1 < p->n_ctgs) {
@@ -536,9 +539,14 @@ void mark_duplicate_paths(GPtrArray *paths) {
 				}
 			}
 		}
+	}
+	for (i = 0; i < paths->len; i++) {
+		path_i = g_ptr_array_index(paths, i);
 		if (!path_i->alive) {
 			g_ptr_array_remove_fast(paths, path_i);
 			i--;
+		} else {
+			p_path(path_i);
 		}
 	}
 }

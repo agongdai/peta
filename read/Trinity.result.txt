@@ -42,7 +42,8 @@ Assembled results by PETA:
 Assembled base:                 	9625791
 Assembled unique base:          	8047556
 # of contigs:                   	17350
-# of Full length:               	2593
+# of Full length:               	602
+# of one-on-one transcripts:    	2796
 Transcripts covered by one contig: 	2600
 Stand-alone assembled:          	0
 Average length:                 	554
