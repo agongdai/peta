@@ -33,6 +33,7 @@ typedef struct {
 	int len;
 	int alive;
 	bwa_seq_t *seq;
+	readarray *reads;
 } rm_path;
 
 GPtrArray *report_paths(edgearray *all_edges);

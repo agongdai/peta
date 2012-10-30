@@ -30,6 +30,7 @@ rm_path *new_path() {
 	p->len = 0;
 	p->alive = 1;
 	p->seq = NULL;
+	p->reads = g_ptr_array_sized_new(16);
 	return p;
 }
 
@@ -38,6 +39,7 @@ rm_path *new_path() {
  */
 void destroy_path(rm_path *p) {
 	if (p) {
+		g_ptr_array_free(p->reads, TRUE);
 		g_ptr_array_free(p->edges, TRUE);
 		bwa_free_read_seq(1, p->seq);
 		free(p);
@@ -546,7 +548,7 @@ void mark_duplicate_paths(GPtrArray *paths) {
 			g_ptr_array_remove_fast(paths, path_i);
 			i--;
 		} else {
-			p_path(path_i);
+			//p_path(path_i);
 		}
 	}
 }
@@ -795,6 +797,52 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 	return edges;
 }
 
+int validate_p(hash_table *ht, rm_path *path, const int rl) {
+	bwa_seq_t *query = NULL, *seqs = NULL, *read = NULL, *contig = NULL;
+	alignarray *aligns = NULL;
+	alg *a = NULL;
+	int i = 0, j = 0, index = 0;
+
+	seqs = ht->seqs;
+	query = new_seq(path->seq, rl, 0);
+	contig = path->seq;
+	p_query("INITIAL", query);
+	p_ctg_seq("VALIDATE", contig);
+	aligns = g_ptr_array_sized_new(512);
+	for (i = rl; i < path->len; i++) {
+		p_query("QUERY", query);
+		pe_aln_query(query, query->seq, ht, MISMATCHES, query->len, 0, aligns);
+		pe_aln_query(query, query->rseq, ht, MISMATCHES, query->len, 1, aligns);
+		for (j = 0; j < aligns->len; j++) {
+			a = g_ptr_array_index(aligns, j);
+			index = a->r_id;
+			read = &seqs[index];
+			p_query(__func__, read);
+			g_ptr_array_add(path->reads, read);
+		}
+		reset_alg(aligns);
+		ext_que(query, &contig->seq[i], 0);
+	}
+	free_alg(aligns);
+	return 1;
+}
+
+void validate_paths(hash_table *ht, GPtrArray *paths, const int rl) {
+	int i = 0, is_valid = 1;
+	rm_path *path;
+	show_msg(__func__, "Validating paths... \n");
+	for (i = 0; i < paths->len; i++) {
+		path = g_ptr_array_index(paths, i);
+		p_path(path);
+		is_valid = validate_p(ht, path, rl);
+		if (!is_valid) {
+			path->alive = 0;
+			g_ptr_array_remove_fast(paths, i);
+			i--;
+		}
+	}
+}
+
 int test_sw(const char *fa_fn) {
 	bwa_seq_t *seqs = NULL;
 	int n_seqs = 0, score = 0;
@@ -815,10 +863,12 @@ int pe_path(int argc, char *argv[]) {
 	fprintf(stderr, "%s \n", argv[2]);
 	fprintf(stderr, "%s \n", argv[3]);
 	fprintf(stderr, "%s \n", argv[4]);
+	fprintf(stderr, "%s \n", argv[5]);
 
-	ht = pe_load_hash(argv[1]);
-	edges = load_rm(ht, argv[2], argv[3], argv[4]);
+	ht = pe_load_hash(argv[2]);
+	edges = load_rm(ht, argv[3], argv[4], argv[5]);
 	final_paths = report_paths(edges);
+	validate_paths(ht, final_paths, atoi(argv[1]));
 	save_paths(final_paths, "read/peta.fa", 100);
 	g_ptr_array_free(final_paths, TRUE);
 

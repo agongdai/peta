@@ -12,7 +12,7 @@ makeblastdb -in $blastdb/$db -out $blastdb/$db -dbtype nucl
 
 echo "Blasting $query.fa to $blastdb/$db: -perc_identity $similarity -evalue 0.001 ..." 1>&2
 
-blastn -task blastn -query $blastdb$query.fa -db $blastdb$db -out $blastdb$query.blastn -outfmt "7 qacc sseqid pident length mismatch gaps sstart send evalue qstart qend" -num_threads 8 -perc_identity $similarity -evalue 0.001
+#blastn -task blastn -query $blastdb$query.fa -db $blastdb$db -out $blastdb$query.blastn -outfmt "7 qacc sseqid pident length mismatch gaps sstart send evalue qstart qend" -num_threads 8 -perc_identity $similarity -evalue 0.001
 
 echo
 cp $blastdb$query.blastn read/
