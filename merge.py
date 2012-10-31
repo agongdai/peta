@@ -18,20 +18,6 @@ def add_file(fq_file, combined, counter):
     openf.close()
     return counter
 
-def rev_comp_fa(args):
-    fasta = open(args.fa, 'r')
-    rev = open(args.fa + '.rev', 'w')
-    counter = 0
-    for line in fasta:
-        if counter % 2 == 0:
-            rev.write(line)
-        else:
-            line = line.strip()
-            line = rev_comp(line) + '\n'
-            rev.write(line)
-    fasta.close()
-    rev.close()
-
 def combine(args):
     files = args.inputs.split(',')
     name = args.output
@@ -73,27 +59,35 @@ def merge_fq(args):
         left = open(left_file, 'r')
         right = open(right_file, 'r')
         filebase, ext = os.path.splitext(left_file)
-        combined_file = filebase.split('_')[0] + '.fastq'
+        combined_file = filebase.split('_')[0] + '_merged.fastq'
         combined = open(combined_file, 'w')
         counter = 0
         seqs = []
         line = left.readline()
         while line:
             if line.startswith('@'):
-#                print line
-                combined.write('@' + str(counter) + '\n')
+#               print line
+                if args.pair:
+                    combined.write('@' + str(counter) + '/1\n')
+                else:
+                    combined.write('@' + str(counter) + '\n')
                 l = left.readline()
                 combined.write(l)
                 l = left.readline()
                 combined.write(l)
                 l = left.readline()
                 combined.write(l)
-                counter += 1
+                if not args.pair:
+                    counter += 1
                 
                 r = right.readline()
-                combined.write('@' + str(counter) + '\n')
+                if args.pair:
+                    combined.write('@' + str(counter) + '/2\n')
+                else:
+                    combined.write('@' + str(counter) + '\n')
                 r = right.readline()
-                r = rev_comp(r) + '\n'
+                if args.shuffle:
+                    r = rev_comp(r) + '\n'
                 combined.write(r)
                 r = right.readline()
                 combined.write(r)
@@ -143,28 +137,29 @@ def fq2fa(args):
     fq.close()
     fa.close()
     
-def check_dataset(args):
-    fa = open(args.dataset)
-    lengths = []
-    l = 0
+def decode(args):
+    fq = open(args.fq)
+    filebase, ext = os.path.splitext(args.fq)
+    left = open(filebase + '_1.fastq', 'w')
+    right = open(filebase + '_2.fastq', 'w')
+    counter = 0
     line_no = 0
-    n_seqs = 0.0
-    n_bases = 0.0
-    ave_len = 0.0
-    for line in fa:
+    for line in fq:
         line = line.strip()
-        if '>' in line:
-            n_seqs += 1
-            lengths.append(len)
-            l = 0
+        if line_no % 4 == 0:
+            left.write('@' + str(counter) + '\n')
+            right.write('@' + str(counter) + '\n')
+            counter += 1
+        elif line_no % 4 == 1 or line_no % 4 == 3:
+            left.write(line[0:68] + '\n')
+            right.write(line[76::] + '\n')
         else:
-            l += len(line)
-            n_bases += len(line)
-    lengths.append(l)
-    fa.close()
-    print 'Total Base: ' + str(n_bases)
-    print '# of seqs: ' + str(n_seqs)
-    print 'Average length: ' + str(n_bases / n_seqs)
+            left.write(line + '\n')
+            right.write(line + '\n')
+        line_no += 1
+    fq.close()
+    left.close()
+    right.close()
 
 def main():
     parser = ArgumentParser()
@@ -174,13 +169,25 @@ def main():
     parser_combine.add_argument('-i', required=True, help='the files to combine, seperated by a ","', dest='inputs')
     parser_combine.add_argument('-o', required=True, help='combined file name', dest='output')
 
-    parser_merge = subparsers.add_parser('merge', help='merge the shuffled fasta/fastq files, reverse complement the right mates')
+    parser_merge = subparsers.add_parser('merge', help='merge the shuffled fasta/fastq files')
     parser_merge.set_defaults(func=merge_fq)
     parser_merge.add_argument('-l', required=True, help='left mate file', dest='left', metavar='FILE')
     parser_merge.add_argument('-r', required=True, help='right mate file', dest='right', metavar='FILE')
+    parser_merge.add_argument('-s', required=False, help='shuffle or not', dest='shuffle', default=False, metavar='FILE')
+    parser_merge.add_argument('-p', required=False, help='pair or not', dest='pair', default=True, metavar='FILE')
+    
+    parser_merge = subparsers.add_parser('shuffle', help='merge the shuffled fasta/fastq files, reverse complement the right mates')
+    parser_merge.set_defaults(func=merge_fq)
+    parser_merge.add_argument('-l', required=True, help='left mate file', dest='left', metavar='FILE')
+    parser_merge.add_argument('-r', required=True, help='right mate file', dest='right', metavar='FILE')
+    parser_merge.add_argument('-s', required=False, help='shuffle or not', dest='shuffle', default=True, metavar='FILE')
 
     parser_rename = subparsers.add_parser('rename', help='rename read ids to be 0, 1, 2...')
     parser_rename.set_defaults(func=rename_ids)
+    parser_rename.add_argument('-f', required=True, help='fastq file', dest='fq', metavar='FILE')
+    
+    parser_rename = subparsers.add_parser('decode', help='remove the barcode')
+    parser_rename.set_defaults(func=decode)
     parser_rename.add_argument('-f', required=True, help='fastq file', dest='fq', metavar='FILE')
 
     parser_fq2fa = subparsers.add_parser('fq2fa', help='convert fastq file to fasta file')
@@ -193,14 +200,6 @@ def main():
     parser_app_pair_suffix.add_argument('-q', required=True, help='fastq file', dest='fq', metavar='FILE')
     parser_app_pair_suffix.add_argument('-o', required=True, help='output fastq file', dest='fq_with_tag', metavar='FILE')
     parser_app_pair_suffix.add_argument('-d', required=True, default='left', help='left or right', dest='ori')
-
-    parser_app_dataset_suffix = subparsers.add_parser('check', help='report statistics of a dataset')
-    parser_app_dataset_suffix.set_defaults(func=check_dataset)
-    parser_app_dataset_suffix.add_argument('-f', required=True, help='FASTA/FASTQ file', dest='dataset', metavar='FILE')
-
-    parser_app_rev_suffix = subparsers.add_parser('rev', help='reverse complement a fasta file')
-    parser_app_rev_suffix.set_defaults(func=rev_comp_fa)
-    parser_app_rev_suffix.add_argument('-a', required=True, help='fasta file', dest='fa', metavar='FILE')
 
     args = parser.parse_args()
     args.func(args)

@@ -360,7 +360,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	if (query->name)
 		p->name = strdup((const char*) query->name);
 	else
-		p->name = NULL;
+		p->name = (char*) calloc(1, sizeof(char));
 	p->seq = (ubyte_t*) malloc(ol + 1);
 	p->rseq = 0;
 	memcpy(p->seq, query->seq + shift, ol);

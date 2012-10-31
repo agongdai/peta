@@ -1,5 +1,5 @@
 -------------------------------------------------------------------
-Original transcript file:       	read/spombe_genes.fa
+Original transcript file:       	rnaseq/SRX040570/spombe_genes.fa
 Exons file:                     	graph/gene_10_edges.txt
 Total base:                     	9182176
 Unique base:                    	0

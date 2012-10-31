@@ -514,34 +514,34 @@ void mark_duplicate_paths(GPtrArray *paths) {
 			sync_path(path_i); // Populate the path sequence
 		}
 	}
-	show_msg(__func__,
-			"Smith-waterman algorithm to remove duplicate paths...\n");
-	// Mark a path as not alive if some alive path is similar to it.
-	for (i = 0; i < paths->len; i++) {
-		if ((i + 1) % report_unit == 0)
-			show_msg(__func__, "Progress 2/2: %d/%d...\n", i, paths->len);
-		path_i = g_ptr_array_index(paths, i); // If current path has similar seq with another alive path, remove current one.
-		if (path_i->alive) {
-			for (j = 0; j < paths->len; j++) {
-				path_j = g_ptr_array_index(paths, j);
-				if (path_i != path_j && path_j->alive) {
-					similarity_score = similar_seqs(path_i->seq, path_j->seq,
-							MISMATCHES * 4, SCORE_MATCH, SCORE_MISMATCH,
-							SCORE_GAP);
-					if (similarity_score > 0) {
-						//p_path(path_i);
-						//p_path(path_j);
-						// If similar, keep the longer one
-						if (path_i->len < path_j->len)
-							path_i->alive = 0;
-						else
-							path_j->alive = 0;
-						break;
-					}
-				}
-			}
-		}
-	}
+//	show_msg(__func__,
+//			"Smith-waterman algorithm to remove duplicate paths...\n");
+//	// Mark a path as not alive if some alive path is similar to it.
+//	for (i = 0; i < paths->len; i++) {
+//		if ((i + 1) % report_unit == 0)
+//			show_msg(__func__, "Progress 2/2: %d/%d...\n", i, paths->len);
+//		path_i = g_ptr_array_index(paths, i); // If current path has similar seq with another alive path, remove current one.
+//		if (path_i->alive) {
+//			for (j = 0; j < paths->len; j++) {
+//				path_j = g_ptr_array_index(paths, j);
+//				if (path_i != path_j && path_j->alive) {
+//					similarity_score = similar_seqs(path_i->seq, path_j->seq,
+//							MISMATCHES * 4, SCORE_MATCH, SCORE_MISMATCH,
+//							SCORE_GAP);
+//					if (similarity_score > 0) {
+//						//p_path(path_i);
+//						//p_path(path_j);
+//						// If similar, keep the longer one
+//						if (path_i->len < path_j->len)
+//							path_i->alive = 0;
+//						else
+//							path_j->alive = 0;
+//						break;
+//					}
+//				}
+//			}
+//		}
+//	}
 	for (i = 0; i < paths->len; i++) {
 		path_i = g_ptr_array_index(paths, i);
 		if (!path_i->alive) {
@@ -797,7 +797,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 	return edges;
 }
 
-int validate_p(hash_table *ht, rm_path *path, const int rl) {
+void align_back(hash_table *ht, rm_path *path, const int rl) {
 	bwa_seq_t *query = NULL, *seqs = NULL, *read = NULL, *contig = NULL;
 	alignarray *aligns = NULL;
 	alg *a = NULL;
@@ -806,25 +806,45 @@ int validate_p(hash_table *ht, rm_path *path, const int rl) {
 	seqs = ht->seqs;
 	query = new_seq(path->seq, rl, 0);
 	contig = path->seq;
-	p_query("INITIAL", query);
-	p_ctg_seq("VALIDATE", contig);
+	p_query(__func__, query);
 	aligns = g_ptr_array_sized_new(512);
 	for (i = rl; i < path->len; i++) {
-		p_query("QUERY", query);
 		pe_aln_query(query, query->seq, ht, MISMATCHES, query->len, 0, aligns);
 		pe_aln_query(query, query->rseq, ht, MISMATCHES, query->len, 1, aligns);
 		for (j = 0; j < aligns->len; j++) {
 			a = g_ptr_array_index(aligns, j);
 			index = a->r_id;
 			read = &seqs[index];
-			p_query(__func__, read);
+			read->shift = i;
+			read->rev_com = a->rev_comp;
+			if (path->len < 100) {
+				p_query(__func__, read);
+			}
 			g_ptr_array_add(path->reads, read);
 		}
 		reset_alg(aligns);
-		ext_que(query, &contig->seq[i], 0);
+		ext_que(query, contig->seq[i], 0);
 	}
 	free_alg(aligns);
-	return 1;
+	bwa_free_read_seq(1, query);
+}
+
+int validate_p(hash_table *ht, const rm_path *path) {
+	int is_valid = 0, i = 0, n_forward = 0, n_backward = 0;
+	bwa_seq_t *read = NULL, *mate = NULL;
+	int *coverage = (int*) calloc(path->len + 1, sizeof(int));
+	for (i = 0; i < path->reads->len; i++) {
+		read = g_ptr_array_index(path->reads, i);
+		mate = get_mate(read, ht->seqs);
+		if (readarray_find(path->reads, mate) != NOT_FOUND) {
+			if ((is_left_mate(read) && !read->rev_com) || (is_right_mate(read)
+					&& read->rev_com))
+				n_forward++;
+			else
+				n_backward++;
+		}
+	}
+	free(coverage);
 }
 
 void validate_paths(hash_table *ht, GPtrArray *paths, const int rl) {
@@ -834,12 +854,13 @@ void validate_paths(hash_table *ht, GPtrArray *paths, const int rl) {
 	for (i = 0; i < paths->len; i++) {
 		path = g_ptr_array_index(paths, i);
 		p_path(path);
-		is_valid = validate_p(ht, path, rl);
-		if (!is_valid) {
-			path->alive = 0;
-			g_ptr_array_remove_fast(paths, i);
-			i--;
-		}
+		align_back(ht, path, rl);
+//		is_valid = validate_p(path);
+//		if (!is_valid) {
+//			path->alive = 0;
+//			g_ptr_array_remove_fast(paths, i);
+//			i--;
+//		}
 	}
 }
 

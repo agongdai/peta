@@ -1,5 +1,5 @@
 #!/bin/bash
-query="cufflinks"
+query="Trinity"
 db="spombe_genes.fa"
 start_reads="read/start_reads.txt"
 start_reads_gene="read/start_reads_gene.txt"
@@ -37,5 +37,5 @@ echo "See result in $query.result.txt" 1>&2
 
 echo
 echo "Preparing the sam file..." 1>&2
-bwa bwasw -t 8 rnaseq/SRX040570/$db rnaseq/SRX040570/$query.fa > rnaseq/SRX040570/$query.sam
+#bwa bwasw -t 8 rnaseq/SRX040570/$db rnaseq/SRX040570/$query.fa > rnaseq/SRX040570/$query.sam
 echo "Done. Check sorted bam file $query.sam" 1>&2
