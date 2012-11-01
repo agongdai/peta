@@ -1,6 +1,6 @@
 #!/bin/bash
-query="ass_contigs"
-db="spombe_transcripts.fasta"
+query="peta"
+db="spombe_genes.fa"
 start_reads="read/start_reads.txt"
 start_reads_gene="read/start_reads_gene.txt"
 blastdb="../ncbi-blast-2.2.25+/db/"

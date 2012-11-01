@@ -117,6 +117,9 @@ void occ_p_iter(gpointer key, gpointer value, gpointer user_data) {
 	bwa_seq_t *t;
 	int i = 0, t_len = 0;
 	int n_base_got = 0;
+	if (user_data != NULL) {
+		show_debug_msg("ONE CONTIG", "");
+	}
 	for (i = 0; i < ori_info->tx_seqs->len; i++) {
 		t = g_ptr_array_index(ori_info->tx_seqs, i);
 		if (strcmp(t->name, r_id) == 0) {
@@ -220,9 +223,10 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 		o_pre = o;
 	}
 	if (one_covered && tx_len * 0.9 <= n_bases_on_contig) {
-		info->n_one_covered++;
-		if (occs->len > 1)
-			show_debug_msg(__func__, "Contig %s \n", o->r_id);
+		if (occs->len > 1) {
+			info->n_one_covered++;
+			occ_p_iter(key, value, user_data);
+		}
 	}
 }
 

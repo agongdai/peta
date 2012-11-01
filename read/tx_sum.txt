@@ -1,14 +1,14 @@
 -------------------------------------------------------------------
-Original transcript file:       	read/spombe_transcripts.fasta
+Original transcript file:       	read/spombe_genes.fa
 Exons file:                     	graph/gene_10_edges.txt
-Total base:                     	7213050
+Total base:                     	9182176
 Unique base:                    	0
-# of transcripts:               	5163
+# of transcripts:               	7032
 # of exons:                     	0
 # of stand alone gene:          	0
 # of stand alone base:          	0
 % of stand alone base:          	0.000000
-Optimal N50:                    	1770
+Optimal N50:                    	1743
 
 # of target edges:              	0
 Best N50:                       	0
