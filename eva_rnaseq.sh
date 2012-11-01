@@ -1,5 +1,5 @@
 #!/bin/bash
-query="Trinity"
+query="oases"
 db="spombe_genes.fa"
 start_reads="read/start_reads.txt"
 start_reads_gene="read/start_reads_gene.txt"

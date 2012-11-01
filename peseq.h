@@ -24,7 +24,7 @@
 #define NO_REPEAT_BASES			4
 #define NO_REPEAT_LEN 			15
 #define MIN_OL					6
-#define CLOSE_MIN_OL			4
+#define CLOSE_MIN_OL			6
 
 #ifdef __cplusplus
 extern "C" {

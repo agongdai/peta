@@ -506,12 +506,13 @@ void rev_reads_pos(edge *eg) {
 	}
 }
 
-void add_pool_by_ol(pool *p, bwa_seq_t *query, bwa_seq_t *read, const int ori) {
+// Return 1: added to the pool
+int add_pool_by_ol(pool *p, bwa_seq_t *query, bwa_seq_t *read, const int ori) {
 	int confirm_c = 0, confirm_c_2 = 0, index = 0, cursor = 0, check_c = 0,
 			check_c_2 = 0;
 
-	if (read->used)
-		return;
+	if (read->used || read->is_in_c_pool)
+		return 0;
 
 	confirm_c = ori ? query->seq[0] : query->seq[query->len - 1];
 	confirm_c_2 = ori ? query->seq[1] : query->seq[query->len - 2];
@@ -529,6 +530,7 @@ void add_pool_by_ol(pool *p, bwa_seq_t *query, bwa_seq_t *read, const int ori) {
 					&& confirm_c_2 == check_c_2) {
 				read->cursor = cursor;
 				pool_uni_add(p, read);
+				return 1;
 			}
 		}
 	} else {
@@ -541,9 +543,11 @@ void add_pool_by_ol(pool *p, bwa_seq_t *query, bwa_seq_t *read, const int ori) {
 					&& confirm_c_2 == check_c_2) {
 				read->cursor = cursor;
 				pool_uni_add(p, read);
+				return 1;
 			}
 		}
 	}
+	return 0;
 }
 
 void fill_in_pool(pool *p, edgearray *reads, bwa_seq_t *query, const int ori) {

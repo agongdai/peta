@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <time.h>
+#include <glib.h>
 #include "pepath.h"
 #include "roadmap.h"
 #include "bwase.h"
@@ -18,6 +20,8 @@
 #include "rnaseq.h"
 #include "peseq.h"
 #include "readrm.h"
+#include "edge.h"
+#include "edgelist.h"
 
 int path_id = 0;
 
@@ -62,7 +66,7 @@ void save_paths(GPtrArray *paths, const char *tx_fn, const int min_len) {
 		for (j = 0; j < p->n_ctgs; j++) {
 			eg = g_ptr_array_index(p->edges, j);
 			if (eg->len >= min_len && p->n_ctgs > 1) {
-				sprintf(header, ">%d.%d path=%d len=%d \n", i, j, p->id,
+				sprintf(header, ">%d_%d path=%d len=%d \n", i, j, p->id,
 						eg->len);
 				save_con(header, eg->contig, tx);
 			}
@@ -473,10 +477,10 @@ void mark_duplicate_edges(edgearray *block) {
 		for (j = 0; j < block->len; j++) {
 			eg_j = g_ptr_array_index(block, j);
 			if (eg_i != eg_j && eg_j->alive && similar_seqs(eg_i->contig,
-					eg_j->contig, MISMATCHES, SCORE_MATCH, SCORE_MISMATCH,
+					eg_j->contig, PATH_MISMATCHES, SCORE_MATCH, SCORE_MISMATCH,
 					SCORE_GAP)) {
 				if (eg_i->right_ctg == eg_j->right_ctg && abs(eg_i->r_shift
-						- eg_j->r_shift) <= MISMATCHES) {
+						- eg_j->r_shift) <= PATH_MISMATCHES) {
 					eg_i->alive = 0;
 					show_debug_msg("DUPLICATE", "[%d: %d] <=> [%d, %d] \n",
 							eg_i->id, eg_i->len, eg_j->id, eg_j->len);
@@ -496,8 +500,8 @@ void mark_duplicate_paths(GPtrArray *paths) {
 	report_unit = paths->len / 10;
 	// Mark a path as not alive if some edge on it is not alive
 	for (i = 0; i < paths->len; i++) {
-		if ((i + 1) % report_unit == 0)
-			show_msg(__func__, "Progress 1/2: %d/%d...\n", i, paths->len);
+		if ((i) % report_unit == 0)
+			show_msg(__func__, "Progress 1/3: %d/%d...\n", i, paths->len);
 		path_i = g_ptr_array_index(paths, i);
 		// If any edge in the path is not alive, remove this path
 		for (j = 0; j < path_i->n_ctgs; j++) {
@@ -514,34 +518,34 @@ void mark_duplicate_paths(GPtrArray *paths) {
 			sync_path(path_i); // Populate the path sequence
 		}
 	}
-//	show_msg(__func__,
-//			"Smith-waterman algorithm to remove duplicate paths...\n");
-//	// Mark a path as not alive if some alive path is similar to it.
-//	for (i = 0; i < paths->len; i++) {
-//		if ((i + 1) % report_unit == 0)
-//			show_msg(__func__, "Progress 2/2: %d/%d...\n", i, paths->len);
-//		path_i = g_ptr_array_index(paths, i); // If current path has similar seq with another alive path, remove current one.
-//		if (path_i->alive) {
-//			for (j = 0; j < paths->len; j++) {
-//				path_j = g_ptr_array_index(paths, j);
-//				if (path_i != path_j && path_j->alive) {
-//					similarity_score = similar_seqs(path_i->seq, path_j->seq,
-//							MISMATCHES * 4, SCORE_MATCH, SCORE_MISMATCH,
-//							SCORE_GAP);
-//					if (similarity_score > 0) {
-//						//p_path(path_i);
-//						//p_path(path_j);
-//						// If similar, keep the longer one
-//						if (path_i->len < path_j->len)
-//							path_i->alive = 0;
-//						else
-//							path_j->alive = 0;
-//						break;
-//					}
-//				}
-//			}
-//		}
-//	}
+	//	show_msg(__func__,
+	//			"Smith-waterman algorithm to remove duplicate paths...\n");
+	//	// Mark a path as not alive if some alive path is similar to it.
+	//	for (i = 0; i < paths->len; i++) {
+	//		if ((i) % report_unit == 0)
+	//			show_msg(__func__, "Progress 2/3: %d/%d...\n", i, paths->len);
+	//		path_i = g_ptr_array_index(paths, i); // If current path has similar seq with another alive path, remove current one.
+	//		if (path_i->alive) {
+	//			for (j = 0; j < paths->len; j++) {
+	//				path_j = g_ptr_array_index(paths, j);
+	//				if (path_i != path_j && path_j->alive) {
+	//					similarity_score = similar_seqs(path_i->seq, path_j->seq,
+	//							PATH_MISMATCHES * 4, SCORE_MATCH, SCORE_MISMATCH,
+	//							SCORE_GAP);
+	//					if (similarity_score > 0) {
+	//						//p_path(path_i);
+	//						//p_path(path_j);
+	//						// If similar, keep the longer one
+	//						if (path_i->len < path_j->len)
+	//							path_i->alive = 0;
+	//						else
+	//							path_j->alive = 0;
+	//						break;
+	//					}
+	//				}
+	//			}
+	//		}
+	//	}
 	for (i = 0; i < paths->len; i++) {
 		path_i = g_ptr_array_index(paths, i);
 		if (!path_i->alive) {
@@ -806,21 +810,21 @@ void align_back(hash_table *ht, rm_path *path, const int rl) {
 	seqs = ht->seqs;
 	query = new_seq(path->seq, rl, 0);
 	contig = path->seq;
-	p_query(__func__, query);
+	//p_query(__func__, query);
 	aligns = g_ptr_array_sized_new(512);
-	for (i = rl; i < path->len; i++) {
-		pe_aln_query(query, query->seq, ht, MISMATCHES, query->len, 0, aligns);
-		pe_aln_query(query, query->rseq, ht, MISMATCHES, query->len, 1, aligns);
+	for (i = 0; i < path->len - rl; i++) {
+		pe_aln_query(query, query->seq, ht, 2, query->len, 0, aligns);
+		pe_aln_query(query, query->rseq, ht, 2, query->len, 1, aligns);
 		for (j = 0; j < aligns->len; j++) {
 			a = g_ptr_array_index(aligns, j);
-			index = a->r_id;
-			read = &seqs[index];
-			read->shift = i;
-			read->rev_com = a->rev_comp;
-			if (path->len < 100) {
-				p_query(__func__, read);
+			if (a->pos == 0) {
+				index = a->r_id;
+				read = &seqs[index];
+				read->shift = i;
+				read->rev_com = a->rev_comp;
+				//p_query("ADDED", read);
+				g_ptr_array_add(path->reads, read);
 			}
-			g_ptr_array_add(path->reads, read);
 		}
 		reset_alg(aligns);
 		ext_que(query, contig->seq[i], 0);
@@ -830,37 +834,84 @@ void align_back(hash_table *ht, rm_path *path, const int rl) {
 }
 
 int validate_p(hash_table *ht, const rm_path *path) {
-	int is_valid = 0, i = 0, n_forward = 0, n_backward = 0;
-	bwa_seq_t *read = NULL, *mate = NULL;
-	int *coverage = (int*) calloc(path->len + 1, sizeof(int));
-	for (i = 0; i < path->reads->len; i++) {
-		read = g_ptr_array_index(path->reads, i);
-		mate = get_mate(read, ht->seqs);
-		if (readarray_find(path->reads, mate) != NOT_FOUND) {
-			if ((is_left_mate(read) && !read->rev_com) || (is_right_mate(read)
-					&& read->rev_com))
-				n_forward++;
-			else
-				n_backward++;
+	int is_valid = 0, i = 0, j = 0;
+	char item[BUFSIZ];
+	int n_forward = 0, n_backward = 0, n_counter_pairs = 0, n_reads = 0;
+	int range_lower = 0, range_upper = 0;
+	bwa_seq_t *left = NULL, *mate = NULL;
+	int *coverage = NULL;
+	readarray *pairs = NULL, *left_mates = NULL;
+	FILE *tmp =
+
+	sprintf(item, "log/coverage_%d_%d.csv", path->id, path->len);
+	tmp = xopen(item, "w");
+
+	n_reads = path->reads->len;
+	left_mates = g_ptr_array_sized_new(n_reads);
+	coverage = (int*) calloc(path->len + 1, sizeof(int));
+	for (i = 0; i < n_reads; i++) {
+		left = g_ptr_array_index(path->reads, i);
+		if (is_left_mate(left->name))
+			g_ptr_array_add(left_mates, left);
+	}
+	for (i = 0; i < n_reads; i++) {
+		mate = g_ptr_array_index(path->reads, i);
+		if (is_right_mate(mate->name)) {
+			left = get_mate(mate, ht->seqs);
+			if (readarray_find(left_mates, left) != NOT_FOUND) {
+				if (left->rev_com != mate->rev_com) {
+					n_counter_pairs++;
+				} else {
+					if ((left->rev_com && left->shift >= mate->shift)
+							|| (!left->rev_com && left->shift <= mate->shift)) {
+						// The smaller value to be lower range
+						if (left->shift <= mate->shift) {
+							range_lower = left->shift;
+							range_upper = mate->shift + mate->len;
+						} else {
+							range_lower = mate->shift;
+							range_upper = left->shift + left->len;
+						}
+						for (j = range_lower; j < range_upper; j++) {
+							coverage[j] += 1;
+						}
+						n_forward++;
+					} else
+						n_backward++;
+				}
+			}
 		}
 	}
+	for (i = 0; i < path->len; i++) {
+		sprintf(item, "%d\t%d\n", i, coverage[i]);
+		fputs(item, tmp);
+	}
+	fclose(tmp);
+	g_ptr_array_free(left_mates, TRUE);
 	free(coverage);
+	return 1;
 }
 
 void validate_paths(hash_table *ht, GPtrArray *paths, const int rl) {
-	int i = 0, is_valid = 1;
+	int i = 0, is_valid = 1, report_unit = 0;
 	rm_path *path;
+
+	report_unit = paths->len / 10;
 	show_msg(__func__, "Validating paths... \n");
 	for (i = 0; i < paths->len; i++) {
+		if ((i) % report_unit == 0)
+			show_msg(__func__, "Progress 3/3: %d/%d...\n", i, paths->len);
 		path = g_ptr_array_index(paths, i);
 		p_path(path);
 		align_back(ht, path, rl);
-//		is_valid = validate_p(path);
-//		if (!is_valid) {
-//			path->alive = 0;
-//			g_ptr_array_remove_fast(paths, i);
-//			i--;
-//		}
+		is_valid = validate_p(ht, path);
+		if (!is_valid) {
+			path->alive = 0;
+			g_ptr_array_remove_index_fast(paths, i);
+			i--;
+		}
+		if (i == 100)
+			break;
 	}
 }
 

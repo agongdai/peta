@@ -21,7 +21,7 @@ extern "C" {
 #define INIT_PATH_N 		1024
 #define MAX_ROADMAP_LEVEL	8
 #define MIN_TX_LEN			100
-#define MISMATCHES			4
+#define PATH_MISMATCHES		4
 #define SCORE_MATCH			2
 #define SCORE_MISMATCH		-1
 #define SCORE_GAP			-1
