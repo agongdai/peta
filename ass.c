@@ -416,6 +416,7 @@ pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 	if (opt->nsp) {
 		pe_aln_query(query, query->rseq, ht, opt->nm + 2, opt->ol, 1, alns);
 	}
+	p_align(alns);
 	for (i = 0; i < alns->len; i++) {
 		a = (alg*) g_ptr_array_index(alns, i);
 		s = &seqs[a->r_id];
@@ -436,6 +437,7 @@ pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 	free_alg(alns);
 	if (to_free_query)
 		bwa_free_read_seq(1, query);
+	p_pool("Initial Pool", init_pool, NULL);
 	return init_pool;
 }
 
@@ -924,11 +926,11 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		if (opt->nsp) {
 			pe_aln_query(query, query->rseq, ht, opt->nm, opt->ol, 1, aligns);
 		}
-		// p_align(aligns);
+		 p_align(aligns);
 		// Extend the contig, update the counter and sequence pool
 		upd_cur_pool(aligns, next, cur_pool, mate_pool, query, ht, ass_eg, ori);
 		reset_alg(aligns);
-		// p_pool("Current pool: ", cur_pool, next);
+		 p_pool("Current pool: ", cur_pool, next);
 		c = get_most(next);
 		// If cannot extend, or multiple path, just stop here
 		if (c[0] == INVALID_CHAR) {
@@ -1010,7 +1012,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 
 int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		const int type, const int ori) {
-	bwa_seq_t *mate = NULL, *tmp = NULL;
+	bwa_seq_t *mate = NULL;
 	int ori_len = 0, extended = 0, len_init = 0, len_le = 0, len_re = 0;
 	int used_eg_id = -1, reason_gap = 0, max_try_times = 4;
 	edge *m_eg = NULL;
@@ -1050,7 +1052,6 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		m_eg = new_eg();
 		m_eg->contig = mate->rev_com ? new_mem_rev_seq(mate, opt->rl, 0)
 				: new_seq(mate, opt->rl, 0);
-		tmp = get_mate(mate, ht->seqs);
 		m_eg->id = ass_eg->id;
 		m_eg->len = m_eg->contig->len;
 		len_re = len_le = len_init = m_eg->len;
@@ -1071,7 +1072,11 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		}
 		len_le = m_eg->len;
 
-		readarray_add(m_eg, mate);
+		// Currently 'mate' is frozen (used_contig_id = -2). Only if the edge is extended, added.
+		// Otherwise, next round will check this read again
+		if (len_le > len_init) {
+			readarray_add(m_eg, mate);
+		}
 		if (ori && m && m->type == REP_EXTEND) {
 			used_eg_id = m->used->contig_id;
 		}
@@ -1401,7 +1406,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		if (counter >= e_index)
 			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
-		p = &ht->seqs[index];
+		p = &ht->seqs[1328760];
 		if (p->used || p->contig_id == INVALID_CONTIG_ID) {
 			show_msg(__func__, "Read used: %s\n", p->name);
 			continue;
@@ -1434,7 +1439,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 		sprintf(msg, "-------------------------------------- %.2f sec \n",
 				t_eclipsed);
 		show_msg(__func__, msg);
-		//break;
+		break;
 	} // All solid reads assembled.
 
 	fprintf(stderr,
