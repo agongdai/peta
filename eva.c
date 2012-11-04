@@ -33,6 +33,9 @@ tx_info *ori_info;
 int tmp_total_base = 0;
 int tmp_got_base = 0;
 int tmp_n_cufflinks = 0;
+GPtrArray *one_on_one_ids = NULL;
+GPtrArray *full_length_ids = NULL;
+GPtrArray *one_covered_ids = NULL;
 
 tx_info *init_info() {
 	tx_info *i = (tx_info*) malloc(sizeof(tx_info));
@@ -159,7 +162,7 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 			is_70_covered = 0, is_one_on_one = 0;
 	g_ptr_array_sort(occs, (GCompareFunc) cmp_occ);
 	tx *t;
-	bwa_seq_t *seq;
+	bwa_seq_t *seq = NULL;
 
 	for (i = 0; i < ori_info->tx_seqs->len; i++) {
 		seq = g_ptr_array_index(ori_info->tx_seqs, i);
@@ -183,6 +186,7 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 							"==============================================",
 							"ONE-ON-ONE\n");
 					occ_p_iter(key, value, NULL);
+					g_ptr_array_add(one_on_one_ids, (char *)key);
 					break;
 				}
 			}
@@ -198,6 +202,7 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 							"==============================================",
 							"FULL-LENGTH\n");
 					occ_p_iter(key, value, NULL);
+					g_ptr_array_add(full_length_ids, (char *)key);
 					break;
 				}
 			}
@@ -257,6 +262,7 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 			show_debug_msg("==============================================",
 					"ONE-COVERED\n");
 			occ_p_iter(key, value, user_data);
+			g_ptr_array_add(one_covered_ids, (char *)key);
 		}
 	}
 }
@@ -1077,6 +1083,34 @@ void get_ori_info() {
 	ori_info = info;
 }
 
+void write_hit_txs() {
+	FILE *one_on_one_file = xopen("eva/one_on_one.txt", "w");
+	FILE *full_length_file = xopen("eva/full_length.txt", "w");
+	FILE *one_covered_file = xopen("eva/one_covered.txt", "w");
+	char item[256], *hit_tx_id = NULL;
+	int i = 0;
+
+	for (i = 0; i < one_on_one_ids->len; i++) {
+		hit_tx_id = g_ptr_array_index(one_on_one_ids, i);
+		sprintf(item, "%s\n", hit_tx_id);
+		fputs(item, one_on_one_file);
+	}
+	for (i = 0; i < full_length_ids->len; i++) {
+		hit_tx_id = g_ptr_array_index(full_length_ids, i);
+		sprintf(item, "%s\n", hit_tx_id);
+		fputs(item, full_length_file);
+	}
+	for (i = 0; i < one_covered_ids->len; i++) {
+		hit_tx_id = g_ptr_array_index(one_covered_ids, i);
+		sprintf(item, "%s\n", hit_tx_id);
+		fputs(item, one_covered_file);
+	}
+
+	fclose(one_on_one_file);
+	fclose(full_length_file);
+	fclose(one_covered_file);
+}
+
 void get_ass_info() {
 	int i = 0, len = 0, j = 0;
 	char *name;
@@ -1086,7 +1120,11 @@ void get_ass_info() {
 	rs_info *info = init_rs_info();
 	read_contigs(info);
 	parse_sam(info);
+	one_on_one_ids = g_ptr_array_sized_new(256);
+	full_length_ids = g_ptr_array_sized_new(256);
+	one_covered_ids = g_ptr_array_sized_new(256);
 	g_hash_table_foreach(info->hits, (GHFunc) occ_c_iter, info);
+	write_hit_txs();
 	//g_hash_table_foreach(info->hits, (GHFunc) occ_p_iter, info);
 	for (i = 1; i < ori_info->tx_seqs->len; i++) {
 		s = g_ptr_array_index(ori_info->tx_seqs, i);

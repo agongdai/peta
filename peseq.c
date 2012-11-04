@@ -716,7 +716,7 @@ int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,
 	min_len = (left_seq->len < right_seq->len) ? min_len : right_seq->len;
 	for (i = min_len; i > 0; i--) {
 		olpped = seq_ol(left_seq, right_seq, i, mismatches);
-		if (olpped) {
+		if (olpped > 0) {
 			olpped = i;
 			break;
 		}
