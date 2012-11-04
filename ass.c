@@ -194,8 +194,10 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 	rm_partial(cur_pool, ori, query, opt->nm);
 	//p_pool("After", cur_pool, NULL);
 	// Add overlapped reads from the mate_pool, the overlapping length is read length / 4.
-	if (mate_pool)
+	if (mate_pool) {
+		//p_pool("MATE POOL", mate_pool, next);
 		overlap_mate_pool(cur_pool, mate_pool, contig, ori);
+	}
 	for (i = 0; i < cur_pool->n; i++) {
 		s = g_ptr_array_index(cur_pool->reads, i);
 		if (s->rev_com)
@@ -387,7 +389,7 @@ pool *get_mate_pool(const edge *eg, const hash_table *ht, const int ori,
 				mate = s->rev_com ? get_left_mate(s, seqs) : get_right_mate(s,
 						seqs);
 			if (mate && (used || !mate->used))
-				pool_uni_add(mate_pool, mate);
+				mate_pool_uni_add(mate_pool, mate);
 		}
 	}
 	g_ptr_array_free(reads, TRUE);
@@ -416,7 +418,6 @@ pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 	if (opt->nsp) {
 		pe_aln_query(query, query->rseq, ht, opt->nm + 2, opt->ol, 1, alns);
 	}
-	p_align(alns);
 	for (i = 0; i < alns->len; i++) {
 		a = (alg*) g_ptr_array_index(alns, i);
 		s = &seqs[a->r_id];
@@ -437,7 +438,6 @@ pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 	free_alg(alns);
 	if (to_free_query)
 		bwa_free_read_seq(1, query);
-	p_pool("Initial Pool", init_pool, NULL);
 	return init_pool;
 }
 
@@ -926,11 +926,11 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		if (opt->nsp) {
 			pe_aln_query(query, query->rseq, ht, opt->nm, opt->ol, 1, aligns);
 		}
-		 p_align(aligns);
+		// p_align(aligns);
 		// Extend the contig, update the counter and sequence pool
 		upd_cur_pool(aligns, next, cur_pool, mate_pool, query, ht, ass_eg, ori);
 		reset_alg(aligns);
-		 p_pool("Current pool: ", cur_pool, next);
+		// p_pool("Current pool: ", cur_pool, next);
 		c = get_most(next);
 		// If cannot extend, or multiple path, just stop here
 		if (c[0] == INVALID_CHAR) {
@@ -1395,18 +1395,18 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	e_index = 23100;
 	while (fgets(line, 80, solid_reads) != NULL && ht->n_seqs * STOP_THRE
 			> n_reads_consumed) {
-		if (counter <= 12000)
+//		if (counter <= 12000)
 			index = atoi(line);
-		else
-			index = (int) (rand_f() * ht->n_seqs);
-		if (counter < s_index) {
-			counter++;
-			continue;
-		}
-		if (counter >= e_index)
-			break;
+//		else
+//			index = (int) (rand_f() * ht->n_seqs);
+//		if (counter < s_index) {
+//			counter++;
+//			continue;
+//		}
+//		if (counter >= e_index)
+//			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
-		p = &ht->seqs[1328760];
+		p = &ht->seqs[index];
 		if (p->used || p->contig_id == INVALID_CONTIG_ID) {
 			show_msg(__func__, "Read used: %s\n", p->name);
 			continue;

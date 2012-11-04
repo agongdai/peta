@@ -36,6 +36,7 @@ int pool_exists(const pool *p, const bwa_seq_t *read);
 void pool_add(pool *p, bwa_seq_t *new_seq);
 void mate_pool_add(pool *p, bwa_seq_t *new_seq);
 void pool_uni_add(pool *p, bwa_seq_t *new_seq);
+void mate_pool_uni_add(pool *p, bwa_seq_t *new_seq);
 bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int left_max_ctg_id);
 void pool_sort_ins(pool *r_pool, bwa_seq_t *new_seq);
 void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm);

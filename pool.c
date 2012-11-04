@@ -91,6 +91,12 @@ void pool_uni_add(pool *p, bwa_seq_t *new_seq) {
 	pool_add(p, new_seq);
 }
 
+void mate_pool_uni_add(pool *p, bwa_seq_t *new_seq) {
+	if (pool_exists(p, new_seq))
+		return;
+	mate_pool_add(p, new_seq);
+}
+
 gboolean pool_rm(pool *r_pool, bwa_seq_t *rm_seq) {
 	gboolean r;
 	r = g_ptr_array_remove(r_pool->reads, rm_seq);
