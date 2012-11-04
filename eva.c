@@ -117,9 +117,6 @@ void occ_p_iter(gpointer key, gpointer value, gpointer user_data) {
 	bwa_seq_t *t;
 	int i = 0, t_len = 0;
 	int n_base_got = 0;
-	if (user_data != NULL) {
-		show_debug_msg("ONE CONTIG", "");
-	}
 	for (i = 0; i < ori_info->tx_seqs->len; i++) {
 		t = g_ptr_array_index(ori_info->tx_seqs, i);
 		if (strcmp(t->name, r_id) == 0) {
@@ -144,9 +141,10 @@ void occ_p_iter(gpointer key, gpointer value, gpointer user_data) {
 		}
 		o_pre = o;
 	}
+	n_base_got++;
 	tmp_got_base += n_base_got;
-	printf("\t %d/%d:%f", n_base_got, t_len, ((float) (n_base_got)
-			/ (float) t_len));
+	printf("\t %d/%d:%f", n_base_got, t_len,
+			((float) (n_base_got) / (float) t_len));
 	printf("\t %d", tmp_n_cufflinks);
 	printf("\n");
 }
@@ -158,7 +156,7 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 	int i = 0;
 	float tx_len = 0;
 	int one_covered = 0, n_bases_on_contig = 0, is_full_length = 0,
-			is_70_covered = 0;
+			is_70_covered = 0, is_one_on_one = 0;
 	g_ptr_array_sort(occs, (GCompareFunc) cmp_occ);
 	tx *t;
 	bwa_seq_t *seq;
@@ -173,31 +171,62 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 		}
 	}
 
+	// Check whether is one-on-one transcript
+	if (occs->len == 1) {
+		for (i = 0; i < occs->len; i++) {
+			o = g_ptr_array_index(occs, i);
+			if (o->end >= o->start && o->ali_len > (tx_len * 0.9)) {
+				if (o->ali_len > (o->q_len * 0.9)) {
+					info->n_one_on_one++;
+					is_one_on_one = 1;
+					show_debug_msg(
+							"==============================================",
+							"ONE-ON-ONE\n");
+					occ_p_iter(key, value, NULL);
+					break;
+				}
+			}
+		}
+		// Check whether is full-length
+		if (!is_one_on_one) {
+			for (i = 0; i < occs->len; i++) {
+				o = g_ptr_array_index(occs, i);
+				if (o->end >= o->start && o->ali_len > (tx_len * 0.9)) {
+					info->n_full_len++;
+					is_full_length = 1;
+					show_debug_msg(
+							"==============================================",
+							"FULL-LENGTH\n");
+					occ_p_iter(key, value, NULL);
+					break;
+				}
+			}
+		}
+
+		if (!is_one_on_one && !is_full_length) {
+			for (i = 0; i < occs->len; i++) {
+				o = g_ptr_array_index(occs, i);
+				if (o->end >= o->start && o->ali_len > (tx_len * 0.7)) {
+					if (o->ali_len > (o->q_len * 0.9)) {
+						info->n_70_covered++;
+						is_70_covered = 1;
+						show_debug_msg(
+								"==============================================",
+								"70-COVERED\n");
+						occ_p_iter(key, value, NULL);
+						break;
+					}
+				}
+			}
+		}
+	}
+
 	one_covered = 1;
 	for (i = 0; i < occs->len; i++) {
 		o = g_ptr_array_index(occs, i);
 		if (o->end < o->start) {
 			o_pre = o;
 			continue;
-		}
-		if (o->ali_len > (tx_len * 0.9) && !is_full_length) {
-			if (o->ali_len > (o->q_len * 0.9)) {
-				show_debug_msg(__func__,
-						"Transcript %s covered by %s one-on-one >90% \n", key,
-						o->q_id);
-				info->n_one_on_one++;
-			} else {
-				show_debug_msg(__func__,
-						"Transcript %s covered by %s for >90% \n", key, o->q_id);
-				info->n_full_len++;
-			}
-			is_full_length = 1;
-		}
-		if (o->ali_len > (tx_len * 0.7) && !is_70_covered) {
-			if (o->ali_len > (o->q_len * 0.9)) {
-				info->n_70_covered++;
-			}
-			is_70_covered = 1;
 		}
 
 		if (i == 0) {
@@ -225,6 +254,8 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 	if (one_covered && tx_len * 0.9 <= n_bases_on_contig) {
 		if (occs->len > 1) {
 			info->n_one_covered++;
+			show_debug_msg("==============================================",
+					"ONE-COVERED\n");
 			occ_p_iter(key, value, user_data);
 		}
 	}
@@ -468,7 +499,8 @@ void p_occ(eva_occ *o) {
 	show_debug_msg(__func__, "ali_len: %d \n", o->ali_len);
 	show_debug_msg(__func__, "q_len: %d \n", o->q_len);
 	show_debug_msg(__func__, "r_len: %d \n", o->r_len);
-	show_debug_msg(__func__, "--------------------------------------------- \n");
+	show_debug_msg(__func__,
+			"--------------------------------------------- \n");
 }
 
 void chomp(char *s) {
@@ -840,8 +872,9 @@ void draw_graph(tx_info *info) {
 		if (acc_exon_len * 2 >= sum_exon_len && !info->best_n50) {
 			info->best_n50 = e->len;
 		}
-		slot_index = (e->len >= MAX_LEN_FOR_PLOT) ? (MAX_LEN_FOR_PLOT
-				/ SLOT_SIZE) : e->len / SLOT_SIZE;
+		slot_index =
+				(e->len >= MAX_LEN_FOR_PLOT) ?
+						(MAX_LEN_FOR_PLOT / SLOT_SIZE) : e->len / SLOT_SIZE;
 		info->slots[slot_index] += e->len;
 	}
 
@@ -879,7 +912,7 @@ void parse_sam(rs_info *info) {
 		// printf("%s", buf);
 		if (strstr(buf, "#") != NULL) {
 			if (strstr(buf, "Query") != NULL) {
-				show_debug_msg(__func__, "%s\n", buf);
+				//show_debug_msg(__func__, "%s\n", buf);
 				i = 0;
 				attr[0] = strtok(buf, " ");
 				while (attr[i] != NULL) { //ensure a pointer was found
@@ -989,8 +1022,9 @@ void cal_ass_n50(rs_info *info) {
 		if (acc_len * 2 >= ori_info->n_base && !info->n50_all) {
 			info->n50_all = s->len;
 		}
-		slot_index = (s->len >= MAX_LEN_FOR_PLOT) ? (MAX_LEN_FOR_PLOT
-				/ SLOT_SIZE) : s->len / SLOT_SIZE;
+		slot_index =
+				(s->len >= MAX_LEN_FOR_PLOT) ?
+						(MAX_LEN_FOR_PLOT / SLOT_SIZE) : s->len / SLOT_SIZE;
 		info->slots[slot_index] += s->len;
 	}
 	info->ave_len = acc_len / info->n_ctgs;
@@ -1107,7 +1141,7 @@ int eva_main(int argc, char *argv[]) {
 	}
 	get_ori_info();
 	get_ass_info();
-	show_msg(__func__, "Done: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
+	show_msg(__func__, "Done: %.2f sec\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return 0;
 }

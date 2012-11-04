@@ -38,6 +38,13 @@ rm_path *new_path() {
 	return p;
 }
 
+rm_path *get_single_edge_path(edge *eg) {
+	rm_path *p = new_path();
+	p->id = eg->id;
+	add_edge_to_path(p, eg, 0);
+	return p;
+}
+
 /**
  * Destroy a roadmap path
  */
@@ -52,24 +59,15 @@ void destroy_path(rm_path *p) {
 
 void save_paths(GPtrArray *paths, const char *tx_fn, const int min_len) {
 	char header[BUFSIZE];
-	int i = 0, j = 0;
+	int i = 0;
 	FILE *tx = xopen(tx_fn, "w");
 	rm_path *p = NULL;
-	edge *eg = NULL, *pre_eg = NULL;
 	show_msg(__func__, "Saving transcripts to %s...\n", tx_fn);
 	for (i = 0; i < paths->len; i++) {
 		p = g_ptr_array_index(paths, i);
 		if (p->len >= min_len) {
-			sprintf(header, ">%d path=%d len=%d \n", i, p->id, p->len);
+			sprintf(header, ">%d.%d len=%d \n", i, p->id, p->len);
 			save_con(header, p->seq, tx);
-		}
-		for (j = 0; j < p->n_ctgs; j++) {
-			eg = g_ptr_array_index(p->edges, j);
-			if (eg->len >= min_len && p->n_ctgs > 1) {
-				sprintf(header, ">%d_%d path=%d len=%d \n", i, j, p->id,
-						eg->len);
-				save_con(header, eg->contig, tx);
-			}
 		}
 	}
 	fclose(tx);
@@ -185,6 +183,12 @@ int same_paths(rm_path *p1, rm_path *p2) {
 	return 1;
 }
 
+/**
+ * Determine whether a path is a subpath of another.
+ * For example: p1 = [e1, e2, e3], p2 = [e2, e3]
+ * Concatenate edge ids: p1 = 'e1,e2,e3,', p2 = 'e2,e3,'
+ * p2 string is as substring of p1, so return 1.
+ */
 int is_sub_path(rm_path *p1, rm_path *p2) {
 	int id_str_len = 0, i = 0;
 	edge *eg_i = 0;
@@ -250,8 +254,8 @@ void p_path(const rm_path *p) {
 	printf("[p_path] Path %d (%p): %d \n", p->id, p, p->len);
 	for (i = 0; i < p->edges->len; i++) {
 		eg = g_ptr_array_index(p->edges, i);
-		printf("[p_path] \t %d: Contig [%d: %d] (%d, %d)\n", i, eg->id,
-				eg->len, eg->right_ctg ? eg->right_ctg->id : 0, eg->r_shift);
+		printf("[p_path] \t %d: Contig [%d: %d] (%d, %d)\n", i, eg->id, eg->len,
+				eg->right_ctg ? eg->right_ctg->id : 0, eg->r_shift);
 	}
 	p_ctg_seq("Path seq", p->seq);
 	printf("[p_path] ----------------------------------------\n");
@@ -364,10 +368,8 @@ GPtrArray *iterate_block(GPtrArray *block) {
 	paths = g_ptr_array_sized_new(8);
 	// Add the root edges, each of which is a stand-alone path
 	if (block->len == 1) {
-		p = new_path();
 		eg = g_ptr_array_index(block, 0);
-		add_edge_to_path(p, eg, 0);
-		p->id = eg->id;
+		p = get_single_edge_path(eg);
 		g_ptr_array_add(paths, p);
 		return paths;
 	}
@@ -375,9 +377,7 @@ GPtrArray *iterate_block(GPtrArray *block) {
 	for (i = 0; i < block->len; i++) {
 		eg = g_ptr_array_index(block, i);
 		if (eg->is_root) {
-			p = new_path();
-			p->id = eg->id;
-			add_edge_to_path(p, eg, 0);
+			p = get_single_edge_path(eg);
 			g_ptr_array_add(paths, p);
 			g_ptr_array_add(edges_in_paths, eg);
 		}
@@ -388,7 +388,7 @@ GPtrArray *iterate_block(GPtrArray *block) {
 		has_fresh = 0;
 		for (i = 0; i < block->len; i++) {
 			eg = g_ptr_array_index(block, i);
-			if (edgearray_find(edges_in_paths, eg) == -1) {
+			if (edgearray_find(edges_in_paths, eg) == NOT_FOUND) {
 				block_paths_to_add = attach_edge_to_paths(paths, eg); // All paths in the block
 				if (block_paths_to_add->len > 0) {
 					has_fresh = 1;
@@ -399,6 +399,7 @@ GPtrArray *iterate_block(GPtrArray *block) {
 			}
 		}
 	}
+
 	// Remove the paths which are not alive already.
 	for (i = 0; i < paths->len; i++) {
 		p = g_ptr_array_index(paths, i);
@@ -409,6 +410,23 @@ GPtrArray *iterate_block(GPtrArray *block) {
 			destroy_path(p);
 		}
 	}
+
+	// For cases: eg->right_ctg = right_eg, with shift value 500.
+	// Paths could be: eg, right_eg[500:-1].
+	// In this case, the starting 500 bases of right_eg is not considered at all.
+	// So we add these 'right_eg's as a single-edge path
+	g_ptr_array_free(edges_in_paths, TRUE);
+	edges_in_paths = g_ptr_array_sized_new(block->len + 1);
+	for (i = 0; i < block->len; i++) {
+		eg = g_ptr_array_index(block, i);
+		if (eg->right_ctg
+				&& edgearray_find(edges_in_paths, eg->right_ctg) != NOT_FOUND) {
+			p = get_single_edge_path(eg);
+			g_ptr_array_add(paths, p);
+			g_ptr_array_add(edges_in_paths, eg);
+		}
+	}
+
 	g_ptr_array_free(edges_in_paths, TRUE);
 	return paths;
 }
@@ -476,10 +494,10 @@ void mark_duplicate_edges(edgearray *block) {
 		eg_i = g_ptr_array_index(block, i);
 		for (j = 0; j < block->len; j++) {
 			eg_j = g_ptr_array_index(block, j);
-			if (eg_i != eg_j && eg_j->alive && similar_seqs(eg_i->contig,
-					eg_j->contig, PATH_MISMATCHES, SCORE_MATCH, SCORE_MISMATCH,
-					SCORE_GAP)) {
-				if (eg_i->right_ctg == eg_j->right_ctg && abs(eg_i->r_shift
+			if (eg_i != eg_j && eg_j->alive
+					&& similar_seqs(eg_i->contig, eg_j->contig, PATH_MISMATCHES,
+							SCORE_MATCH, SCORE_MISMATCH, SCORE_GAP)) {
+				if (eg_i->right_ctg == eg_j->right_ctg&& abs(eg_i->r_shift
 						- eg_j->r_shift) <= PATH_MISMATCHES) {
 					eg_i->alive = 0;
 					show_debug_msg("DUPLICATE", "[%d: %d] <=> [%d, %d] \n",
@@ -495,12 +513,11 @@ void mark_duplicate_paths(GPtrArray *paths) {
 	int i = 0, j = 0, similarity_score = 0, report_unit = 0;
 	rm_path *path_i = NULL, *path_j = NULL;
 	edge *eg = NULL;
-	bwa_seq_t *tmp;
 	show_msg(__func__, "Removing paths which have duplicate edges...\n");
 	report_unit = paths->len / 10;
 	// Mark a path as not alive if some edge on it is not alive
 	for (i = 0; i < paths->len; i++) {
-		if ((i) % report_unit == 0)
+		if (report_unit != 0 && (i) % report_unit == 0)
 			show_msg(__func__, "Progress 1/3: %d/%d...\n", i, paths->len);
 		path_i = g_ptr_array_index(paths, i);
 		// If any edge in the path is not alive, remove this path
@@ -518,34 +535,34 @@ void mark_duplicate_paths(GPtrArray *paths) {
 			sync_path(path_i); // Populate the path sequence
 		}
 	}
-	//	show_msg(__func__,
-	//			"Smith-waterman algorithm to remove duplicate paths...\n");
-	//	// Mark a path as not alive if some alive path is similar to it.
-	//	for (i = 0; i < paths->len; i++) {
-	//		if ((i) % report_unit == 0)
-	//			show_msg(__func__, "Progress 2/3: %d/%d...\n", i, paths->len);
-	//		path_i = g_ptr_array_index(paths, i); // If current path has similar seq with another alive path, remove current one.
-	//		if (path_i->alive) {
-	//			for (j = 0; j < paths->len; j++) {
-	//				path_j = g_ptr_array_index(paths, j);
-	//				if (path_i != path_j && path_j->alive) {
-	//					similarity_score = similar_seqs(path_i->seq, path_j->seq,
-	//							PATH_MISMATCHES * 4, SCORE_MATCH, SCORE_MISMATCH,
-	//							SCORE_GAP);
-	//					if (similarity_score > 0) {
-	//						//p_path(path_i);
-	//						//p_path(path_j);
-	//						// If similar, keep the longer one
-	//						if (path_i->len < path_j->len)
-	//							path_i->alive = 0;
-	//						else
-	//							path_j->alive = 0;
-	//						break;
-	//					}
-	//				}
-	//			}
-	//		}
-	//	}
+	show_msg(__func__,
+			"Smith-waterman algorithm to remove duplicate paths...\n");
+	// Mark a path as not alive if some alive path is similar to it.
+	for (i = 0; i < paths->len; i++) {
+		if (report_unit != 0 && (i) % report_unit == 0)
+			show_msg(__func__, "Progress 2/3: %d/%d...\n", i, paths->len);
+		path_i = g_ptr_array_index(paths, i); // If current path has similar seq with another alive path, remove current one.
+		if (path_i->alive) {
+			for (j = 0; j < paths->len; j++) {
+				path_j = g_ptr_array_index(paths, j);
+				if (path_i != path_j && path_j->alive) {
+					similarity_score = similar_seqs(path_i->seq, path_j->seq,
+							PATH_MISMATCHES * 4, SCORE_MATCH, SCORE_MISMATCH,
+							SCORE_GAP);
+					if (similarity_score > 0) {
+						//p_path(path_i);
+						//p_path(path_j);
+						// If similar, keep the longer one
+						if (path_i->len < path_j->len)
+							path_i->alive = 0;
+						else
+							path_j->alive = 0;
+						break;
+					}
+				}
+			}
+		}
+	}
 	for (i = 0; i < paths->len; i++) {
 		path_i = g_ptr_array_index(paths, i);
 		if (!path_i->alive) {
@@ -561,7 +578,6 @@ GPtrArray *report_paths(edgearray *all_edges) {
 	int i = 0, j = 0;
 	GPtrArray *block = NULL, *all_paths = NULL, *block_paths = NULL;
 	edge *eg = NULL;
-	rm_path *p = NULL;
 
 	all_paths = g_ptr_array_sized_new(1024);
 	for (i = 0; i < all_edges->len; i++) {
@@ -582,6 +598,7 @@ GPtrArray *report_paths(edgearray *all_edges) {
 			} else {
 				block_paths = iterate_block(block);
 			}
+			mark_duplicate_paths(block_paths);
 			g_ptr_array_concat(all_paths, block_paths);
 			g_ptr_array_free(block_paths, TRUE);
 			g_ptr_array_free(block, TRUE);
@@ -589,7 +606,8 @@ GPtrArray *report_paths(edgearray *all_edges) {
 	}
 	show_msg(__func__, "%d paths reported. \n", all_paths->len);
 	mark_duplicate_paths(all_paths);
-	show_msg(__func__, "%d paths after removing duplicates. \n", all_paths->len);
+	show_msg(__func__, "%d paths after removing duplicates. \n",
+			all_paths->len);
 	return all_paths;
 }
 
@@ -833,14 +851,39 @@ void align_back(hash_table *ht, rm_path *path, const int rl) {
 	bwa_free_read_seq(1, query);
 }
 
-int validate_p(hash_table *ht, const rm_path *path) {
-	int is_valid = 0, i = 0, j = 0;
+/**
+ * Stripe the starting and ending 0's of the path.
+ *
+ * If all coverage value is 0, return 0, indicating this path is not valid (no paired reads covering it)
+ */
+int trim_path(rm_path *path, const int *coverage) {
+	int i = 0, start_index = 0, end_index = path->len;
+	bwa_seq_t *contig = path->seq;
+	for (i = 0; i < path->len; i++) {
+		if (coverage[i] == 0 && start_index == i) {
+			start_index++;
+		}
+		if (coverage[i] != 0) {
+			end_index = i + 1;
+		}
+	}
+	if (start_index >= end_index)
+		return 0;
+	path->len = end_index - start_index;
+	trun_seq(path->seq, start_index);
+	contig->len = path->len;
+	contig->seq[contig->len] = '\0';
+	return 1;
+}
+
+int validate_p(hash_table *ht, GPtrArray *paths, const rm_path *path) {
+	int i = 0, j = 0;
 	char item[BUFSIZ];
 	int n_forward = 0, n_backward = 0, n_counter_pairs = 0, n_reads = 0;
 	int range_lower = 0, range_upper = 0;
 	bwa_seq_t *left = NULL, *mate = NULL;
 	int *coverage = NULL;
-	readarray *pairs = NULL, *left_mates = NULL;
+	readarray *left_mates = NULL;
 	FILE *tmp =
 
 	sprintf(item, "log/coverage_%d_%d.csv", path->id, path->len);
@@ -886,10 +929,31 @@ int validate_p(hash_table *ht, const rm_path *path) {
 		sprintf(item, "%d\t%d\n", i, coverage[i]);
 		fputs(item, tmp);
 	}
+	trim_path(path, coverage);
 	fclose(tmp);
 	g_ptr_array_free(left_mates, TRUE);
 	free(coverage);
 	return 1;
+}
+
+/**
+ * Assumption: the starting base and ending base with coverage larger than 0
+ * For those cases with coverage pattern: ....000....000....
+ * Break the path into several subpaths.
+ */
+void break_path(GPtrArray *paths, rm_path *path, const int *coverage) {
+	int i = 0, flag = 1; // This flag indicates whether it is right time to break.
+	int last_starting_index = 0;
+	rm_path *sub_path = NULL;
+	for (i = 0; i < path->len; i++) {
+		if (flag) {
+			if (coverage[i] == 0) {
+				sub_path = new_path();
+				sub_path->id = path->id;
+				sub_path->seq = new_seq(path->seq, path->len, 0);
+			}
+		}
+	}
 }
 
 void validate_paths(hash_table *ht, GPtrArray *paths, const int rl) {
@@ -899,12 +963,12 @@ void validate_paths(hash_table *ht, GPtrArray *paths, const int rl) {
 	report_unit = paths->len / 10;
 	show_msg(__func__, "Validating paths... \n");
 	for (i = 0; i < paths->len; i++) {
-		if ((i) % report_unit == 0)
+		if (report_unit != 0 && (i) % report_unit == 0)
 			show_msg(__func__, "Progress 3/3: %d/%d...\n", i, paths->len);
 		path = g_ptr_array_index(paths, i);
 		p_path(path);
 		align_back(ht, path, rl);
-		is_valid = validate_p(ht, path);
+		is_valid = validate_p(ht, paths, path);
 		if (!is_valid) {
 			path->alive = 0;
 			g_ptr_array_remove_index_fast(paths, i);
@@ -923,6 +987,7 @@ int test_sw(const char *fa_fn) {
 	p_ctg_seq("SEQ1", &seqs[1]);
 	score = similar_seqs(&seqs[0], &seqs[1], 16, 2, -1, -1);
 	show_debug_msg(__func__, "Score: %d \n", score);
+	return 1;
 }
 
 int pe_path(int argc, char *argv[]) {
@@ -946,7 +1011,7 @@ int pe_path(int argc, char *argv[]) {
 
 	// test_sw(argv[4]);
 
-	fprintf(stderr, "[pe_path] Done: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
+	fprintf(stderr, "[pe_path] Done: %.2f sec\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return 0;
 }

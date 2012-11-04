@@ -388,8 +388,11 @@ pool *get_mate_pool(const edge *eg, const hash_table *ht, const int ori,
 			else
 				mate = s->rev_com ? get_left_mate(s, seqs) : get_right_mate(s,
 						seqs);
-			if (mate && (used || !mate->used))
+			if (mate && (used || !mate->used)) {
+				p_query("USED", s);
+				p_query("MATE", mate);
 				mate_pool_uni_add(mate_pool, mate);
+			}
 		}
 	}
 	g_ptr_array_free(reads, TRUE);
@@ -1010,11 +1013,14 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 	return m;
 }
 
+int
+
 int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		const int type, const int ori) {
 	bwa_seq_t *mate = NULL;
 	int ori_len = 0, extended = 0, len_init = 0, len_le = 0, len_re = 0;
 	int used_eg_id = -1, reason_gap = 0, max_try_times = 4;
+	int majority_ori = 0; // Indicates what is the direction of the majority reads, "reverse complement" or not.
 	edge *m_eg = NULL;
 	ext_msg *m = NULL, *m2 = NULL;
 	pool *m_pool = NULL, *c_pool = NULL;
@@ -1061,8 +1067,10 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 		p_query(__func__, mate);
 
 		c_pool = get_init_pool(ht, mate, 0);
-		if (c_pool) // c_pool is freed in single_ext()
+		if (c_pool) { // c_pool is freed in single_ext()
+
 			m = single_ext(m_eg, c_pool, 0, ht, 0);
+		}
 
 		len_re = m_eg->len;
 		c_pool = get_init_pool(ht, mate, 1);
@@ -1406,7 +1414,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 //		if (counter >= e_index)
 //			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
-		p = &ht->seqs[index];
+		p = &ht->seqs[917366];
 		if (p->used || p->contig_id == INVALID_CONTIG_ID) {
 			show_msg(__func__, "Read used: %s\n", p->name);
 			continue;
