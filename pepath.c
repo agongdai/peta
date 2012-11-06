@@ -420,10 +420,10 @@ GPtrArray *iterate_block(GPtrArray *block) {
 	for (i = 0; i < block->len; i++) {
 		eg = g_ptr_array_index(block, i);
 		if (eg->right_ctg && edgearray_find(edges_in_paths, eg->right_ctg)
-				!= NOT_FOUND) {
+				== NOT_FOUND) {
 			p = get_single_edge_path(eg->right_ctg);
 			g_ptr_array_add(paths, p);
-			g_ptr_array_add(edges_in_paths, eg);
+			g_ptr_array_add(edges_in_paths, eg->right_ctg);
 		}
 	}
 
@@ -605,7 +605,7 @@ GPtrArray *report_paths(edgearray *all_edges) {
 		}
 	}
 	show_msg(__func__, "%d paths reported. \n", all_paths->len);
-//	mark_duplicate_paths(all_paths);
+	mark_duplicate_paths(all_paths);
 	show_msg(__func__, "%d paths after removing duplicates. \n", all_paths->len);
 	return all_paths;
 }
