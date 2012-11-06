@@ -175,7 +175,7 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 	}
 
 	// Check whether is one-on-one transcript
-	if (occs->len == 1) {
+//	if (occs->len == 1) {
 		for (i = 0; i < occs->len; i++) {
 			o = g_ptr_array_index(occs, i);
 			if (o->end >= o->start && o->ali_len > (tx_len * 0.9)) {
@@ -224,7 +224,7 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 				}
 			}
 		}
-	}
+//	}
 
 	one_covered = 1;
 	for (i = 0; i < occs->len; i++) {
@@ -262,7 +262,9 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 			show_debug_msg("==============================================",
 					"ONE-COVERED\n");
 			occ_p_iter(key, value, user_data);
-			g_ptr_array_add(one_covered_ids, (char *)key);
+			if (!is_one_on_one && !is_full_length && !is_70_covered) {
+				g_ptr_array_add(one_covered_ids, (char *)key);
+			}
 		}
 	}
 }

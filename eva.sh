@@ -1,5 +1,5 @@
 #!/bin/bash
-query="ass_contigs"
+query="oases"
 db="spombe_genes.fa"
 start_reads="read/start_reads.txt"
 start_reads_gene="read/start_reads_gene.txt"
@@ -32,6 +32,7 @@ cp $blastdb$query.blastn read/
 
 echo "Evaluating..." 1>&2
 #eva read/ass_contigs.blastn read/result.txt graph/gene_10_lengths.txt graph/gene_10_edges.txt read/ass_contigs.fa read/tx.fa read/start_reads_gene.txt
+echo "./peta eva -o 0 -m read/$query.blastn -r read/$query.result.txt -e graph/gene_10_lengths.txt -g graph/gene_10_edges.txt -c read/$query.fa -t read/$db -s $start_reads_gene" 1>&2
 ./peta eva -o 0 -m read/$query.blastn -r read/$query.result.txt -e graph/gene_10_lengths.txt -g graph/gene_10_edges.txt -c read/$query.fa -t read/$db -s $start_reads_gene
 echo "See result in $query.result.txt" 1>&2
 
