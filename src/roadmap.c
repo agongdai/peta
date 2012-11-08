@@ -617,8 +617,8 @@ void post_pro(edgearray *all_edges, const ass_opt *opt) {
 	i = 0;
 	do {
 		updated = post_pro_edges(all_edges);
-		sprintf(graph_fn, "graph/rm_after_update_%d.dot", i++);
-		graph_by_edges(all_edges, graph_fn);
+//		sprintf(graph_fn, "graph/rm_after_update_%d.dot", i++);
+//		graph_by_edges(all_edges, graph_fn);
 	} while (updated);
 	free(graph_fn);
 }

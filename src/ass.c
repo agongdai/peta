@@ -1421,17 +1421,16 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 	return cur_eg;
 }
 
-void pe_ass_core(const char *starting_reads, const char *fa_fn,
-		const char *pet_fn) {
+void pe_ass_core(const char *starting_reads, const char *fa_fn) {
 	int counter = 0, index = 0, s_index = 0, e_index = 0, pre_ctg_id = 0, i = 0;
 	bwa_seq_t *p; // sequence of RNA-SEQs, RNA-PETs and temp
 	char *h = malloc(BUFSIZE), *msg = calloc(BUFSIZE, sizeof(char));
 	char line[80];
-	char *name = NULL;
+	char *name = NULL, *reads_name = NULL;
 
 	FILE *ass_contigs = NULL;
-	FILE *name = get_out_file("ass_contigs.fa");
-	FILE *start_reads = xopen("read/start_reads.txt", "w");
+	FILE *all_contigs = NULL;
+	FILE *start_reads = NULL;
 	FILE *solid_reads = xopen(starting_reads, "r");
 
 	hash_table *ht;
@@ -1446,12 +1445,12 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	name = get_out_file("ass_contigs.fa");
 	ass_contigs = xopen(name, "w");
 	free(name);
-	name = get_out_file("ass_contigs.fa");
+	name = get_out_file("contigs.fa");
 	all_contigs = xopen(name, "w");
 	free(name);
+	name = get_out_file("start_reads.txt");
+	start_reads = xopen(name, "w");
 	free(name);
-	free(name);
-
 
 	s_index = 23000;
 	e_index = 23100;
@@ -1510,12 +1509,20 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn,
 	// Post process the roadmaps.
 	// log_reads(all_edges);
 	show_msg(__func__, "Post processing the roadmap... \n");
-	graph_by_edges(all_edges, "graph/rm_bf_update.dot");
+	name = get_out_file("rm_br_update.dot");
+	graph_by_edges(all_edges, name);
+	free(name);
 	save_edges(all_edges, all_contigs, 0, 1, opt->rl * 1.5);
 	post_pro(all_edges, opt);
-	graph_by_edges(all_edges, "graph/rm_after_update.dot");
+	name = get_out_file("rm_after_update.dot");
+	graph_by_edges(all_edges, name);
+	free(name);
 	save_edges(all_edges, ass_contigs, 0, 0, opt->rl * 1.5);
-	dump_rm(all_edges, "read/roadmap.graph", "read/roadmap.reads");
+	name = get_out_file("roadmap.graph");
+	reads_name = get_out_file("roadmap.reads");
+	dump_rm(all_edges, name, reads_name);
+	free(name);
+	free(reads_name);
 
 	free(h);
 	free(msg);
@@ -1594,7 +1601,7 @@ int pe_ass(int argc, char *argv[]) {
 		err_fatal(__func__, "Failed to create output folder %s.\n", opt->out_root);
 	}
 
-	pe_ass_core(opt->solid_reads, argv[optind], argv[optind + 1]);
+	pe_ass_core(opt->solid_reads, argv[optind]);
 
 	free(opt);
 

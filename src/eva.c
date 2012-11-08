@@ -21,13 +21,9 @@
 
 int compute_ori = 0;
 char *sam_fn;
-char *exons_fn;
-char *edges_fn;
 char *tx_fn;
 char *contigs_fn;
-char *start_reads_fn;
 char *result_fn;
-char *tx_sum_fn = "read/tx_sum.txt";
 tx_info *ori_info;
 
 int tmp_total_base = 0;
@@ -292,10 +288,6 @@ void write_tx_sum(tx_info *info) {
 			fp);
 	str = fix_len("Original transcript file: ", ATTR_STR_LEN);
 	sprintf(item, "%s\t%s\n", str, tx_fn);
-	fputs(item, fp);
-
-	str = fix_len("Exons file: ", ATTR_STR_LEN);
-	sprintf(item, "%s\t%s\n", str, edges_fn);
 	fputs(item, fp);
 
 	str = fix_len("Total base: ", ATTR_STR_LEN);
@@ -612,116 +604,6 @@ void read_tx_seqs(tx_info *info) {
 	}
 }
 
-void read_exon_info(tx_info *info) {
-	char buf[BUFSIZ];
-	exon *ex = 0, *ex_i;
-	FILE *exon_fp = xopen(exons_fn, "r");
-	char *attr[BUFSIZ];
-	int exon_id = 0, i = 0, j = 0, is_new_ex = 1;
-	show_debug_msg(__func__, "exon_fn: %s \n", exons_fn);
-	show_debug_msg(__func__, "gene_fn: %s \n", edges_fn);
-	while (fgets(buf, sizeof(buf), exon_fp)) {
-		i = 0;
-		attr[0] = strtok(buf, ":");
-		exon_id = atoi(attr[0]);
-		while (attr[i] != NULL) { //ensure a pointer was found
-			attr[++i] = strtok(NULL, ":"); //continue to tokenize the string
-		}
-		ex = new_exon();
-		ex->id = exon_id;
-		ex->len = atoi(attr[1]);
-		sprintf(ex->label, "%d:%d", exon_id, ex->len);
-		for (j = 0; j < info->exons->len; j++) {
-			ex_i = g_ptr_array_index(info->exons, j);
-			if (ex_i->id == ex->id) {
-				is_new_ex = 0;
-				break;
-			}
-		}
-		if (is_new_ex)
-			g_ptr_array_add(info->exons, ex);
-		is_new_ex = 1;
-		if (exon_id >= info->n_exon) {
-			info->n_exon = exon_id;
-		}
-	}
-	// Sort exons by id, such that it could be acting as kind of 'hash table'
-	// index 0 points to the exon whose id is 0
-	g_ptr_array_sort(info->exons, (GCompareFunc) cmp_exons);
-	//g_ptr_array_foreach(info->exons, (GFunc) p_exon, NULL);
-	fclose(exon_fp);
-	info->n_exon++;
-}
-
-void read_tx_info(tx_info *info) {
-	char buf[BUFSIZ];
-	char *attr[BUFSIZ];
-	FILE *gene_fp = xopen(edges_fn, "r");
-	tx *t = 0, *tx_i;
-	exon *ex;
-	int i = 0, j = 0, is_sd_tx = 1, tx_len = 0, is_new_tx = 1, exon_id = 0,
-			max_exon_id = 0;
-	while (fgets(buf, sizeof(buf), gene_fp)) {
-		i = 0;
-		is_sd_tx = 1;
-		// printf("%s \n", buf);
-		if (strstr(buf, "#") != NULL) {
-			attr[0] = strtok(buf, "=");
-			while (attr[i] != NULL) { //ensure a pointer was found
-				attr[++i] = strtok(NULL, "="); //continue to tokenize the string
-			}
-			tx_len = atoi(attr[1]);
-			t = new_tx();
-			t->len = tx_len;
-			attr[0] = strtok(buf, "|");
-			//printf("%s \n", attr[0]);
-			t->name = strdup(attr[0]);
-			memmove(t->name, &t->name[1], strlen(t->name) - 1);
-			t->name[strlen(t->name) - 1] = '\0';
-			is_new_tx = 1;
-			// Some non-coding/micro RNAs have the same name, just treat them as one.
-			for (i = 0; i < info->txs->len; i++) {
-				tx_i = g_ptr_array_index(info->txs, i);
-				if (strcmp(t->name, tx_i->name) == 0) {
-					is_new_tx = 0;
-				}
-			}
-			if (is_new_tx) {
-				g_ptr_array_add(info->txs, t);
-			}
-		} else {
-			attr[0] = strtok(buf, ",");
-			while (attr[i] != NULL) { //ensure a pointer was found
-				attr[++i] = strtok(NULL, ","); //continue to tokenize the string
-			}
-
-			for (j = 0; j < i; j++) {
-				// printf("i, j: %d, %d \n", i, j);
-				exon_id = atoi(strtok(attr[j], "["));
-				ex = g_ptr_array_index(info->exons, exon_id);
-				if (ex) {
-					g_ptr_array_add(t->ea, ex);
-					g_ptr_array_add(ex->ta, t);
-				}
-				if (atoi(attr[j]) == max_exon_id + 1) {
-					max_exon_id++;
-				} else {
-					// show_debug_msg(__func__, "%s", meta);
-					is_sd_tx = 0;
-				}
-			}
-			if (is_sd_tx && is_new_tx) {
-				info->n_sd_tx++;
-				info->n_sd_base += tx_len;
-				g_ptr_array_add(info->sd_txs, t);
-			}
-		}
-	}
-	//g_ptr_array_foreach(ta, (GFunc) p_tx, NULL);
-	info->base_sd_total = (float) info->n_sd_base / info->n_base;
-	fclose(gene_fp);
-}
-
 int exon_adj(exon *e1, exon *e2) {
 	txarray *ta_1 = e1->ta;
 	txarray *ta_2 = e2->ta;
@@ -741,154 +623,6 @@ int exon_adj(exon *e1, exon *e2) {
 		}
 	}
 	return 1;
-}
-
-void draw_graph(tx_info *info) {
-	FILE *s_read_fp = xopen(start_reads_fn, "r");
-	FILE *graph_fp = xopen(info->graph_fn, "w");
-	FILE *tx_egs = xopen(info->cpn_fn, "w");
-	txarray *target_ta, *exon_ta = 0;
-	GPtrArray *conns = g_ptr_array_sized_new(N_CTGS);
-	GPtrArray *cpns = g_ptr_array_sized_new(N_CTGS);
-	exon *e, *e_after;
-	tx *t, *t_exon;
-	bwa_seq_t *tx_seq = 0, *eg_seq = 0;
-	char buf[BUFSIZ], shape_str[BUFSIZ], *shape_str_i;
-	char *attr[BUFSIZ];
-	int i = 0, j = 0, k = 0, merged = 0, sum_exon_len = 0, acc_exon_len = 0,
-			acc_len = 0, slot_index = 0;
-	// List all transcripts that should be assembled.
-	// If it is to compute the original tx info, just set it to the full list
-	if (compute_ori) {
-		target_ta = info->txs;
-	} else {
-		target_ta = g_ptr_array_sized_new(N_CTGS);
-		while (fgets(buf, sizeof(buf), s_read_fp)) {
-			chomp(buf);
-			for (i = 0; i < info->txs->len; i++) {
-				t = g_ptr_array_index(info->txs, i);
-				if (strcmp(t->name, buf) == 0) {
-					g_ptr_array_add(target_ta, t);
-				}
-			}
-		}
-		//g_ptr_array_foreach(target_ta, (GFunc) p_tx, NULL);
-		// Get the "closure" of target transcripts
-		while (1) {
-			exon_ta = g_ptr_array_sized_new(256);
-			// For each existing transcripts
-			for (i = 0; i < target_ta->len; i++) {
-				t = g_ptr_array_index(target_ta, i);
-				// For each exons of the transcript
-				for (j = 0; j < t->ea->len; j++) {
-					e = g_ptr_array_index(t->ea, j);
-					// For each transcript which contains current exon.
-					for (k = 0; k < e->ta->len; k++) {
-						t_exon = g_ptr_array_index(e->ta, k);
-						// If not added, add it!
-						if (array_find(target_ta, t_exon) == NOT_FOUND
-								&& array_find(exon_ta, t_exon) == NOT_FOUND) {
-							g_ptr_array_add(exon_ta, t_exon);
-						}
-					}
-				}
-			}
-			if (exon_ta->len > 0)
-				g_ptr_array_concat(target_ta, exon_ta);
-			else
-				break;
-		}
-	}
-	show_debug_msg(__func__, "-----------------------------------------\n");
-	//g_ptr_array_foreach(target_ta, (GFunc) p_tx, NULL);
-
-	fputs("digraph g { \n\trankdir = LR \n", graph_fp);
-	for (i = 0; i < target_ta->len; i++) {
-		t = g_ptr_array_index(target_ta, i);
-		for (j = 0; j < t->ea->len - 1; j++) {
-			e = g_ptr_array_index(t->ea, j);
-			e_after = g_ptr_array_index(t->ea, j + 1);
-			merged = exon_adj(e, e_after);
-			if (merged) {
-				// If the second exon is not merged yet, accumulate the length;
-				// By default, e->merged_to = e;
-				// Different transcripts may have the same exon, here avoids duplicate counting.
-				if (e_after->merged_to == e_after) {
-					e->merged_to->len += e_after->len;
-					sprintf(e->merged_to->label, "%d-%d: %d", e->merged_to->id,
-							e_after->id, e->merged_to->len);
-					e_after->merged_to = e->merged_to;
-				}
-			} else {
-				sprintf(shape_str, "\t%d -> %d \n", e->merged_to->id,
-						e_after->id);
-				for (k = 0; k < conns->len; k++) {
-					shape_str_i = g_ptr_array_index(conns, k);
-					if (strcmp(shape_str_i, shape_str) == 0)
-						break;
-				}
-				if (k == conns->len) {
-					fputs(shape_str, graph_fp);
-					g_ptr_array_add(conns, strdup(shape_str));
-				}
-			}
-		}
-	}
-
-	for (i = 0; i < target_ta->len; i++) {
-		t = g_ptr_array_index(target_ta, i);
-		for (j = 0; j < info->tx_seqs->len; j++) {
-			tx_seq = g_ptr_array_index(info->tx_seqs, j);
-			k = 0;
-			attr[0] = strtok(tx_seq->name, "|");
-			while (attr[k] != NULL) { //ensure a pointer was found
-				attr[++k] = strtok(NULL, "|"); //continue to tokenize the string
-			}
-			if (attr[1] && strcmp(attr[1], t->name) == 0) {
-				break;
-			}
-		}
-		acc_len = 0;
-		for (j = 0; j < t->ea->len; j++) {
-			e = g_ptr_array_index(t->ea, j);
-			// Only print the exons who are merged to.
-			if (!e->merged_to->drawed) {
-				sprintf(shape_str, "\t%d [shape=box, label=\"[%s] %s\"] \n",
-						e->merged_to->id, t->name, e->merged_to->label);
-				info->n_graph_egs++;
-				fputs(shape_str, graph_fp);
-				e->merged_to->drawed = 1;
-				g_ptr_array_add(cpns, e->merged_to);
-				sum_exon_len += e->merged_to->len;
-				eg_seq = new_seq(tx_seq, e->merged_to->len, acc_len);
-				acc_len += e->merged_to->len;
-				sprintf(shape_str, ">%s_%s\n", t->name, e->merged_to->label);
-				save_con(shape_str, eg_seq, tx_egs);
-			}
-		}
-	}
-	fputs("}\n", graph_fp);
-
-	info->n_uni_base = sum_exon_len;
-	g_ptr_array_sort(cpns, (GCompareFunc) cmp_exons_by_len);
-	for (i = 0; i < cpns->len; i++) {
-		e = g_ptr_array_index(cpns, i);
-		acc_exon_len += e->len;
-		//show_debug_msg(__func__, "%s: %d => %d / %d\n", e->label, e->len,
-		//		acc_exon_len, sum_exon_len);
-		// The n50 value only set once
-		if (acc_exon_len * 2 >= sum_exon_len && !info->best_n50) {
-			info->best_n50 = e->len;
-		}
-		slot_index =
-				(e->len >= MAX_LEN_FOR_PLOT) ?
-						(MAX_LEN_FOR_PLOT / SLOT_SIZE) : e->len / SLOT_SIZE;
-		info->slots[slot_index] += e->len;
-	}
-
-	fclose(s_read_fp);
-	fclose(graph_fp);
-	fclose(tx_egs);
 }
 
 void cal_opt_n50(tx_info *info) {
@@ -1073,14 +807,8 @@ void get_ori_info() {
 	tx_info *info = init_info();
 	// Read the sequences of transcripts, get total base and # of txs
 	read_tx_seqs(info);
-	// Read the exon meta info, get # of exons and exon list
-	//read_exon_info(info);
-	// Read the exon list of txs
-	//read_tx_info(info);
 	// Calculate the optimal N50 value
 	cal_opt_n50(info);
-	// Draw the graph and calculate the best N50
-	//draw_graph(info);
 	write_tx_sum(info);
 	ori_info = info;
 }
@@ -1148,7 +876,7 @@ void get_ass_info() {
 int eva_main(int argc, char *argv[]) {
 	clock_t t = clock();
 	int c;
-	while ((c = getopt(argc, argv, "o:m:e:g:t:c:s:r:")) >= 0) {
+	while ((c = getopt(argc, argv, "o:m:t:c:r:")) >= 0) {
 		switch (c) {
 		case 'o':
 			compute_ori = atoi(optarg);
@@ -1156,20 +884,11 @@ int eva_main(int argc, char *argv[]) {
 		case 'm':
 			sam_fn = optarg;
 			break;
-		case 'e':
-			exons_fn = optarg;
-			break;
-		case 'g':
-			edges_fn = optarg;
-			break;
 		case 't':
 			tx_fn = optarg;
 			break;
 		case 'c':
 			contigs_fn = optarg;
-			break;
-		case 's':
-			start_reads_fn = optarg;
 			break;
 		case 'r':
 			result_fn = optarg;

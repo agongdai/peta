@@ -1,11 +1,9 @@
 #!/bin/bash
 query="peta"
 db="spombe.broad.tx.fa"
-start_reads="read/start_reads.txt"
-start_reads_gene="read/start_reads_gene.txt"
 blastdb="../ncbi-blast-2.2.25+/db/"
 similarity=90
-query_dir=read/
+query_dir=SRR097897/
 cp $query_dir/$query.fa $blastdb
 cp $query_dir/$db $blastdb 
 
@@ -35,7 +33,7 @@ echo "Done"
 echo "Evaluating..." 1>&2
 #eva read/ass_contigs.blastn read/result.txt graph/gene_10_lengths.txt graph/gene_10_edges.txt read/ass_contigs.fa read/tx.fa read/start_reads_gene.txt
 echo "./peta eva -o 0 -m $query_dir/$query.blastn -r $query_dir/$query.result.txt -e graph/gene_10_lengths.txt -g graph/gene_10_edges.txt -c $query_dir/$query.fa -t $query_dir/$db -s $start_reads_gene" 1>&2
-./peta eva -o 0 -m $query_dir/$query.blastn -r $query_dir/$query.result.txt -e graph/gene_10_lengths.txt -g graph/gene_10_edges.txt -c $query_dir/$query.fa -t $query_dir/$db -s $start_reads_gene
+./peta eva -o 0 -m $query_dir/$query.blastn -r $query_dir/$query.result.txt -c $query_dir/$query.fa -t $query_dir/$db
 echo "See result in $query_dir/$query.result.txt" 1>&2
 
 #echo
