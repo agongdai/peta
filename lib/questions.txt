@@ -1,3 +1,0 @@
-1. List of solid reads (....correct): content of it and how to use it?
-2. Hashing: hash 2/3 of the reads, ^ the overflows?
-3. Cannot run ./err.exe <data dir>;
