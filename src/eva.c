@@ -37,7 +37,6 @@ tx_info *init_info() {
 	tx_info *i = (tx_info*) malloc(sizeof(tx_info));
 	i->base_sd_total = 0.0;
 	i->best_n50 = 0;
-	i->graph_fn = "graph/target.dot";
 	i->n_base = 0;
 	i->n_uni_base = 0;
 	i->n_exon = 0;
@@ -46,8 +45,6 @@ tx_info *init_info() {
 	i->n_sd_tx = 0;
 	i->n_tx = 0;
 	i->opt_n50 = 0;
-	i->sum_fn = tx_sum_fn;
-	i->cpn_fn = "read/edges.txt";
 	i->slots = (int*) calloc(MAX_LEN_FOR_PLOT / SLOT_SIZE + 1, sizeof(int));
 	i->n_slot = MAX_LEN_FOR_PLOT / SLOT_SIZE + 1;
 	i->txs = g_ptr_array_sized_new(N_CTGS);
@@ -157,7 +154,6 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 	int one_covered = 0, n_bases_on_contig = 0, is_full_length = 0,
 			is_70_covered = 0, is_one_on_one = 0;
 	g_ptr_array_sort(occs, (GCompareFunc) cmp_occ);
-	tx *t;
 	bwa_seq_t *seq = NULL;
 
 	for (i = 0; i < ori_info->tx_seqs->len; i++) {
@@ -278,72 +274,6 @@ char *fix_len(char *str, const int len) {
 	return new_str;
 }
 
-void write_tx_sum(tx_info *info) {
-	char item[BUFSIZ], *str;
-	FILE *fp = xopen(info->sum_fn, "w");
-	int i = 0;
-
-	fputs(
-			"-------------------------------------------------------------------\n",
-			fp);
-	str = fix_len("Original transcript file: ", ATTR_STR_LEN);
-	sprintf(item, "%s\t%s\n", str, tx_fn);
-	fputs(item, fp);
-
-	str = fix_len("Total base: ", ATTR_STR_LEN);
-	sprintf(item, "%s\t%d\n", str, info->n_base);
-	fputs(item, fp);
-
-	str = fix_len("Unique base: ", ATTR_STR_LEN);
-	sprintf(item, "%s\t%d\n", str, info->n_uni_base);
-	fputs(item, fp);
-
-	str = fix_len("# of transcripts: ", ATTR_STR_LEN);
-	sprintf(item, "%s\t%d\n", str, info->n_tx);
-	fputs(item, fp);
-
-	str = fix_len("# of exons: ", ATTR_STR_LEN);
-	sprintf(item, "%s\t%d\n", str, info->n_exon);
-	fputs(item, fp);
-
-	str = fix_len("# of stand alone gene: ", ATTR_STR_LEN);
-	sprintf(item, "%s\t%d\n", str, info->n_sd_tx);
-	fputs(item, fp);
-
-	str = fix_len("# of stand alone base: ", ATTR_STR_LEN);
-	sprintf(item, "%s\t%d\n", str, info->n_sd_base);
-	fputs(item, fp);
-
-	str = fix_len("% of stand alone base: ", ATTR_STR_LEN);
-	sprintf(item, "%s\t%f\n", str, info->base_sd_total);
-	fputs(item, fp);
-
-	str = fix_len("Optimal N50: ", ATTR_STR_LEN);
-	sprintf(item, "%s\t%d\n", str, info->opt_n50);
-	fputs(item, fp);
-
-	fputs("\n", fp);
-
-	str = fix_len("# of target edges: ", ATTR_STR_LEN);
-	sprintf(item, "%s\t%d\n", str, info->n_graph_egs);
-	fputs(item, fp);
-
-	str = fix_len("Best N50: ", ATTR_STR_LEN);
-	sprintf(item, "%s\t%d\n", str, info->best_n50);
-	fputs(item, fp);
-
-	fputs("Base range accumulation:\n", fp);
-	for (i = 0; i < info->n_slot; i++) {
-		sprintf(item, "%d\t%d\n", i * SLOT_SIZE, info->slots[i]);
-		fputs(item, fp);
-	}
-
-	fputs(
-			"-------------------------------------------------------------------\n\n\n",
-			fp);
-	fclose(fp);
-}
-
 gint cmp_ctgs(gpointer a, gpointer b) {
 	edge* eg_a = *(edge**) a;
 	edge* eg_b = *(edge**) b;
@@ -351,15 +281,11 @@ gint cmp_ctgs(gpointer a, gpointer b) {
 }
 
 void write_ass_rs(rs_info *info) {
-	char buf[BUFSIZ], item[BUFSIZ], *str;
-	FILE *ori_fp = xopen(tx_sum_fn, "r");
+	char item[BUFSIZ], *str;
 	FILE *rs_fp = xopen(result_fn, "w");
 	int i = 0;
 	edge *t = 0;
 
-	while (fgets(buf, sizeof(buf), ori_fp)) {
-		fputs(buf, rs_fp);
-	}
 	fputs("Assembled results by PETA: \n", rs_fp);
 	fputs(
 			"-------------------------------------------------------------------\n",
@@ -456,7 +382,6 @@ void write_ass_rs(rs_info *info) {
 			"\n-------------------------------------------------------------------\n",
 			rs_fp);
 
-	fclose(ori_fp);
 	fclose(rs_fp);
 }
 
@@ -641,8 +566,8 @@ void trim(char *str) {
 
 void parse_sam(rs_info *info) {
 	char buf[BUFSIZ];
-	char *id_str, *attr[16], *r_attr[5];
-	int i = 0, q_len = 0, contig_id = 0;
+	char *id_str, *attr[16];
+	int i = 0, q_len = 0;
 	occarray *o_arr_i = g_ptr_array_sized_new(16);
 	FILE *sam_fp = xopen(sam_fn, "r");
 	eva_occ *o = 0;
@@ -809,7 +734,6 @@ void get_ori_info() {
 	read_tx_seqs(info);
 	// Calculate the optimal N50 value
 	cal_opt_n50(info);
-	write_tx_sum(info);
 	ori_info = info;
 }
 
@@ -842,9 +766,9 @@ void write_hit_txs() {
 }
 
 void get_ass_info() {
-	int i = 0, len = 0, j = 0;
+	int i = 0;
 	char *name;
-	bwa_seq_t *t, *s;
+	bwa_seq_t *s;
 
 	occarray *o_arr_i = 0;
 	rs_info *info = init_rs_info();

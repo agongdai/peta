@@ -54,7 +54,7 @@ struct exon {
 typedef struct {
 	int n_base;
 	int n_uni_base;
-	int n_tx;
+	uint32_t n_tx;
 	int n_exon;
 	int opt_n50;
 	int best_n50;
@@ -62,9 +62,6 @@ typedef struct {
 	int n_sd_base;
 	int n_graph_egs;
 	float base_sd_total;
-	char *graph_fn;
-	char *sum_fn;
-	char *cpn_fn;
 	int *slots;
 	int n_slot;
 	GPtrArray *txs;
@@ -77,7 +74,7 @@ typedef struct {
 typedef struct {
 	int n_base_shared;
 	int n_base;
-	int n_ctgs;
+	uint32_t n_ctgs;
 	int n_full_len;
 	int n_70_covered;
 	int n_one_on_one;
