@@ -660,6 +660,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 			}
 			eg = new_eg();
 			eg->id = atoi(attr[0]);
+			show_debug_msg(__func__, "Initiating edge %s ...\n", attr[0]);
 
 			if (attr[1] != NULL && strcmp(attr[1], "") != 0) {
 				len = count_comma(attr[1], strlen(attr[1]));
@@ -688,7 +689,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 			char_len++;
 		}
 	}
-
+	show_msg(__func__, "Set up the connection among the edges... \n");
 	free(read_str);
 	read_str = (char*) calloc(BUFSIZ, sizeof(char)); // allocate buffer.
 	char_space = BUFSIZ;
@@ -710,9 +711,6 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 				while (attr[j] != NULL) { //ensure a pointer was found
 					attr[++j] = strtok(NULL, "\t"); //continue to tokenize the string
 				}
-				//				show_debug_msg("OUT", "%s\n", attr[1]);
-				//				show_debug_msg("IN", "%s\n", attr[2]);
-				//				show_debug_msg("RIGHT", "%s\n", attr[3]);
 
 				// Outgoing edges
 				if (attr[1] != NULL && strcmp(attr[1], "-1") != 0) {
@@ -721,17 +719,18 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 					out_ids[0] = strtok(attr[1], ",");
 					j = 0;
 					in_out_eg = edgearray_find_id(edges, atoi(out_ids[0]));
-					g_ptr_array_add(eg->out_egs, in_out_eg);
+					if (in_out_eg)
+						g_ptr_array_add(eg->out_egs, in_out_eg);
 					while (out_ids[j] != NULL) { //ensure a pointer was found
 						out_ids[++j] = strtok(NULL, ","); //continue to tokenize the string
 						if (out_ids[j] == NULL || strcmp(out_ids[j], "") == 0) {
 							break;
 						}
 						in_out_eg = edgearray_find_id(edges, atoi(out_ids[j]));
-						g_ptr_array_add(eg->out_egs, in_out_eg);
+						if (in_out_eg)
+							g_ptr_array_add(eg->out_egs, in_out_eg);
 					}
 				}
-
 				// Incoming edges
 				if (attr[2] != NULL && strcmp(attr[2], "-1") != 0) {
 					len = count_comma(attr[2], strlen(attr[2]));
@@ -739,14 +738,16 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 					in_ids[0] = strtok(attr[2], ",");
 					j = 0;
 					in_out_eg = edgearray_find_id(edges, atoi(in_ids[0]));
-					g_ptr_array_add(eg->in_egs, in_out_eg);
+					if (in_out_eg)
+						g_ptr_array_add(eg->in_egs, in_out_eg);
 					while (in_ids[j] != NULL) { //ensure a pointer was found
 						in_ids[++j] = strtok(NULL, ","); //continue to tokenize the string
 						if (in_ids[j] == NULL || strcmp(in_ids[j], "") == 0) {
 							break;
 						}
 						in_out_eg = edgearray_find_id(edges, atoi(in_ids[j]));
-						g_ptr_array_add(eg->in_egs, in_out_eg);
+						if (in_out_eg)
+							g_ptr_array_add(eg->in_egs, in_out_eg);
 					}
 				}
 
@@ -755,12 +756,14 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 					len = count_comma(attr[3], strlen(attr[3]));
 					shifts[0] = strtok(attr[3], ","); //continue to tokenize the string
 					shifts[1] = strtok(NULL, ",");
-					// show_debug_msg(__func__, "%s: %s\n", shifts[0], shifts[1]);
+					show_debug_msg(__func__, "%s: %s\n", shifts[0], shifts[1]);
 					in_out_eg = edgearray_find_id(edges, atoi(shifts[0]));
-					eg->right_ctg = in_out_eg;
-					g_ptr_array_free(eg->out_egs, TRUE);
-					eg->out_egs = in_out_eg->out_egs;
-					eg->r_shift = atoi(shifts[1]);
+					if (in_out_eg) {
+						eg->right_ctg = in_out_eg;
+						g_ptr_array_free(eg->out_egs, TRUE);
+						eg->out_egs = in_out_eg->out_egs;
+						eg->r_shift = atoi(shifts[1]);
+					}
 				}
 				free(read_str);
 				read_str = (char*) calloc(BUFSIZ, sizeof(char)); // allocate buffer.
@@ -774,7 +777,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 			}
 		}
 	}
-
+	show_msg(__func__, "Loading the edge sequences... \n");
 	// Assign the contig sequences
 	contigs = load_reads(contig_file, &n_ctgs);
 	for (i = 0; i < edges->len; i++) {
@@ -815,6 +818,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 	free(read_str);
 	fclose(reads_fp);
 	fclose(dump_fp);
+	show_debug_msg(__func__, "Reached the end. \n");
 	return edges;
 }
 
@@ -1031,7 +1035,7 @@ int pe_path(int argc, char *argv[]) {
 	ht = pe_load_hash(argv[2]);
 	edges = load_rm(ht, argv[3], argv[4], argv[5]);
 	final_paths = report_paths(edges);
-	validate_paths(ht, final_paths, atoi(argv[1]));
+	//validate_paths(ht, final_paths, atoi(argv[1]));
 	save_paths(final_paths, "read/peta.fa", 100);
 	g_ptr_array_free(final_paths, TRUE);
 
