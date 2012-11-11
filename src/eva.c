@@ -23,7 +23,7 @@ int compute_ori = 0;
 char *sam_fn;
 char *tx_fn;
 char *contigs_fn;
-char *result_fn;
+char *result_dir;
 tx_info *ori_info;
 
 int tmp_total_base = 0;
@@ -32,6 +32,14 @@ int tmp_n_cufflinks = 0;
 GPtrArray *one_on_one_ids = NULL;
 GPtrArray *full_length_ids = NULL;
 GPtrArray *one_covered_ids = NULL;
+
+char *get_result_file(const char *file_name) {
+	char *name = (char*) calloc(512, sizeof(char));
+	strcat(name, result_dir);
+	strcat(name, "/");
+	strcat(name, file_name);
+	return name;
+}
 
 tx_info *init_info() {
 	tx_info *i = (tx_info*) malloc(sizeof(tx_info));
@@ -139,8 +147,8 @@ void occ_p_iter(gpointer key, gpointer value, gpointer user_data) {
 	}
 	n_base_got++;
 	tmp_got_base += n_base_got;
-	printf("\t %d/%d:%f", n_base_got, t_len,
-			((float) (n_base_got) / (float) t_len));
+	printf("\t %d/%d:%f", n_base_got, t_len, ((float) (n_base_got)
+			/ (float) t_len));
 	printf("\t %d", tmp_n_cufflinks);
 	printf("\n");
 }
@@ -167,56 +175,56 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 	}
 
 	// Check whether is one-on-one transcript
-//	if (occs->len == 1) {
+	//	if (occs->len == 1) {
+	for (i = 0; i < occs->len; i++) {
+		o = g_ptr_array_index(occs, i);
+		if (o->end >= o->start && o->ali_len > (tx_len * 0.9)) {
+			if (o->ali_len > (o->q_len * 0.9)) {
+				info->n_one_on_one++;
+				is_one_on_one = 1;
+				show_debug_msg(
+						"==============================================",
+						"ONE-ON-ONE\n");
+				occ_p_iter(key, value, NULL);
+				g_ptr_array_add(one_on_one_ids, (char *) key);
+				break;
+			}
+		}
+	}
+	// Check whether is full-length
+	if (!is_one_on_one) {
 		for (i = 0; i < occs->len; i++) {
 			o = g_ptr_array_index(occs, i);
 			if (o->end >= o->start && o->ali_len > (tx_len * 0.9)) {
-				if (o->ali_len > (o->q_len * 0.9)) {
-					info->n_one_on_one++;
-					is_one_on_one = 1;
-					show_debug_msg(
-							"==============================================",
-							"ONE-ON-ONE\n");
-					occ_p_iter(key, value, NULL);
-					g_ptr_array_add(one_on_one_ids, (char *)key);
-					break;
-				}
+				info->n_full_len++;
+				is_full_length = 1;
+				show_debug_msg(
+						"==============================================",
+						"FULL-LENGTH\n");
+				occ_p_iter(key, value, NULL);
+				g_ptr_array_add(full_length_ids, (char *) key);
+				break;
 			}
 		}
-		// Check whether is full-length
-		if (!is_one_on_one) {
-			for (i = 0; i < occs->len; i++) {
-				o = g_ptr_array_index(occs, i);
-				if (o->end >= o->start && o->ali_len > (tx_len * 0.9)) {
-					info->n_full_len++;
-					is_full_length = 1;
-					show_debug_msg(
-							"==============================================",
-							"FULL-LENGTH\n");
-					occ_p_iter(key, value, NULL);
-					g_ptr_array_add(full_length_ids, (char *)key);
-					break;
-				}
-			}
-		}
+	}
 
-		if (!is_one_on_one && !is_full_length) {
-			for (i = 0; i < occs->len; i++) {
-				o = g_ptr_array_index(occs, i);
-				if (o->end >= o->start && o->ali_len > (tx_len * 0.7)) {
-					if (o->ali_len > (o->q_len * 0.9)) {
-						info->n_70_covered++;
-						is_70_covered = 1;
-						show_debug_msg(
-								"==============================================",
-								"70-COVERED\n");
-						occ_p_iter(key, value, NULL);
-						break;
-					}
+	if (!is_one_on_one && !is_full_length) {
+		for (i = 0; i < occs->len; i++) {
+			o = g_ptr_array_index(occs, i);
+			if (o->end >= o->start && o->ali_len > (tx_len * 0.7)) {
+				if (o->ali_len > (o->q_len * 0.9)) {
+					info->n_70_covered++;
+					is_70_covered = 1;
+					show_debug_msg(
+							"==============================================",
+							"70-COVERED\n");
+					occ_p_iter(key, value, NULL);
+					break;
 				}
 			}
 		}
-//	}
+	}
+	//	}
 
 	one_covered = 1;
 	for (i = 0; i < occs->len; i++) {
@@ -255,7 +263,7 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 					"ONE-COVERED\n");
 			occ_p_iter(key, value, user_data);
 			if (!is_one_on_one && !is_full_length && !is_70_covered) {
-				g_ptr_array_add(one_covered_ids, (char *)key);
+				g_ptr_array_add(one_covered_ids, (char *) key);
 			}
 		}
 	}
@@ -282,9 +290,14 @@ gint cmp_ctgs(gpointer a, gpointer b) {
 
 void write_ass_rs(rs_info *info) {
 	char item[BUFSIZ], *str;
-	FILE *rs_fp = xopen(result_fn, "w");
+	char *name = NULL;
+	FILE *rs_fp = NULL;
 	int i = 0;
 	edge *t = 0;
+
+	name = get_result_file("result.txt");
+	rs_fp = xopen(name, "w");
+	free(name);
 
 	fputs("Assembled results by PETA: \n", rs_fp);
 	fputs(
@@ -424,8 +437,7 @@ void p_occ(eva_occ *o) {
 	show_debug_msg(__func__, "ali_len: %d \n", o->ali_len);
 	show_debug_msg(__func__, "q_len: %d \n", o->q_len);
 	show_debug_msg(__func__, "r_len: %d \n", o->r_len);
-	show_debug_msg(__func__,
-			"--------------------------------------------- \n");
+	show_debug_msg(__func__, "--------------------------------------------- \n");
 }
 
 void chomp(char *s) {
@@ -689,9 +701,8 @@ void cal_ass_n50(rs_info *info) {
 		if (acc_len * 2 >= ori_info->n_base && !info->n50_all) {
 			info->n50_all = s->len;
 		}
-		slot_index =
-				(s->len >= MAX_LEN_FOR_PLOT) ?
-						(MAX_LEN_FOR_PLOT / SLOT_SIZE) : s->len / SLOT_SIZE;
+		slot_index = (s->len >= MAX_LEN_FOR_PLOT) ? (MAX_LEN_FOR_PLOT
+				/ SLOT_SIZE) : s->len / SLOT_SIZE;
 		info->slots[slot_index] += s->len;
 	}
 	info->ave_len = acc_len / info->n_ctgs;
@@ -712,8 +723,11 @@ void write_not_aligned_ctgs(rs_info *info) {
 	int i = 0, j = 0;
 	bwa_seq_t *contig = 0;
 	edge *eg = 0;
-	FILE *not_aligned = xopen("read/not_aligned.fa", "w");
-	char header[BUFSIZ];
+	FILE *not_aligned = NULL;
+	char header[BUFSIZ], *name = NULL;
+
+	name = get_result_file("not_aligned.fa");
+	not_aligned = xopen(name, "w");
 	for (i = 0; i < info->contigs->len; i++) {
 		contig = g_ptr_array_index(info->contigs, i);
 		for (j = 0; j < info->ea_not_aligned->len; j++) {
@@ -738,11 +752,21 @@ void get_ori_info() {
 }
 
 void write_hit_txs() {
-	FILE *one_on_one_file = xopen("eva/one_on_one.txt", "w");
-	FILE *full_length_file = xopen("eva/full_length.txt", "w");
-	FILE *one_covered_file = xopen("eva/one_covered.txt", "w");
-	char item[256], *hit_tx_id = NULL;
+	FILE *one_on_one_file = NULL;
+	FILE *full_length_file = NULL;
+	FILE *one_covered_file = NULL;
+	char item[256], *hit_tx_id = NULL, *name = NULL;
 	int i = 0;
+
+	name = get_result_file("one_on_one.txt");
+	one_on_one_file = xopen(name, "w");
+	free(name);
+	name = get_result_file("full_length.txt");
+	full_length_file = xopen(name, "w");
+	free(name);
+	name = get_result_file("one_covered.txt");
+	one_covered_file= xopen(name, "w");
+	free(name);
 
 	for (i = 0; i < one_on_one_ids->len; i++) {
 		hit_tx_id = g_ptr_array_index(one_on_one_ids, i);
@@ -815,7 +839,7 @@ int eva_main(int argc, char *argv[]) {
 			contigs_fn = optarg;
 			break;
 		case 'r':
-			result_fn = optarg;
+			result_dir = optarg;
 			break;
 		default:
 			compute_ori = atoi(optarg);
@@ -824,7 +848,7 @@ int eva_main(int argc, char *argv[]) {
 	}
 	get_ori_info();
 	get_ass_info();
-	show_msg(__func__, "Done: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	show_msg(__func__, "Done: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
 	return 0;
 }

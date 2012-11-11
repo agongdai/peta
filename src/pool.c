@@ -484,12 +484,13 @@ void clear_pool(pool *r_pool) {
 }
 
 void free_pool(pool *r_pool) {
-	readarray *reads = r_pool->reads;
-	bwa_seq_t *r = 0;
+	readarray *reads = NULL;
+	bwa_seq_t *r = NULL;
 	// p_pool("Pool to free: ", r_pool);
 	int i = 0;
 	// show_debug_msg(__func__, "Pool: %p \n", r_pool);
 	if (r_pool) {
+		reads = r_pool->reads;
 		if (r_pool->n > 0) {
 			for (i = 0; i < r_pool->n; i++) {
 				r = g_ptr_array_index(reads, i);
