@@ -576,102 +576,6 @@ void trim(char *str) {
 	}
 }
 
-void parse_sam(rs_info *info) {
-	char buf[BUFSIZ];
-	char *id_str, *attr[16];
-	int i = 0, q_len = 0;
-	occarray *o_arr_i = g_ptr_array_sized_new(16);
-	FILE *sam_fp = xopen(sam_fn, "r");
-	eva_occ *o = 0;
-	edge *eg = 0;
-	bwa_seq_t *ctg = 0;
-	while (fgets(buf, sizeof(buf), sam_fp)) {
-		i = 0;
-		trim(buf);
-		// printf("%s", buf);
-		if (strstr(buf, "#") != NULL) {
-			if (strstr(buf, "Query") != NULL) {
-				//show_debug_msg(__func__, "%s\n", buf);
-				i = 0;
-				attr[0] = strtok(buf, " ");
-				while (attr[i] != NULL) { //ensure a pointer was found
-					attr[++i] = strtok(NULL, " "); //continue to tokenize the string
-				}
-
-				for (i = 0; i < info->contigs->len; i++) {
-					ctg = g_ptr_array_index(info->contigs, i);
-					if (strcmp(ctg->name, attr[2]) == 0) {
-						q_len = ctg->len;
-						break;
-					}
-				}
-
-				//contig_id = atoi(attr[2]);
-				eg = new_eg();
-				//eg->id = contig_id;
-				eg->name = strdup(attr[2]);
-				eg->len = q_len;
-				g_ptr_array_add(info->ea_all, eg);
-			}
-			if (strstr(buf, " 0 hits found") != NULL) {
-				info->n_not_aligned++;
-				info->n_base_not_aligned += q_len;
-				g_ptr_array_add(info->ea_not_aligned, eg);
-			}
-			continue;
-		}
-		o = new_occ();
-		o->q_len = q_len;
-		chomp(buf);
-		//printf("---------------------------------------\n%s \n", buf);
-		attr[0] = strtok(buf, "\t");
-		i = 0;
-		while (attr[i] != NULL) { //ensure a pointer was found
-			attr[++i] = strtok(NULL, "\t"); //continue to tokenize the string
-		}
-		o->q_id = strdup(attr[0]);
-		id_str = attr[1];
-		i = 0;
-		//		r_attr[0] = strtok(id_str, "|");
-		//		while (r_attr[i] != NULL) { //ensure a pointer was found
-		//			r_attr[++i] = strtok(NULL, "|"); //continue to tokenize the string
-		//		}
-		o->r_id = strdup(id_str);
-		//		i = 0;
-		//		r_attr[0] = strtok(r_attr[2], "=");
-		//		while (r_attr[i] != NULL) { //ensure a pointer was found
-		//			r_attr[++i] = strtok(NULL, "="); //continue to tokenize the string
-		//		}
-		//		o->r_len = atoi(r_attr[1]);
-		o->percentage = atof(attr[2]) / 100;
-		o->ali_len = atoi(attr[3]);
-		o->start = atoi(attr[6]);
-		o->end = atoi(attr[7]);
-		if (o->start > o->end) {
-			o->start = atoi(attr[7]);
-			o->end = atoi(attr[6]);
-		}
-		o->evalue = atoi(attr[8]);
-		//p_occ(o);
-		if (o->ali_len <= 100)
-			continue;
-
-		g_ptr_array_add(info->occ_all, o);
-
-		o_arr_i = g_hash_table_lookup(info->hits, o->r_id);
-		if (o_arr_i == NULL) {
-			o_arr_i = g_ptr_array_sized_new(16);
-			g_ptr_array_add(o_arr_i, o);
-			g_hash_table_insert(info->hits, o->r_id, o_arr_i);
-		} else {
-			g_ptr_array_add(o_arr_i, o);
-		}
-		//		if (counter++ > 10)
-		//			break;
-	}
-	fclose(sam_fp);
-}
-
 void read_contigs(rs_info *info) {
 	int i = 0;
 	bwa_seq_t *seqs, *s;
@@ -789,6 +693,105 @@ void write_hit_txs() {
 	fclose(one_covered_file);
 }
 
+void parse_sam(rs_info *info) {
+	char buf[BUFSIZ];
+	char *id_str = NULL, *attr[64];
+	int i = 0, q_len = 0;
+	occarray *o_arr_i = NULL;
+	FILE *sam_fp = NULL;
+	eva_occ *o = NULL;
+	edge *eg = NULL;
+	bwa_seq_t *ctg = NULL;
+
+	o_arr_i = g_ptr_array_sized_new(16);
+	sam_fp = xopen(sam_fn, "r");
+	while (fgets(buf, sizeof(buf), sam_fp)) {
+		i = 0;
+		// printf("%s", buf);
+		trim(buf);
+		if (strstr(buf, "#") != NULL) {
+			if (strstr(buf, "Query") != NULL) {
+				//show_debug_msg(__func__, "%s\n", buf);
+				i = 0;
+				attr[0] = strtok(buf, " ");
+				while (attr[i] != NULL) { //ensure a pointer was found
+					attr[++i] = strtok(NULL, " "); //continue to tokenize the string
+				}
+				for (i = 0; i < info->contigs->len; i++) {
+					ctg = g_ptr_array_index(info->contigs, i);
+					if (strcmp(ctg->name, attr[2]) == 0) {
+						q_len = ctg->len;
+						break;
+					}
+				}
+
+				//contig_id = atoi(attr[2]);
+				eg = new_eg();
+				//eg->id = contig_id;
+				eg->name = strdup(attr[2]);
+				eg->len = q_len;
+				g_ptr_array_add(info->ea_all, eg);
+			}
+			if (strstr(buf, " 0 hits found") != NULL) {
+				info->n_not_aligned++;
+				info->n_base_not_aligned += q_len;
+				g_ptr_array_add(info->ea_not_aligned, eg);
+			}
+			continue;
+		}
+		o = new_occ();
+		o->q_len = q_len;
+		chomp(buf);
+		//printf("---------------------------------------\n%s \n", buf);
+		attr[0] = strtok(buf, "\t");
+		i = 0;
+		while (attr[i] != NULL) { //ensure a pointer was found
+			attr[++i] = strtok(NULL, "\t"); //continue to tokenize the string
+		}
+		o->q_id = strdup(attr[0]);
+		id_str = attr[1];
+		i = 0;
+		//		r_attr[0] = strtok(id_str, "|");
+		//		while (r_attr[i] != NULL) { //ensure a pointer was found
+		//			r_attr[++i] = strtok(NULL, "|"); //continue to tokenize the string
+		//		}
+		o->r_id = strdup(id_str);
+		//		i = 0;
+		//		r_attr[0] = strtok(r_attr[2], "=");
+		//		while (r_attr[i] != NULL) { //ensure a pointer was found
+		//			r_attr[++i] = strtok(NULL, "="); //continue to tokenize the string
+		//		}
+		//		o->r_len = atoi(r_attr[1]);
+		o->percentage = atof(attr[2]) / 100;
+		o->ali_len = atoi(attr[3]);
+		o->start = atoi(attr[6]);
+		o->end = atoi(attr[7]);
+		if (o->start > o->end) {
+			o->start = atoi(attr[7]);
+			o->end = atoi(attr[6]);
+		}
+		o->evalue = atoi(attr[8]);
+		//p_occ(o);
+		if (o->ali_len <= 100)
+			continue;
+
+		g_ptr_array_add(info->occ_all, o);
+
+		o_arr_i = g_hash_table_lookup(info->hits, o->r_id);
+		if (o_arr_i == NULL) {
+			o_arr_i = g_ptr_array_sized_new(16);
+			g_ptr_array_add(o_arr_i, o);
+			g_hash_table_insert(info->hits, o->r_id, o_arr_i);
+		} else {
+			g_ptr_array_add(o_arr_i, o);
+		}
+//		if (counter++ > 10)
+//			break;
+	}
+	fclose(sam_fp);
+	show_debug_msg(__func__, "Finished parsing the BLASTN file \n");
+}
+
 void get_ass_info() {
 	int i = 0;
 	char *name;
@@ -798,6 +801,7 @@ void get_ass_info() {
 	rs_info *info = init_rs_info();
 	read_contigs(info);
 	parse_sam(info);
+	show_debug_msg(__func__, "NEXT\n");
 	one_on_one_ids = g_ptr_array_sized_new(256);
 	full_length_ids = g_ptr_array_sized_new(256);
 	one_covered_ids = g_ptr_array_sized_new(256);
@@ -846,7 +850,11 @@ int eva_main(int argc, char *argv[]) {
 			break;
 		}
 	}
+	show_msg(__func__, "Getting annotated information... %.2f sec\n", (float) (clock() - t)
+				/ CLOCKS_PER_SEC);
 	get_ori_info();
+	show_msg(__func__, "Getting assembled information... %.2f sec\n", (float) (clock() - t)
+				/ CLOCKS_PER_SEC);
 	get_ass_info();
 	show_msg(__func__, "Done: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
