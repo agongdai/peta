@@ -307,6 +307,7 @@ edge *new_eg() {
 	eg->in_egs = g_ptr_array_sized_new(MAX_N_EDGE_IN);
 	eg->out_egs = g_ptr_array_sized_new(MAX_N_EDGE_OUT);
 	eg->reads = g_ptr_array_sized_new(INIT_N_READ_USED);
+	eg->pairs = g_ptr_array_sized_new(INIT_N_READ_USED);
 	eg->name = NULL;
 	eg->right_ctg = NULL;
 	eg->left_ctg = NULL;
@@ -349,6 +350,7 @@ void destroy_eg(edge *eg) {
 			g_ptr_array_remove_index_fast(eg->reads, 0);
 		}
 		free_readarray(eg->reads);
+		free_readarray(eg->pairs);
 		for (i = 0; i < eg->gaps->len; i++) {
 			gap = g_ptr_array_index(eg->gaps, i);
 			free_eg_gap(gap);

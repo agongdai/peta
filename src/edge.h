@@ -30,6 +30,7 @@ struct edge {
 	edgearray *in_egs;
 	edgearray *out_egs;
 	readarray *reads;
+	readarray *pairs;
 	char *name;
 	edge *right_ctg; 	// If current contig is done before, record it
 	edge *left_ctg;
