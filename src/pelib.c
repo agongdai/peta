@@ -18,9 +18,11 @@
 #include "edgelist.h"
 #include "readrm.h"
 #include "pelib.h"
+#include "pepath.h"
 
 int pair_ctg_id = 1;
 int overlap_len = 0;
+int insert_size = 0;
 
 void pe_lib_help() {
 	show_msg(__func__, "--------------------------------------------------");
@@ -58,7 +60,8 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		s->rev_com = a->rev_comp;
 		mate = get_mate(s, seqs);
 		mate->rev_com = s->rev_com;
-		if (s->is_in_c_pool || (a->pos + query->len - 1) > s->len || s->used > 0 || s->contig_id == ass_eg->id)
+		if (s->is_in_c_pool || (a->pos + query->len - 1) > s->len || s->used
+				> 0 || s->contig_id == ass_eg->id)
 			continue;
 		if (s->rev_com)
 			s->cursor = ori ? (s->len - query->len - 1 - a->pos) : (s->len
@@ -79,8 +82,8 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	// Add the mate reads which overlap with the tail into the current pool
 	for (i = 0; i < mate_pool->n; i++) {
 		mate = g_ptr_array_index(mate_pool->reads, i);
-		if (mate->is_in_c_pool || mate->used > 0 || (is_right_mate(mate->name) && ori)
-				|| (is_left_mate(mate->name) && !ori))
+		if (mate->is_in_c_pool || mate->used > 0 || (is_right_mate(mate->name)
+				&& ori) || (is_left_mate(mate->name) && !ori))
 			continue;
 		tmp = mate;
 		if (mate->rev_com)
@@ -281,10 +284,12 @@ edge* pe_ext(hash_table *ht, bwa_seq_t *query) {
 	edge *eg = NULL, *eg_left = NULL;
 	eg = pair_extension(ht, NULL, query, 0);
 	eg_left = pair_extension(ht, get_mate_pool_from_edge(eg, ht), query, 1);
-	show_debug_msg(__func__, "Edge after right extension: [%d, %d]\n", eg->id, eg->len);
-	show_debug_msg(__func__, "Edge after left extension: [%d, %d]\n", eg_left->id, eg_left->len);
-//	p_ctg_seq("Contig after right", eg->contig);
-//	p_ctg_seq("Contig after left", eg_left->contig);
+	show_debug_msg(__func__, "Edge after right extension: [%d, %d]\n", eg->id,
+			eg->len);
+	show_debug_msg(__func__, "Edge after left extension: [%d, %d]\n",
+			eg_left->id, eg_left->len);
+	//	p_ctg_seq("Contig after right", eg->contig);
+	//	p_ctg_seq("Contig after left", eg_left->contig);
 	if (eg_left->len > query->len) {
 		trun_seq(eg->contig, query->len);
 		eg->len = eg->contig->len;
@@ -292,7 +297,7 @@ edge* pe_ext(hash_table *ht, bwa_seq_t *query) {
 		eg->len += eg_left->len;
 		combine_reads(eg_left, eg, 0, 0, 1);
 	}
-//	p_ctg_seq("Contig", eg->contig);
+	//	p_ctg_seq("Contig", eg->contig);
 	destroy_eg(eg_left);
 	upd_reads(eg, MISMATCHES);
 	//p_readarray(eg->reads, 1);
@@ -334,10 +339,82 @@ void keep_pairs_only(edge *eg, bwa_seq_t *seqs) {
 	}
 }
 
-void scaffolding(GPtrArray *single_edges) {
+/**
+ * order:
+ * 	1: eg_1 is left
+ *  -1: eg_1 is right
+ */
+int est_pair_gap(edge *eg_1, edge *eg_2, int order) {
+	GPtrArray *paired_reads = NULL;
+	int i = 0;
+	bwa_seq_t *read = NULL, *mate = NULL;
+	int len = 0, gap_sum = 0, gap_ave = -1, n_counted = 0;
+	paired_reads = find_unconditional_paired_reads(eg_1->reads, eg_2->reads);
+	if (paired_reads->len >= MIN_ORDER_PAIRS)
+		for (i = 0; i < paired_reads->len; i += 2) {
+			read = g_ptr_array_index(paired_reads, i);
+			mate = g_ptr_array_index(paired_reads, i + 1);
+			if (read->rev_com != mate->rev_com)
+				continue;
+			n_counted++;
+			if (order == 1) {
+				len = (eg_1->len - read->shift) + mate->shift;
+			} else
+				len = (eg_2->len - mate->shift) + read->shift;
+			gap_sum += insert_size - len;
+		}
+	if (n_counted > 0) {
+		gap_ave = gap_sum / n_counted;
+		gap_ave = gap_ave > 0 ? gap_ave : 0;
+	}
+	g_ptr_array_free(paired_reads, TRUE);
+	return gap_ave;
+}
+
+/**
+ * Return:
+ * 	0: They cannot be put together
+ * 	1: eg_1 is left, eg_2 is right
+ *  -1: eg_1 is right, eg_2 is left
+ */
+int order_two_edges(edge *eg_1, edge *eg_2) {
+	GPtrArray *paired_reads = NULL;
+	int order = 0;
+	int i = 0;
+	bwa_seq_t *read = NULL, *mate = NULL;
+	paired_reads = find_unconditional_paired_reads(eg_1->reads, eg_2->reads);
+	if (paired_reads->len < MIN_ORDER_PAIRS)
+		order = 0;
+	else {
+		for (i = 0; i < paired_reads->len; i += 2) {
+			read = g_ptr_array_index(paired_reads, i);
+			mate = g_ptr_array_index(paired_reads, i + 1);
+			if (read->rev_com != mate->rev_com)
+				continue;
+			if (is_left_mate(read->name)) {
+				order = (read->rev_com) ? -1 : 1;
+			} else {
+				order = (read->rev_com) ? 1 : -1;
+			}
+			break;
+		}
+	}
+	g_ptr_array_free(paired_reads, TRUE);
+	return order;
+}
+
+GPtrArray *scaffolding(GPtrArray *single_edges) {
 	edge *eg_i = NULL, *eg_j = NULL;
 	int i = 0, j = 0;
 	readarray *paired = NULL;
+	GPtrArray *paths = NULL;
+	rm_path *p = NULL;
+
+	paths = g_ptr_array_sized_new(1023);
+	for (i = 0; i < single_edges->len; i++) {
+		eg_i = g_ptr_array_index(single_edges, i);
+		p = get_single_edge_path(eg_i);
+	}
 }
 
 void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
@@ -363,19 +440,20 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	s_index = 0;
 	e_index = 10;
 	pairs = (double*) calloc(n_max_pairs + 1, sizeof(double));
-	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.90) {
+	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.7) {
 		line_no++;
 		index = atoi(line);
 		query = &ht->seqs[index];
 		if (query->used > 0)
 			continue;
 		counter++;
-//				if (counter <= s_index)
-//					continue;
-//				if (counter > e_index)
-//					break;
-		show_msg(__func__, "---------- [%d] Processing read %d: %s ----------\n",
-				line_no, counter, query->name);
+		//				if (counter <= s_index)
+		//					continue;
+		//				if (counter > e_index)
+		//					break;
+		show_msg(__func__,
+				"---------- [%d] Processing read %d: %s ----------\n", line_no,
+				counter, query->name);
 		show_debug_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", counter,
 				line_no, query->name);
@@ -442,13 +520,16 @@ int pe_lib_usage() {
 int pe_lib(int argc, char *argv[]) {
 	clock_t t = clock();
 	int c = 0, n_max_pairs = 0;
-	while ((c = getopt(argc, argv, "p:o:")) >= 0) {
+	while ((c = getopt(argc, argv, "p:o:m:")) >= 0) {
 		switch (c) {
 		case 'p':
 			n_max_pairs = atoi(optarg);
 			break;
 		case 'o':
 			overlap_len = atoi(optarg);
+			break;
+		case 'm':
+			insert_size = atoi(optarg);
 			break;
 		}
 	}

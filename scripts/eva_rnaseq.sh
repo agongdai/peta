@@ -1,5 +1,5 @@
 #!/bin/bash
-query="cufflinks"
+query="pair_contigs"
 db_dir="../rnaseq/Spombe/genome/"
 db="spombe.broad.tx.fasta"
 blastdb="../../ncbi-blast-2.2.26+/db/"

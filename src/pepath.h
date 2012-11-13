@@ -36,6 +36,7 @@ typedef struct {
 	readarray *reads;
 } rm_path;
 
+rm_path *get_single_edge_path(edge *eg);
 GPtrArray *report_paths(edgearray *all_edges);
 int pe_path(int argc, char *argv[]);
 edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
