@@ -203,17 +203,17 @@ void pe_aln_query(const bwa_seq_t *query, const ubyte_t *q_seq,
 			read_hash_value(&seq_id, &locus, value);
 			//			printf("id: %" ID64 ", locus: %d \n", seq_id, locus);
 			h = set_hit(seq_id, locus - i, locus);
-			if (query->len == ol) { // If it is a full-length query, only return hits at pos 0
-				if (h->shift == 0) {
-					g_ptr_array_add(hits, h);
-					n_hits++;
-				} else {
-					free(h);
-				}
-			} else {
+//			if (query->len == ol) { // If it is a full-length query, only return hits at pos 0
+//				if (h->shift == 0) {
+//					g_ptr_array_add(hits, h);
+//					n_hits++;
+//				} else {
+//					free(h);
+//				}
+//			} else {
 				g_ptr_array_add(hits, h);
 				n_hits++;
-			}
+//			}
 			// printf("[pe_aln_query] K-mer starts at %d: %" ID64 ", %d \n", i,
 			//		seq_id, locus);
 		}

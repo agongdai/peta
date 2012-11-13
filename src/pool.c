@@ -354,8 +354,8 @@ void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm) {
 			if (!similar
 					|| (check_c_1 != confirm_c && check_c_2 != confirm_c_2)) {
 				removed = pool_rm_index(cur_pool, i);
-				p_query("REMOVED", s);
-				p_query("QUERY", query);
+//				p_query("REMOVED", s);
+//				p_query("QUERY", query);
 				if (removed)
 					i--;
 			}
@@ -376,9 +376,12 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
 		tmp = mate;
 		if (mate->rev_com)
 			tmp = new_mem_rev_seq(mate, mate->len, 0);
-		overlapped = ori ? find_ol(tmp, contig, MISMATCHES) : find_ol(contig,
-				tmp, MISMATCHES);
-		if (overlapped >= mate->len / 4) {
+		if (ori) {
+			tmp = new_seq(mate, mate->len, 0);
+			seq_reverse(tmp->len, tmp->seq, 0);
+		}
+		overlapped = find_ol(contig, tmp, MISMATCHES);
+		if (overlapped >= MATE_OVERLAP_THRE) {
 			mate->cursor = ori ? (mate->len - overlapped - 1) : overlapped;
 			pool_add(cur_pool, mate);
 			if (mate_pool_rm_index(mate_pool, i))

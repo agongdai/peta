@@ -34,6 +34,7 @@ int readarray_find(readarray *array, bwa_seq_t *r);
 int edgearray_find_similar(edgearray *array, edge *eg);
 void adj_shift(edge *eg, const int trun_len);
 readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs);
+readarray *find_unconditional_paired_reads(readarray *ra_1, readarray *ra_2);
 void merge_eg_to_left(edge *left_eg, edge *right_eg, const int gap);
 void merge_eg_to_right(edge *left_eg, edge *right_eg, const int gap);
 int get_mid_pos(readarray *ra, const int ori, const int lib_mean);

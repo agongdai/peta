@@ -346,8 +346,16 @@ void destroy_eg(edge *eg) {
 			read->used = 0;
 			read->contig_id = UNUSED_CONTIG_ID;
 		}
+		for (i = 0; i < eg->pairs->len; i++) {
+			read = g_ptr_array_index(eg->pairs, i);
+			read->used = 0;
+			read->contig_id = UNUSED_CONTIG_ID;
+		}
 		while (eg->reads->len > 0) {
 			g_ptr_array_remove_index_fast(eg->reads, 0);
+		}
+		while (eg->pairs->len > 0) {
+			g_ptr_array_remove_index_fast(eg->pairs, 0);
 		}
 		free_readarray(eg->reads);
 		free_readarray(eg->pairs);

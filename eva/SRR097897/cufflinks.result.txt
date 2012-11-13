@@ -1,42 +1,3 @@
--------------------------------------------------------------------
-Original transcript file:       	read//spombe.broad.tx.fasta
-Exons file:                     	graph/gene_10_edges.txt
-Total base:                     	7213050
-Unique base:                    	0
-# of transcripts:               	5163
-# of exons:                     	0
-# of stand alone gene:          	0
-# of stand alone base:          	0
-% of stand alone base:          	0.000000
-Optimal N50:                    	1770
-
-# of target edges:              	0
-Best N50:                       	0
-Base range accumulation:
-0	0
-500	0
-1000	0
-1500	0
-2000	0
-2500	0
-3000	0
-3500	0
-4000	0
-4500	0
-5000	0
-5500	0
-6000	0
-6500	0
-7000	0
-7500	0
-8000	0
-8500	0
-9000	0
-9500	0
-10000	0
--------------------------------------------------------------------
-
-
 Assembled results by PETA: 
 -------------------------------------------------------------------
 Assembled base:                 	10142069
@@ -45,7 +6,7 @@ Assembled unique base:          	6662365
 # of Full length:               	3909
 # of 70% covered:               	42
 # of one-on-one transcripts:    	319
-Transcripts covered by one contig: 	96
+Transcripts covered by one contig: 	131
 Stand-alone assembled:          	0
 Average length:                 	2552
 Longest contig:                 	15205

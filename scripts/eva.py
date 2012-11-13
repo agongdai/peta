@@ -15,7 +15,7 @@ def differ(args):
 				genes[line] = f
 		fp.close()
 	categories = {}
-	for key, value in genes.iteritems():
+	for key, value in sorted(genes.iteritems(), key=lambda (k,v): (v,k)):
 		out_file.write(key + ': ' + value  + '\n')
 		if value in categories:
 			categories[value] += 1

@@ -224,6 +224,28 @@ readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs) {
 	return paired;
 }
 
+readarray *find_unconditional_paired_reads(readarray *ra_1, readarray *ra_2) {
+	readarray *paired = g_ptr_array_sized_new(INIT_N_READ_PAIRED);
+	int i = 0, j = 0;
+	bwa_seq_t *read_1, *read_2;
+	if (!ra_1 || !ra_2 || ra_1->len == 0 || ra_2->len == 0)
+		return paired;
+	for (i = 0; i < ra_1->len; i++) {
+		read_1 = g_ptr_array_index(ra_1, i);
+		if (read_1->used == 1)
+			continue;
+		for (j = 0; j < ra_2->len; j++) {
+			read_2 = g_ptr_array_index(ra_2, j);
+			if (is_mates(read_1->name, read_2->name)) {
+				g_ptr_array_add(paired, read_1);
+				g_ptr_array_add(paired, read_2);
+				break;
+			}
+		}
+	}
+	return paired;
+}
+
 /**
  * Assume large_ra and small_ra are sorted by name increasingly.
  */

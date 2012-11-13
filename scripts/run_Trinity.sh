@@ -1,0 +1,1 @@
+./Trinity.pl --seqType fa --JM 8G --left /home/carl/Projects/trinityrnaseq_r2012-01-25/SRR097897_1_pair.fasta --right /home/carl/Projects/trinityrnaseq_r2012-01-25/SRR097897_2_pair.fasta --SS_lib_type FR --out SRR097897/ --CPU 8 --min_contig_length 100
