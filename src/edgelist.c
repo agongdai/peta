@@ -619,7 +619,6 @@ void upd_reads(edge *eg, const int mismatches) {
 		read->shift = index;
 		read->contig_id = eg->id;
 		read->used = 1;
-		p_query("UPDATE", read);
 	}
 }
 
