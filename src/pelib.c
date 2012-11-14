@@ -443,7 +443,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.7) {
 		line_no++;
 		index = atoi(line);
-		query = &ht->seqs[index];
+		query = &ht->seqs[3983537];
 		if (query->used > 0)
 			continue;
 		counter++;
@@ -496,7 +496,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 					eg->id, eg->len, eg->reads->len, eg->pairs->len,
 					n_total_reads, ht->n_seqs);
 		}
-		// break;
+		 break;
 	}
 	save_edges(all_edges, pair_contigs, 0, 0, 100);
 	free(partial_pairs);

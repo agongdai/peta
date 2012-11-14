@@ -928,6 +928,21 @@ int *vld_branchs(edge *ass_eg, const int *c, const hash_table *ht,
 	return valid_c;
 }
 
+pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs) {
+	bwa_seq_t *read = NULL, *mate = NULL;
+	int i = 0;
+	pool *mate_pool = new_pool();
+	for(i = 0; i < cur_pool->reads->len; i++) {
+		read = g_ptr_array_index(cur_pool->reads, i);
+		mate = get_mate(read, seqs);
+		if (mate->used == 0 && !mate->is_in_m_pool) {
+			mate->rev_com = read->rev_com;
+			mate_pool_add(mate_pool, mate);
+		}
+	}
+	return mate_pool;
+}
+
 ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		const hash_table *ht, const int ori) {
 	bwa_seq_t *query, *contig, *used = NULL;
@@ -941,7 +956,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 	show_debug_msg(__func__,
 			"******************* Starting of Single Extension ******************\n");
 	cur_pool = c_pool ? c_pool : new_pool();
-	mate_pool = new_pool();
+	mate_pool = c_pool ? get_init_mate_pool(c_pool, ht->seqs) : new_pool();
 	contig = ass_eg->contig;
 	ass_eg->len = contig->len;
 	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
@@ -963,7 +978,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		reset_c(next, c); // Reset the counter
 		// show_msg(__func__, "Current edge: [%d, %d] \n", ass_eg->id,
 		// 		ass_eg->len);
-		//p_query(__func__, query);
+		p_query(__func__, query);
 		if (is_repetitive_q(query)) {
 			show_debug_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n",
 					ass_eg->id, ass_eg->len);
@@ -979,7 +994,9 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		// Extend the contig, update the counter and sequence pool
 		upd_cur_pool(aligns, next, cur_pool, mate_pool, query, ht, ass_eg, ori);
 		reset_alg(aligns);
-		// p_pool("Current pool: ", cur_pool, next);
+		p_ctg_seq("CONTIG", ass_eg->contig);
+		p_pool("Current pool: ", cur_pool, next);
+		p_pool("Mate pool: ", mate_pool, next);
 		c = get_most(next);
 		// If cannot extend, or multiple path, just stop here
 		if (c[0] == INVALID_CHAR) {
@@ -1467,7 +1484,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn) {
 //		if (counter >= e_index)
 //			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
-		p = &ht->seqs[index];
+		p = &ht->seqs[3983537];
 		if (p->used || p->contig_id == INVALID_CONTIG_ID) {
 			show_msg(__func__, "Read used: %s\n", p->name);
 			continue;
@@ -1500,7 +1517,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn) {
 		sprintf(msg, "-------------------------------------- %.2f sec \n",
 				t_eclipsed);
 		show_msg(__func__, msg);
-		//break;
+		break;
 	} // All solid reads assembled.
 
 	fprintf(stderr,

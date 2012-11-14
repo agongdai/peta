@@ -376,8 +376,9 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
 		tmp = mate;
 		if (mate->rev_com)
 			tmp = new_mem_rev_seq(mate, mate->len, 0);
-		if (ori) {
+		else
 			tmp = new_seq(mate, mate->len, 0);
+		if (ori) { // Single extension reverse the template first
 			seq_reverse(tmp->len, tmp->seq, 0);
 		}
 		overlapped = find_ol(contig, tmp, MISMATCHES);
@@ -386,10 +387,11 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
 			pool_add(cur_pool, mate);
 			if (mate_pool_rm_index(mate_pool, i))
 				i--;
-			// p_query("Mate added", mate);
+			p_ctg_seq("CONTIG", contig);
+			p_ctg_seq("MATETO", tmp);
+			p_query("Mate added", mate);
 		}
-		if (mate->rev_com)
-			bwa_free_read_seq(1, tmp);
+		bwa_free_read_seq(1, tmp);
 	}
 }
 
