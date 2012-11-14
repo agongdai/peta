@@ -23,6 +23,7 @@
 int pair_ctg_id = 1;
 int overlap_len = 0;
 int insert_size = 0;
+int sd_insert_size = 0;
 
 void pe_lib_help() {
 	show_msg(__func__, "--------------------------------------------------");
@@ -43,6 +44,53 @@ gint cmp_reads_by_name(gpointer a, gpointer b) {
 	bwa_seq_t *seq_a = *((bwa_seq_t**) a);
 	bwa_seq_t *seq_b = *((bwa_seq_t**) b);
 	return ((atoi(seq_a->name)) - atoi(seq_b->name));
+}
+
+/**
+ * Keep only those reads with its mates at the right direction and position
+ *
+ * ori = 0: For below, 'read' should be right, 'mate' should be left
+ *   ---------------------->
+ *          ---->        ---->
+ *          mate         read
+ */
+void keep_mates_in_pool(edge *eg, pool *cur_pool, int *next,
+		const hash_table *ht, const int ori) {
+	bwa_seq_t *read = NULL, *mate = NULL;
+	int i = 0, to_remove = 1;
+	for (i = 0; i < cur_pool->reads->len; i++) {
+		read = g_ptr_array_index(cur_pool->reads, i);
+		mate = get_mate(read, ht->seqs);
+		to_remove = 1;
+		if ((read->rev_com == mate->rev_com) && (mate->used == 1)
+				&& (mate->contig_id = eg->id)) {
+			if (ori) {
+				if ((is_right_mate(read->name) && read->rev_com)
+						|| (is_left_mate(read->name) && !read->rev_com)) {
+					to_remove = 0;
+				}
+			} else {
+				if ((is_left_mate(read->name) && read->rev_com)
+						|| (is_right_mate(read->name) && !read->rev_com)) {
+					to_remove = 0;
+				}
+			}
+			if (abs(read->shift - mate->shift) > (insert_size + sd_insert_size * SD_TIMES))
+				to_remove = 1;
+			if (to_remove) {
+				if (mate_pool_rm_index(cur_pool, i))
+					i--;
+			}
+		}
+	}
+	reset_c(next, NULL); // Reset the counter
+	for (i = 0; i < cur_pool->n; i++) {
+		read = g_ptr_array_index(cur_pool->reads, i);
+		if (read->rev_com)
+			check_c(next, read->rseq[read->cursor]);
+		else
+			check_c(next, read->seq[read->cursor]);
+	}
 }
 
 void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
@@ -103,6 +151,9 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		if (mate->rev_com || ori)
 			bwa_free_read_seq(1, tmp);
 	}
+	// Keep only the reads whose mate is used previously.
+	if (ass_eg->len >= (insert_size + sd_insert_size * SD_TIMES))
+		keep_mates_in_pool(ass_eg, cur_pool, next, ht, ori);
 	for (i = 0; i < cur_pool->n; i++) {
 		s = g_ptr_array_index(cur_pool->reads, i);
 		if (s->rev_com)
@@ -116,7 +167,8 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
  * If return NULL, it indicates there are too many (>=4 by default) counter pairs.
  * In this case, the caller should not continue to do single extension.
  */
-pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
+pool *get_start_pool(const hash_table *ht, const bwa_seq_t *init_read,
+		const int ori) {
 	alignarray *alns = NULL;
 	int i = 0, to_free_query = 0;
 	// In some cases, one mate is forward, but another is backward, which is not reasonable.
@@ -180,7 +232,7 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) 
 }
 
 edge *pair_extension(const hash_table *ht, pool *init_mate_pool,
-		const bwa_seq_t *s, int ori) {
+		const bwa_seq_t *s, const int ori) {
 	bwa_seq_t *query = NULL;
 	pool *cur_pool = NULL, *mate_pool = NULL;
 	int *c = NULL;
@@ -197,7 +249,8 @@ edge *pair_extension(const hash_table *ht, pool *init_mate_pool,
 	eg->contig = new_seq(s, s->len, 0);
 	eg->len = s->len;
 	cur_pool = get_start_pool(ht, s, ori);
-	mate_pool = init_mate_pool ? init_mate_pool : new_pool();
+	mate_pool = init_mate_pool ? init_mate_pool : get_init_mate_pool(cur_pool,
+			ht->seqs);
 	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
@@ -210,14 +263,15 @@ edge *pair_extension(const hash_table *ht, pool *init_mate_pool,
 			p_query(__func__, query);
 			break;
 		}
-		//p_query(__func__, query);
+		p_query(__func__, query);
 		pe_aln_query(query, query->seq, ht, MISMATCHES, query->len, 0, aligns);
 		pe_aln_query(query, query->rseq, ht, MISMATCHES, query->len, 1, aligns);
 		//p_align(aligns);
 		maintain_pool(aligns, ht, cur_pool, mate_pool, eg, query, next, ori);
 		reset_alg(aligns);
-		//p_pool("Current Pool", cur_pool, next);
-		//p_pool("Mate Pool", mate_pool, next);
+		p_ctg_seq("Contig", eg->contig);
+		p_pool("Current Pool", cur_pool, next);
+		p_pool("Mate Pool", mate_pool, next);
 		c = get_abs_most(next, STRICT_PERC);
 		// show_debug_msg(__func__, "Next char: %d \n", c[0]);
 		if (cur_pool->n <= 0) {
@@ -231,12 +285,9 @@ edge *pair_extension(const hash_table *ht, pool *init_mate_pool,
 						eg->id, eg->len, eg->reads->len);
 				show_msg(__func__, "Probable branching, stop here. \n");
 				show_debug_msg(__func__, "Probable branching, stop here. \n");
-				//pool_get_majority(cur_pool, c[1], eg);
-				//err_fatal(__func__, "Terminate \n");
 				break;
-			} else {
-				c[0] = get_pure_most(next);
 			}
+			c[0] = get_pure_most(next);
 		}
 		forward(cur_pool, c[0], eg, ori);
 		ext_con(eg->contig, c[0], 0);
@@ -300,7 +351,7 @@ edge* pe_ext(hash_table *ht, bwa_seq_t *query) {
 	//	p_ctg_seq("Contig", eg->contig);
 	destroy_eg(eg_left);
 	upd_reads(eg, MISMATCHES);
-	//p_readarray(eg->reads, 1);
+	p_readarray(eg->reads, 1);
 	return eg;
 }
 
@@ -312,14 +363,18 @@ void keep_pairs_only(edge *eg, bwa_seq_t *seqs) {
 		read = g_ptr_array_index(eg->reads, i);
 		read_len = read->len;
 		mate = get_mate(read, seqs);
-		read->used = 2; // Used but no pairs found.
 		if (mate->used == 1 && mate->contig_id == eg->id) {
 			min_shift = read->shift < min_shift ? read->shift : min_shift;
 			max_shift = read->shift > max_shift ? read->shift : max_shift;
 			g_ptr_array_add(eg->pairs, read);
 			g_ptr_array_add(eg->pairs, mate);
-			mate->used = 2;
+			mate->used = 0;
+			read->used = 0;
 		}
+	}
+	for (i = 0; i < eg->reads->len; i++) {
+		read = g_ptr_array_index(eg->reads, i);
+		read->used = 0;
 	}
 	for (i = 0; i < eg->pairs->len; i++) {
 		read = g_ptr_array_index(eg->pairs, i);
@@ -479,6 +534,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		//		eg = NULL;
 
 		keep_pairs_only(eg, ht->seqs);
+		p_readarray(eg->pairs, 1);
 		if (eg->len < 100 || eg->pairs->len <= 2) {
 			show_msg(
 					__func__,
@@ -496,7 +552,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 					eg->id, eg->len, eg->reads->len, eg->pairs->len,
 					n_total_reads, ht->n_seqs);
 		}
-		 break;
+		break;
 	}
 	save_edges(all_edges, pair_contigs, 0, 0, 100);
 	free(partial_pairs);
@@ -520,7 +576,7 @@ int pe_lib_usage() {
 int pe_lib(int argc, char *argv[]) {
 	clock_t t = clock();
 	int c = 0, n_max_pairs = 0;
-	while ((c = getopt(argc, argv, "p:o:m:")) >= 0) {
+	while ((c = getopt(argc, argv, "p:o:m:d:")) >= 0) {
 		switch (c) {
 		case 'p':
 			n_max_pairs = atoi(optarg);
@@ -530,6 +586,9 @@ int pe_lib(int argc, char *argv[]) {
 			break;
 		case 'm':
 			insert_size = atoi(optarg);
+			break;
+		case 'd':
+			sd_insert_size = atoi(optarg);
 			break;
 		}
 	}

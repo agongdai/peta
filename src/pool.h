@@ -46,6 +46,7 @@ gboolean pool_rm_fast(pool *p, bwa_seq_t *read);
 gboolean pool_rm_index(pool *p, const int i);
 gboolean mate_pool_rm(pool *r_pool, bwa_seq_t *rm_seq);
 gboolean mate_pool_rm_fast(pool *p, bwa_seq_t *read);
+pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs);
 gboolean mate_pool_rm_index(pool *p, const int i);
 void syn_pools(pool *cur_pool, pool *mate_pool, const bwa_seq_t *seqs, const int ori);
 void clear_pool(pool *r_pool);

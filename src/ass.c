@@ -928,21 +928,6 @@ int *vld_branchs(edge *ass_eg, const int *c, const hash_table *ht,
 	return valid_c;
 }
 
-pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs) {
-	bwa_seq_t *read = NULL, *mate = NULL;
-	int i = 0;
-	pool *mate_pool = new_pool();
-	for(i = 0; i < cur_pool->reads->len; i++) {
-		read = g_ptr_array_index(cur_pool->reads, i);
-		mate = get_mate(read, seqs);
-		if (mate->used == 0 && !mate->is_in_m_pool) {
-			mate->rev_com = read->rev_com;
-			mate_pool_add(mate_pool, mate);
-		}
-	}
-	return mate_pool;
-}
-
 ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		const hash_table *ht, const int ori) {
 	bwa_seq_t *query, *contig, *used = NULL;

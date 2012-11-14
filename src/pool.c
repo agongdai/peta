@@ -138,6 +138,21 @@ gboolean mate_pool_rm_fast(pool *p, bwa_seq_t *read) {
 	return r;
 }
 
+pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs) {
+	bwa_seq_t *read = NULL, *mate = NULL;
+	int i = 0;
+	pool *mate_pool = new_pool();
+	for(i = 0; i < cur_pool->reads->len; i++) {
+		read = g_ptr_array_index(cur_pool->reads, i);
+		mate = get_mate(read, seqs);
+		if (mate->used == 0 && !mate->is_in_m_pool) {
+			mate->rev_com = read->rev_com;
+			mate_pool_add(mate_pool, mate);
+		}
+	}
+	return mate_pool;
+}
+
 gboolean mate_pool_rm_index(pool *p, const int i) {
 	gboolean r;
 	bwa_seq_t *read = g_ptr_array_index(p->reads, i);
