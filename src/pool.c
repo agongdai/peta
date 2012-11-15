@@ -142,7 +142,7 @@ pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs) {
 	bwa_seq_t *read = NULL, *mate = NULL;
 	int i = 0;
 	pool *mate_pool = new_pool();
-	for(i = 0; i < cur_pool->reads->len; i++) {
+	for (i = 0; i < cur_pool->reads->len; i++) {
 		read = g_ptr_array_index(cur_pool->reads, i);
 		mate = get_mate(read, seqs);
 		if (mate->used == 0 && !mate->is_in_m_pool) {
@@ -363,14 +363,12 @@ void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm) {
 		is_at_end = ori ? (s->cursor <= nm) : (s->cursor >= s->len - nm - 1);
 		// Remove those reads probably at the splicing junction
 		if (!is_at_end) {
-//			similar = s->rev_com ? (is_sub_seq_byte(query->rseq, query->len, 0,
-//					s, nm, 0) != NOT_FOUND) : (is_sub_seq(query, 0, s, nm, 0)
-//					!= NOT_FOUND);
+			//			similar = s->rev_com ? (is_sub_seq_byte(query->rseq, query->len, 0,
+			//					s, nm, 0) != NOT_FOUND) : (is_sub_seq(query, 0, s, nm, 0)
+			//					!= NOT_FOUND);
 			if (!similar
 					|| (check_c_1 != confirm_c && check_c_2 != confirm_c_2)) {
 				removed = pool_rm_index(cur_pool, i);
-//				p_query("REMOVED", s);
-//				p_query("QUERY", query);
 				if (removed)
 					i--;
 			}
@@ -414,20 +412,17 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
  * Check whether the character after the current cursor are consistent enough.
  *
  * Two possible branches: c, t
- * aaaaaaaaaaaaaaaacg
- * aaaaaaaaaaaaaaaact
- * aaaaaaaaaaaaaaaact
- * aaaaaaaaaaaaaaaacg
- * aaaaaaaaaaaaaaaatc
- * aaaaaaaaaaaaaaaatc
- * aaaaaaaaaaaaaaaatc
+ * aaaaacttaag
+ * aaaaatccgtct
+ * aaaaatccgtctc
  *
- * For branch 'c', counting after 'c' is 2 for 't' and 2 for 'g'. So false for 'c', true for 't'
- * Once if there is one branch not valid, return false
- *
- * If all chars after 'c' and 't' are the same, return false
+ * The position 6: good count: 2 c's; bad count: 1 't'
+ * The position 7: good count: 2 c's; bad count: 1 't'
+ * The position 8: good count: 2 g's: bad count: 1 'a'
+ * ....
+ * Totally: good count: 13; bad: 5. 5/18 > 0.2, return 1, meaning there are actual branches
  */
-int check_next_cursor(pool *cur_pool, const int ori) {
+int bases_sup_branches(pool *cur_pool, const int ori) {
 	bwa_seq_t *read = NULL;
 	int i = 0, index = 0, next_cursor = 0, most_index = 0;
 	int good_count = 0, bad_count = 0, more = 1;
@@ -459,7 +454,7 @@ int check_next_cursor(pool *cur_pool, const int ori) {
 	show_debug_msg(__func__, "good_count/bad_count: %d/%d \n", good_count,
 			bad_count);
 	if (good_count > 0 && bad_count > 0) {
-		if (good_count < (good_count + bad_count) * NEXT_CURSOR_THRE)
+		if (good_count < (good_count + bad_count) * BASES_SUPPORT_THRE)
 			return 1;
 	}
 	return 0;
@@ -473,6 +468,9 @@ void clean_mate_pool(pool *mate_pool) {
 	for (i = 0; i < mate_pool->reads->len; i++) {
 		mate = g_ptr_array_index(mate_pool->reads, i);
 		if (mate->used || mate->is_in_c_pool) {
+			if (strcmp(mate->name, "4498144") == 0) {
+				p_query(__func__, mate);
+			}
 			if (mate_pool_rm_index(mate_pool, i))
 				i--;
 		}

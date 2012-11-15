@@ -991,7 +991,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 			break;
 		}
 		if (c[1] != INVALID_CHAR) {
-			if (check_next_cursor(cur_pool, ori)) { // Check one base ahead the cursor
+			if (bases_sup_branches(cur_pool, ori)) { // Check one base ahead the cursor
 				valid_c = vld_branchs(ass_eg, c, ht, ori, query); // Validate the branch by pairs
 				if (valid_c[0] == INVALID_CHAR) { // If there is no valid branch
 					m->type = NOT_EXTEND;
