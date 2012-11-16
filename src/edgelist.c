@@ -710,7 +710,7 @@ void log_edge(const edge *eg) {
 
 	if (!eg || eg->id < 0)
 		return;
-	sprintf(buf, "log/%d.log", eg->id);
+	sprintf(buf, "../log/%d.log", eg->id);
 	log = xopen(buf, "w");
 	reads = eg->reads;
 

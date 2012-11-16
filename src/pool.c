@@ -142,12 +142,14 @@ pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs) {
 	bwa_seq_t *read = NULL, *mate = NULL;
 	int i = 0;
 	pool *mate_pool = new_pool();
-	for (i = 0; i < cur_pool->reads->len; i++) {
-		read = g_ptr_array_index(cur_pool->reads, i);
-		mate = get_mate(read, seqs);
-		if (mate->status == 0 && !mate->is_in_m_pool) {
-			mate->rev_com = read->rev_com;
-			mate_pool_add(mate_pool, mate);
+	if (cur_pool) {
+		for (i = 0; i < cur_pool->reads->len; i++) {
+			read = g_ptr_array_index(cur_pool->reads, i);
+			mate = get_mate(read, seqs);
+			if (mate->status == 0 && !mate->is_in_m_pool) {
+				mate->rev_com = read->rev_com;
+				mate_pool_add(mate_pool, mate);
+			}
 		}
 	}
 	return mate_pool;
@@ -451,7 +453,7 @@ int bases_sup_branches(pool *cur_pool, const int ori, double threshold) {
 		reset_c(sta, NULL);
 	}
 	free(sta);
-	show_debug_msg(__func__, "good_count/bad_count: %f/%f \n", good_count,
+	show_debug_msg(__func__, "good_count/bad_count: %.0f/%.0f \n", good_count,
 			bad_count);
 	if (good_count > 0 && bad_count > 0) {
 		if (good_count < (good_count + bad_count) * threshold)
@@ -602,8 +604,9 @@ void p_readarray(const readarray *ra, const int all) {
 	for (i = 0; i < ra->len; i++) {
 		p = g_ptr_array_index(ra, i);
 		if ((!all && i % 200 == 0) || all)
-			show_debug_msg(__func__, "%d: %d_%d Read %s: %d \n", i,
-					p->contig_id, p->shift, p->name, p->shift);
+			p_query(__func__, p);
+		//			show_debug_msg(__func__, "%d: %d_%d Read %s: %d \n", i,
+		//					p->contig_id, p->shift, p->name, p->shift);
 	}
 	show_debug_msg(__func__, "--------------------------------- \n");
 }

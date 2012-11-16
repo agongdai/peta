@@ -145,8 +145,9 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 	for (i = 0; i < mate_pool->n; i++) {
 		mate = g_ptr_array_index(mate_pool->reads, i);
 		s = get_mate(mate, seqs);
-		if (mate->is_in_c_pool || mate->status == USED || (abs(eg->len
-				- s->shift) > (insert_size + sd_insert_size * SD_TIMES)))
+		if (mate->is_in_c_pool || mate->status == USED || (s->status != FRESH
+				&& s->contig_id == eg->id) || (abs(eg->len - s->shift)
+				> (insert_size + sd_insert_size * SD_TIMES)))
 			continue;
 		tmp = mate;
 		if (mate->rev_com)
@@ -420,7 +421,7 @@ edge* pe_ext(hash_table *ht, bwa_seq_t *query) {
 	bwa_seq_t *second_round_q = NULL;
 
 	init_pool = get_start_pool(ht, query, 0);
-	if (init_pool->n == 0 || bases_sup_branches(init_pool, 0,
+	if (!init_pool || init_pool->n == 0 || bases_sup_branches(init_pool, 0,
 			STRICT_BASES_SUP_THRE)) {
 		show_msg(__func__, "Read %s may be in junction area, skip. \n",
 				query->name);
@@ -457,12 +458,12 @@ void keep_pairs_only(edge *eg, bwa_seq_t *seqs) {
 	int i = 0, min_shift = 0, max_shift = eg->len, read_len = 0;
 	bwa_seq_t *read = NULL, *mate = NULL;
 	show_debug_msg(__func__, "Getting mate pairs...\n");
-	p_readarray(eg->reads, 1);
+	//p_readarray(eg->reads, 1);
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		read_len = read->len;
 		mate = get_mate(read, seqs);
-		if (mate->status == USED && mate->contig_id == eg->id) {
+		if (mate->status != FRESH && mate->contig_id == eg->id) {
 			min_shift = read->shift < min_shift ? read->shift : min_shift;
 			max_shift = read->shift > max_shift ? read->shift : max_shift;
 			g_ptr_array_add(eg->pairs, read);
@@ -593,20 +594,21 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	ht = pe_load_hash(lib_file);
 	seqs = &ht->seqs[0];
 	ol = seqs->len / 2; // Read length
-	s_index = 1000;
-	e_index = 1002;
+	s_index = 264;
+	e_index = 270;
 	pairs = (double*) calloc(n_max_pairs + 1, sizeof(double));
 	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.7) {
 		line_no++;
 		index = atoi(line);
 		query = &ht->seqs[index];
+
 		if (query->status != FRESH)
 			continue;
 		counter++;
-		//		if (counter <= s_index)
-		//			continue;
-		//		if (counter > e_index)
-		//			break;
+		if (line_no <= s_index)
+			continue;
+		if (line_no > e_index)
+			break;
 		show_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", line_no,
 				counter, query->name);
@@ -636,9 +638,18 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 
 		if (eg) {
 			keep_pairs_only(eg, ht->seqs);
-			//p_readarray(eg->pairs, 1);
+			if (eg->reads->len > 100 && eg->pairs->len * 1000 < eg->reads->len) {
+				log_edge(eg);
+				p_readarray(eg->pairs, 1);
+				p_readarray(eg->reads, 1);
+			}
 			if (eg->len < 100 || eg->pairs->len <= 2) {
 				show_msg(
+						__func__,
+						"ABANDONED [%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
+						eg->id, eg->len, eg->reads->len, eg->pairs->len,
+						n_total_reads, ht->n_seqs);
+				show_debug_msg(
 						__func__,
 						"ABANDONED [%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
 						eg->id, eg->len, eg->reads->len, eg->pairs->len,
@@ -653,10 +664,14 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 						"[%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
 						eg->id, eg->len, eg->reads->len, eg->pairs->len,
 						n_total_reads, ht->n_seqs);
+				show_debug_msg(__func__,
+						"[%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
+						eg->id, eg->len, eg->reads->len, eg->pairs->len,
+						n_total_reads, ht->n_seqs);
 			}
 			pair_ctg_id++;
 		}
-		//break;
+//		break;
 	}
 	save_edges(all_edges, pair_contigs, 0, 0, 100);
 	free(partial_pairs);
