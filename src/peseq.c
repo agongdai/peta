@@ -257,11 +257,15 @@ void p_query(const char *header, const bwa_seq_t *q) {
 		printf(" [pool]");
 	else
 		printf(" [no_pool]");
+	if (q->is_in_c_pool)
+		printf(" [m_pool]");
+	else
+		printf(" [no_m_pool]");
 	if (q->rev_com)
 		printf(" [rev_com]");
 	else
 		printf(" [not_rev_com]");
-	if (q->used)
+	if (q->status)
 		printf(" [%d, %d]", q->contig_id, q->shift);
 	else
 		printf(" [not_used]");
@@ -350,7 +354,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 									= 0;
 
 	p->is_in_c_pool = p->is_in_m_pool = 0;
-	p->used = query->used;
+	p->status = query->status;
 	p->contig_id = query->contig_id;
 	p->full_len = p->clip_len = p->len = ol;
 	p->cursor = query->cursor;
@@ -387,7 +391,7 @@ bwa_seq_t *blank_seq() {
 									= 0;
 
 	p->is_in_c_pool = p->is_in_m_pool = 0;
-	p->used = 0;
+	p->status = 0;
 	p->contig_id = 0;
 	p->full_len = p->clip_len = p->len = 0;
 	p->cursor = 0;
@@ -424,7 +428,7 @@ bwa_seq_t *new_rev_seq(const bwa_seq_t *query) {
 							= p->n_cigar = p->cigar = p->seQ = p->nm = p->md
 									= 0;
 
-	p->used = p->shift = p->is_in_c_pool = p->is_in_m_pool = 0;
+	p->status = p->shift = p->is_in_c_pool = p->is_in_m_pool = 0;
 	p->contig_id = query->contig_id;
 	p->full_len = p->clip_len = p->len = query->len;
 	p->cursor = query->cursor;

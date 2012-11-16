@@ -173,8 +173,8 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 		ori_cursor = s->cursor;
 		mate = get_mate(s, seqs);
 		// If the read is used already, but the orientation is different, ignore it.
-		if (s->is_in_c_pool || (s->used && (s->rev_com != a->rev_comp))
-				|| (mate->used && (mate->rev_com != a->rev_comp)))
+		if (s->is_in_c_pool || (s->status && (s->rev_com != a->rev_comp))
+				|| (mate->status && (mate->rev_com != a->rev_comp)))
 			continue;
 		s->rev_com = a->rev_comp;
 		mate->rev_com = s->rev_com;
@@ -282,7 +282,7 @@ bwa_seq_t *get_query_ol(edge *ass_eg, bwa_seq_t *seqs, pool *m_pool,
 							is_left_mate(read->name);
 		if (is_correct_ori) {
 			mate = get_mate(read, seqs);
-			if (!mate->used && !has_n(mate) && mate->contig_id
+			if (!mate->status && !has_n(mate) && mate->contig_id
 			!= INVALID_CONTIG_ID)return mate;
 		}
 		start++;
@@ -303,7 +303,7 @@ bwa_seq_t *get_query_ol(edge *ass_eg, bwa_seq_t *seqs, pool *m_pool,
 							is_left_mate(read->name);
 		if (is_correct_ori) {
 			mate = get_mate(read, seqs);
-			if (!mate->used && !has_n(mate) && mate->contig_id
+			if (!mate->status && !has_n(mate) && mate->contig_id
 			!= INVALID_CONTIG_ID)return mate;
 		}
 		start--;
@@ -322,7 +322,7 @@ bwa_seq_t *get_query_ol(edge *ass_eg, bwa_seq_t *seqs, pool *m_pool,
 							is_right_mate(read->name) :
 							is_left_mate(read->name);
 		if (is_correct_ori) {
-			if (!read->used && !has_n(read) && mate->contig_id
+			if (!read->status && !has_n(read) && mate->contig_id
 			!= INVALID_CONTIG_ID)return read;
 		}
 	}
@@ -407,7 +407,7 @@ pool *get_mate_pool(const edge *eg, const hash_table *ht, const int ori,
 			else
 				mate = s->rev_com ?
 						get_left_mate(s, seqs) : get_right_mate(s, seqs);
-			if (mate && (used || !mate->used)) {
+			if (mate && (used || !mate->status)) {
 				mate_pool_uni_add(mate_pool, mate);
 			}
 		}
@@ -451,7 +451,7 @@ pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 		s = &seqs[a->r_id];
 		mate = get_mate(s, seqs);
 		// If the read's mate is used, but the orientation is not the same, not add to pool
-		if (mate->used && (mate->rev_com != a->rev_comp)) {
+		if (mate->status && (mate->rev_com != a->rev_comp)) {
 			n_counter_pairs++;
 			continue;
 		}
@@ -463,7 +463,7 @@ pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 			s->cursor = ori ? (0 - a->pos - 1) : (s->len - a->pos);
 		else
 			s->cursor = ori ? (a->pos - 1) : (a->pos + s->len);
-		if (s->contig_id == INVALID_CONTIG_ID || s->used || s->cursor < -1
+		if (s->contig_id == INVALID_CONTIG_ID || s->status || s->cursor < -1
 				|| s->cursor > s->len || s->is_in_c_pool) {
 			s->cursor = 0;
 			continue;
@@ -506,7 +506,7 @@ int vld_ext(edge *parent, bwa_seq_t *query, const hash_table *ht, const int ori)
 	for (i = 0; i < reads->len; i++) {
 		s = g_ptr_array_index(reads, i);
 		mate = get_mate(s, seqs);
-		if (mate && !mate->used) {
+		if (mate && !mate->status) {
 			if (s->rev_com) {
 				q_pos_on_mate = is_sub_seq_byte(query->rseq, query->len, 0,
 						mate, opt->nm, 0);
@@ -559,7 +559,7 @@ int add_pool_by_ol(pool *p, bwa_seq_t *query, bwa_seq_t *read, const int ori) {
 	int confirm_c = 0, confirm_c_2 = 0, index = 0, cursor = 0, check_c = 0,
 			check_c_2 = 0;
 
-	if (read->used || read->is_in_c_pool)
+	if (read->status || read->is_in_c_pool)
 		return 0;
 
 	confirm_c = ori ? query->seq[0] : query->seq[query->len - 1];
@@ -604,7 +604,7 @@ void fill_in_pool(pool *p, edgearray *reads, bwa_seq_t *query, const int ori) {
 	bwa_seq_t *read;
 	for (i = 0; i < reads->len; i++) {
 		read = g_ptr_array_index(reads, i);
-		if (!read->used)
+		if (!read->status)
 			add_pool_by_ol(p, query, read, ori);
 	}
 }
@@ -991,7 +991,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 			break;
 		}
 		if (c[1] != INVALID_CHAR) {
-			if (bases_sup_branches(cur_pool, ori)) { // Check one base ahead the cursor
+			if (bases_sup_branches(cur_pool, ori, BASES_SUPPORT_THRE)) { // Check one base ahead the cursor
 				valid_c = vld_branchs(ass_eg, c, ht, ori, query); // Validate the branch by pairs
 				if (valid_c[0] == INVALID_CHAR) { // If there is no valid branch
 					m->type = NOT_EXTEND;
@@ -1470,7 +1470,7 @@ void pe_ass_core(const char *starting_reads, const char *fa_fn) {
 //			break;
 		t_eclipsed = (float) (clock() - t) / CLOCKS_PER_SEC;
 		p = &ht->seqs[3983537];
-		if (p->used || p->contig_id == INVALID_CONTIG_ID) {
+		if (p->status || p->contig_id == INVALID_CONTIG_ID) {
 			show_msg(__func__, "Read used: %s\n", p->name);
 			continue;
 		}

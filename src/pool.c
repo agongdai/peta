@@ -145,7 +145,7 @@ pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs) {
 	for (i = 0; i < cur_pool->reads->len; i++) {
 		read = g_ptr_array_index(cur_pool->reads, i);
 		mate = get_mate(read, seqs);
-		if (mate->used == 0 && !mate->is_in_m_pool) {
+		if (mate->status == 0 && !mate->is_in_m_pool) {
 			mate->rev_com = read->rev_com;
 			mate_pool_add(mate_pool, mate);
 		}
@@ -189,7 +189,7 @@ void pool_get_majority(pool *cur_pool, const char c, edge *ass_eg) {
 		cursor_char = s->rev_com ? s->rseq[s->cursor] : s->seq[s->cursor];
 		if (cursor_char != c) {
 			pool_rm_index(cur_pool, i);
-			s->used = 2; // Will be reused later.
+			s->status = 2; // Will be reused later.
 			s->contig_id = ass_eg->id; // Indicates this read will not be used by this edge anymore.
 			i--;
 		}
@@ -221,7 +221,7 @@ bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int ori) {
 			continue;
 		}
 		if ((p->cursor < p->len) && p->cursor >= 0) {
-			if (p->used) {
+			if (p->status == USED) {
 				if (!used)
 					used = p;
 				pool_rm_index(cur_pool, i);
@@ -243,7 +243,7 @@ void clean_cur_pool(pool *cur_pool) {
 	readarray *ra = cur_pool->reads;
 	for (i = 0; i < ra->len; i++) {
 		r = g_ptr_array_index(ra, i);
-		if (r->used) {
+		if (r->status) {
 			if (pool_rm_index(ra, i))
 				i--;
 		}
@@ -422,10 +422,10 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
  * ....
  * Totally: good count: 13; bad: 5. 5/18 > 0.2, return 1, meaning there are actual branches
  */
-int bases_sup_branches(pool *cur_pool, const int ori) {
+int bases_sup_branches(pool *cur_pool, const int ori, double threshold) {
 	bwa_seq_t *read = NULL;
 	int i = 0, index = 0, next_cursor = 0, most_index = 0;
-	int good_count = 0, bad_count = 0, more = 1;
+	double good_count = 0, bad_count = 0, more = 1;
 	int *sta = (int*) calloc(5, sizeof(int));
 	while (more) {
 		more = 0;
@@ -451,10 +451,10 @@ int bases_sup_branches(pool *cur_pool, const int ori) {
 		reset_c(sta, NULL);
 	}
 	free(sta);
-	show_debug_msg(__func__, "good_count/bad_count: %d/%d \n", good_count,
+	show_debug_msg(__func__, "good_count/bad_count: %f/%f \n", good_count,
 			bad_count);
 	if (good_count > 0 && bad_count > 0) {
-		if (good_count < (good_count + bad_count) * BASES_SUPPORT_THRE)
+		if (good_count < (good_count + bad_count) * threshold)
 			return 1;
 	}
 	return 0;
@@ -467,10 +467,7 @@ void clean_mate_pool(pool *mate_pool) {
 		return;
 	for (i = 0; i < mate_pool->reads->len; i++) {
 		mate = g_ptr_array_index(mate_pool->reads, i);
-		if (mate->used || mate->is_in_c_pool) {
-			if (strcmp(mate->name, "4498144") == 0) {
-				p_query(__func__, mate);
-			}
+		if (mate->status == USED || mate->is_in_c_pool) {
 			if (mate_pool_rm_index(mate_pool, i))
 				i--;
 		}
@@ -564,12 +561,12 @@ void p_pool_read(gpointer *data, gpointer *user_data) {
 			for (i = 0; i < p2->cursor + 2; i++)
 				printf(" ");
 			printf("%d->%c\t%s\t%d\t[rev_com]", p2->cursor, c, p2->name,
-					p2->used);
+					p2->status);
 		} else {
 			printf("%s", p2->seq);
 			for (i = 0; i < p2->cursor + 2; i++)
 				printf(" ");
-			printf("%d->%c\t%s\t%d", p2->cursor, c, p2->name, p2->used);
+			printf("%d->%c\t%s\t%d", p2->cursor, c, p2->name, p2->status);
 		}
 		printf("\n");
 	} else {

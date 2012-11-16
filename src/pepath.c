@@ -942,14 +942,14 @@ int validate_p(hash_table *ht, GPtrArray *paths, const rm_path *path) {
 		left = g_ptr_array_index(path->reads, i);
 		if (is_left_mate(left->name)) {
 			g_ptr_array_add(left_mates, left);
-			left->used = path->id;
+			left->status = path->id;
 		}
 	}
 	for (i = 0; i < n_reads; i++) {
 		mate = g_ptr_array_index(path->reads, i);
 		if (is_right_mate(mate->name)) {
 			left = get_mate(mate, ht->seqs);
-			if (left->used == path->id) {
+			if (left->status == path->id) {
 				if (left->rev_com != mate->rev_com) {
 					n_counter_pairs++;
 				} else {
@@ -979,7 +979,7 @@ int validate_p(hash_table *ht, GPtrArray *paths, const rm_path *path) {
 //	}
 	for (i = 0; i < left_mates->len; i++) {
 		left = g_ptr_array_index(left_mates, i);
-		left->used = 0;
+		left->status = 0;
 	}
 	trim_path(path, coverage); // Stripe the path
 	break_path(paths, path, coverage); // Break the path if some point in the middle is 0

@@ -232,7 +232,7 @@ readarray *find_unconditional_paired_reads(readarray *ra_1, readarray *ra_2) {
 		return paired;
 	for (i = 0; i < ra_1->len; i++) {
 		read_1 = g_ptr_array_index(ra_1, i);
-		if (read_1->used == 1)
+		if (read_1->status == 1)
 			continue;
 		for (j = 0; j < ra_2->len; j++) {
 			read_2 = g_ptr_array_index(ra_2, j);
@@ -504,7 +504,7 @@ void clear_used_reads(edge *eg, const int reset_ctg_id) {
 	if (reset_ctg_id) {
 		for (i = 0; i < eg->reads->len; i++) {
 			r = g_ptr_array_index(eg->reads, i);
-			r->used = 0;
+			r->status = 0;
 			r->contig_id = UNUSED_CONTIG_ID;
 		}
 	}
@@ -528,7 +528,7 @@ void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift,
 	if (ori) {
 		for (i = 0; i < left_eg->reads->len; i++) {
 			r = g_ptr_array_index(left_eg->reads, i);
-			r->used = 0;
+			r->status = 0;
 			r->contig_id = UNUSED_CONTIG_ID; // Reset this read to be not used.
 			if (readarray_find(right_eg->reads, r) == NOT_FOUND) {
 				readarray_add(right_eg, r); // This read will be marked as used by right_eg
@@ -538,7 +538,7 @@ void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift,
 	} else {
 		for (i = 0; i < right_eg->reads->len; i++) {
 			r = g_ptr_array_index(right_eg->reads, i);
-			r->used = 0;
+			r->status = 0;
 			r->contig_id = UNUSED_CONTIG_ID; // Reset this read to be not used.
 			if (readarray_find(left_eg->reads, r) == NOT_FOUND) {
 				readarray_add(left_eg, r);
@@ -631,7 +631,7 @@ void upd_reads(edge *eg, const int mismatches) {
 		bwa_free_read_seq(1, rev_read);
 		if (index == NOT_FOUND) {
 			if (g_ptr_array_remove_index_fast(eg->reads, i)) {
-				read->used = 0;
+				read->status = 0;
 				read->contig_id = UNUSED_CONTIG_ID;
 				read->shift = 0;
 				i--;
@@ -640,7 +640,7 @@ void upd_reads(edge *eg, const int mismatches) {
 		}
 		read->shift = index;
 		read->contig_id = eg->id;
-		read->used = 1;
+		read->status = 1;
 	}
 }
 
@@ -658,13 +658,13 @@ void p_edge_read(bwa_seq_t *p, FILE *log) {
 			sprintf(buf, "%s\t", p2->rseq);
 			fputs(buf, log);
 			sprintf(buf, "%d->%d\t%s\t%d\t[rev_com]", p2->contig_id, p2->shift,
-					p2->name, p2->used);
+					p2->name, p2->status);
 			fputs(buf, log);
 		} else {
 			sprintf(buf, "%s\t", p2->seq);
 			fputs(buf, log);
 			sprintf(buf, "%d->%d\t%s\t%d", p2->contig_id, p2->shift, p2->name,
-					p2->used);
+					p2->status);
 			fputs(buf, log);
 		}
 		fputs("\n", log);
@@ -755,7 +755,7 @@ void readarray_add(edge *eg, bwa_seq_t *read) {
 	if (!eg || !read)
 		return;
 	g_ptr_array_add(eg->reads, read);
-	read->used = 1;
+	read->status = USED;
 	read->contig_id = eg->id;
 }
 
@@ -763,7 +763,7 @@ void readarray_uni_add(edge *eg, bwa_seq_t *read) {
 	if (!eg || !read)
 		return;
 	g_ptr_array_uni_add(eg->reads, read);
-	read->used = 1;
+	read->status = USED;
 	read->contig_id = eg->id;
 }
 
@@ -771,7 +771,7 @@ void readarray_remove(edge *eg, bwa_seq_t *read) {
 	if (!eg || !read)
 		return;
 	g_ptr_array_remove(eg->reads, read);
-	read->used = 0;
+	read->status = FRESH;
 	read->contig_id = UNUSED_CONTIG_ID;
 }
 
@@ -780,7 +780,7 @@ void readarray_remove_fast(edge *eg, const int index) {
 	if (!eg || index < 0 || index >= eg->reads->len)
 		return;
 	read = g_ptr_array_index(eg->reads, index);
-	read->used = 0;
+	read->status = FRESH;
 	read->contig_id = UNUSED_CONTIG_ID;
 	g_ptr_array_remove_index_fast(eg->reads, index);
 }
@@ -793,7 +793,7 @@ void readarray_remove_fast(edge *eg, const int index) {
 void readarray_frozen(readarray *ra, bwa_seq_t *read) {
 	if (!ra || !read)
 		return;
-	read->used = 1;
+	read->status = USED;
 	read->contig_id = INVALID_CONTIG_ID;
 	g_ptr_array_add(ra, read);
 }
@@ -806,7 +806,7 @@ void readarray_unfrozen(readarray *ra) {
 	for (i = 0; i < ra->len; i++) {
 		read = g_ptr_array_index(ra, i);
 		if (read->contig_id == INVALID_CONTIG_ID) {
-			read->used = 0;
+			read->status = FRESH;
 			read->contig_id = UNUSED_CONTIG_ID;
 		}
 	}

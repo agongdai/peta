@@ -88,7 +88,7 @@ typedef struct {
 	char *md;
 
 	int cursor;  // Where the cursor is, pointing to next char
-	tf_flag used;
+	tf_flag status;
 	tf_flag is_in_c_pool;
 	tf_flag is_in_m_pool;
 	tf_flag rev_com; // Whether use reverse complement in pool

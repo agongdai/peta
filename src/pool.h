@@ -13,9 +13,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define POOLSIZE 			32
-#define EXT_BY_POOL_SIZE	8
-#define	BASES_SUPPORT_THRE	0.85
+#define POOLSIZE 				32
+#define EXT_BY_POOL_SIZE		8
+#define	BASES_SUPPORT_THRE		0.85
+#define STRICT_BASES_SUP_THRE	0.95
 
 typedef struct {
 	readarray *reads;
@@ -53,7 +54,7 @@ void clear_pool(pool *r_pool);
 void pool_get_majority(pool *cur_pool, const char c, edge *ass_eg);
 void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
 		const int ori);
-int bases_sup_branches(pool *cur_pool, const int ori);
+int bases_sup_branches(pool *cur_pool, const int ori, double threshold);
 
 #ifdef __cplusplus
 }

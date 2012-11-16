@@ -37,9 +37,10 @@ enum READ_STATUS
 {
     FRESH,
     USED,
+    TRIED,
     HANG,
     HAS_N,
-    REPETITIVE
+    REPETITIVE,
 };
 
 typedef struct {
