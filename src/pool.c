@@ -138,7 +138,7 @@ gboolean mate_pool_rm_fast(pool *p, bwa_seq_t *read) {
 	return r;
 }
 
-pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs) {
+pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs, const int ori) {
 	bwa_seq_t *read = NULL, *mate = NULL;
 	int i = 0;
 	pool *mate_pool = new_pool();
@@ -146,9 +146,12 @@ pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs) {
 		for (i = 0; i < cur_pool->reads->len; i++) {
 			read = g_ptr_array_index(cur_pool->reads, i);
 			mate = get_mate(read, seqs);
-			if (mate->status == 0 && !mate->is_in_m_pool) {
-				mate->rev_com = read->rev_com;
-				mate_pool_add(mate_pool, mate);
+			if (is_paired(read, ori)) {
+				if (mate->status != USED && !mate->is_in_m_pool
+						&& !mate->is_in_c_pool) {
+					mate->rev_com = read->rev_com;
+					mate_pool_add(mate_pool, mate);
+				}
 			}
 		}
 	}
@@ -345,11 +348,11 @@ int binary_exists(const pool *r_pool, const bwa_seq_t *read) {
  * 'tg' and not the same as 'ct', remove read from the current pool.
  */
 
-void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm) {
+void rm_partial(pool *cur_pool, pool *mate_pool, int ori, bwa_seq_t *seqs, bwa_seq_t *query, int nm) {
 	int check_c_1 = 0, check_c_2 = 0, confirm_c = 0, confirm_c_2 = 0;
 	int removed = 0, is_at_end = 0, i = 0;
 	int similar = 1;
-	bwa_seq_t *s = NULL;
+	bwa_seq_t *s = NULL, *mate = NULL;
 	check_c_1 = ori ? query->seq[0] : query->seq[query->len - 1];
 	check_c_2 = ori ? query->seq[1] : query->seq[query->len - 2];
 	for (i = 0; i < cur_pool->n; i++) {
@@ -371,8 +374,11 @@ void rm_partial(pool *cur_pool, int ori, bwa_seq_t *query, int nm) {
 			if (!similar
 					|| (check_c_1 != confirm_c && check_c_2 != confirm_c_2)) {
 				removed = pool_rm_index(cur_pool, i);
-				if (removed)
+				if (removed) {
+					mate = get_mate(s, seqs);
+					mate_pool_rm(mate_pool, mate);
 					i--;
+				}
 			}
 		}
 	}
@@ -402,9 +408,6 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
 			pool_add(cur_pool, mate);
 			if (mate_pool_rm_index(mate_pool, i))
 				i--;
-			p_ctg_seq("CONTIG", contig);
-			p_ctg_seq("MATETO", tmp);
-			p_query("Mate added", mate);
 		}
 		bwa_free_read_seq(1, tmp);
 	}

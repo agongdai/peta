@@ -7,6 +7,7 @@
 #define MATE_OVERLAP_THRE	11
 #define RELAX_MATE_OL_THRE	6
 #define	MIN_ORDER_PAIRS		4
+#define MIN_READS_BF_CHECK_MATES	8
 
 int pe_lib(int argc, char *argv[]);
 

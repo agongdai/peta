@@ -144,7 +144,7 @@ bwa_seq_t *merge_seq_to_left(bwa_seq_t *s2, bwa_seq_t *s1, const int gap) {
  * Merge partial s2 to s1.
  * For example, s2->len = 100, shift = 20, concat s2->seq[20:100] to s1->seq
  */
-bwa_seq_t *merge_seq(bwa_seq_t *s1, bwa_seq_t *s2, const shift) {
+bwa_seq_t *merge_seq(bwa_seq_t *s1, bwa_seq_t *s2, const int shift) {
 	int i = 0;
 	if (!s1 || !s2)
 		return 0;
@@ -266,7 +266,7 @@ void p_query(const char *header, const bwa_seq_t *q) {
 	else
 		printf(" [not_rev_com]");
 	if (q->status)
-		printf(" [%d, %d]", q->contig_id, q->shift);
+		printf(" [%d: %d, %d]", q->status, q->contig_id, q->shift);
 	else
 		printf(" [not_used]");
 	//	printf("\n[rev_com] ");
@@ -768,7 +768,7 @@ int is_biased_q(const bwa_seq_t *query) {
 	return is_biased;
 }
 
-int has_rep_pattern(bwa_seq_t *read) {
+int has_rep_pattern(const bwa_seq_t *read) {
 	int i = 0, j = 0, is_rep = 1;
 	ubyte_t c = 0, c2 = 0;
 	for (i = 0; i < read->len - NO_REPEAT_LEN - 1; i++) {
@@ -795,6 +795,28 @@ void pe_reverse_seqs(bwa_seq_t *seqs, const int n_seqs) {
 		seq_reverse(s->len, s->seq, 0);
 		//seq_reverse(s->len, s->rseq, 0);
 	}
+}
+
+/**
+ * Return 1:
+ * The mate of 'read' should be in the used area;
+ * Return 0:
+ * The mate of 'read' should be in the future
+ */
+int is_paired(const bwa_seq_t *read, const int ori) {
+	int paired = 0;
+	if (ori) {
+		if ((is_left_mate(read->name) && !read->rev_com) || (is_right_mate(
+				read->name) && read->rev_com)) {
+			paired = 1;
+		}
+	} else {
+		if ((is_right_mate(read->name) && !read->rev_com) || (is_left_mate(
+				read->name) && read->rev_com)) {
+			paired = 1;
+		}
+	}
+	return paired;
 }
 
 void destroy_index(indexes *in) {

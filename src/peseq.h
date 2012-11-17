@@ -88,7 +88,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift);
 bwa_seq_t *blank_seq();
 bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol, const int shift);
 bwa_seq_t *new_rev_seq(const bwa_seq_t *query);
-bwa_seq_t *merge_seq(bwa_seq_t *s1, bwa_seq_t *s2, const shift);
+bwa_seq_t *merge_seq(bwa_seq_t *s1, bwa_seq_t *s2, const int shift);
 void map(bwa_seq_t *bwa_seq);
 index64 get_index(const char *seq_id);
 void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp);
@@ -112,9 +112,10 @@ int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,
 		const int mismatches);
 int is_repetitive_q(const bwa_seq_t *query);
 void pe_reverse_seqs(bwa_seq_t *seqs, const int n_seqs);
+int is_paired(const bwa_seq_t *read, const int ori);
 void destroy_index(indexes *in);
 void free_read_seq(bwa_seq_t *p);
-int has_rep_pattern(bwa_seq_t *read);
+int has_rep_pattern(const bwa_seq_t *read);
 
 #ifdef __cplusplus
 }

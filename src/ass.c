@@ -201,7 +201,7 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 	}
 	// To ensure that current reads are similar to the contig
 	//p_pool("Before", cur_pool, NULL);
-	rm_partial(cur_pool, ori, query, opt->nm);
+	rm_partial(cur_pool, mate_pool, ori, seqs, query, opt->nm);
 	//p_pool("After", cur_pool, NULL);
 	// Add overlapped reads from the mate_pool, the overlapping length is read length / 4.
 	if (mate_pool) {
@@ -941,7 +941,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 	show_debug_msg(__func__,
 			"******************* Starting of Single Extension ******************\n");
 	cur_pool = c_pool ? c_pool : new_pool();
-	mate_pool = c_pool ? get_init_mate_pool(c_pool, ht->seqs) : new_pool();
+	mate_pool = c_pool ? get_init_mate_pool(c_pool, ht->seqs, ori) : new_pool();
 	contig = ass_eg->contig;
 	ass_eg->len = contig->len;
 	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
