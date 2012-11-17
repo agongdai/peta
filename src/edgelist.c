@@ -174,7 +174,7 @@ void adj_shift(edge *eg, const int trun_len) {
 	}
 }
 
-double *get_pairs_on_edge(edge *eg, int *n_pairs) {
+double *get_pair_dis_on_edge(edge *eg, int *n_pairs) {
 	int i = 0, index = 0;
 	bwa_seq_t *s = NULL, *next_s = NULL;
 	readarray *reads = eg->reads;
@@ -642,6 +642,20 @@ void upd_reads(edge *eg, const int mismatches) {
 		read->contig_id = eg->id;
 		read->status = 1;
 	}
+}
+
+readarray *get_pairs_on_edge(edge *eg, bwa_seq_t *seqs) {
+	int i = 0;
+	bwa_seq_t *read = NULL, *mate = NULL;
+	readarray *pairs = g_ptr_array_sized_new(16);
+	for (i = 0; i < eg->reads->len; i++) {
+		read = g_ptr_array_index(eg->reads, i);
+		mate = get_mate(read, seqs);
+		if (mate->status == USED && mate->contig_id == eg->id) {
+			g_ptr_array_add(pairs, read);
+		}
+	}
+	return pairs;
 }
 
 void p_edge_read(bwa_seq_t *p, FILE *log) {

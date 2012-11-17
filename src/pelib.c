@@ -191,23 +191,6 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 	}
 }
 
-/**
- * If the template is long enough, but in the pool, all reads are those with mates ahead, return 1.
- */
-int only_single_reads(pool *cur_pool, const int ori) {
-	int i = 0;
-	bwa_seq_t *read = NULL;
-	if (cur_pool->n <= MIN_READS_BF_CHECK_MATES)
-		return 0;
-	for (i = 0; i < cur_pool->reads->len; i++) {
-		read = g_ptr_array_index(cur_pool->reads, i);
-		if (is_paired(read, ori)) {
-			return 0;
-		}
-	}
-	return 1;
-}
-
 void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		pool *mate_pool, edge *ass_eg, bwa_seq_t *query, int *next, int ori) {
 	alg *a = NULL;
@@ -251,10 +234,6 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	// Keep only the reads whose mate is used previously.
 	if (ass_eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
 		keep_mates_in_pool(ass_eg, cur_pool, next, ht, ori, 0);
-		if (only_single_reads(cur_pool, ori)) {
-			show_debug_msg(__func__, "Only single reads in the pool \n");
-			clear_pool(cur_pool);
-		}
 	}
 	for (i = 0; i < cur_pool->n; i++) {
 		s = g_ptr_array_index(cur_pool->reads, i);
@@ -345,6 +324,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, const bwa_seq_t *s,
 	int *next = (int*) calloc(5, sizeof(int));
 	alignarray *aligns = NULL;
 	edge *eg = NULL;
+	readarray *pairs = NULL;
 
 	if (pre_eg) {
 		eg = pre_eg;
@@ -433,6 +413,13 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, const bwa_seq_t *s,
 			show_debug_msg(__func__, "Assembling... [%d, %d] \n", eg->id,
 					eg->len);
 			clean_mate_pool(mate_pool);
+			pairs = get_pairs_on_edge(eg, ht->seqs);
+			if (pairs->len <= MIN_VALID_PAIRS && (eg->len >= (insert_size + sd_insert_size * SD_TIMES))) {
+				show_msg(__func__, "No enough pairs currently, stop!");
+				g_ptr_array_free(pairs, TRUE);
+				break;
+			}
+			g_ptr_array_free(pairs, TRUE);
 		}
 	}
 	if (ori)
@@ -542,7 +529,7 @@ int est_pair_gap(edge *eg_1, edge *eg_2, int order) {
 	bwa_seq_t *read = NULL, *mate = NULL;
 	int len = 0, gap_sum = 0, gap_ave = -1, n_counted = 0;
 	paired_reads = find_unconditional_paired_reads(eg_1->reads, eg_2->reads);
-	if (paired_reads->len >= MIN_ORDER_PAIRS)
+	if (paired_reads->len >= MIN_VALID_PAIRS)
 		for (i = 0; i < paired_reads->len; i += 2) {
 			read = g_ptr_array_index(paired_reads, i);
 			mate = g_ptr_array_index(paired_reads, i + 1);
@@ -575,7 +562,7 @@ int order_two_edges(edge *eg_1, edge *eg_2) {
 	int i = 0;
 	bwa_seq_t *read = NULL, *mate = NULL;
 	paired_reads = find_unconditional_paired_reads(eg_1->reads, eg_2->reads);
-	if (paired_reads->len < MIN_ORDER_PAIRS)
+	if (paired_reads->len < MIN_VALID_PAIRS)
 		order = 0;
 	else {
 		for (i = 0; i < paired_reads->len; i += 2) {
@@ -652,7 +639,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 				line_no, query->name);
 		eg = pe_ext(ht, query);
 		//		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_reads_by_name);
-		//		partial_pairs = get_pairs_on_edge(eg, &n_part_pairs);
+		//		partial_pairs = get_pair_dis_on_edge(eg, &n_part_pairs);
 		//		if (n_part_pairs >= PAIRS_PER_EDGE)
 		//			n_part_pairs = PAIRS_PER_EDGE;
 		//		if (n_part_pairs + n_pairs >= n_max_pairs) {

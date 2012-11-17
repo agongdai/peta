@@ -39,6 +39,7 @@ void merge_eg_to_left(edge *left_eg, edge *right_eg, const int gap);
 void merge_eg_to_right(edge *left_eg, edge *right_eg, const int gap);
 int get_mid_pos(readarray *ra, const int ori, const int lib_mean);
 void upd_reads(edge *eg, const int mismatches);
+readarray *get_pairs_on_edge(edge *eg, bwa_seq_t *seqs);
 void log_reads(edgearray *ea);
 void log_edge(const edge *eg);
 void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift, const int gap,
@@ -47,7 +48,7 @@ void concate_readarray(readarray *left_reads, readarray *right_reads);
 void clear_used_reads(edge *eg, const int reset_ctg_id);
 void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap, const int nm, const int rl);
 eg_gap *find_hole(edge *ass_eg, edge *m_eg, const int ori);
-double *get_pairs_on_edge(edge *eg, int *n_pairs);
+double *get_pair_dis_on_edge(edge *eg, int *n_pairs);
 void readarray_add(edge *eg, bwa_seq_t *read);
 void readarray_uni_add(edge *eg, bwa_seq_t *read);
 void readarray_remove(edge *eg, bwa_seq_t *read);
