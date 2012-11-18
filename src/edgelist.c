@@ -226,19 +226,22 @@ readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs) {
 
 readarray *find_unconditional_paired_reads(readarray *ra_1, readarray *ra_2) {
 	readarray *paired = g_ptr_array_sized_new(INIT_N_READ_PAIRED);
-	int i = 0, j = 0;
+	int i = 0, j = 0, larger_index = 0;
 	bwa_seq_t *read_1, *read_2;
 	if (!ra_1 || !ra_2 || ra_1->len == 0 || ra_2->len == 0)
 		return paired;
+	g_ptr_array_sort(ra_1, (GCompareFunc) cmp_read_by_name);
+	g_ptr_array_sort(ra_2, (GCompareFunc) cmp_read_by_name);
 	for (i = 0; i < ra_1->len; i++) {
 		read_1 = g_ptr_array_index(ra_1, i);
-		if (read_1->status == 1)
+		if (read_1->status == USED)
 			continue;
-		for (j = 0; j < ra_2->len; j++) {
+		for (j = larger_index; j < ra_2->len; j++) {
 			read_2 = g_ptr_array_index(ra_2, j);
 			if (is_mates(read_1->name, read_2->name)) {
 				g_ptr_array_add(paired, read_1);
 				g_ptr_array_add(paired, read_2);
+				larger_index = j;
 				break;
 			}
 		}
@@ -631,7 +634,7 @@ void upd_reads(edge *eg, const int mismatches) {
 		bwa_free_read_seq(1, rev_read);
 		if (index == NOT_FOUND) {
 			if (g_ptr_array_remove_index_fast(eg->reads, i)) {
-				read->status = 0;
+				read->status = FRESH;
 				read->contig_id = UNUSED_CONTIG_ID;
 				read->shift = 0;
 				i--;

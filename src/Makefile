@@ -8,7 +8,7 @@ OBJS=		rand.o utils.o roadmap.o bwt.o eva.o edge.o clean.o rnaseq.o \
 			pepath.o bwtio.o bwtaln.o pet.o pealn.o edgelist.o pehash.o pelib.o \
 			pechar.o pool.o bwtgap.o is.o bntseq.o peseq.o simu.o \
 			bwtmisc.o bwtindex.o stdaln.o bwaseqio.o bamlite.o \
-			bwase.o kstring.o cs2nt.o ass.o readrm.o 
+			bwase.o kstring.o cs2nt.o ass.o readrm.o scaffolding.o
 PROG=		peta
 INCLUDES=	
 LIBS=		-lm -lz -lpthread -Lbwt_gen -lbwtgen -pg $(shell pkg-config --libs glib-2.0)

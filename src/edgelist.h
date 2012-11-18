@@ -21,6 +21,7 @@ extern "C" {
 #define INVALID			-1
 #define STOP_PAIRING	400
 
+gint cmp_read_by_name(gpointer a, gpointer b);
 void g_ptr_array_add_index(GPtrArray *array, gpointer data, const int index);
 void g_ptr_array_replace_index(GPtrArray *array, gpointer data, const int index);
 void g_ptr_array_replace_ptr(GPtrArray *array, gpointer data, gpointer olddata);
