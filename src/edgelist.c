@@ -226,7 +226,7 @@ readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs) {
 
 readarray *find_unconditional_paired_reads(readarray *ra_1, readarray *ra_2) {
 	readarray *paired = g_ptr_array_sized_new(INIT_N_READ_PAIRED);
-	int i = 0, j = 0, larger_index = 0;
+	int i = 0, j = 0, second_index = 0;
 	bwa_seq_t *read_1, *read_2;
 	if (!ra_1 || !ra_2 || ra_1->len == 0 || ra_2->len == 0)
 		return paired;
@@ -236,12 +236,18 @@ readarray *find_unconditional_paired_reads(readarray *ra_1, readarray *ra_2) {
 		read_1 = g_ptr_array_index(ra_1, i);
 		if (read_1->status == USED)
 			continue;
-		for (j = larger_index; j < ra_2->len; j++) {
+		for (j = second_index; j < ra_2->len; j++) {
 			read_2 = g_ptr_array_index(ra_2, j);
+			if (read_2->status == USED)
+				continue;
 			if (is_mates(read_1->name, read_2->name)) {
 				g_ptr_array_add(paired, read_1);
 				g_ptr_array_add(paired, read_2);
-				larger_index = j;
+				second_index = j + 1;
+				break;
+			}
+			if (atoi(read_2->name) > atoi(read_1->name)) {
+				second_index = j;
 				break;
 			}
 		}

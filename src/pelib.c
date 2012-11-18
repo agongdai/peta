@@ -576,7 +576,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	s_index = 0;
 	e_index = 270;
 	pairs = (double*) calloc(n_max_pairs + 1, sizeof(double));
-	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.01) {
+	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.9) {
 		line_no++;
 		index = atoi(line);
 		query = &ht->seqs[index];
@@ -618,7 +618,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		if (eg) {
 			ori_len = eg->len;
 			keep_pairs_only(eg, ht->seqs);
-			 log_edge(eg);
+			// log_edge(eg);
 			if (eg->len < 100 || eg->pairs->len <= MIN_VALID_PAIRS) {
 				show_msg(
 						__func__,
