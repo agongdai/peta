@@ -231,9 +231,9 @@ readarray *get_parents_reads(const edge *parent, const int ori) {
 		if (parent->in_egs->len > 0)
 			pre = g_ptr_array_index(parent->in_egs, 0);
 	}
-	concate_readarray(reads, parent->reads);
+	concat_readarray(reads, parent->reads);
 	while (pre && acc_len < opt->mean + opt->sd * SD_TIMES) {
-		concate_readarray(reads, pre->reads);
+		concat_readarray(reads, pre->reads);
 		acc_len += pre->len;
 		if (ori) {
 			if (pre->out_egs->len > 0 && !pre->right_ctg)

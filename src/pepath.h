@@ -41,6 +41,7 @@ GPtrArray *report_paths(edgearray *all_edges);
 int pe_path(int argc, char *argv[]);
 edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 		const char *rm_reads_file, const char *contig_file);
+void save_paths(GPtrArray *paths, const char *tx_fn, const int min_len);
 
 #ifdef __cplusplus
 }

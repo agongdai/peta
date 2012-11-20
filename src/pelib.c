@@ -21,7 +21,7 @@
 #include "pepath.h"
 #include "scaffolding.h"
 
-int pair_ctg_id = 1;
+int pair_ctg_id = 0;
 int overlap_len = 0;
 int insert_size = 0;
 int sd_insert_size = 0;
@@ -34,7 +34,8 @@ void pe_lib_help() {
 }
 
 char *get_output_file(const char *file_name) {
-	char *name = (char*) calloc(strlen(file_name) + strlen(out_root) + 4, sizeof(char));
+	char *name = (char*) calloc(strlen(file_name) + strlen(out_root) + 4,
+			sizeof(char));
 	strcat(name, out_root);
 	strcat(name, "/");
 	strcat(name, file_name);
@@ -73,11 +74,11 @@ void keep_mates_in_pool(edge *eg, pool *cur_pool, int *next,
 		mate = get_mate(read, ht->seqs);
 		to_remove = 0;
 		// The mate of 'read' should be used already
-//		if (strcmp(read->name, "6200654") == 0) {
-//			show_debug_msg(__func__, "ORI: %d \n", ori);
-//			p_query(__func__, mate);
-//			p_query(__func__, read);
-//		}
+		//		if (strcmp(read->name, "6200654") == 0) {
+		//			show_debug_msg(__func__, "ORI: %d \n", ori);
+		//			p_query(__func__, mate);
+		//			p_query(__func__, read);
+		//		}
 		if (is_paired(read, ori)) {
 			// If the mate is not used, remove 'read'
 			if ((read->rev_com != mate->rev_com) || (mate->status != USED)
@@ -187,10 +188,10 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 				pool_add(cur_pool, mate);
 				mate_pool_rm_index(mate_pool, i);
 				i--;
-//				if (strcmp(mate->name, "6200654") == 0) {
-//					p_query(__func__, mate);
-//					p_query(__func__, s);
-//				}
+				//				if (strcmp(mate->name, "6200654") == 0) {
+				//					p_query(__func__, mate);
+				//					p_query(__func__, s);
+				//				}
 			}
 		}
 		if (mate->rev_com)
@@ -235,10 +236,10 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 			continue;
 
 		pool_add(cur_pool, s);
-//		if (strcmp(s->name, "3563380") == 0) {
-//			p_query(__func__, mate);
-//			p_query(__func__, s);
-//		}
+		//		if (strcmp(s->name, "3563380") == 0) {
+		//			p_query(__func__, mate);
+		//			p_query(__func__, s);
+		//		}
 		if (mate->status != USED && !mate->is_in_c_pool && !mate->is_in_m_pool) {
 			mate_pool_add(mate_pool, mate);
 		}
@@ -315,10 +316,10 @@ pool *get_start_pool(const hash_table *ht, const bwa_seq_t *init_read,
 		s->rev_com = a->rev_comp;
 		mate->rev_com = a->rev_comp;
 		pool_add(init_pool, s);
-//		if (strcmp(s->name, "3563380") == 0) {
-//			p_query(__func__, mate);
-//			p_query(__func__, s);
-//		}
+		//		if (strcmp(s->name, "3563380") == 0) {
+		//			p_query(__func__, mate);
+		//			p_query(__func__, s);
+		//		}
 	}
 	free_alg(alns);
 	if (to_free_query)
@@ -435,7 +436,8 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, const bwa_seq_t *s,
 			clean_mate_pool(mate_pool);
 			// If the length is long enough but there is not enough pairs, just stop
 			pairs = get_pairs_on_edge(eg, ht->seqs);
-			if (pairs->len <= MIN_VALID_PAIRS && (eg->len >= (insert_size + sd_insert_size * SD_TIMES))) {
+			if (pairs->len <= MIN_VALID_PAIRS && (eg->len >= (insert_size
+					+ sd_insert_size * SD_TIMES))) {
 				show_msg(__func__, "No enough pairs currently, stop!");
 				g_ptr_array_free(pairs, TRUE);
 				break;
@@ -516,10 +518,10 @@ void keep_pairs_only(edge *eg, bwa_seq_t *seqs) {
 		read = g_ptr_array_index(eg->reads, i);
 		read_len = read->len;
 		mate = get_mate(read, seqs);
-//		if (strcmp(read->name, "3563380") == 0) {
-//			p_query(__func__, mate);
-//			p_query(__func__, read);
-//		}
+		//		if (strcmp(read->name, "3563380") == 0) {
+		//			p_query(__func__, mate);
+		//			p_query(__func__, read);
+		//		}
 		if (mate->status != FRESH && mate->contig_id == eg->id) {
 			min_shift = read->shift < min_shift ? read->shift : min_shift;
 			max_shift = read->shift > max_shift ? read->shift : max_shift;
@@ -537,45 +539,150 @@ void keep_pairs_only(edge *eg, bwa_seq_t *seqs) {
 		read = g_ptr_array_index(eg->pairs, i);
 		read->status = USED;
 	}
-//	if (max_shift < eg->len) {
-//		show_debug_msg(__func__, "Truncated edge [%d, %d] to [%d, %d] \n",
-//				eg->id, eg->len, min_shift, max_shift);
-//		max_shift += read_len;
-//		if (max_shift < eg->len) {
-//			eg->len = max_shift;
-//			eg->contig->seq[eg->len] = '\0';
-//			eg->contig->len = eg->len;
-//		}
-//		if (min_shift > 0) {
-//			trun_seq(eg->contig, min_shift);
-//			eg->len -= min_shift;
-//		}
-//	}
+	//	if (max_shift < eg->len) {
+	//		show_debug_msg(__func__, "Truncated edge [%d, %d] to [%d, %d] \n",
+	//				eg->id, eg->len, min_shift, max_shift);
+	//		max_shift += read_len;
+	//		if (max_shift < eg->len) {
+	//			eg->len = max_shift;
+	//			eg->contig->seq[eg->len] = '\0';
+	//			eg->contig->len = eg->len;
+	//		}
+	//		if (min_shift > 0) {
+	//			trun_seq(eg->contig, min_shift);
+	//			eg->len -= min_shift;
+	//		}
+	//	}
+}
+
+void est_insert_size(int n_max_pairs, char *lib_file, char *solid_file) {
+	hash_table *ht = NULL;
+	bwa_seq_t *query = NULL, *seqs = NULL;
+	FILE *solid = xopen(solid_file, "r");
+	char line[80];
+	int index = 0, ol = 0, n_pairs = 0, n_part_pairs = 0;
+	int line_no = 0;
+	edge *eg = NULL;
+	double *pairs = NULL, *partial_pairs = NULL, mean_ins_size = 0,
+			sd_ins_size = 0;
+	show_msg(__func__, "Library: %s \n", lib_file);
+	show_msg(__func__, "Solid Reads: %s \n", solid_file);
+	show_msg(__func__, "Maximum Pairs: %d \n", n_max_pairs);
+
+	ht = pe_load_hash(lib_file);
+	seqs = &ht->seqs[0];
+	ol = seqs->len / 2; // Read length
+	pairs = (double*) calloc(n_max_pairs + 1, sizeof(double));
+	while (fgets(line, 80, solid) != NULL && n_pairs < n_max_pairs) {
+		index = atoi(line);
+		query = &ht->seqs[index];
+
+		if (query->status != FRESH)
+			continue;
+		show_msg(__func__,
+				"---------- [%d] Processing read %d: %s ----------\n", line_no,
+				pair_ctg_id, query->name);
+		eg = pe_ext(ht, query);
+		if (!eg)
+			continue;
+		keep_pairs_only(eg, ht->seqs);
+		if (eg->pairs->len * 2 < eg->reads->len) {
+			destroy_eg(eg);
+			continue;
+		}
+		g_ptr_array_sort(eg->pairs, (GCompareFunc) cmp_reads_by_name);
+		partial_pairs = get_pair_dis_on_edge(eg, &n_part_pairs);
+		if (n_part_pairs >= PAIRS_PER_EDGE)
+			n_part_pairs = PAIRS_PER_EDGE;
+		concat_doubles(pairs, &n_pairs, partial_pairs, n_part_pairs);
+		free(partial_pairs);
+		partial_pairs = NULL;
+		p_ctg_seq("Contig now", eg->contig);
+		show_msg(__func__, "Pairs of contig %d: [%d, %d] \n", eg->id, eg->len,
+				eg->pairs->len);
+		show_msg(__func__, "+%d, %d pairs now \n", n_part_pairs, n_pairs);
+		n_part_pairs = 0;
+		//p_readarray(eg->reads, 1);
+		//log_edge(eg);
+		destroy_eg(eg);
+		eg = NULL;
+		pair_ctg_id++;
+	}
+	mean_ins_size = mean(pairs, n_pairs);
+	sd_ins_size = std_dev(pairs, n_pairs);
+	show_msg(__func__, "Mean Insert Size: %f \n", mean_ins_size);
+	show_msg(__func__, "Standard Deviation of Insert Size: %f \n", sd_ins_size);
+}
+
+/**
+ * For the transcripts: left side are right side are disconnected.
+ */
+void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
+	int i = 0;
+	bwa_seq_t *seqs = NULL, *unused_read = NULL, *mate = NULL;
+	edge *eg_1 = NULL, *eg_2 = NULL, *eg = NULL;
+	readarray *pairs = NULL;
+
+	show_msg(__func__, "Trying to construct disconnected transcripts... \n");
+	seqs = ht->seqs;
+	for (i = 0; i < seqs->len; i++) {
+		unused_read = &seqs[i];
+		mate = get_mate(unused_read, mate);
+		if (unused_read->status != FRESH && mate->status != FRESH)
+			continue;
+		eg_1 = pe_ext(ht, unused_read);
+		eg_2 = pe_ext(ht, mate);
+		if ((eg_1->len < 100 && eg_2->len < 100) || (eg_1->pairs->len
+				> MIN_VALID_PAIRS || eg_2->pairs->len > MIN_VALID_PAIRS)
+				|| (has_reads_in_common(eg_1, eg_2))) {// Only if the two edges have no common reads
+			destroy_eg(eg_1);
+			destroy_eg(eg_2);
+		} else {
+			pairs = find_unconditional_paired_reads(eg_1->reads, eg_2->reads);
+			if (pairs->len > MIN_VALID_PAIRS) {
+				eg = merge_edges(eg_1, eg_2);
+				if (eg) {
+					g_ptr_array_add(all_edges, eg);
+					n_total_reads += eg->pairs->len;
+					show_msg(
+							__func__,
+							"[%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
+							eg->id, eg->len, eg->reads->len, eg->pairs->len,
+							n_total_reads, ht->n_seqs);
+					eg_1 = NULL;
+					eg_2 = NULL;
+				}
+			}
+			g_ptr_array_free(pairs, TRUE);
+		}
+		unused_read->status = TRIED;
+		mate->status = TRIED;
+		destroy_eg(eg_1);
+		destroy_eg(eg_2);
+		if (n_total_reads > ht->n_seqs * 0.95)
+			break;
+	}
 }
 
 void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	hash_table *ht = NULL;
-	bwa_seq_t *query = NULL, *seqs = NULL, *r = NULL;
+	bwa_seq_t *query = NULL, *seqs = NULL;
 	FILE *solid = xopen(solid_file, "r");
 	char line[80], *name = NULL;
-	int index = 0, ol = 0, n_pairs = 0, n_part_pairs = 0, n_total_reads = 0;
-	int s_index = 0, e_index = 0, counter = -1, i = 0, line_no = 0, ori_len = 0;
+	int index = 0, ol = 0, n_total_reads = 0;
+	int s_index = 0, e_index = 0, counter = -1, line_no = 0, ori_len = 0;
 	edge *eg = NULL;
-	double *pairs = NULL, *partial_pairs = NULL, mean_ins_size = 0,
-			sd_ins_size = 0;
 	GPtrArray *all_edges = NULL, *final_paths = NULL;
 	FILE *pair_contigs = xopen("pair_contigs.fa", "w");
 	show_msg(__func__, "Library: %s \n", lib_file);
 	show_msg(__func__, "Solid Reads: %s \n", solid_file);
-	show_msg(__func__, "Maximum Pairs: %d \n", n_max_pairs);
 
 	all_edges = g_ptr_array_sized_new(BUFSIZ);
 	ht = pe_load_hash(lib_file);
 	seqs = &ht->seqs[0];
 	ol = seqs->len / 2; // Read length
 	s_index = 0;
-	e_index = 270;
-	pairs = (double*) calloc(n_max_pairs + 1, sizeof(double));
+	e_index = 10;
 	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.9) {
 		line_no++;
 		index = atoi(line);
@@ -584,37 +691,17 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		if (query->status != FRESH)
 			continue;
 		counter++;
-//		if (line_no <= s_index)
-//			continue;
-//		if (line_no > e_index)
-//			break;
+		//		if (counter <= s_index)
+		//			continue;
+		//		if (counter > e_index)
+		//			break;
 		show_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", line_no,
-				counter, query->name);
+				pair_ctg_id, query->name);
 		show_debug_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", line_no,
-				counter,query->name);
+				pair_ctg_id, query->name);
 		eg = pe_ext(ht, query);
-		//		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_reads_by_name);
-		//		partial_pairs = get_pair_dis_on_edge(eg, &n_part_pairs);
-		//		if (n_part_pairs >= PAIRS_PER_EDGE)
-		//			n_part_pairs = PAIRS_PER_EDGE;
-		//		if (n_part_pairs + n_pairs >= n_max_pairs) {
-		//			break;
-		//		}
-		//		concat_doubles(pairs, &n_pairs, partial_pairs, n_part_pairs);
-		//		free(partial_pairs);
-		//		partial_pairs = NULL;
-		//		p_ctg_seq("Contig now", eg->contig);
-		//		show_msg(__func__, "reads of contig %d: [%d, %d] \n", eg->id, eg->len,
-		//				eg->reads->len);
-		//		show_msg(__func__, "+%d, %d pairs now \n", n_part_pairs, n_pairs);
-		//		n_part_pairs = 0;
-		//		//p_readarray(eg->reads, 1);
-		//		log_edge(eg);
-		//		destroy_eg(eg);
-		//		eg = NULL;
-
 		if (eg) {
 			ori_len = eg->len;
 			keep_pairs_only(eg, ht->seqs);
@@ -623,13 +710,13 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 				show_msg(
 						__func__,
 						"ABANDONED [%d]: length %d=>%d, reads %d=>%d. Total reads %d/%d \n",
-						eg->id, ori_len, eg->len, eg->reads->len, eg->pairs->len,
-						n_total_reads, ht->n_seqs);
+						eg->id, ori_len, eg->len, eg->reads->len,
+						eg->pairs->len, n_total_reads, ht->n_seqs);
 				show_debug_msg(
 						__func__,
 						"ABANDONED [%d]: length %d=>%d, reads %d=>%d. Total reads %d/%d \n",
-						eg->id, ori_len, eg->len, eg->reads->len, eg->pairs->len,
-						n_total_reads, ht->n_seqs);
+						eg->id, ori_len, eg->len, eg->reads->len,
+						eg->pairs->len, n_total_reads, ht->n_seqs);
 				clear_used_reads(eg, 1);
 				destroy_eg(eg);
 				eg = NULL;
@@ -637,20 +724,24 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 				n_total_reads += eg->pairs->len;
 				g_ptr_array_add(all_edges, eg);
 				pair_ctg_id++;
-				show_msg(__func__,
+				show_msg(
+						__func__,
 						"[%d]: length %d=>%d, reads %d=>%d. Total reads %d/%d \n",
-						eg->id, ori_len, eg->len, eg->reads->len, eg->pairs->len,
-						n_total_reads, ht->n_seqs);
-				show_debug_msg(__func__,
+						eg->id, ori_len, eg->len, eg->reads->len,
+						eg->pairs->len, n_total_reads, ht->n_seqs);
+				show_debug_msg(
+						__func__,
 						"[%d]: length %d=>%d, reads %d=>%d. Total reads %d/%d \n",
-						eg->id, ori_len, eg->len, eg->reads->len, eg->pairs->len,
-						n_total_reads, ht->n_seqs);
+						eg->id, ori_len, eg->len, eg->reads->len,
+						eg->pairs->len, n_total_reads, ht->n_seqs);
 			}
 		}
 		//break;
 	}
+	far_construct(ht, all_edges, n_total_reads);
+	save_edges(all_edges, pair_contigs, 0, 0, 100);
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
-	scaffolding(all_edges, insert_size);
+	scaffolding(all_edges, insert_size, ht->seqs);
 	show_msg(__func__, "Saving the roadmap... \n");
 	name = get_output_file("roadmap.dot");
 	graph_by_edges(all_edges, name);
@@ -662,14 +753,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	name = get_output_file("peta.fa");
 	save_paths(final_paths, name, 100);
 	free(name);
-	// save_edges(all_edges, pair_contigs, 0, 0, 100);
-	free(partial_pairs);
 	destroy_eg(eg);
-	//	mean_ins_size = mean(pairs, n_pairs);
-	//	sd_ins_size = std_dev(pairs, n_pairs);
-	//	show_msg(__func__, "Mean Insert Size: %f \n", mean_ins_size);
-	//	show_msg(__func__, "Standard Deviation of Insert Size: %f \n", sd_ins_size);
-	free(pairs);
 	fclose(solid);
 	fclose(pair_contigs);
 	destroy_ht(ht);
@@ -703,7 +787,7 @@ int pe_lib(int argc, char *argv[]) {
 			break;
 		}
 	}
-	if (optind + 2 > argc || n_max_pairs == 0) {
+	if (optind + 2 > argc) {
 		return pe_lib_usage();
 	}
 	show_msg(__func__, "Maximum pairs: %d \n", n_max_pairs);
@@ -711,7 +795,11 @@ int pe_lib(int argc, char *argv[]) {
 	show_msg(__func__, "Output folder: %s \n", out_root);
 	show_msg(__func__, "Insert size: %d \n", insert_size);
 	show_msg(__func__, "Standard deviation: %d \n", sd_insert_size);
-	pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
+	if (n_max_pairs > 0) {
+		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
+	} else {
+		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
+	}
 	show_msg(__func__, "Done: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
 	return 0;

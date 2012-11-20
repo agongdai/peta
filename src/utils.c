@@ -69,6 +69,7 @@ double mean(double a[], double n) {
 	int i = 0;
 	double sum = 0;
 	for (i = 0; i < n; i++) {
+		printf("%f \n", a[i]);
 		sum += a[i];
 	}
 	return sum / n;

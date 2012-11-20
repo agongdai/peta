@@ -67,7 +67,7 @@ void save_paths(GPtrArray *paths, const char *tx_fn, const int min_len) {
 }
 
 void sync_path(rm_path *p) {
-	bwa_seq_t *seq = NULL;
+	bwa_seq_t *seq = NULL, *rev_seq = NULL;
 	int i = 0, shift = 0;
 	edge *eg = NULL, *eg_next = NULL;
 	p->n_ctgs = p->edges->len;
@@ -78,7 +78,12 @@ void sync_path(rm_path *p) {
 			if (shift < eg->len) {
 				if (shift < 0)
 					shift = 0;
-				merge_seq(seq, eg->contig, shift);
+				if (eg->ori == 1) {
+					rev_seq = new_mem_rev_seq(eg->contig, eg->len, 0);
+					merge_seq(rev_seq, rev_seq, shift);
+				} else {
+					merge_seq(seq, eg->contig, shift);
+				}
 			} else {
 				if (i + 1 < p->n_ctgs) {
 					eg_next = g_ptr_array_index(p->edges, i + 1);
@@ -89,6 +94,7 @@ void sync_path(rm_path *p) {
 			shift = eg->r_shift;
 		}
 	}
+	bwa_free_read_seq(1, p->seq);
 	p->seq = seq;
 	p->len = seq->len;
 }
@@ -509,6 +515,27 @@ void mark_duplicate_edges(edgearray *block) {
 	}
 }
 
+void get_path_ori(rm_path *path) {
+	edge *eg_left = NULL, *eg_right = NULL;
+	int i = 0;
+	for (i = 0; i < path->edges->len - 1; i++) {
+		eg_left = g_ptr_array_index(path->edges, i);
+		eg_right = g_ptr_array_index(path->edges, i + 1);
+		get_edges_ori(eg_left, eg_right);
+	}
+
+}
+
+void determine_paths_ori(GPtrArray *paths) {
+	int i = 0;
+	rm_path *p = NULL;
+	for (i = 0; i < paths->len; i++) {
+		p = g_ptr_array_index(paths, i);
+		get_path_ori(p);
+		sync_path(p);
+	}
+}
+
 void mark_duplicate_paths(GPtrArray *paths) {
 	int i = 0, j = 0, similarity_score = 0, report_unit = 0;
 	rm_path *path_i = NULL, *path_j = NULL;
@@ -605,6 +632,7 @@ GPtrArray *report_paths(edgearray *all_edges) {
 		}
 	}
 	show_msg(__func__, "%d paths reported. \n", all_paths->len);
+	determine_paths_ori(all_paths);
 	mark_duplicate_paths(all_paths);
 	show_msg(__func__, "%d paths after removing duplicates. \n", all_paths->len);
 	return all_paths;
@@ -879,7 +907,6 @@ int trim_path(rm_path *path, int *coverage) {
 	return 1;
 }
 
-
 /**
  * Assumption: the starting base and ending base with coverage larger than 0
  * For those cases with coverage pattern: ....000....000....
@@ -932,8 +959,8 @@ int validate_p(hash_table *ht, GPtrArray *paths, const rm_path *path) {
 	readarray *left_mates = NULL;
 	FILE *tmp = NULL;
 
-//	sprintf(item, "log/coverage_%d_%d.csv", path->id, path->len);
-//	tmp = xopen(item, "w");
+	//	sprintf(item, "log/coverage_%d_%d.csv", path->id, path->len);
+	//	tmp = xopen(item, "w");
 
 	n_reads = path->reads->len;
 	left_mates = g_ptr_array_sized_new(n_reads);
@@ -973,17 +1000,17 @@ int validate_p(hash_table *ht, GPtrArray *paths, const rm_path *path) {
 			}
 		}
 	}
-//	for (i = 0; i < path->len; i++) {
-//		sprintf(item, "%d\t%d\n", i, coverage[i]);
-//		fputs(item, tmp);
-//	}
+	//	for (i = 0; i < path->len; i++) {
+	//		sprintf(item, "%d\t%d\n", i, coverage[i]);
+	//		fputs(item, tmp);
+	//	}
 	for (i = 0; i < left_mates->len; i++) {
 		left = g_ptr_array_index(left_mates, i);
 		left->status = 0;
 	}
 	trim_path(path, coverage); // Stripe the path
 	break_path(paths, path, coverage); // Break the path if some point in the middle is 0
-//	fclose(tmp);
+	//	fclose(tmp);
 	g_ptr_array_free(left_mates, TRUE);
 	free(coverage);
 	return 1;

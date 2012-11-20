@@ -177,7 +177,7 @@ void adj_shift(edge *eg, const int trun_len) {
 double *get_pair_dis_on_edge(edge *eg, int *n_pairs) {
 	int i = 0, index = 0;
 	bwa_seq_t *s = NULL, *next_s = NULL;
-	readarray *reads = eg->reads;
+	readarray *reads = eg->pairs;
 	double *pairs = (double*) calloc(reads->len / 2 + 1, sizeof(double));
 	if (!reads || reads->len <= 0)
 		return pairs;
@@ -188,8 +188,9 @@ double *get_pair_dis_on_edge(edge *eg, int *n_pairs) {
 			next_s = g_ptr_array_index(reads, i + 1);
 			if (atoi(next_s->name) - index == 1) {
 				i++;
-				//				p_query("Left", s);
-				//				p_query("Right", next_s);
+				//p_query("Left", s);
+				//p_query("Right", next_s);
+				//show_debug_msg(__func__, "DISTANCE: %d \n", abs(next_s->shift - s->shift));
 				pairs[*n_pairs] = abs(next_s->shift - s->shift);
 				*n_pairs += 1;
 			}
@@ -232,6 +233,8 @@ readarray *find_unconditional_paired_reads(readarray *ra_1, readarray *ra_2) {
 		return paired;
 	g_ptr_array_sort(ra_1, (GCompareFunc) cmp_read_by_name);
 	g_ptr_array_sort(ra_2, (GCompareFunc) cmp_read_by_name);
+//	show_debug_msg(__func__, "%d reads on ra_1 \n", ra_1->len);
+//	show_debug_msg(__func__, "%d reads on ra_2 \n", ra_2->len);
 	for (i = 0; i < ra_1->len; i++) {
 		read_1 = g_ptr_array_index(ra_1, i);
 		if (read_1->status == USED)
@@ -241,6 +244,8 @@ readarray *find_unconditional_paired_reads(readarray *ra_1, readarray *ra_2) {
 			if (read_2->status == USED)
 				continue;
 			if (is_mates(read_1->name, read_2->name)) {
+//				p_query(__func__, read_1);
+//				p_query(__func__, read_2);
 				g_ptr_array_add(paired, read_1);
 				g_ptr_array_add(paired, read_2);
 				second_index = j + 1;
@@ -513,7 +518,7 @@ void clear_used_reads(edge *eg, const int reset_ctg_id) {
 	if (reset_ctg_id) {
 		for (i = 0; i < eg->reads->len; i++) {
 			r = g_ptr_array_index(eg->reads, i);
-			r->status = 0;
+			r->status = TRIED;
 			r->contig_id = UNUSED_CONTIG_ID;
 		}
 	}
@@ -557,7 +562,7 @@ void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift,
 	}
 }
 
-void concate_readarray(readarray *left_reads, readarray *right_reads) {
+void concat_readarray(readarray *left_reads, readarray *right_reads) {
 	int i = 0;
 	bwa_seq_t *read = NULL;
 	for (i = 0; i < right_reads->len; i++) {
@@ -649,7 +654,7 @@ void upd_reads(edge *eg, const int mismatches) {
 		}
 		read->shift = index;
 		read->contig_id = eg->id;
-		read->status = 1;
+		read->status = USED;
 	}
 }
 

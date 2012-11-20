@@ -20,6 +20,7 @@
 #include "readrm.h"
 #include "pechar.h"
 #include "utils.h"
+#include "scaffolding.h"
 
 int min_edge_len = 0; // Minimum contig length, now is user-specified overlapping len.
 // Its index is edge id, say edge A, the value is another edge array, containing edges whose right_ctg is A.
@@ -343,12 +344,12 @@ void destroy_eg(edge *eg) {
 		}
 		for (i = 0; i < eg->reads->len; i++) {
 			read = g_ptr_array_index(eg->reads, i);
-			read->status = 0;
+			read->status = TRIED;
 			read->contig_id = UNUSED_CONTIG_ID;
 		}
 		for (i = 0; i < eg->pairs->len; i++) {
 			read = g_ptr_array_index(eg->pairs, i);
-			read->status = 0;
+			read->status = TRIED;
 			read->contig_id = UNUSED_CONTIG_ID;
 		}
 		while (eg->reads->len > 0) {
