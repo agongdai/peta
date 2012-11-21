@@ -38,10 +38,10 @@ int get_edges_ori(edge *eg_left, edge *eg_right) {
 	int i = 0, ori = 0;
 	paired_reads = find_unconditional_paired_reads(eg_left->reads,
 			eg_right->reads);
-	for (i = 0; i < paired_reads->len - 1; i++) {
+	for (i = 0; i < paired_reads->len - 1; i += 2) {
 		//		show_debug_msg(__func__, "i: %d/%d \n", i, paired_reads->len);
 		read = g_ptr_array_index(paired_reads, i);
-		mate = g_ptr_array_index(paired_reads, ++i);
+		mate = g_ptr_array_index(paired_reads, i + 1);
 		//		p_query(__func__, read);
 		//		p_query(__func__, mate);
 		if (read->rev_com == mate->rev_com)
@@ -195,6 +195,8 @@ int has_reads_in_common(edge *eg_1, edge *eg_2) {
 			same = g_ptr_array_index(eg_2->reads, j);
 			if (read == same)
 				return 1;
+			if (atoi(read->name) < atoi(same->name))
+				break;
 		}
 	}
 	return 0;
@@ -250,7 +252,7 @@ GPtrArray *scaffolding(GPtrArray *single_edges, const int insert_size,
 		eg_i = g_ptr_array_index(single_edges, i);
 		//show_debug_msg(__func__, "Trying edge [%d/%d, %d] \n", eg_i->id, single_edges->len, eg_i->len);
 		probable_in_out = get_probable_in_out(single_edges, eg_i, seqs);
-		for (j = i; j < probable_in_out->len; j++) {
+		for (j = 0; j < probable_in_out->len; j++) {
 			eg_j = g_ptr_array_index(probable_in_out, j);
 			if (eg_i == eg_j)
 				continue;
