@@ -93,8 +93,8 @@ int *get_abs_most(const int *sta, const double threshold) {
 			most = index;
 	}
 	status[0] = most;
-	if (sta[most] < thre)
-		status[0] = -1;
+//	if (sta[most] < thre)
+//		status[0] = -1;
 	status[1] = most;
 	return status;
 }

@@ -32,6 +32,7 @@ int tmp_n_cufflinks = 0;
 GPtrArray *one_on_one_ids = NULL;
 GPtrArray *full_length_ids = NULL;
 GPtrArray *one_covered_ids = NULL;
+GPtrArray *covered_70_ids = NULL;
 
 char *get_result_file(const char *file_name) {
 	char *name = (char*) calloc(512, sizeof(char));
@@ -212,15 +213,16 @@ void occ_c_iter(gpointer key, gpointer value, gpointer user_data) {
 		for (i = 0; i < occs->len; i++) {
 			o = g_ptr_array_index(occs, i);
 			if (o->end >= o->start && o->ali_len > (tx_len * 0.7)) {
-				if (o->ali_len > (o->q_len * 0.9)) {
+				//if (o->ali_len > (o->q_len * 0.9)) {
 					info->n_70_covered++;
 					is_70_covered = 1;
 					show_debug_msg(
 							"==============================================",
 							"70-COVERED\n");
 					occ_p_iter(key, value, NULL);
+					g_ptr_array_add(covered_70_ids, (char *) key);
 					break;
-				}
+				//}
 			}
 		}
 	}
@@ -659,6 +661,7 @@ void write_hit_txs() {
 	FILE *one_on_one_file = NULL;
 	FILE *full_length_file = NULL;
 	FILE *one_covered_file = NULL;
+	FILE *covered_70_file = NULL;
 	char item[256], *hit_tx_id = NULL, *name = NULL;
 	int i = 0;
 
@@ -670,6 +673,9 @@ void write_hit_txs() {
 	free(name);
 	name = get_result_file("one_covered.txt");
 	one_covered_file= xopen(name, "w");
+	free(name);
+	name = get_result_file("covered_70.txt");
+	covered_70_file= xopen(name, "w");
 	free(name);
 
 	for (i = 0; i < one_on_one_ids->len; i++) {
@@ -687,10 +693,16 @@ void write_hit_txs() {
 		sprintf(item, "%s\n", hit_tx_id);
 		fputs(item, one_covered_file);
 	}
+	for (i = 0; i < covered_70_ids->len; i++) {
+		hit_tx_id = g_ptr_array_index(covered_70_ids, i);
+		sprintf(item, "%s\n", hit_tx_id);
+		fputs(item, covered_70_file);
+	}
 
 	fclose(one_on_one_file);
 	fclose(full_length_file);
 	fclose(one_covered_file);
+	fclose(covered_70_file);
 }
 
 void parse_sam(rs_info *info) {
@@ -805,6 +817,7 @@ void get_ass_info() {
 	one_on_one_ids = g_ptr_array_sized_new(256);
 	full_length_ids = g_ptr_array_sized_new(256);
 	one_covered_ids = g_ptr_array_sized_new(256);
+	covered_70_ids = g_ptr_array_sized_new(256);
 	g_hash_table_foreach(info->hits, (GHFunc) occ_c_iter, info);
 	write_hit_txs();
 	//g_hash_table_foreach(info->hits, (GHFunc) occ_p_iter, info);

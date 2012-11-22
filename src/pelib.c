@@ -626,27 +626,27 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 					__func__,
 					"ABANDONED [%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
 					eg->id, eg->len, eg->reads->len, eg->pairs->len,
-					n_total_reads, ht->n_seqs);
+					*n_total_reads, ht->n_seqs);
 			show_debug_msg(
 					__func__,
 					"ABANDONED [%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
 					eg->id, eg->len, eg->reads->len, eg->pairs->len,
-					n_total_reads, ht->n_seqs);
+					*n_total_reads, ht->n_seqs);
 			clear_used_reads(eg, 1);
 			destroy_eg(eg);
 			return 0;
 		} else {
-			n_total_reads += eg->pairs->len;
+			*n_total_reads += eg->pairs->len;
 			g_ptr_array_add(all_edges, eg);
 			pair_ctg_id++;
 			show_msg(__func__,
 					"[%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
 					eg->id, eg->len, eg->reads->len, eg->pairs->len,
-					n_total_reads, ht->n_seqs);
+					*n_total_reads, ht->n_seqs);
 			show_debug_msg(__func__,
 					"[%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
 					eg->id, eg->len, eg->reads->len, eg->pairs->len,
-					n_total_reads, ht->n_seqs);
+					*n_total_reads, ht->n_seqs);
 			return 1;
 		}
 	}
@@ -658,7 +658,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
  */
 void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 	int i = 0;
-	bwa_seq_t *seqs = NULL, *unused_read = NULL, *mate = NULL;
+	bwa_seq_t *seqs = NULL, *unused_read = NULL, *mate = NULL, *rev = NULL;
 	edge *eg_1 = NULL, *eg_2 = NULL, *eg = NULL;
 	readarray *pairs = NULL;
 
@@ -668,7 +668,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 			"Trying to construct disconnected transcripts... \n");
 	seqs = ht->seqs;
 	for (i = 0; i < seqs->len; i++) {
-		if (n_total_reads > ht->n_seqs * 0.95)
+		if (n_total_reads > ht->n_seqs * 0.99)
 			break;
 		unused_read = &seqs[i];
 		mate = get_mate(unused_read, seqs);
@@ -681,10 +681,13 @@ void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 		// If the two edges can be merged
 		if (eg_1 && eg_2) {
 			// Only if the two edges have no common reads, have on common sequence
-			if ((eg_1->len >= 100 && eg_2->len >= 100) && (eg_1->pairs->len
-					> MIN_VALID_PAIRS && eg_2->pairs->len > MIN_VALID_PAIRS)
-					&& (!share_subseq(eg_1->contig, eg_2->contig, MISMATCHES,
-							100) && !has_reads_in_common(eg_1, eg_2))) {
+			rev = new_mem_rev_seq(eg_1->contig, eg_1->len, 0);
+			if ((eg_1->len >= 100 && eg_2->len >= 100)
+					&& (eg_1->pairs->len > MIN_VALID_PAIRS
+					&& eg_2->pairs->len > MIN_VALID_PAIRS)
+					&& (!share_subseq(eg_1->contig, eg_2->contig, MISMATCHES, 100)
+					&& (!share_subseq(rev, eg_2->contig, MISMATCHES, 100))
+					&& !has_reads_in_common(eg_1, eg_2))) {
 				pairs = find_unconditional_paired_reads(eg_1->reads,
 						eg_2->reads);
 				if (pairs->len > MIN_VALID_PAIRS) {
@@ -694,18 +697,20 @@ void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 						eg_1 = NULL;
 						eg_2 = NULL;
 						g_ptr_array_free(pairs, TRUE);
+						bwa_free_read_seq(1, rev);
 						continue;
 					}
 				}
 				g_ptr_array_free(pairs, TRUE);
 			}
+			bwa_free_read_seq(1, rev);
 		}
 		if (eg_1) {
 			validate_edge(all_edges, eg_1, ht, &n_total_reads);
 		}
 		if (eg_2) {
-			validate_edge(all_edges, eg_2, ht, &n_total_reads);
-			upd_ctg_id(eg_2, pair_ctg_id);
+			if (validate_edge(all_edges, eg_2, ht, &n_total_reads))
+				upd_ctg_id(eg_2, pair_ctg_id);
 		}
 	}
 }
@@ -731,7 +736,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	ol = seqs->len / 2; // Read length
 	s_index = 0;
 	e_index = 10;
-	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.9) {
+	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.95) {
 		line_no++;
 		index = atoi(line);
 		query = &ht->seqs[index];

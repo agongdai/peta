@@ -22,6 +22,7 @@
 #include "readrm.h"
 #include "edge.h"
 #include "edgelist.h"
+#include "scaffolding.h"
 
 int path_id = 0;
 

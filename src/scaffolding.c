@@ -38,16 +38,19 @@ int get_edges_ori(edge *eg_left, edge *eg_right) {
 	int i = 0, ori = 0;
 	paired_reads = find_unconditional_paired_reads(eg_left->reads,
 			eg_right->reads);
-	for (i = 0; i < paired_reads->len - 1; i += 2) {
-		//		show_debug_msg(__func__, "i: %d/%d \n", i, paired_reads->len);
-		read = g_ptr_array_index(paired_reads, i);
-		mate = g_ptr_array_index(paired_reads, i + 1);
-		//		p_query(__func__, read);
-		//		p_query(__func__, mate);
-		if (read->rev_com == mate->rev_com)
-			n_forward++;
-		else
-			n_backward++;
+	p_readarray(paired_reads, 1);
+	if (paired_reads->len > 0) {
+		for (i = 0; i < paired_reads->len - 1; i += 2) {
+			show_debug_msg(__func__, "i: %d/%d \n", i, paired_reads->len);
+			read = g_ptr_array_index(paired_reads, i);
+			mate = g_ptr_array_index(paired_reads, i + 1);
+			//		p_query(__func__, read);
+			//		p_query(__func__, mate);
+			if (read->rev_com == mate->rev_com)
+				n_forward++;
+			else
+				n_backward++;
+		}
 	}
 	if (n_forward > n_backward) {
 		eg_right->ori = eg_left->ori;
@@ -153,7 +156,7 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 	edgearray *probable_in_out = NULL;
 	int i = 0, n_in_out = 0;
 	edge *in_out = NULL;
-	bwa_seq_t *read = NULL, *mate = NULL;
+	bwa_seq_t *read = NULL, *mate = NULL, *rev = NULL;
 	int *edge_index_got = NULL;
 	edge_index_got = (int*) calloc(all_edges->len + 1, sizeof(int));
 	for (i = 0; i < eg->reads->len; i++) {
@@ -173,9 +176,12 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 	for (i = 0; i < all_edges->len; i++) {
 		if (edge_index_got[i] == 1) {
 			in_out = g_ptr_array_index(all_edges, i);
+			rev = new_mem_rev_seq(eg->contig, eg->len, 0);
 			if (!has_reads_in_common(eg, in_out) && !share_subseq(eg->contig,
-					in_out->contig, MISMATCHES, 100))
+					in_out->contig, MISMATCHES, 100) && !share_subseq(rev,
+							in_out->contig, MISMATCHES, 100))
 				g_ptr_array_add(probable_in_out, in_out);
+			bwa_free_read_seq(1, rev);
 		}
 	}
 	free(edge_index_got);

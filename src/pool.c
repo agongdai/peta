@@ -376,8 +376,10 @@ void rm_partial(pool *cur_pool, pool *mate_pool, int ori, bwa_seq_t *seqs, bwa_s
 				removed = pool_rm_index(cur_pool, i);
 				if (removed) {
 					mate = get_mate(s, seqs);
-					mate_pool_rm(mate_pool, mate);
-					mate->status = TRIED;
+					if (mate->is_in_m_pool) {
+						mate_pool_rm(mate_pool, mate);
+						mate->status = TRIED;
+					}
 					i--;
 				}
 			}
