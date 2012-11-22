@@ -531,6 +531,7 @@ void determine_paths_ori(GPtrArray *paths) {
 	rm_path *p = NULL;
 	for (i = 0; i < paths->len; i++) {
 		p = g_ptr_array_index(paths, i);
+		p_path(p);
 		get_path_ori(p);
 		sync_path(p);
 	}
