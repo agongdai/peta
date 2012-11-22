@@ -615,6 +615,45 @@ void est_insert_size(int n_max_pairs, char *lib_file, char *solid_file) {
 }
 
 /**
+ * Keep only pairs on one edge
+ */
+int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
+		int *n_total_reads) {
+	if (eg) {
+		keep_pairs_only(eg, ht->seqs);
+		if (eg->len < 100 || eg->pairs->len <= MIN_VALID_PAIRS) {
+			show_msg(
+					__func__,
+					"ABANDONED [%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
+					eg->id, eg->len, eg->reads->len, eg->pairs->len,
+					n_total_reads, ht->n_seqs);
+			show_debug_msg(
+					__func__,
+					"ABANDONED [%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
+					eg->id, eg->len, eg->reads->len, eg->pairs->len,
+					n_total_reads, ht->n_seqs);
+			clear_used_reads(eg, 1);
+			destroy_eg(eg);
+			return 0;
+		} else {
+			n_total_reads += eg->pairs->len;
+			g_ptr_array_add(all_edges, eg);
+			pair_ctg_id++;
+			show_msg(__func__,
+					"[%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
+					eg->id, eg->len, eg->reads->len, eg->pairs->len,
+					n_total_reads, ht->n_seqs);
+			show_debug_msg(__func__,
+					"[%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
+					eg->id, eg->len, eg->reads->len, eg->pairs->len,
+					n_total_reads, ht->n_seqs);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/**
  * For the transcripts: left side are right side are disconnected.
  */
 void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
@@ -625,86 +664,64 @@ void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 
 	show_msg(__func__, "--------------------------------------------------- \n");
 	show_msg(__func__, "Trying to construct disconnected transcripts... \n");
-	show_debug_msg(__func__, "Trying to construct disconnected transcripts... \n");
+	show_debug_msg(__func__,
+			"Trying to construct disconnected transcripts... \n");
 	seqs = ht->seqs;
 	for (i = 0; i < seqs->len; i++) {
+		if (n_total_reads > ht->n_seqs * 0.95)
+			break;
 		unused_read = &seqs[i];
 		mate = get_mate(unused_read, seqs);
 		if (unused_read->status != FRESH && mate->status != FRESH)
 			continue;
-		p_query("Unused read", unused_read);
 		eg_1 = pe_ext(ht, unused_read);
-		if (!eg_1)
-			continue;
-		p_query("Mate", mate);
 		eg_2 = pe_ext(ht, mate);
-		if (!eg_2) {
-			show_debug_msg(__func__, "--------------------------------------------------- \n");
-			show_debug_msg(__func__, "Extension from mate fails \n");
-			destroy_eg(eg_1);
-			continue;
-		}
-		if ((eg_1->len < 100 && eg_2->len < 100) || (eg_1->pairs->len
-				> MIN_VALID_PAIRS || eg_2->pairs->len > MIN_VALID_PAIRS)
-				|| (has_reads_in_common(eg_1, eg_2))) {// Only if the two edges have no common reads
-			show_debug_msg(__func__, "--------------------------------------------------- \n");
-			show_debug_msg(__func__, "ABANDONED [%d, %d], [%d, %d] \n",
-					eg_1->id, eg_1->len, eg_2->id, eg_2->len);
-			log_edge(eg_1);
-			eg_2->id += 10000; // Just to log
-			log_edge(eg_2);
-			destroy_eg(eg_1);
-			destroy_eg(eg_2);
-			eg_1 = NULL;
-			eg_2 = NULL;
-		} else {
-			pairs = find_unconditional_paired_reads(eg_1->reads, eg_2->reads);
-			log_edge(eg_1);
-			eg_2->id += 10000; // Just to log
-			log_edge(eg_2);
-			if (pairs->len > MIN_VALID_PAIRS) {
-				eg = merge_edges(eg_1, eg_2);
-				if (eg) {
-					g_ptr_array_add(all_edges, eg);
-					pair_ctg_id++;
-					n_total_reads += eg->pairs->len;
-					show_debug_msg(__func__, "--------------------------------------------------- \n");
-					show_debug_msg(
-							__func__,
-							"[%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
-							eg->id, eg->len, eg->reads->len, eg->pairs->len,
-							n_total_reads, ht->n_seqs);
-					log_edge(eg);
-					eg_1 = NULL;
-					eg_2 = NULL;
-				}
-			} else {
-				show_debug_msg(__func__, "--------------------------------------------------- \n");
-				show_debug_msg(__func__, "ABANDONED [%d, %d], [%d, %d]: No enough pairs.\n",
-									eg_1->id, eg_1->len, eg_2->id, eg_2->len);
-			}
-			g_ptr_array_free(pairs, TRUE);
-		}
 		unused_read->status = TRIED;
 		mate->status = TRIED;
-		destroy_eg(eg_1);
-		destroy_eg(eg_2);
-		show_debug_msg(__func__, "Total reads %d/%d \n", n_total_reads, ht->n_seqs);
-		if (n_total_reads > ht->n_seqs * 0.95)
-			break;
+		// If the two edges can be merged
+		if (eg_1 && eg_2) {
+			// Only if the two edges have no common reads, have on common sequence
+			if ((eg_1->len >= 100 && eg_2->len >= 100) && (eg_1->pairs->len
+					> MIN_VALID_PAIRS && eg_2->pairs->len > MIN_VALID_PAIRS)
+					&& (!share_subseq(eg_1->contig, eg_2->contig, MISMATCHES,
+							100) && !has_reads_in_common(eg_1, eg_2))) {
+				pairs = find_unconditional_paired_reads(eg_1->reads,
+						eg_2->reads);
+				if (pairs->len > MIN_VALID_PAIRS) {
+					eg = merge_edges(eg_1, eg_2);
+					if (eg) {
+						validate_edge(all_edges, eg, ht, &n_total_reads);
+						eg_1 = NULL;
+						eg_2 = NULL;
+						g_ptr_array_free(pairs, TRUE);
+						continue;
+					}
+				}
+				g_ptr_array_free(pairs, TRUE);
+			}
+		}
+		if (eg_1) {
+			validate_edge(all_edges, eg_1, ht, &n_total_reads);
+		}
+		if (eg_2) {
+			validate_edge(all_edges, eg_2, ht, &n_total_reads);
+			upd_ctg_id(eg_2, pair_ctg_id);
+		}
 	}
 }
 
 void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	hash_table *ht = NULL;
 	bwa_seq_t *query = NULL, *seqs = NULL;
-	FILE *solid = xopen(solid_file, "r");
+	FILE *solid = NULL;
 	char line[80], *name = NULL;
 	int index = 0, ol = 0, n_total_reads = 0;
-	int s_index = 0, e_index = 0, counter = -1, line_no = 0, ori_len = 0;
+	int s_index = 0, e_index = 0, counter = -1, line_no = 0;
 	edge *eg = NULL;
 	GPtrArray *all_edges = NULL, *final_paths = NULL;
+
 	FILE *pair_contigs = xopen("pair_contigs.fa", "w");
+	solid = xopen(solid_file, "r");
 	show_msg(__func__, "Library: %s \n", lib_file);
 	show_msg(__func__, "Solid Reads: %s \n", solid_file);
 
@@ -714,7 +731,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	ol = seqs->len / 2; // Read length
 	s_index = 0;
 	e_index = 10;
-	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.3) {
+	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.9) {
 		line_no++;
 		index = atoi(line);
 		query = &ht->seqs[index];
@@ -733,40 +750,8 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 				"---------- [%d] Processing read %d: %s ----------\n", line_no,
 				pair_ctg_id, query->name);
 		eg = pe_ext(ht, query);
-		if (eg) {
-			ori_len = eg->len;
-			keep_pairs_only(eg, ht->seqs);
-			log_edge(eg);
-			if (eg->len < 100 || eg->pairs->len <= MIN_VALID_PAIRS) {
-				show_msg(
-						__func__,
-						"ABANDONED [%d]: length %d=>%d, reads %d=>%d. Total reads %d/%d \n",
-						eg->id, ori_len, eg->len, eg->reads->len,
-						eg->pairs->len, n_total_reads, ht->n_seqs);
-				show_debug_msg(
-						__func__,
-						"ABANDONED [%d]: length %d=>%d, reads %d=>%d. Total reads %d/%d \n",
-						eg->id, ori_len, eg->len, eg->reads->len,
-						eg->pairs->len, n_total_reads, ht->n_seqs);
-				clear_used_reads(eg, 1);
-				destroy_eg(eg);
-				eg = NULL;
-			} else {
-				n_total_reads += eg->pairs->len;
-				g_ptr_array_add(all_edges, eg);
-				pair_ctg_id++;
-				show_msg(
-						__func__,
-						"[%d]: length %d=>%d, reads %d=>%d. Total reads %d/%d \n",
-						eg->id, ori_len, eg->len, eg->reads->len,
-						eg->pairs->len, n_total_reads, ht->n_seqs);
-				show_debug_msg(
-						__func__,
-						"[%d]: length %d=>%d, reads %d=>%d. Total reads %d/%d \n",
-						eg->id, ori_len, eg->len, eg->reads->len,
-						eg->pairs->len, n_total_reads, ht->n_seqs);
-			}
-		}
+		validate_edge(all_edges, eg, ht, &n_total_reads);
+		eg = NULL;
 		//break;
 	}
 	far_construct(ht, all_edges, n_total_reads);

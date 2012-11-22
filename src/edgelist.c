@@ -612,6 +612,16 @@ int get_mid_pos(readarray *ra, const int ori, const int lib_mean) {
 	return INVALID;
 }
 
+void upd_ctg_id(edge *eg, const int ctg_id) {
+	int i = 0;
+	bwa_seq_t *s = NULL;
+	eg->id = ctg_id;
+	for (i = 0; i < eg->reads->len; i++) {
+		s = g_ptr_array_index(eg->reads, i);
+		s->contig_id = ctg_id;
+	}
+}
+
 void upd_reads(edge *eg, const int mismatches) {
 	int i = 0, index = 0, overlap_len = 0;
 	bwa_seq_t *read, *rev_read = NULL;

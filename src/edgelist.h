@@ -39,6 +39,7 @@ readarray *find_unconditional_paired_reads(readarray *ra_1, readarray *ra_2);
 void merge_eg_to_left(edge *left_eg, edge *right_eg, const int gap);
 void merge_eg_to_right(edge *left_eg, edge *right_eg, const int gap);
 int get_mid_pos(readarray *ra, const int ori, const int lib_mean);
+void upd_ctg_id(edge *eg, const int ctg_id);
 void upd_reads(edge *eg, const int mismatches);
 readarray *get_pairs_on_edge(edge *eg, bwa_seq_t *seqs);
 void log_reads(edgearray *ea);

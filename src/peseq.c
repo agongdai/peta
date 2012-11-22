@@ -523,19 +523,19 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			max = up_left > max ? up_left : max;
 			current_row[j] = max;
 		}
-//		printf("Previous row: \n");
+		//		printf("Previous row: \n");
 		for (j = 0; j < columns; j++) {
-//			printf("%d,", previous_row[j]);
+			//			printf("%d,", previous_row[j]);
 			previous_row[j] = current_row[j];
 			max_score = current_row[j] > max_score ? current_row[j] : max_score;
 		}
-//		printf("\n");
-//		printf("Current row: \n");
-//		for (j = 0; j < columns; j++) {
-//			printf("%d,", current_row[j]);
-//		}
-//		printf("\n");
-//		printf("Max score: %d \n", max_score);
+		//		printf("\n");
+		//		printf("Current row: \n");
+		//		for (j = 0; j < columns; j++) {
+		//			printf("%d,", current_row[j]);
+		//		}
+		//		printf("\n");
+		//		printf("Max score: %d \n", max_score);
 		// If the minimal acceptable score is not reachable, stop and return.
 		if ((max_score + (rows - i) * score_mat) < min_acceptable_score) {
 			free(previous_row);
@@ -682,14 +682,15 @@ int is_sub_seq_byte(const ubyte_t *query, const int q_len, const int shift,
 	return NOT_FOUND;
 }
 
-// Check whether two seqs share some small portion whose length is ol
+// Check whether two seqs share some portion whose length is ol
 int share_subseq(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 		const int mismatches, const int ol) {
 	int i = 0;
 	if (!seq_1 || !seq_2)
 		return 0;
 	for (i = 0; i < seq_1->len - ol; i++) {
-		if (is_sub_seq(seq_1, i, seq_2, mismatches, ol) != NOT_FOUND)
+		if ((ol < seq_2->len)
+				&& is_sub_seq(seq_1, i, seq_2, mismatches, ol) != NOT_FOUND)
 			return 1;
 	}
 	return 0;

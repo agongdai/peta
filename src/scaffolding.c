@@ -173,7 +173,8 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 	for (i = 0; i < all_edges->len; i++) {
 		if (edge_index_got[i] == 1) {
 			in_out = g_ptr_array_index(all_edges, i);
-			if (!has_reads_in_common(eg, in_out))
+			if (!has_reads_in_common(eg, in_out) && !share_subseq(eg->contig,
+					in_out->contig, MISMATCHES, 100))
 				g_ptr_array_add(probable_in_out, in_out);
 		}
 	}
