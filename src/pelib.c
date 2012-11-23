@@ -234,11 +234,6 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		if ((!ori && pre_cursor > s->cursor) || (ori && pre_cursor < s->cursor))
 			continue;
 
-		if (strcmp(s->name, "6698349") == 0) {
-			tmp = s;
-			p_query("ADDED", s);
-		}
-
 		pool_add(cur_pool, s);
 		//		if (strcmp(s->name, "3563380") == 0) {
 		//			p_query(__func__, mate);
@@ -249,7 +244,6 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		}
 	}
 	// In current pool, if a read does not overlap with the tail properly, remove it
-	p_query("BEFORE REMOVING PARTIAL", s);
 	rm_partial(cur_pool, mate_pool, ori, seqs, query, 2);
 	// Add mates into current pool by overlapping
 	add_mates_by_ol(seqs, ass_eg, cur_pool, mate_pool, MATE_OVERLAP_THRE,
@@ -258,7 +252,6 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	if (ass_eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
 		keep_mates_in_pool(ass_eg, cur_pool, next, ht, ori, 0);
 	}
-	p_query("AFTER KEEPING MATES", s);
 	for (i = 0; i < cur_pool->n; i++) {
 		s = g_ptr_array_index(cur_pool->reads, i);
 		if (s->rev_com)
@@ -713,12 +706,20 @@ void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 			}
 			bwa_free_read_seq(1, rev);
 		}
-		if (eg_1) {
-			validate_edge(all_edges, eg_1, ht, &n_total_reads);
+		if (eg_1 && eg_1->len > 100) {
+			keep_pairs_only(eg_1, ht->seqs);
+			n_total_reads += eg_1->pairs->len;
+			g_ptr_array_add(all_edges, eg_1);
+			pair_ctg_id++;
+			//validate_edge(all_edges, eg_1, ht, &n_total_reads);
 		}
-		if (eg_2) {
-			if (validate_edge(all_edges, eg_2, ht, &n_total_reads))
-				upd_ctg_id(eg_2, pair_ctg_id);
+		if (eg_2 && eg_2->len > 100) {
+			//if (validate_edge(all_edges, eg_2, ht, &n_total_reads))
+			keep_pairs_only(eg_2, ht->seqs);
+			n_total_reads += eg_2->pairs->len;
+			g_ptr_array_add(all_edges, eg_2);
+			upd_ctg_id(eg_2, pair_ctg_id);
+			pair_ctg_id++;
 		}
 	}
 }
@@ -748,16 +749,16 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		line_no++;
 		index = atoi(line);
 		query = &ht->seqs[index];
-//		if (counter == -1)
-//			query = &ht->seqs[530270];
-//		if (counter == 0)
-//			query = &ht->seqs[6606472];
-//		if (counter == 1)
-//			query = &ht->seqs[2738138];
-//		if (counter == 2)
-//			query = &ht->seqs[3412880];
-//		if (counter > 0)
-//			break;
+		//		if (counter == -1)
+		//			query = &ht->seqs[530270];
+		//		if (counter == 0)
+		//			query = &ht->seqs[6606472];
+		//		if (counter == 1)
+		//			query = &ht->seqs[2738138];
+		//		if (counter == 2)
+		//			query = &ht->seqs[3412880];
+		//		if (counter > 0)
+		//			break;
 
 		if (query->status != FRESH)
 			continue;
@@ -774,14 +775,14 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 				pair_ctg_id, query->name);
 		eg = pe_ext(ht, query);
 		validate_edge(all_edges, eg, ht, &n_total_reads);
-		log_edge(eg);
+		//log_edge(eg);
 		eg = NULL;
 		//break;
 	}
-	//far_construct(ht, all_edges, n_total_reads);
-	save_edges(all_edges, pair_contigs, 0, 0, 100);
+	far_construct(ht, all_edges, n_total_reads);
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
 	merge_ol_edges(all_edges, insert_size, ht->seqs);
+	save_edges(all_edges, pair_contigs, 0, 0, 100);
 	scaffolding(all_edges, insert_size, ht->seqs);
 	show_msg(__func__, "Saving the roadmap... \n");
 	name = get_output_file("roadmap.dot");
