@@ -40,6 +40,7 @@ void p_flat_eg(const edge *eg) {
 				eg->right_ctg->id, eg->r_shift);
 	show_debug_msg(__func__, "\t Reads on: %d \n", eg->reads->len);
 	show_debug_msg(__func__, "\t Is root: %s \n", eg->is_root ? "YES" : "NO");
+	show_debug_msg(__func__, "\t Ori: %d \n", eg->ori);
 }
 
 void w_flat_eg(const edge *eg, FILE *debug) {

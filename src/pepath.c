@@ -39,6 +39,26 @@ rm_path *new_path() {
 	return p;
 }
 
+
+void p_path(const rm_path *p) {
+	int i = 0;
+	edge *eg = NULL;
+	if (!p) {
+		printf("Empty path! \n");
+		return;
+	}
+	printf("[p_path] ----------------------------------------\n");
+	printf("[p_path] Path %d (%p): %d \n", p->id, p, p->len);
+	for (i = 0; i < p->edges->len; i++) {
+		eg = g_ptr_array_index(p->edges, i);
+		printf("[p_path: ori %d] \t %d: Contig [%d: %d] (%d, %d)\n", eg->ori,
+				i, eg->id, eg->len, eg->right_ctg ? eg->right_ctg->id : 0,
+				eg->r_shift);
+	}
+	p_ctg_seq("Path seq", p->seq);
+	printf("[p_path] ----------------------------------------\n");
+}
+
 /**
  * Destroy a roadmap path
  */
@@ -59,6 +79,7 @@ void save_paths(GPtrArray *paths, const char *tx_fn, const int min_len) {
 	show_msg(__func__, "Saving transcripts to %s...\n", tx_fn);
 	for (i = 0; i < paths->len; i++) {
 		p = g_ptr_array_index(paths, i);
+		p_path(p);
 		if (p->len >= min_len) {
 			sprintf(header, ">%d.%d len=%d \n", i, p->id, p->len);
 			save_con(header, p->seq, tx);
@@ -81,7 +102,7 @@ void sync_path(rm_path *p) {
 					shift = 0;
 				if (eg->ori == 1) {
 					rev_seq = new_mem_rev_seq(eg->contig, eg->len, 0);
-					merge_seq(rev_seq, rev_seq, shift);
+					merge_seq(seq, rev_seq, shift);
 				} else {
 					merge_seq(seq, eg->contig, shift);
 				}
@@ -248,24 +269,6 @@ void add_uni_path(GPtrArray *paths, rm_path *p) {
 	if (find_path(paths, p) == -1) {
 		g_ptr_array_add(paths, p);
 	}
-}
-
-void p_path(const rm_path *p) {
-	int i = 0;
-	edge *eg = NULL;
-	if (!p) {
-		printf("Empty path! \n");
-		return;
-	}
-	printf("[p_path] ----------------------------------------\n");
-	printf("[p_path] Path %d (%p): %d \n", p->id, p, p->len);
-	for (i = 0; i < p->edges->len; i++) {
-		eg = g_ptr_array_index(p->edges, i);
-		printf("[p_path] \t %d: Contig [%d: %d] (%d, %d)\n", i, eg->id,
-				eg->len, eg->right_ctg ? eg->right_ctg->id : 0, eg->r_shift);
-	}
-	p_ctg_seq("Path seq", p->seq);
-	printf("[p_path] ----------------------------------------\n");
 }
 
 /*
@@ -519,12 +522,13 @@ void mark_duplicate_edges(edgearray *block) {
 void get_path_ori(rm_path *path) {
 	edge *eg_left = NULL, *eg_right = NULL;
 	int i = 0;
-	for (i = 0; i < path->edges->len - 1; i++) {
-		eg_left = g_ptr_array_index(path->edges, i);
-		eg_right = g_ptr_array_index(path->edges, i + 1);
-		get_edges_ori(eg_left, eg_right);
+	if (path->edges->len > 1) {
+		for (i = 0; i < path->edges->len - 1; i++) {
+			eg_left = g_ptr_array_index(path->edges, i);
+			eg_right = g_ptr_array_index(path->edges, i + 1);
+			get_edges_ori(eg_left, eg_right);
+		}
 	}
-
 }
 
 void determine_paths_ori(GPtrArray *paths) {
@@ -532,7 +536,6 @@ void determine_paths_ori(GPtrArray *paths) {
 	rm_path *p = NULL;
 	for (i = 0; i < paths->len; i++) {
 		p = g_ptr_array_index(paths, i);
-		p_path(p);
 		get_path_ori(p);
 		sync_path(p);
 	}
@@ -579,8 +582,6 @@ void mark_duplicate_paths(GPtrArray *paths) {
 							PATH_MISMATCHES * 4, SCORE_MATCH, SCORE_MISMATCH,
 							SCORE_GAP);
 					if (similarity_score > 0) {
-						//p_path(path_i);
-						//p_path(path_j);
 						// If similar, keep the longer one
 						if (path_i->len < path_j->len)
 							path_i->alive = 0;
@@ -612,6 +613,7 @@ GPtrArray *report_paths(edgearray *all_edges) {
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
 		if (!eg->visited) {
+			show_debug_msg(__func__, "REPORTING PATHS ---------------------------\n");
 			block = g_ptr_array_sized_new(32);
 			get_block_edges(eg, block);
 			mark_duplicate_edges(block);

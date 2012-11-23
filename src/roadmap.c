@@ -650,7 +650,6 @@ void dump_rm(edgearray *all_edges, const char *rm_dump_file,
 		eg = g_ptr_array_index(all_edges, i);
 		if (!eg->alive)
 			continue;
-		p_flat_eg(eg);
 		// Edge id
 		sprintf(item, "%d\t", eg->id);
 		fputs(item, dump_fp);

@@ -56,7 +56,7 @@ void readarray_uni_add(edge *eg, bwa_seq_t *read);
 void readarray_remove(edge *eg, bwa_seq_t *read);
 void readarray_frozen(readarray *ra, bwa_seq_t *read);
 void readarray_unfrozen(readarray *ra);
-int is_used(bwa_seq_t *read);
+void rev_edge(edge *eg);
 
 #ifdef __cplusplus
 }

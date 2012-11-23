@@ -233,8 +233,8 @@ readarray *find_unconditional_paired_reads(readarray *ra_1, readarray *ra_2) {
 		return paired;
 	g_ptr_array_sort(ra_1, (GCompareFunc) cmp_read_by_name);
 	g_ptr_array_sort(ra_2, (GCompareFunc) cmp_read_by_name);
-//	show_debug_msg(__func__, "%d reads on ra_1 \n", ra_1->len);
-//	show_debug_msg(__func__, "%d reads on ra_2 \n", ra_2->len);
+	//	show_debug_msg(__func__, "%d reads on ra_1 \n", ra_1->len);
+	//	show_debug_msg(__func__, "%d reads on ra_2 \n", ra_2->len);
 	for (i = 0; i < ra_1->len; i++) {
 		read_1 = g_ptr_array_index(ra_1, i);
 		if (read_1->status == USED)
@@ -244,8 +244,8 @@ readarray *find_unconditional_paired_reads(readarray *ra_1, readarray *ra_2) {
 			if (read_2->status == USED)
 				continue;
 			if (is_mates(read_1->name, read_2->name)) {
-//				p_query(__func__, read_1);
-//				p_query(__func__, read_2);
+				//				p_query(__func__, read_1);
+				//				p_query(__func__, read_2);
 				g_ptr_array_add(paired, read_1);
 				g_ptr_array_add(paired, read_2);
 				second_index = j + 1;
@@ -525,6 +525,9 @@ void clear_used_reads(edge *eg, const int reset_ctg_id) {
 	while (eg->reads->len > 0) {
 		g_ptr_array_remove_index_fast(eg->reads, 0);
 	}
+	while (eg->pairs->len > 0) {
+		g_ptr_array_remove_index_fast(eg->pairs, 0);
+	}
 }
 
 /**
@@ -567,7 +570,7 @@ void concat_readarray(readarray *left_reads, readarray *right_reads) {
 	bwa_seq_t *read = NULL;
 	for (i = 0; i < right_reads->len; i++) {
 		read = g_ptr_array_index(right_reads, i);
-		g_ptr_array_add(left_reads, read);
+		g_ptr_array_uni_add(left_reads, read);
 	}
 }
 
@@ -851,10 +854,13 @@ void readarray_unfrozen(readarray *ra) {
 	g_ptr_array_free(ra, TRUE);
 }
 
-int is_used(bwa_seq_t *read) {
-	if (!read)
-		return 0;
-	if (read->contig_id != -1)
-		return 1;
-	return 0;
+void rev_edge(edge *eg) {
+	bwa_seq_t *read = NULL;
+	int i = 0;
+	for (i = 0; i < eg->reads->len; i++) {
+		read = g_ptr_array_index(eg->reads, i);
+		read->rev_com = read->rev_com ? 0 : 1;
+		read->shift = eg->len - read->shift;
+	}
+	seq_reverse(eg->len, eg->contig->seq, 1);
 }

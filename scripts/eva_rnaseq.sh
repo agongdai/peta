@@ -1,5 +1,5 @@
 #!/bin/bash
-query="pair_contigs"
+query="peta"
 db_dir="../rnaseq/Spombe/genome/"
 db="spombe.broad.tx.fasta"
 blastdb="../../ncbi-blast-2.2.26+/db/"

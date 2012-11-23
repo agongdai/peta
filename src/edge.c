@@ -26,3 +26,4 @@ void free_eg_gap(eg_gap *gap) {
 	if (gap)
 		free(gap);
 }
+
