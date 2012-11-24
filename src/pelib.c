@@ -745,20 +745,20 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	ol = seqs->len / 2; // Read length
 	s_index = 0;
 	e_index = 10;
-	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.95) {
+	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.1) {
 		line_no++;
 		index = atoi(line);
 		query = &ht->seqs[index];
-		//		if (counter == -1)
-		//			query = &ht->seqs[530270];
-		//		if (counter == 0)
-		//			query = &ht->seqs[6606472];
+				if (counter == -1)
+					query = &ht->seqs[1775402];
+				if (counter == 0)
+					query = &ht->seqs[252293];
 		//		if (counter == 1)
 		//			query = &ht->seqs[2738138];
 		//		if (counter == 2)
 		//			query = &ht->seqs[3412880];
-		//		if (counter > 0)
-		//			break;
+				if (counter > 0)
+					break;
 
 		if (query->status != FRESH)
 			continue;
@@ -779,10 +779,11 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		eg = NULL;
 		//break;
 	}
-	far_construct(ht, all_edges, n_total_reads);
+	//far_construct(ht, all_edges, n_total_reads);
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
 	merge_ol_edges(all_edges, insert_size, ht->seqs);
 	save_edges(all_edges, pair_contigs, 0, 0, 100);
+	fflush(pair_contigs);
 	scaffolding(all_edges, insert_size, ht->seqs);
 	show_msg(__func__, "Saving the roadmap... \n");
 	name = get_output_file("roadmap.dot");
