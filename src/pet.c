@@ -36,7 +36,7 @@ pool *pet_cvg(const char *pet_fn, const ass_opt *opt) {
 	for (i = 0; i < ht->n_seqs; i += 2) {
 		p = &pets[i];
 		p2 = &pets[i + 1];
-		if (binary_exists(repeat_pets, p) || binary_exists(good_pets, p))
+		if (binary_exists(repeat_pets->reads, p) || binary_exists(good_pets->reads, p))
 			continue;
 
 		for (k = p->len - opt->ol; k >= 0; k--) {

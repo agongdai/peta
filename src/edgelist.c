@@ -864,3 +864,66 @@ void rev_edge(edge *eg) {
 	}
 	seq_reverse(eg->len, eg->contig->seq, 1);
 }
+
+/**
+ * Assume the reads are sorted increasingly by read id
+ */
+int binary_exists(const readarray *reads, const bwa_seq_t *read) {
+	unsigned int start = 0, end = reads->len - 1, middle = 0;
+	int read_id, id;
+	bwa_seq_t *r;
+
+	if (reads->len == 0 || !read)
+		return 0;
+
+	read_id = atoi(read->name);
+	r = g_ptr_array_index(reads, 0);
+	id = atoi(r->name);
+	if (read_id < id)
+		return 0;
+	r = g_ptr_array_index(reads, reads->len - 1);
+	id = atoi(r->name);
+	if (read_id > id)
+		return 0;
+
+	// Binary search
+	//	printf("[exists] Looking for %d \n", read_id);
+	while (start <= end) {
+		middle = (end + start) / 2;
+		r = g_ptr_array_index(reads, middle);
+		id = atoi(r->name);
+		//		printf("[exists] id = %d, read_id = %d, [%d, %d, %d] \n", id, read_id, start,
+		//				middle, end);
+		if (id == read_id) {
+			return middle + 1;
+		} else {
+			if (id < read_id)
+				start = middle + 1;
+			else
+				end = middle - 1;
+		}
+	}
+	return 0;
+}
+
+/**
+ * Check whether there are no more than 'max' reads which are not FRESH,
+ * 	or is TRIED but contig id is -1 (the edge is destroyed).
+ */
+int has_most_fresh_reads(readarray *ra, const int max) {
+	int i = 0, n_not_fresh = 0;
+	bwa_seq_t *read = NULL;
+	for (i = 0; i < ra->len; i++) {
+		read = g_ptr_array_index(ra, i);
+		if (read->status == USED) {
+			n_not_fresh++;
+		}
+		if (read->status == TRIED && read->contig_id > 0) {
+			n_not_fresh++;
+		}
+		if (n_not_fresh > max) {
+			return 0;
+		}
+	}
+	return 1;
+}

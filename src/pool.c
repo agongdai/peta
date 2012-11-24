@@ -61,7 +61,7 @@ void insert_fast_index(pool *r_pool, const int index, bwa_seq_t *read) {
  * Add a new sequence to the pool
  */
 void pool_sort_ins(pool *r_pool, bwa_seq_t *new_seq) {
-	int index = binary_exists(r_pool, new_seq);
+	int index = binary_exists(r_pool->reads, new_seq);
 	if (index)
 		return;
 	index = get_insert_pos(r_pool, new_seq);
@@ -294,48 +294,6 @@ int pool_exists(const pool *p, const bwa_seq_t *read) {
 	for (i = 0; i < p->n; i++) {
 		if (g_ptr_array_index(reads, i) == read)
 			return 1;
-	}
-	return 0;
-}
-
-/**
- * Assume the reads are sorted increasingly by read id
- */
-int binary_exists(const pool *r_pool, const bwa_seq_t *read) {
-	unsigned int start = 0, end = r_pool->n - 1, middle = 0;
-	int read_id, id;
-	readarray *reads = r_pool->reads;
-	bwa_seq_t *r;
-
-	if (!r_pool->n || !read)
-		return 0;
-
-	read_id = atoi(read->name);
-	r = g_ptr_array_index(reads, 0);
-	id = atoi(r->name);
-	if (read_id < id)
-		return 0;
-	r = g_ptr_array_index(reads, reads->len - 1);
-	id = atoi(r->name);
-	if (read_id > id)
-		return 0;
-
-	// Binary search
-	//	printf("[exists] Looking for %d \n", read_id);
-	while (start <= end) {
-		middle = (end + start) / 2;
-		r = g_ptr_array_index(reads, middle);
-		id = atoi(r->name);
-		//		printf("[exists] id = %d, read_id = %d, [%d, %d, %d] \n", id, read_id, start,
-		//				middle, end);
-		if (id == read_id) {
-			return middle + 1;
-		} else {
-			if (id < read_id)
-				start = middle + 1;
-			else
-				end = middle - 1;
-		}
 	}
 	return 0;
 }

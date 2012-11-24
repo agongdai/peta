@@ -79,7 +79,7 @@ void save_paths(GPtrArray *paths, const char *tx_fn, const int min_len) {
 	show_msg(__func__, "Saving transcripts to %s...\n", tx_fn);
 	for (i = 0; i < paths->len; i++) {
 		p = g_ptr_array_index(paths, i);
-		p_path(p);
+		//p_path(p);
 		if (p->len >= min_len) {
 			sprintf(header, ">%d.%d len=%d \n", i, p->id, p->len);
 			save_con(header, p->seq, tx);
@@ -936,7 +936,7 @@ void break_path(GPtrArray *paths, rm_path *path, const int *coverage) {
 		pos_to_break[pos_no++] = path->len;
 	if (pos_no > 2) {
 		show_debug_msg(__func__, "Breaking this path: \n");
-		p_path(path);
+		//p_path(path);
 		g_ptr_array_remove_fast(paths, path);
 		for (i = 0; i < pos_no; i++) {
 			if (i % 2 == 0) {

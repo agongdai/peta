@@ -638,6 +638,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 		} else {
 			*n_total_reads += eg->pairs->len;
 			g_ptr_array_add(all_edges, eg);
+			//log_edge(eg);
 			pair_ctg_id++;
 			show_msg(__func__,
 					"[%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
@@ -668,7 +669,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 			"Trying to construct disconnected transcripts... \n");
 	seqs = ht->seqs;
 	for (i = 0; i < seqs->len; i++) {
-		if (n_total_reads > ht->n_seqs * 0.99)
+		if (n_total_reads > ht->n_seqs * 0.98)
 			break;
 		unused_read = &seqs[i];
 		mate = get_mate(unused_read, seqs);
@@ -705,15 +706,15 @@ void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 				g_ptr_array_free(pairs, TRUE);
 			}
 			bwa_free_read_seq(1, rev);
-		}
-		if (eg_1 && eg_1->len > 100) {
+		} // If the length is longer than 100, keep it.
+		if (eg_1 && eg_1->len > 100 && has_most_fresh_reads(eg_1->reads, 2)) {
 			keep_pairs_only(eg_1, ht->seqs);
 			n_total_reads += eg_1->pairs->len;
 			g_ptr_array_add(all_edges, eg_1);
 			pair_ctg_id++;
 			//validate_edge(all_edges, eg_1, ht, &n_total_reads);
 		}
-		if (eg_2 && eg_2->len > 100) {
+		if (eg_2 && eg_2->len > 100 && has_most_fresh_reads(eg_2->reads, 2)) {
 			//if (validate_edge(all_edges, eg_2, ht, &n_total_reads))
 			keep_pairs_only(eg_2, ht->seqs);
 			n_total_reads += eg_2->pairs->len;
@@ -745,20 +746,20 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	ol = seqs->len / 2; // Read length
 	s_index = 0;
 	e_index = 10;
-	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.1) {
+	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.9) {
 		line_no++;
 		index = atoi(line);
 		query = &ht->seqs[index];
-				if (counter == -1)
-					query = &ht->seqs[1775402];
-				if (counter == 0)
-					query = &ht->seqs[252293];
+//				if (counter == -1)
+//					query = &ht->seqs[1775402];
+//				if (counter == 0)
+//					query = &ht->seqs[252293];
 		//		if (counter == 1)
 		//			query = &ht->seqs[2738138];
 		//		if (counter == 2)
 		//			query = &ht->seqs[3412880];
-				if (counter > 0)
-					break;
+//				if (counter > 0)
+//					break;
 
 		if (query->status != FRESH)
 			continue;
@@ -775,15 +776,15 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 				pair_ctg_id, query->name);
 		eg = pe_ext(ht, query);
 		validate_edge(all_edges, eg, ht, &n_total_reads);
-		//log_edge(eg);
 		eg = NULL;
 		//break;
 	}
 	//far_construct(ht, all_edges, n_total_reads);
-	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
+	show_msg(__func__, "Merging edges by overlapping... \n");
 	merge_ol_edges(all_edges, insert_size, ht->seqs);
 	save_edges(all_edges, pair_contigs, 0, 0, 100);
 	fflush(pair_contigs);
+	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
 	scaffolding(all_edges, insert_size, ht->seqs);
 	show_msg(__func__, "Saving the roadmap... \n");
 	name = get_output_file("roadmap.dot");

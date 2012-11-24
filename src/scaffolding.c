@@ -190,22 +190,24 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
  * Check whether two edges contain any same read
  */
 int has_reads_in_common(edge *eg_1, edge *eg_2) {
-	int i = 0, j = 0;
-	bwa_seq_t *read = NULL, *same = NULL;
-	show_debug_msg(__func__, "Sorting... \n");
-	g_ptr_array_sort(eg_1->reads, (GCompareFunc) cmp_read_by_name);
-	g_ptr_array_sort(eg_2->reads, (GCompareFunc) cmp_read_by_name);
-	show_debug_msg(__func__, "Comparing reads... \n");
-	for (i = 0; i < eg_1->reads->len; i++) {
-		read = g_ptr_array_index(eg_1->reads, i);
-		for (j = i; j < eg_2->reads->len; j++) {
-			same = g_ptr_array_index(eg_2->reads, j);
-			if (read == same) {
-				p_query(__func__, read);
-				return 1;
-			}
-			if (atoi(read->name) < atoi(same->name))
-				break;
+	int i = 0, exists = 0;
+	bwa_seq_t *read = NULL;
+	// Iterate through the array with fewer reads, to perform binary search in the array with more reads.
+	edge *eg_fewer = eg_1, *eg_more = eg_2;
+	if (eg_1->len > eg_2->len) {
+		eg_fewer = eg_2;
+		eg_more = eg_1;
+		g_ptr_array_sort(eg_1->reads, (GCompareFunc) cmp_read_by_name);
+	} else {
+		g_ptr_array_sort(eg_2->reads, (GCompareFunc) cmp_read_by_name);
+	}
+	for (i = 0; i < eg_fewer->reads->len; i++) {
+		read = g_ptr_array_index(eg_fewer->reads, i);
+		exists = binary_exists(eg_more->reads, read);
+		if (exists) {
+			//show_debug_msg(__func__, "Edge [%d, %d] and [%d, %d] share a common read. \n", eg_1->id, eg_1->len, eg_2->id, eg_2->len);
+			p_query(__func__, read);
+			return 1;
 		}
 	}
 	return 0;
@@ -317,7 +319,7 @@ GPtrArray *scaffolding(GPtrArray *single_edges, const int insert_size,
 void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		bwa_seq_t *seqs) {
 	edge *eg_i = NULL, *eg_j = NULL;
-	int i = 0, j = 0, order = 0, some_one_merged = 1, ol = 0, has_common_read = 0;
+	int i = 0, j = 0, some_one_merged = 1, ol = 0, has_common_read = 0;
 	bwa_seq_t *rev = NULL;
 	readarray *paired_reads = NULL;
 	int rl = 0;
@@ -331,7 +333,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 			eg_i->visited = 1;
 			if (!eg_i->alive)
 				continue;
-			show_debug_msg(__func__, "Trying edge [%d/%d, %d] \n", eg_i->id, single_edges->len, eg_i->len);
+			//show_debug_msg(__func__, "Trying edge [%d/%d, %d] \n", eg_i->id, single_edges->len, eg_i->len);
 			for (j = 0; j < single_edges->len; j++) {
 				eg_j = g_ptr_array_index(single_edges, j);
 				eg_i->visited = 1;
@@ -349,16 +351,13 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 				g_ptr_array_free(paired_reads, TRUE);
 				rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len, 0);
 
-				show_debug_msg(__func__, "\t sub edge [%d/%d, %d] \n", eg_j->id, single_edges->len, eg_j->len);
-				show_debug_msg(__func__, "Checking overlaps... \n");
+				//show_debug_msg(__func__, "\t sub edge [%d/%d, %d] \n", eg_j->id, single_edges->len, eg_j->len);
 				ol = find_ol(eg_i->contig, eg_j->contig, MISMATCHES);
 				// 1. If the overlapping length is shorter than read length,
 				// 		We expect that no common reads
 				// 2. If the overlapping length is longer than read length,
 				//		There mush be some common reads.
-				show_debug_msg(__func__, "Checking common reads... \n");
 				has_common_read = has_reads_in_common(eg_i, eg_j); 
-				show_debug_msg(__func__, "Trying merging... \n");
 				if ((ol >= MATE_OVERLAP_THRE && ol < rl
 						&& !has_common_read) || (ol > rl
 						&& has_common_read)) {

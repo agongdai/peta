@@ -30,7 +30,6 @@ void free_mate_pool(pool *mate_pool);
 void p_edge_reads(const edge *eg);
 void p_readarray(const readarray *ra, const int part);
 void p_pool(const char *header, const pool *r_pool, const int *next);
-int binary_exists(const pool *r_pool, const bwa_seq_t *read);
 void clean_cur_pool(pool *cur_pool);
 int get_next_char(pool *cur_pool, const int ori, edge *eg);
 int pool_exists(const pool *p, const bwa_seq_t *read);
