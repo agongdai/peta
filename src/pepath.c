@@ -519,24 +519,24 @@ void mark_duplicate_edges(edgearray *block) {
 	}
 }
 
-void get_path_ori(rm_path *path) {
+void get_path_ori(rm_path *path, bwa_seq_t *seqs) {
 	edge *eg_left = NULL, *eg_right = NULL;
 	int i = 0;
 	if (path->edges->len > 1) {
 		for (i = 0; i < path->edges->len - 1; i++) {
 			eg_left = g_ptr_array_index(path->edges, i);
 			eg_right = g_ptr_array_index(path->edges, i + 1);
-			get_edges_ori(eg_left, eg_right);
+			get_edges_ori(eg_left, eg_right, seqs);
 		}
 	}
 }
 
-void determine_paths_ori(GPtrArray *paths) {
+void determine_paths_ori(GPtrArray *paths, bwa_seq_t *seqs) {
 	int i = 0;
 	rm_path *p = NULL;
 	for (i = 0; i < paths->len; i++) {
 		p = g_ptr_array_index(paths, i);
-		get_path_ori(p);
+		get_path_ori(p, seqs);
 		sync_path(p);
 	}
 }
@@ -604,7 +604,7 @@ void mark_duplicate_paths(GPtrArray *paths) {
 	}
 }
 
-GPtrArray *report_paths(edgearray *all_edges) {
+GPtrArray *report_paths(edgearray *all_edges, bwa_seq_t *seqs) {
 	int i = 0, j = 0;
 	GPtrArray *block = NULL, *all_paths = NULL, *block_paths = NULL;
 	edge *eg = NULL;
@@ -636,7 +636,7 @@ GPtrArray *report_paths(edgearray *all_edges) {
 		}
 	}
 	show_msg(__func__, "%d paths reported. \n", all_paths->len);
-	determine_paths_ori(all_paths);
+	determine_paths_ori(all_paths, seqs);
 	mark_duplicate_paths(all_paths);
 	show_msg(__func__, "%d paths after removing duplicates. \n", all_paths->len);
 	return all_paths;
@@ -1065,7 +1065,7 @@ int pe_path(int argc, char *argv[]) {
 
 	ht = pe_load_hash(argv[2]);
 	edges = load_rm(ht, argv[3], argv[4], argv[5]);
-	final_paths = report_paths(edges);
+	final_paths = report_paths(edges, ht->seqs);
 	//validate_paths(ht, final_paths, atoi(argv[1]));
 	save_paths(final_paths, "read/peta.fa", 100);
 	g_ptr_array_free(final_paths, TRUE);

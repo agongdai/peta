@@ -31,13 +31,13 @@
 /**
  * Return 0: the two edges are in the same direction
  */
-int get_edges_ori(edge *eg_left, edge *eg_right) {
+int get_edges_ori(edge *eg_left, edge *eg_right, bwa_seq_t *seqs) {
 	GPtrArray *paired_reads = NULL;
 	int n_forward = 0, n_backward = 0;
 	bwa_seq_t *read = NULL, *mate = NULL;
 	int i = 0, ori = 0;
-	paired_reads = find_unconditional_paired_reads(eg_left->reads,
-			eg_right->reads);
+	paired_reads = find_unconditional_paired_reads(eg_left,
+			eg_right, seqs);
 	if (paired_reads->len > 0) {
 		for (i = 0; i < paired_reads->len - 1; i += 2) {
 			read = g_ptr_array_index(paired_reads, i);
@@ -65,12 +65,12 @@ int get_edges_ori(edge *eg_left, edge *eg_right) {
  * 	1: eg_1 is left
  *  -1: eg_1 is right
  */
-int est_pair_gap(edge *eg_1, edge *eg_2, const int order, const int insert_size) {
+int est_pair_gap(edge *eg_1, edge *eg_2, const int order, const int insert_size, bwa_seq_t *seqs) {
 	GPtrArray *paired_reads = NULL;
 	int i = 0;
 	bwa_seq_t *read = NULL, *mate = NULL;
 	int len = 0, gap_sum = 0, gap_ave = -1, n_counted = 0;
-	paired_reads = find_unconditional_paired_reads(eg_1->reads, eg_2->reads);
+	paired_reads = find_unconditional_paired_reads(eg_1, eg_2, seqs);
 	for (i = 0; i < paired_reads->len; i += 2) {
 		read = g_ptr_array_index(paired_reads, i);
 		mate = g_ptr_array_index(paired_reads, i + 1);
@@ -105,14 +105,14 @@ int est_pair_gap(edge *eg_1, edge *eg_2, const int order, const int insert_size)
  * 	1: eg_1 is left, eg_2 is right
  *  -1: eg_1 is right, eg_2 is left
  */
-int order_two_edges(edge *eg_1, edge *eg_2) {
+int order_two_edges(edge *eg_1, edge *eg_2, bwa_seq_t *seqs) {
 	GPtrArray *paired_reads = NULL;
 	int *orders = NULL, consensus_order = 0;
 	int i = 0, forward_count = 0, backward_count = 0, min = 0, ori = 0;
 	bwa_seq_t *read = NULL, *mate = NULL;
 
-	ori = get_edges_ori(eg_1, eg_2);
-	paired_reads = find_unconditional_paired_reads(eg_1->reads, eg_2->reads);
+	ori = get_edges_ori(eg_1, eg_2, seqs);
+	paired_reads = find_unconditional_paired_reads(eg_1, eg_2, seqs);
 	//	show_debug_msg(__func__, "Ordering edge %d and %d: %d pairs ...\n", eg_1->id,
 	//			eg_2->id, paired_reads->len);
 	if (paired_reads->len < MIN_VALID_PAIRS) {
@@ -162,7 +162,7 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 		if (read->status == USED)
 			continue;
 		mate = get_mate(read, seqs);
-		if (mate->status == FRESH || mate->contig_id < 0)
+		if (mate->status == FRESH || mate->contig_id < 0 || read->contig_id == mate->contig_id)
 			continue;
 		//p_query(__func__, mate);
 		if (edge_index_got[mate->contig_id] == 0)
@@ -213,7 +213,7 @@ int has_reads_in_common(edge *eg_1, edge *eg_2) {
 	return 0;
 }
 
-edge *merge_two_ol_edges(edge *eg_1, edge *eg_2, const int ol) {
+edge *merge_two_ol_edges(hash_table *ht, edge *eg_1, edge *eg_2, const int ol) {
 	int i = 0;
 	bwa_seq_t *r = NULL;
 
@@ -225,10 +225,11 @@ edge *merge_two_ol_edges(edge *eg_1, edge *eg_2, const int ol) {
 	concat_readarray(eg_1->reads, eg_2->reads);
 	concat_readarray(eg_1->pairs, eg_2->pairs);
 	clear_used_reads(eg_2, 0);
-	upd_reads(eg_1, MISMATCHES);
+	upd_reads_by_ht(ht, eg_1, MISMATCHES);
 	for (i = 0; i < eg_1->reads->len; i++) {
 		r = g_ptr_array_index(eg_1->reads, i);
 		r->status = TRIED;
+		r->contig_id = eg_1->id;
 	}
 	for (i = 0; i < eg_1->pairs->len; i++) {
 		r = g_ptr_array_index(eg_1->pairs, i);
@@ -238,11 +239,11 @@ edge *merge_two_ol_edges(edge *eg_1, edge *eg_2, const int ol) {
 	return eg_1;
 }
 
-edge *merge_edges(edge *eg_1, edge *eg_2) {
+edge *merge_edges(edge *eg_1, edge *eg_2, hash_table *ht) {
 	int order = 0, ori = 0, i = 0;
 	bwa_seq_t *read = NULL;
-	order = order_two_edges(eg_1, eg_2);
-	ori = get_edges_ori(eg_1, eg_2);
+	order = order_two_edges(eg_1, eg_2, ht->seqs);
+	ori = get_edges_ori(eg_1, eg_2, ht->seqs);
 	if (order == 0)
 		return 0;
 	if (order == 1) {
@@ -253,7 +254,7 @@ edge *merge_edges(edge *eg_1, edge *eg_2) {
 				read->rev_com = read->rev_com ? 0 : 1;
 			}
 		}
-		merge_two_ol_edges(eg_1, eg_2, 0);
+		merge_two_ol_edges(ht, eg_1, eg_2, 0);
 		destroy_eg(eg_2);
 		return eg_1;
 	} else {
@@ -264,7 +265,7 @@ edge *merge_edges(edge *eg_1, edge *eg_2) {
 				read->rev_com = read->rev_com ? 0 : 1;
 			}
 		}
-		merge_two_ol_edges(eg_1, eg_2, 0);
+		merge_two_ol_edges(ht, eg_2, eg_1, 0);
 		destroy_eg(eg_1);
 		return eg_2;
 	}
@@ -284,7 +285,7 @@ GPtrArray *scaffolding(GPtrArray *single_edges, const int insert_size,
 			eg_j = g_ptr_array_index(probable_in_out, j);
 			if (eg_i == eg_j)
 				continue;
-			order = order_two_edges(eg_i, eg_j);
+			order = order_two_edges(eg_i, eg_j, seqs);
 			if (order != 0) {
 				//gap = est_pair_gap(eg_i, eg_j, order, insert_size);
 				gap = 0; // @TODO: orientation of edge is not determined yet, skip gap size estimation
@@ -317,12 +318,13 @@ GPtrArray *scaffolding(GPtrArray *single_edges, const int insert_size,
  * Merge the edges with some overlapping
  */
 void merge_ol_edges(edgearray *single_edges, const int insert_size,
-		bwa_seq_t *seqs) {
+		hash_table *ht) {
 	edge *eg_i = NULL, *eg_j = NULL;
 	int i = 0, j = 0, some_one_merged = 1, ol = 0, has_common_read = 0;
-	bwa_seq_t *rev = NULL;
+	bwa_seq_t *seqs = ht->seqs, *rev = NULL;
 	readarray *paired_reads = NULL;
 	int rl = 0;
+	clock_t t = clock();
 
 	rl = seqs->len;
 
@@ -333,7 +335,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 			eg_i->visited = 1;
 			if (!eg_i->alive)
 				continue;
-			//show_debug_msg(__func__, "Trying edge [%d/%d, %d] \n", eg_i->id, single_edges->len, eg_i->len);
+			show_debug_msg(__func__, "Trying edge [%d/%d, %d]... %.2f sec\n", eg_i->id, single_edges->len, eg_i->len, (float) (clock() - t) / CLOCKS_PER_SEC);
 			for (j = 0; j < single_edges->len; j++) {
 				eg_j = g_ptr_array_index(single_edges, j);
 				eg_i->visited = 1;
@@ -342,8 +344,8 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 					continue;
 				if (eg_i->visited && eg_j->visited)
 					continue;
-				paired_reads = find_unconditional_paired_reads(eg_i->reads,
-						eg_j->reads);
+				paired_reads = find_unconditional_paired_reads(eg_i,
+						eg_j, seqs);
 				if (paired_reads->len == 0) {
 					g_ptr_array_free(paired_reads, TRUE);
 					continue;
@@ -351,7 +353,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 				g_ptr_array_free(paired_reads, TRUE);
 				rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len, 0);
 
-				//show_debug_msg(__func__, "\t sub edge [%d/%d, %d] \n", eg_j->id, single_edges->len, eg_j->len);
+				//show_debug_msg(__func__, "\t sub edge [%d/%d, %d]... %.2f sec\n", eg_j->id, single_edges->len, eg_j->len, (float) (clock() - t) / CLOCKS_PER_SEC);
 				ol = find_ol(eg_i->contig, eg_j->contig, MISMATCHES);
 				// 1. If the overlapping length is shorter than read length,
 				// 		We expect that no common reads
@@ -364,7 +366,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 					show_debug_msg(__func__,
 							"Merging edge [%d, %d] to edge [%d, %d]\n",
 							eg_j->id, eg_j->len, eg_i->id, eg_i->len);
-					merge_two_ol_edges(eg_i, eg_j, ol);
+					merge_two_ol_edges(ht, eg_i, eg_j, ol);
 					eg_i->visited = 0;
 					some_one_merged = 1;
 				} else {
@@ -375,7 +377,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 								eg_j->id, eg_j->len, eg_i->id, eg_i->len);
 						bwa_free_read_seq(1, eg_j->contig);
 						eg_j->contig = rev;
-						merge_two_ol_edges(eg_i, eg_j, ol);
+						merge_two_ol_edges(ht, eg_i, eg_j, ol);
 						eg_i->visited = 0;
 						some_one_merged = 1;
 						continue; // In case the 'rev' is freed accidently.
@@ -389,6 +391,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		eg_i = g_ptr_array_index(single_edges, i);
 		eg_i->visited = 0;
 		if (!eg_i->alive) {
+			destroy_eg(eg_i);
 			g_ptr_array_remove_index_fast(single_edges, i);
 			i--;
 		}

@@ -689,13 +689,13 @@ void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 							100) && (!share_subseq(rev, eg_2->contig,
 							MISMATCHES, 100)) && !has_reads_in_common(eg_1,
 							eg_2))) {
-				pairs = find_unconditional_paired_reads(eg_1->reads,
-						eg_2->reads);
+				pairs = find_unconditional_paired_reads(eg_1,
+						eg_2, seqs);
 				if (pairs->len > MIN_VALID_PAIRS) {
-					eg = merge_edges(eg_1, eg_2);
+					eg = merge_edges(eg_1, eg_2, seqs);
 					if (eg) {
 						validate_edge(all_edges, eg, ht, &n_total_reads);
-						upd_reads(eg, MISMATCHES);
+						upd_reads_by_ht(ht, eg, MISMATCHES);
 						eg_1 = NULL;
 						eg_2 = NULL;
 						g_ptr_array_free(pairs, TRUE);
@@ -746,7 +746,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	ol = seqs->len / 2; // Read length
 	s_index = 0;
 	e_index = 10;
-	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.9) {
+	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.95) {
 		line_no++;
 		index = atoi(line);
 		query = &ht->seqs[index];
@@ -779,9 +779,9 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		eg = NULL;
 		//break;
 	}
-	//far_construct(ht, all_edges, n_total_reads);
+	far_construct(ht, all_edges, n_total_reads);
 	show_msg(__func__, "Merging edges by overlapping... \n");
-	merge_ol_edges(all_edges, insert_size, ht->seqs);
+	merge_ol_edges(all_edges, insert_size, ht);
 	save_edges(all_edges, pair_contigs, 0, 0, 100);
 	fflush(pair_contigs);
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
@@ -793,7 +793,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	name = get_output_file("roadmap_compact.dot");
 	graph_by_edges(all_edges, name);
 	show_msg(__func__, "Reporting combinatorial paths... \n");
-	final_paths = report_paths(all_edges);
+	final_paths = report_paths(all_edges, seqs);
 	name = get_output_file("peta.fa");
 	save_paths(final_paths, name, 100);
 	free(name);

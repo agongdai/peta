@@ -13,6 +13,7 @@
 #include "edgelist.h"
 #include "peseq.h"
 #include "utils.h"
+#include "pealn.h"
 
 gint cmp_read_by_shift(gpointer a, gpointer b) {
 	bwa_seq_t *read_a = *((bwa_seq_t**) a);
@@ -225,36 +226,27 @@ readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs) {
 	return paired;
 }
 
-readarray *find_unconditional_paired_reads(readarray *ra_1, readarray *ra_2) {
+readarray *find_unconditional_paired_reads(edge *eg_1, edge *eg_2,
+		bwa_seq_t *seqs) {
 	readarray *paired = g_ptr_array_sized_new(INIT_N_READ_PAIRED);
-	int i = 0, j = 0, second_index = 0;
-	bwa_seq_t *read_1, *read_2;
-	if (!ra_1 || !ra_2 || ra_1->len == 0 || ra_2->len == 0)
+	edge *eg_more = NULL, *eg_fewer = NULL;
+	int i = 0;
+	bwa_seq_t *read_1, *mate = NULL;
+	//clock_t t = clock();
+	if (!eg_1 || !eg_2 || eg_1->len == 0 || eg_2->len == 0)
 		return paired;
-	g_ptr_array_sort(ra_1, (GCompareFunc) cmp_read_by_name);
-	g_ptr_array_sort(ra_2, (GCompareFunc) cmp_read_by_name);
-	//	show_debug_msg(__func__, "%d reads on ra_1 \n", ra_1->len);
-	//	show_debug_msg(__func__, "%d reads on ra_2 \n", ra_2->len);
-	for (i = 0; i < ra_1->len; i++) {
-		read_1 = g_ptr_array_index(ra_1, i);
+	eg_fewer = eg_1->reads->len > eg_2->reads->len ? eg_2 : eg_1;
+	eg_more = eg_1->reads->len > eg_2->reads->len ? eg_1 : eg_2;
+	//show_debug_msg(__func__, "%d reads on ra_1 \n", ra_1->len);
+	//show_debug_msg(__func__, "%d reads on ra_2 \n", ra_2->len);
+	for (i = 0; i < eg_fewer->reads->len; i++) {
+		read_1 = g_ptr_array_index(eg_fewer->reads, i);
 		if (read_1->status == USED)
 			continue;
-		for (j = second_index; j < ra_2->len; j++) {
-			read_2 = g_ptr_array_index(ra_2, j);
-			if (read_2->status == USED)
-				continue;
-			if (is_mates(read_1->name, read_2->name)) {
-				//				p_query(__func__, read_1);
-				//				p_query(__func__, read_2);
-				g_ptr_array_add(paired, read_1);
-				g_ptr_array_add(paired, read_2);
-				second_index = j + 1;
-				break;
-			}
-			if (atoi(read_2->name) > atoi(read_1->name)) {
-				second_index = j;
-				break;
-			}
+		mate = get_mate(read_1, seqs);
+		if (mate->status != USED && mate->contig_id == eg_more->id) {
+			g_ptr_array_add(paired, read_1);
+			g_ptr_array_add(paired, mate);
 		}
 	}
 	return paired;
@@ -628,7 +620,6 @@ void upd_ctg_id(edge *eg, const int ctg_id) {
 void upd_reads(edge *eg, const int mismatches) {
 	int i = 0, index = 0, overlap_len = 0;
 	bwa_seq_t *read, *rev_read = NULL;
-	char *pre_name = NULL;
 	if (!eg || !eg->reads || eg->reads->len == 0)
 		return;
 	read = g_ptr_array_index(eg->reads, 0);
@@ -636,7 +627,6 @@ void upd_reads(edge *eg, const int mismatches) {
 		return;
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
-		pre_name = read->name;
 		if (read->shift < 0) {
 			overlap_len = find_ol(read, eg->contig, mismatches);
 			if (overlap_len > read->len / 4) {
@@ -668,6 +658,61 @@ void upd_reads(edge *eg, const int mismatches) {
 		read->shift = index;
 		read->contig_id = eg->id;
 		read->status = USED;
+	}
+}
+
+void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
+	int i = 0, index = 0;
+	bwa_seq_t *read = NULL, *query = NULL, *seqs = NULL, *mate = NULL;
+	alignarray *aligns = NULL;
+	alg *a = NULL;
+	if (!eg || !eg->reads || eg->reads->len == 0)
+		return;
+	read = g_ptr_array_index(eg->reads, 0);
+	if (!read || eg->len < read->len)
+		return;
+	seqs = ht->seqs;
+	for (i = 0; i < eg->reads->len; i++) {
+		read = g_ptr_array_index(eg->reads, i);
+		read->status = FRESH;
+	}
+	while (eg->pairs->len > 0) {
+		g_ptr_array_remove_index_fast(eg->pairs, 0);
+	}
+	for (i = 0; i < eg->len - seqs->len; i++) {
+		query = new_seq(eg->contig, seqs->len, i);
+		pe_aln_query(query, query->seq, ht, mismatches, query->len, 0, aligns);
+		pe_aln_query(query, query->rseq, ht, mismatches, query->len, 1, aligns);
+
+		for (i = 0; i < aligns->len; i++) {
+			a = g_ptr_array_index(aligns, i);
+			index = a->r_id;
+			if (index >= ht->n_seqs)
+				continue;
+			read = &seqs[index];
+			if (read->contig_id == eg->id) {
+				read->status = TRIED;
+				read->shift = i;
+			}
+		}
+		bwa_free_read_seq(1, query);
+		reset_alg(aligns);
+	}
+	free_alg(aligns);
+	for (i = 0; i < eg->reads->len; i++) {
+		read = g_ptr_array_index(eg->reads, i);
+		if (read->status == FRESH) {
+			g_ptr_array_remove_index_fast(eg->reads, i);
+			i--;
+		} else {
+			mate = get_mate(read, seqs);
+			if (mate->contig_id == read->contig_id && mate->status != USED) {
+				g_ptr_array_add(eg->pairs, read);
+				g_ptr_array_add(eg->pairs, mate);
+				read->status = USED;
+				mate->status = USED;
+			}
+		}
 	}
 }
 
