@@ -689,8 +689,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 							100) && (!share_subseq(rev, eg_2->contig,
 							MISMATCHES, 100)) && !has_reads_in_common(eg_1,
 							eg_2))) {
-				pairs = find_unconditional_paired_reads(eg_1,
-						eg_2, seqs);
+				pairs = find_unconditional_paired_reads(eg_1, eg_2, seqs);
 				if (pairs->len > MIN_VALID_PAIRS) {
 					eg = merge_edges(eg_1, eg_2, seqs);
 					if (eg) {
@@ -736,6 +735,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	GPtrArray *all_edges = NULL, *final_paths = NULL;
 
 	FILE *pair_contigs = xopen("pair_contigs.fa", "w");
+	FILE *merged_pair_contigs = xopen("merged_pair_contigs.fa", "w");
 	solid = xopen(solid_file, "r");
 	show_msg(__func__, "Library: %s \n", lib_file);
 	show_msg(__func__, "Solid Reads: %s \n", solid_file);
@@ -746,20 +746,20 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	ol = seqs->len / 2; // Read length
 	s_index = 0;
 	e_index = 10;
-	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.95) {
+	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.92) {
 		line_no++;
 		index = atoi(line);
 		query = &ht->seqs[index];
-//				if (counter == -1)
-//					query = &ht->seqs[1775402];
-//				if (counter == 0)
-//					query = &ht->seqs[252293];
-		//		if (counter == 1)
-		//			query = &ht->seqs[2738138];
-		//		if (counter == 2)
-		//			query = &ht->seqs[3412880];
-//				if (counter > 0)
-//					break;
+//		if (counter == -1)
+//			query = &ht->seqs[242496];
+//		if (counter == 0)
+//			query = &ht->seqs[282450];
+//		if (counter == 1)
+//			query = &ht->seqs[2738138];
+//		if (counter == 2)
+//			query = &ht->seqs[3412880];
+//		if (pair_ctg_id > 118)
+//			break;
 
 		if (query->status != FRESH)
 			continue;
@@ -780,10 +780,12 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		//break;
 	}
 	far_construct(ht, all_edges, n_total_reads);
-	show_msg(__func__, "Merging edges by overlapping... \n");
-	merge_ol_edges(all_edges, insert_size, ht);
 	save_edges(all_edges, pair_contigs, 0, 0, 100);
 	fflush(pair_contigs);
+	show_msg(__func__, "Merging edges by overlapping... \n");
+	merge_ol_edges(all_edges, insert_size, ht);
+	save_edges(all_edges, merged_pair_contigs, 0, 0, 100);
+	fflush(merged_pair_contigs);
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
 	scaffolding(all_edges, insert_size, ht->seqs);
 	show_msg(__func__, "Saving the roadmap... \n");
@@ -800,6 +802,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	destroy_eg(eg);
 	fclose(solid);
 	fclose(pair_contigs);
+	fclose(merged_pair_contigs);
 	destroy_ht(ht);
 }
 

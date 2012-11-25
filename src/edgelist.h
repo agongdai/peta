@@ -13,6 +13,7 @@ extern "C" {
 
 #include "edge.h"
 #include "bwase.h"
+#include "pealn.h"
 
 #define LIST_SIZE		64
 #define TRIVIAL_DIFF	4

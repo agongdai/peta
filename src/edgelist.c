@@ -662,7 +662,7 @@ void upd_reads(edge *eg, const int mismatches) {
 }
 
 void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
-	int i = 0, index = 0;
+	int i = 0, index = 0, j = 0;
 	bwa_seq_t *read = NULL, *query = NULL, *seqs = NULL, *mate = NULL;
 	alignarray *aligns = NULL;
 	alg *a = NULL;
@@ -679,13 +679,18 @@ void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
 	while (eg->pairs->len > 0) {
 		g_ptr_array_remove_index_fast(eg->pairs, 0);
 	}
+	//show_debug_msg(__func__, "Aligning ... \n");
+	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
+	//p_ctg_seq("CONTIG", eg->contig);
 	for (i = 0; i < eg->len - seqs->len; i++) {
 		query = new_seq(eg->contig, seqs->len, i);
+		p_query(__func__, query);
 		pe_aln_query(query, query->seq, ht, mismatches, query->len, 0, aligns);
 		pe_aln_query(query, query->rseq, ht, mismatches, query->len, 1, aligns);
 
-		for (i = 0; i < aligns->len; i++) {
-			a = g_ptr_array_index(aligns, i);
+		//show_debug_msg(__func__, "%d alignments ... \n", aligns->len);
+		for (j = 0; j < aligns->len; j++) {
+			a = g_ptr_array_index(aligns, j);
 			index = a->r_id;
 			if (index >= ht->n_seqs)
 				continue;
