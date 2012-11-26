@@ -113,13 +113,13 @@ int order_two_edges(edge *eg_1, edge *eg_2, bwa_seq_t *seqs) {
 
 	ori = get_edges_ori(eg_1, eg_2, seqs);
 	paired_reads = find_unconditional_paired_reads(eg_1, eg_2, seqs);
-	//	show_debug_msg(__func__, "Ordering edge %d and %d: %d pairs ...\n", eg_1->id,
-	//			eg_2->id, paired_reads->len);
+	show_debug_msg(__func__, "Ordering edge %d and %d: %d pairs ...\n", eg_1->id,
+				eg_2->id, paired_reads->len);
 	if (paired_reads->len < MIN_VALID_PAIRS) {
 		g_ptr_array_free(paired_reads, TRUE);
 		return 0;
 	} else {
-		orders = (int*) calloc(paired_reads->len / 2 + 1, sizeof(int));
+		orders = (int*) calloc(paired_reads->len / 2 + 2, sizeof(int));
 		for (i = 0; i < paired_reads->len; i += 2) {
 			read = g_ptr_array_index(paired_reads, i);
 			mate = g_ptr_array_index(paired_reads, i + 1);
@@ -157,6 +157,8 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 	bwa_seq_t *read = NULL, *mate = NULL, *rev = NULL;
 	int *edge_index_got = NULL;
 	edge_index_got = (int*) calloc(all_edges->len + 1, sizeof(int));
+	show_debug_msg(__func__, "Checking probable in_out edges of edge [%d, %d]...\n", eg->id, eg->len);
+	p_ctg_seq("Contig", eg->contig);
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		if (read->status == USED)
@@ -164,17 +166,19 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 		mate = get_mate(read, seqs);
 		if (mate->status == FRESH || mate->contig_id < 0 || read->contig_id == mate->contig_id)
 			continue;
-		//p_query(__func__, mate);
+		show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id, all_edges->len);
 		if (edge_index_got[mate->contig_id] == 0)
 			n_in_out++;
-		//show_debug_msg(__func__, "n_in_out: %d \n", n_in_out);
 		edge_index_got[mate->contig_id] = 1;
 	}
 	probable_in_out = g_ptr_array_sized_new(n_in_out + 1);
+	show_debug_msg(__func__, "Checking shared subseq... \n");
 	for (i = 0; i < all_edges->len; i++) {
 		if (edge_index_got[i] == 1) {
 			in_out = g_ptr_array_index(all_edges, i);
+			show_debug_msg(__func__, "Probable in_out: [%d, %d] \n", in_out->id, in_out->len);
 			rev = new_mem_rev_seq(eg->contig, eg->len, 0);
+			p_ctg_seq("Reverse", rev);
 			if (!has_reads_in_common(eg, in_out) && !share_subseq(eg->contig,
 					in_out->contig, MISMATCHES, 100) && !share_subseq(rev,
 					in_out->contig, MISMATCHES, 100))
@@ -206,7 +210,7 @@ int has_reads_in_common(edge *eg_1, edge *eg_2) {
 		exists = binary_exists(eg_more->reads, read);
 		if (exists) {
 			//show_debug_msg(__func__, "Edge [%d, %d] and [%d, %d] share a common read. \n", eg_1->id, eg_1->len, eg_2->id, eg_2->len);
-			p_query(__func__, read);
+			//p_query(__func__, read);
 			return 1;
 		}
 	}
@@ -285,12 +289,14 @@ GPtrArray *scaffolding(GPtrArray *single_edges, const int insert_size,
 
 	for (i = 0; i < single_edges->len; i++) {
 		eg_i = g_ptr_array_index(single_edges, i);
-		//show_debug_msg(__func__, "Trying edge [%d/%d, %d] \n", eg_i->id, single_edges->len, eg_i->len);
+		show_debug_msg(__func__, "Trying edge [%d/%d, %d] \n", eg_i->id, single_edges->len, eg_i->len);
 		probable_in_out = get_probable_in_out(single_edges, eg_i, seqs);
+		show_debug_msg(__func__, "Probable in_out size: %d \n", probable_in_out->len);
 		for (j = 0; j < probable_in_out->len; j++) {
 			eg_j = g_ptr_array_index(probable_in_out, j);
 			if (eg_i == eg_j)
 				continue;
+			show_debug_msg(__func__, "Ordering... \n");
 			order = order_two_edges(eg_i, eg_j, seqs);
 			if (order != 0) {
 				//gap = est_pair_gap(eg_i, eg_j, order, insert_size);
@@ -341,7 +347,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 			eg_i->visited = 1;
 			if (!eg_i->alive)
 				continue;
-			show_debug_msg(__func__, "Trying edge [%d/%d, %d]... %.2f sec\n", eg_i->id, single_edges->len, eg_i->len, (float) (clock() - t) / CLOCKS_PER_SEC);
+			//show_debug_msg(__func__, "Trying edge [%d/%d, %d]... %.2f sec\n", eg_i->id, single_edges->len, eg_i->len, (float) (clock() - t) / CLOCKS_PER_SEC);
 			for (j = 0; j < single_edges->len; j++) {
 				eg_j = g_ptr_array_index(single_edges, j);
 				eg_i->visited = 1;

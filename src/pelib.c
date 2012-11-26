@@ -429,10 +429,12 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, const bwa_seq_t *s,
 		ext_que(query, c[0], ori);
 		free(c);
 		c = NULL;
+		if (eg->len % 10) {
+			clean_mate_pool(mate_pool);
+		}
 		if (eg->len % 50 == 0) {
 			show_debug_msg(__func__, "Assembling... [%d, %d] \n", eg->id,
 					eg->len);
-			clean_mate_pool(mate_pool);
 			// If the length is long enough but there is not enough pairs, just stop
 			pairs = get_pairs_on_edge(eg, ht->seqs);
 			if (pairs->len <= MIN_VALID_PAIRS && (eg->len >= (insert_size
@@ -744,30 +746,30 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	ht = pe_load_hash(lib_file);
 	seqs = &ht->seqs[0];
 	ol = seqs->len / 2; // Read length
-	s_index = 0;
-	e_index = 10;
-	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.92) {
+	s_index = 100;
+	e_index = 500;
+	while (fgets(line, 80, solid) != NULL && n_total_reads < ht->n_seqs * 0.6) {
 		line_no++;
 		index = atoi(line);
 		query = &ht->seqs[index];
 //		if (counter == -1)
-//			query = &ht->seqs[242496];
+//			query = &ht->seqs[777296];
 //		if (counter == 0)
-//			query = &ht->seqs[282450];
+//			query = &ht->seqs[4499284];
 //		if (counter == 1)
 //			query = &ht->seqs[2738138];
 //		if (counter == 2)
 //			query = &ht->seqs[3412880];
-//		if (pair_ctg_id > 118)
-//			break;
+		if (pair_ctg_id > 200)
+			break;
 
 		if (query->status != FRESH)
 			continue;
 		counter++;
-		//		if (counter <= s_index)
-		//			continue;
-		//		if (counter > e_index)
-		//			break;
+//		if (counter <= s_index)
+//			continue;
+//		if (counter > e_index)
+//			break;
 		show_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", line_no,
 				pair_ctg_id, query->name);
@@ -779,7 +781,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		eg = NULL;
 		//break;
 	}
-	far_construct(ht, all_edges, n_total_reads);
+	//far_construct(ht, all_edges, n_total_reads);
 	save_edges(all_edges, pair_contigs, 0, 0, 100);
 	fflush(pair_contigs);
 	show_msg(__func__, "Merging edges by overlapping... \n");

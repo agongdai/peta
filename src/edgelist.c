@@ -684,7 +684,7 @@ void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
 	//p_ctg_seq("CONTIG", eg->contig);
 	for (i = 0; i < eg->len - seqs->len; i++) {
 		query = new_seq(eg->contig, seqs->len, i);
-		p_query(__func__, query);
+		//p_query(__func__, query);
 		pe_aln_query(query, query->seq, ht, mismatches, query->len, 0, aligns);
 		pe_aln_query(query, query->rseq, ht, mismatches, query->len, 1, aligns);
 
