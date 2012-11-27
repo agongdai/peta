@@ -172,14 +172,17 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 			// It is important because sometimes it maybe added just for coincidence.
 			go_to_add = 1; // If there is no read in current pool, go to add the mate
 			// If some read in current pool, we require that at least some read overlaps with the mate
-			for (j = 0; j < cur_pool->reads->len; j++) {
-				go_to_add = 0;
-				s = g_ptr_array_index(cur_pool->reads, j);
-				read_mate_ol = ori ? find_ol(mate, s, nm)
-						: find_ol(s, mate, nm);
-				if (read_mate_ol >= ol) {
-					go_to_add = 1;
-					break;
+			// @TODO: disable it because when there are 100,000 reads in current pool and in mate pool...
+			if (mate_pool->n * cur_pool->n < 10000) {
+				for (j = 0; j < cur_pool->reads->len; j++) {
+					go_to_add = 0;
+					s = g_ptr_array_index(cur_pool->reads, j);
+					read_mate_ol = ori ? find_ol(mate, s, nm) : find_ol(s,
+							mate, nm);
+					if (read_mate_ol >= ol) {
+						go_to_add = 1;
+						break;
+					}
 				}
 			}
 			if (go_to_add) {
@@ -187,10 +190,6 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 				pool_add(cur_pool, mate);
 				mate_pool_rm_index(mate_pool, i);
 				i--;
-				//				if (strcmp(mate->name, "6200654") == 0) {
-				//					p_query(__func__, mate);
-				//					p_query(__func__, s);
-				//				}
 			}
 		}
 		if (mate->rev_com)
@@ -205,7 +204,8 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		pool *mate_pool, edge *ass_eg, bwa_seq_t *query, int *next, int ori) {
 	alg *a = NULL;
 	int i = 0, index = 0, pre_cursor = 0;
-	bwa_seq_t *s = NULL, *mate = NULL, *seqs = ht->seqs, *tmp = NULL;
+	bwa_seq_t *s = NULL, *mate = NULL, *seqs = ht->seqs;
+	show_debug_msg(__func__, "Iterating alignments... \n");
 	// Add aligned reads to current pool
 	for (i = 0; i < aligns->len; i++) {
 		a = g_ptr_array_index(aligns, i);
@@ -235,19 +235,18 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 			continue;
 
 		pool_add(cur_pool, s);
-		//		if (strcmp(s->name, "3563380") == 0) {
-		//			p_query(__func__, mate);
-		//			p_query(__func__, s);
-		//		}
 		if (mate->status != USED && !mate->is_in_c_pool && !mate->is_in_m_pool) {
 			mate_pool_add(mate_pool, mate);
 		}
 	}
+	show_debug_msg(__func__, "Removing partial... \n");
 	// In current pool, if a read does not overlap with the tail properly, remove it
 	rm_partial(cur_pool, mate_pool, ori, seqs, query, 2);
+	show_debug_msg(__func__, "Adding mates... \n");
 	// Add mates into current pool by overlapping
 	add_mates_by_ol(seqs, ass_eg, cur_pool, mate_pool, MATE_OVERLAP_THRE,
 			MISMATCHES, query, ori);
+	show_debug_msg(__func__, "Keeping mates... \n");
 	// Keep only the reads whose mate is used previously.
 	if (ass_eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
 		keep_mates_in_pool(ass_eg, cur_pool, next, ht, ori, 0);
@@ -265,7 +264,7 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
  * If return NULL, it indicates there are too many (>=4 by default) counter pairs.
  * In this case, the caller should not continue to do single extension.
  */
-pool *get_start_pool(const hash_table *ht, const bwa_seq_t *init_read,
+pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read,
 		const int ori) {
 	alignarray *alns = NULL;
 	int i = 0, to_free_query = 0;
@@ -336,15 +335,14 @@ pool *get_start_pool(const hash_table *ht, const bwa_seq_t *init_read,
 /**
  * Extend a template
  */
-edge *pair_extension(edge *pre_eg, const hash_table *ht, const bwa_seq_t *s,
+edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		const int ori) {
 	bwa_seq_t *query = NULL;
 	pool *cur_pool = NULL, *mate_pool = NULL;
-	int *c = NULL;
+	int *c = NULL, checked_pairs = 0;
 	int *next = (int*) calloc(5, sizeof(int));
 	alignarray *aligns = NULL;
 	edge *eg = NULL;
-	readarray *pairs = NULL;
 
 	if (pre_eg) {
 		eg = pre_eg;
@@ -429,21 +427,20 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, const bwa_seq_t *s,
 		ext_que(query, c[0], ori);
 		free(c);
 		c = NULL;
-		if (eg->len % 10) {
-			clean_mate_pool(mate_pool);
+		clean_mate_pool(mate_pool, eg);
+		if ((!checked_pairs && eg->len >= (insert_size + sd_insert_size
+				* SD_TIMES))) {
+			show_debug_msg(__func__, "Checking pairs... \n");
+			checked_pairs = 1; // This checking performs only once.
+			// If the length is long enough but there is not enough pairs, just stop
+			if (!has_pairs_on_edge(eg, ht->seqs, MIN_VALID_PAIRS)) {
+				show_msg(__func__, "No enough pairs currently, stop!");
+				break;
+			}
 		}
 		if (eg->len % 50 == 0) {
 			show_debug_msg(__func__, "Assembling... [%d, %d] \n", eg->id,
 					eg->len);
-			// If the length is long enough but there is not enough pairs, just stop
-			pairs = get_pairs_on_edge(eg, ht->seqs);
-			if (pairs->len <= MIN_VALID_PAIRS && (eg->len >= (insert_size
-					+ sd_insert_size * SD_TIMES))) {
-				show_msg(__func__, "No enough pairs currently, stop!");
-				g_ptr_array_free(pairs, TRUE);
-				break;
-			}
-			g_ptr_array_free(pairs, TRUE);
 		}
 	}
 	if (ori)
@@ -693,7 +690,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 							eg_2))) {
 				pairs = find_unconditional_paired_reads(eg_1, eg_2, seqs);
 				if (pairs->len > MIN_VALID_PAIRS) {
-					eg = merge_edges(eg_1, eg_2, seqs);
+					eg = merge_edges(eg_1, eg_2, ht);
 					if (eg) {
 						validate_edge(all_edges, eg, ht, &n_total_reads);
 						upd_reads_by_ht(ht, eg, MISMATCHES);
@@ -752,24 +749,24 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		line_no++;
 		index = atoi(line);
 		query = &ht->seqs[index];
-//		if (counter == -1)
-//			query = &ht->seqs[777296];
-//		if (counter == 0)
-//			query = &ht->seqs[4499284];
-//		if (counter == 1)
-//			query = &ht->seqs[2738138];
-//		if (counter == 2)
-//			query = &ht->seqs[3412880];
-		if (pair_ctg_id > 200)
-			break;
+		//		if (counter == -1)
+		//			query = &ht->seqs[777296];
+		//		if (counter == 0)
+		//			query = &ht->seqs[4499284];
+		//		if (counter == 1)
+		//			query = &ht->seqs[2738138];
+		//		if (counter == 2)
+		//			query = &ht->seqs[3412880];
+		//		if (pair_ctg_id > 330)
+		//			break;
 
 		if (query->status != FRESH)
 			continue;
 		counter++;
-//		if (counter <= s_index)
-//			continue;
-//		if (counter > e_index)
-//			break;
+		//		if (counter <= s_index)
+		//			continue;
+		//		if (counter > e_index)
+		//			break;
 		show_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", line_no,
 				pair_ctg_id, query->name);

@@ -426,14 +426,14 @@ int bases_sup_branches(pool *cur_pool, const int ori, double threshold) {
 	return 0;
 }
 
-void clean_mate_pool(pool *mate_pool) {
+void clean_mate_pool(pool *mate_pool, edge *eg) {
 	bwa_seq_t *mate = NULL;
 	int i = 0;
 	if (!mate_pool)
 		return;
 	for (i = 0; i < mate_pool->reads->len; i++) {
 		mate = g_ptr_array_index(mate_pool->reads, i);
-		if (mate->status == USED || mate->is_in_c_pool) {
+		if (mate->status == USED || mate->is_in_c_pool || (mate->status == TRIED && mate->contig_id == eg->id)) {
 			if (mate_pool_rm_index(mate_pool, i))
 				i--;
 		}

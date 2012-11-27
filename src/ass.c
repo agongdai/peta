@@ -957,7 +957,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		if (ass_eg->len % 50 == 0) {
 			show_debug_msg(__func__, "Assembling... [%d, %d] \n", ass_eg->id,
 					ass_eg->len);
-			clean_mate_pool(mate_pool);
+			clean_mate_pool(mate_pool, ass_eg);
 		}
 		// p_ctg_seq("CURRENT CONTIG", ass_eg->contig);
 		reset_c(next, c); // Reset the counter

@@ -43,7 +43,7 @@ int get_mid_pos(readarray *ra, const int ori, const int lib_mean);
 void upd_ctg_id(edge *eg, const int ctg_id);
 void upd_reads(edge *eg, const int mismatches);
 void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches);
-readarray *get_pairs_on_edge(edge *eg, bwa_seq_t *seqs);
+int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs);
 void log_reads(edgearray *ea);
 void log_edge(const edge *eg);
 void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift, const int gap,

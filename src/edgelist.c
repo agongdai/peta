@@ -721,18 +721,19 @@ void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
 	}
 }
 
-readarray *get_pairs_on_edge(edge *eg, bwa_seq_t *seqs) {
-	int i = 0;
+int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs) {
+	int i = 0, n_pairs = 0;
 	bwa_seq_t *read = NULL, *mate = NULL;
-	readarray *pairs = g_ptr_array_sized_new(16);
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		mate = get_mate(read, seqs);
 		if (mate->status == USED && mate->contig_id == eg->id) {
-			g_ptr_array_add(pairs, read);
+			n_pairs++;
 		}
+		if (n_pairs >= n_stop_pairs)
+			return 1;
 	}
-	return pairs;
+	return 0;
 }
 
 void p_edge_read(bwa_seq_t *p, FILE *log) {
