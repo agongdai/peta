@@ -36,8 +36,7 @@ int get_edges_ori(edge *eg_left, edge *eg_right, bwa_seq_t *seqs) {
 	int n_forward = 0, n_backward = 0;
 	bwa_seq_t *read = NULL, *mate = NULL;
 	int i = 0, ori = 0;
-	paired_reads = find_unconditional_paired_reads(eg_left,
-			eg_right, seqs);
+	paired_reads = find_unconditional_paired_reads(eg_left, eg_right, seqs);
 	if (paired_reads->len > 0) {
 		for (i = 0; i < paired_reads->len - 1; i += 2) {
 			read = g_ptr_array_index(paired_reads, i);
@@ -65,7 +64,8 @@ int get_edges_ori(edge *eg_left, edge *eg_right, bwa_seq_t *seqs) {
  * 	1: eg_1 is left
  *  -1: eg_1 is right
  */
-int est_pair_gap(edge *eg_1, edge *eg_2, const int order, const int insert_size, bwa_seq_t *seqs) {
+int est_pair_gap(edge *eg_1, edge *eg_2, const int order,
+		const int insert_size, bwa_seq_t *seqs) {
 	GPtrArray *paired_reads = NULL;
 	int i = 0;
 	bwa_seq_t *read = NULL, *mate = NULL;
@@ -113,8 +113,8 @@ int order_two_edges(edge *eg_1, edge *eg_2, bwa_seq_t *seqs) {
 
 	ori = get_edges_ori(eg_1, eg_2, seqs);
 	paired_reads = find_unconditional_paired_reads(eg_1, eg_2, seqs);
-	show_debug_msg(__func__, "Ordering edge %d and %d: %d pairs ...\n", eg_1->id,
-				eg_2->id, paired_reads->len);
+	show_debug_msg(__func__, "Ordering edge %d and %d: %d pairs ...\n",
+			eg_1->id, eg_2->id, paired_reads->len);
 	if (paired_reads->len < MIN_VALID_PAIRS) {
 		g_ptr_array_free(paired_reads, TRUE);
 		return 0;
@@ -154,19 +154,23 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 	edgearray *probable_in_out = NULL;
 	int i = 0, n_in_out = 0;
 	edge *in_out = NULL;
-	bwa_seq_t *read = NULL, *mate = NULL, *rev = NULL;
+	bwa_seq_t *read = NULL, *mate = NULL;
 	int *edge_index_got = NULL;
 	edge_index_got = (int*) calloc(all_edges->len + 1, sizeof(int));
-	show_debug_msg(__func__, "Checking probable in_out edges of edge [%d, %d]...\n", eg->id, eg->len);
+	show_debug_msg(__func__,
+			"Checking probable in_out edges of edge [%d, %d]...\n", eg->id,
+			eg->len);
 	p_ctg_seq("Contig", eg->contig);
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		if (read->status == USED)
 			continue;
 		mate = get_mate(read, seqs);
-		if (mate->status == FRESH || mate->contig_id < 0 || read->contig_id == mate->contig_id)
+		if (mate->status == FRESH || mate->contig_id < 0 || read->contig_id
+				== mate->contig_id)
 			continue;
-		show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id, all_edges->len);
+		show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id,
+				all_edges->len);
 		if (edge_index_got[mate->contig_id] == 0)
 			n_in_out++;
 		edge_index_got[mate->contig_id] = 1;
@@ -176,14 +180,13 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 	for (i = 0; i < all_edges->len; i++) {
 		if (edge_index_got[i] == 1) {
 			in_out = g_ptr_array_index(all_edges, i);
-			show_debug_msg(__func__, "Probable in_out: [%d, %d] \n", in_out->id, in_out->len);
-			rev = new_mem_rev_seq(eg->contig, eg->len, 0);
-			p_ctg_seq("Reverse", rev);
-			if (!has_reads_in_common(eg, in_out) && !share_subseq(eg->contig,
-					in_out->contig, MISMATCHES, 100) && !share_subseq(rev,
-					in_out->contig, MISMATCHES, 100))
+			show_debug_msg(__func__, "Probable in_out: [%d, %d] \n",
+					in_out->id, in_out->len);
+			if (!has_reads_in_common(eg, in_out) && !share_subseq_byte(
+					eg->contig->seq, eg->len, in_out->contig, MISMATCHES, 100)
+					&& !share_subseq_byte(eg->contig->rseq, eg->len,
+							in_out->contig, MISMATCHES, 100))
 				g_ptr_array_add(probable_in_out, in_out);
-			bwa_free_read_seq(1, rev);
 		}
 	}
 	free(edge_index_got);
@@ -289,9 +292,11 @@ GPtrArray *scaffolding(GPtrArray *single_edges, const int insert_size,
 
 	for (i = 0; i < single_edges->len; i++) {
 		eg_i = g_ptr_array_index(single_edges, i);
-		show_debug_msg(__func__, "Trying edge [%d/%d, %d] \n", eg_i->id, single_edges->len, eg_i->len);
+		show_debug_msg(__func__, "Trying edge [%d/%d, %d] \n", eg_i->id,
+				single_edges->len, eg_i->len);
 		probable_in_out = get_probable_in_out(single_edges, eg_i, seqs);
-		show_debug_msg(__func__, "Probable in_out size: %d \n", probable_in_out->len);
+		show_debug_msg(__func__, "Probable in_out size: %d \n",
+				probable_in_out->len);
 		for (j = 0; j < probable_in_out->len; j++) {
 			eg_j = g_ptr_array_index(probable_in_out, j);
 			if (eg_i == eg_j)
@@ -356,8 +361,8 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 					continue;
 				if (eg_i->visited && eg_j->visited)
 					continue;
-				paired_reads = find_unconditional_paired_reads(eg_i,
-						eg_j, seqs);
+				paired_reads
+						= find_unconditional_paired_reads(eg_i, eg_j, seqs);
 				if (paired_reads->len == 0) {
 					g_ptr_array_free(paired_reads, TRUE);
 					continue;
@@ -371,10 +376,9 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 				// 		We expect that no common reads
 				// 2. If the overlapping length is longer than read length,
 				//		There mush be some common reads.
-				has_common_read = has_reads_in_common(eg_i, eg_j); 
-				if ((ol >= MATE_OVERLAP_THRE && ol < rl
-						&& !has_common_read) || (ol > rl
-						&& has_common_read)) {
+				has_common_read = has_reads_in_common(eg_i, eg_j);
+				if ((ol >= MATE_OVERLAP_THRE && ol < rl && !has_common_read)
+						|| (ol > rl && has_common_read)) {
 					show_debug_msg(__func__,
 							"Merging edge [%d, %d] to edge [%d, %d]\n",
 							eg_j->id, eg_j->len, eg_i->id, eg_i->len);

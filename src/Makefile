@@ -1,7 +1,7 @@
 CC=			gcc
 CXX=		g++
 #CFLAGS=		`pkg-config --cflags --libs glib-2.0` -ggdb -g -Wall -O2 -pg
-CFLAGS=		-ggdb -g -Wall -O2 -pg $(shell pkg-config --cflags glib-2.0)
+CFLAGS=		-ggdb -g -Wall -O2 -pg $(shell pkg-config --libs gthread-2.0 --cflags glib-2.0)
 CXXFLAGS=	$(CFLAGS) $(shell pkg-config --cflags glib-2.0)
 DFLAGS=		-DHAVE_PTHREAD #-D_FILE_OFFSET_BITS=64
 OBJS=		rand.o utils.o roadmap.o bwt.o eva.o edge.o clean.o rnaseq.o \

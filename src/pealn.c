@@ -181,7 +181,7 @@ void pe_aln_query(const bwa_seq_t *query, const ubyte_t *q_seq,
 	hash_opt *hash_o;
 	hash_key *k_mers_occ_acc, key;
 	hash_value *pos, value;
-	GPtrArray *hits;
+	GPtrArray *hits = NULL;
 	pos_tuple *h;
 	bwa_seq_t *seqs;
 

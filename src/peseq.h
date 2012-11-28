@@ -105,7 +105,7 @@ int is_sub_seq(const bwa_seq_t *query, const int shift,
 		const bwa_seq_t *seq, int mismatches, const int ol_len);
 int is_sub_seq_byte(const ubyte_t *query, const int q_len, const int shift, const bwa_seq_t *seq,
 		int mismatches, const int ol);
-int share_subseq(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2, const int mismatches,
+int share_subseq_byte(const ubyte_t *seq_1, const int len, const bwa_seq_t *seq_2, const int mismatches,
 		const int ol);
 int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 		int mismatches);

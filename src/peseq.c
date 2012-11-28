@@ -683,14 +683,14 @@ int is_sub_seq_byte(const ubyte_t *query, const int q_len, const int shift,
 }
 
 // Check whether two seqs share some portion whose length is ol
-int share_subseq(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
+int share_subseq_byte(const ubyte_t *seq_1, const int len, const bwa_seq_t *seq_2,
 		const int mismatches, const int ol) {
 	int i = 0;
 	if (!seq_1 || !seq_2)
 		return 0;
-	for (i = 0; i < seq_1->len - ol; i++) {
+	for (i = 0; i < len - ol; i++) {
 		if ((ol < seq_2->len)
-				&& is_sub_seq(seq_1, i, seq_2, mismatches, ol) != NOT_FOUND)
+				&& is_sub_seq_byte(seq_1, len, i, seq_2, mismatches, ol) != NOT_FOUND)
 			return 1;
 	}
 	return 0;
