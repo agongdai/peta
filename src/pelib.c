@@ -29,6 +29,7 @@ int insert_size = 0;
 int sd_insert_size = 0;
 char *out_root = NULL;
 int n_threads = 1;
+GMutex *update_mutex;
 
 void pe_lib_help() {
 	show_msg(__func__, "--------------------------------------------------");
@@ -350,7 +351,10 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		eg = pre_eg;
 	} else {
 		eg = new_eg();
+		g_mutex_lock(update_mutex);
 		eg->id = pair_ctg_id;
+		pair_ctg_id++;
+		g_mutex_unlock(update_mutex);
 		eg->contig = new_seq(s, s->len, 0);
 		eg->len = s->len;
 	}
@@ -615,7 +619,6 @@ void est_insert_size(int n_max_pairs, char *lib_file, char *solid_file) {
 		//log_edge(eg);
 		destroy_eg(eg);
 		eg = NULL;
-		pair_ctg_id++;
 	}
 	mean_ins_size = mean(pairs, n_pairs);
 	sd_ins_size = std_dev(pairs, n_pairs);
@@ -645,10 +648,10 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 			destroy_eg(eg);
 			return 0;
 		} else {
+			g_mutex_lock(update_mutex);
 			*n_total_reads += eg->pairs->len;
 			g_ptr_array_add(all_edges, eg);
-			//log_edge(eg);
-			pair_ctg_id++;
+			g_mutex_unlock(update_mutex);
 			show_msg(__func__,
 					"[%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
 					eg->id, eg->len, eg->reads->len, eg->pairs->len,
@@ -722,18 +725,20 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 			show_debug_msg(__func__, "Probable single transcripts: [%d, %d]\n",
 					eg_1->id, eg_1->len);
 			keep_pairs_only(eg_1, ht->seqs);
+			g_mutex_lock(update_mutex);
 			*n_total_reads += eg_1->reads->len;
 			g_ptr_array_add(all_edges, eg_1);
-			pair_ctg_id++;
+			g_mutex_unlock(update_mutex);
 		}
 		if (eg_2 && eg_2->len > 100 && has_most_fresh_reads(eg_2->reads, 2)) {
 			show_debug_msg(__func__, "Probable single transcripts: [%d, %d]\n",
 					eg_2->id, eg_2->len);
 			keep_pairs_only(eg_2, ht->seqs);
+			g_mutex_lock(update_mutex);
 			*n_total_reads += eg_2->reads->len;
 			g_ptr_array_add(all_edges, eg_2);
-			upd_ctg_id(eg_2, pair_ctg_id);
-			pair_ctg_id++;
+			g_mutex_unlock(update_mutex);
+			upd_ctg_id(eg_2, eg_2->id);
 		}
 	}
 }
@@ -816,8 +821,6 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 
 	n_per_threads = solid_reads->len / 2 / n_threads;
 	data = (thread_aux_t*) calloc(n_threads, sizeof(thread_aux_t));
-	if (!g_thread_supported())
-		g_thread_init(NULL);
 	for (i = 0; i < n_threads; ++i) {
 		data[i].all_edges = all_edges;
 		data[i].solid_reads = solid_reads;
@@ -924,6 +927,9 @@ int pe_lib(int argc, char *argv[]) {
 	if (optind + 2 > argc) {
 		return pe_lib_usage();
 	}
+	if (!g_thread_supported())
+		g_thread_init(NULL);
+	update_mutex = g_mutex_new();
 	show_msg(__func__, "Maximum pairs: %d \n", n_max_pairs);
 	show_msg(__func__, "Overlap length: %d \n", overlap_len);
 	show_msg(__func__, "Output folder: %s \n", out_root);
