@@ -77,11 +77,11 @@ void keep_mates_in_pool(edge *eg, pool *cur_pool, int *next,
 		mate = get_mate(read, ht->seqs);
 		to_remove = 0;
 		// The mate of 'read' should be used already
-		//		if (strcmp(read->name, "6200654") == 0) {
-		//			show_debug_msg(__func__, "ORI: %d \n", ori);
-		//			p_query(__func__, mate);
-		//			p_query(__func__, read);
-		//		}
+		//if (strcmp(read->name, "6200654") == 0) {
+		//	show_debug_msg(__func__, "ORI: %d \n", ori);
+		//	p_query(__func__, mate);
+		//	p_query(__func__, read);
+		//}
 		if (is_paired(read, ori)) {
 			// If the mate is not used, remove 'read'
 			if ((read->rev_com != mate->rev_com) || (mate->status != USED)
@@ -669,21 +669,27 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 		const int start, const int end) {
 	int i = 0, share_subseq = 0, share_rev_subseq = 0;
-	bwa_seq_t *seqs = NULL, *unused_read = NULL, *mate = NULL;
+	bwa_seq_t *seqs = NULL, *s = NULL, *mate = NULL;
 	edge *eg_1 = NULL, *eg_2 = NULL, *eg = NULL;
 	readarray *pairs = NULL;
 
 	seqs = ht->seqs;
 	for (i = start; i < end; i++) {
-		if (*n_total_reads > ht->n_seqs * 0.98)
+		if (*n_total_reads > ht->n_seqs * 0.95)
 			break;
-		unused_read = &seqs[i];
-		mate = get_mate(unused_read, seqs);
-		if (unused_read->status != FRESH && mate->status != FRESH)
+		s = &seqs[i];
+		mate = get_mate(s, seqs);
+		if (s->status != FRESH && mate->status != FRESH)
 			continue;
-		eg_1 = pe_ext(ht, unused_read);
+		if (has_n(s) || is_biased_q(s) || has_rep_pattern(s)
+				|| is_repetitive_q(s))
+			continue;
+		if (has_n(mate) || is_biased_q(mate) || has_rep_pattern(mate)
+				|| is_repetitive_q(mate))
+			continue;
+		eg_1 = pe_ext(ht, s);
 		eg_2 = pe_ext(ht, mate);
-		unused_read->status = TRIED;
+		s->status = TRIED;
 		mate->status = TRIED;
 		// If the two edges can be merged
 		if (eg_1 && eg_2) {
@@ -716,7 +722,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 			show_debug_msg(__func__, "Probable single transcripts: [%d, %d]\n",
 					eg_1->id, eg_1->len);
 			keep_pairs_only(eg_1, ht->seqs);
-			*n_total_reads += eg_1->pairs->len;
+			*n_total_reads += eg_1->reads->len;
 			g_ptr_array_add(all_edges, eg_1);
 			pair_ctg_id++;
 		}
@@ -724,7 +730,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 			show_debug_msg(__func__, "Probable single transcripts: [%d, %d]\n",
 					eg_2->id, eg_2->len);
 			keep_pairs_only(eg_2, ht->seqs);
-			*n_total_reads += eg_2->pairs->len;
+			*n_total_reads += eg_2->reads->len;
 			g_ptr_array_add(all_edges, eg_2);
 			upd_ctg_id(eg_2, pair_ctg_id);
 			pair_ctg_id++;
@@ -748,20 +754,25 @@ static void *far_construct_thread(void *data) {
 	return NULL;
 }
 
+/**
+ * Initiate a thread to assemble from some solid reads
+ */
 static void *pe_lib_thread(void *data) {
 	int i = 0, *n_total_reads = NULL;
 	bwa_seq_t *query = NULL;
 	edge *eg = NULL;
 	thread_aux_t *d = (thread_aux_t*) data;
-	// d->end = d->start + 4;
 	show_debug_msg(__func__, "From %d to %d \n", d->start, d->end);
 	for (i = d->start; i < d->end; i++) {
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_total_reads = d->n_total_reads;
 		if (query->status != FRESH)
 			continue;
-		//if (*n_total_reads > d->ht->n_seqs * 0.9)
-		//	break;
+		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
+				|| is_repetitive_q(query))
+			continue;
+		if (n_total_reads > d->ht->n_seqs * 0.90)
+			break;
 		show_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", i,
 				pair_ctg_id, query->name);

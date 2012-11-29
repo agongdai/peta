@@ -306,7 +306,8 @@ int pool_exists(const pool *p, const bwa_seq_t *read) {
  * 'tg' and not the same as 'ct', remove read from the current pool.
  */
 
-void rm_partial(pool *cur_pool, pool *mate_pool, int ori, bwa_seq_t *seqs, bwa_seq_t *query, int nm) {
+void rm_partial(pool *cur_pool, pool *mate_pool, int ori, bwa_seq_t *seqs,
+		bwa_seq_t *query, int nm) {
 	int check_c_1 = 0, check_c_2 = 0, confirm_c = 0, confirm_c_2 = 0;
 	int removed = 0, is_at_end = 0, i = 0;
 	int similar = 1;
@@ -433,7 +434,8 @@ void clean_mate_pool(pool *mate_pool, edge *eg) {
 		return;
 	for (i = 0; i < mate_pool->reads->len; i++) {
 		mate = g_ptr_array_index(mate_pool->reads, i);
-		if (mate->status == USED || mate->is_in_c_pool || (mate->status == TRIED && mate->contig_id == eg->id)) {
+		if (mate->status == USED || mate->is_in_c_pool || (mate->status
+				== TRIED && mate->contig_id == eg->id)) {
 			if (mate_pool_rm_index(mate_pool, i))
 				i--;
 		}

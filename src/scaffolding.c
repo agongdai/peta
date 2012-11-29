@@ -223,6 +223,9 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 	return probable_in_out;
 }
 
+/**
+ * Merge two overlapped edges to a single one
+ */
 edge *merge_two_ol_edges(hash_table *ht, edge *eg_1, edge *eg_2, const int ol) {
 	int i = 0;
 	bwa_seq_t *r = NULL;
