@@ -195,7 +195,7 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 		show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id,
 				all_edges->len);
 		in_out = edgearray_find_id(raw_in_outs, mate->contig_id);
-		if (in_out->visited != 1) {
+		if (in_out && in_out->visited != 1) {
 			g_ptr_array_add(raw_in_outs, in_out);
 			n_in_out++;
 			in_out->visited = 1;
