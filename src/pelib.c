@@ -675,7 +675,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 
 	seqs = ht->seqs;
 	for (i = start; i < end; i++) {
-		if (*n_total_reads > ht->n_seqs * 0.95)
+		if (*n_total_reads > ht->n_seqs * 0.92)
 			break;
 		s = &seqs[i];
 		mate = get_mate(s, seqs);
@@ -771,7 +771,7 @@ static void *pe_lib_thread(void *data) {
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
 				|| is_repetitive_q(query))
 			continue;
-		if (n_total_reads > d->ht->n_seqs * 0.90)
+		if (*n_total_reads > d->ht->n_seqs * 0.90)
 			break;
 		show_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", i,
