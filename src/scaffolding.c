@@ -150,49 +150,6 @@ int order_two_edges(edge *eg_1, edge *eg_2, bwa_seq_t *seqs) {
 	return 0;
 }
 
-GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) {
-	edgearray *probable_in_out = NULL;
-	int i = 0, n_in_out = 0;
-	edge *in_out = NULL;
-	bwa_seq_t *read = NULL, *mate = NULL;
-	int *edge_index_got = NULL;
-	edge_index_got = (int*) calloc(all_edges->len + 1, sizeof(int));
-	show_debug_msg(__func__,
-			"Checking probable in_out edges of edge [%d, %d]...\n", eg->id,
-			eg->len);
-	p_ctg_seq("Contig", eg->contig);
-	for (i = 0; i < eg->reads->len; i++) {
-		read = g_ptr_array_index(eg->reads, i);
-		if (read->status == USED)
-			continue;
-		mate = get_mate(read, seqs);
-		if (mate->status == FRESH || mate->contig_id < 0 || read->contig_id
-				== mate->contig_id)
-			continue;
-		show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id,
-				all_edges->len);
-		if (edge_index_got[mate->contig_id] == 0)
-			n_in_out++;
-		edge_index_got[mate->contig_id] = 1;
-	}
-	probable_in_out = g_ptr_array_sized_new(n_in_out + 1);
-	show_debug_msg(__func__, "Checking shared subseq... \n");
-	for (i = 0; i < all_edges->len; i++) {
-		if (edge_index_got[i] == 1) {
-			in_out = g_ptr_array_index(all_edges, i);
-			show_debug_msg(__func__, "Probable in_out: [%d, %d] \n",
-					in_out->id, in_out->len);
-			if (!has_reads_in_common(eg, in_out) && !share_subseq_byte(
-					eg->contig->seq, eg->len, in_out->contig, MISMATCHES, 100)
-					&& !share_subseq_byte(eg->contig->rseq, eg->len,
-							in_out->contig, MISMATCHES, 100))
-				g_ptr_array_add(probable_in_out, in_out);
-		}
-	}
-	free(edge_index_got);
-	return probable_in_out;
-}
-
 /*
  * Check whether two edges contain any same read
  */
@@ -212,12 +169,58 @@ int has_reads_in_common(edge *eg_1, edge *eg_2) {
 		read = g_ptr_array_index(eg_fewer->reads, i);
 		exists = binary_exists(eg_more->reads, read);
 		if (exists) {
-			//show_debug_msg(__func__, "Edge [%d, %d] and [%d, %d] share a common read. \n", eg_1->id, eg_1->len, eg_2->id, eg_2->len);
-			//p_query(__func__, read);
 			return 1;
 		}
 	}
 	return 0;
+}
+
+GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) {
+	edgearray *probable_in_out = NULL, *raw_in_outs = NULL;
+	int i = 0, n_in_out = 0;
+	edge *in_out = NULL;
+	bwa_seq_t *read = NULL, *mate = NULL;
+	raw_in_outs = g_ptr_array_sized_new(all_edges->len + 1);
+	show_debug_msg(__func__,
+			"Checking probable in_out edges of edge [%d, %d]...\n", eg->id,
+			eg->len);
+	for (i = 0; i < eg->reads->len; i++) {
+		read = g_ptr_array_index(eg->reads, i);
+		if (read->status == USED)
+			continue;
+		mate = get_mate(read, seqs);
+		if (mate->status == FRESH || mate->contig_id < 0 || read->contig_id
+				== mate->contig_id)
+			continue;
+		show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id,
+				all_edges->len);
+		in_out = edgearray_find_id(raw_in_outs, mate->contig_id);
+		if (in_out->visited != 1) {
+			g_ptr_array_add(raw_in_outs, in_out);
+			n_in_out++;
+			in_out->visited = 1;
+		}
+	}
+	probable_in_out = g_ptr_array_sized_new(n_in_out + 1);
+	show_debug_msg(__func__, "Checking shared subseq... \n");
+	for (i = 0; i < raw_in_outs->len; i++) {
+		in_out = g_ptr_array_index(raw_in_outs, i);
+		show_debug_msg(__func__, "[%d] Probable in_out: [%d, %d] \n", i,
+				in_out->id, in_out->len);
+		p_ctg_seq("Contig", eg->contig);
+		if (!has_reads_in_common(eg, in_out) && !share_subseq_byte(
+				eg->contig->seq, eg->len, in_out->contig, MISMATCHES, 100)
+				&& !share_subseq_byte(eg->contig->rseq, eg->len,
+						in_out->contig, MISMATCHES, 100)) {
+			g_ptr_array_add(probable_in_out, in_out);
+		}
+	}
+	for (i = 0; i < raw_in_outs->len; i++) {
+		in_out = g_ptr_array_index(raw_in_outs, i);
+		in_out->visited = 0;
+	}
+	g_ptr_array_free(raw_in_outs, TRUE);
+	return probable_in_out;
 }
 
 edge *merge_two_ol_edges(hash_table *ht, edge *eg_1, edge *eg_2, const int ol) {
@@ -262,6 +265,7 @@ edge *merge_edges(edge *eg_1, edge *eg_2, hash_table *ht) {
 	if (order == 1) {
 		if (ori == 1) { // Means two edges are not in the same direction
 			seq_reverse(eg_2->len, eg_2->contig->seq, 1);
+			seq_reverse(eg_2->len, eg_2->contig->rseq, 1);
 			for (i = 0; i < eg_2->reads->len; i++) {
 				read = g_ptr_array_index(eg_2->reads, i);
 				read->rev_com = read->rev_com ? 0 : 1;
@@ -273,6 +277,7 @@ edge *merge_edges(edge *eg_1, edge *eg_2, hash_table *ht) {
 	} else {
 		if (ori == 1) { // Means two edges are not in the same direction
 			seq_reverse(eg_1->len, eg_1->contig->seq, 1);
+			seq_reverse(eg_1->len, eg_1->contig->rseq, 1);
 			for (i = 0; i < eg_1->reads->len; i++) {
 				read = g_ptr_array_index(eg_1->reads, i);
 				read->rev_com = read->rev_com ? 0 : 1;

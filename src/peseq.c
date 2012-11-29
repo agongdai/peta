@@ -107,6 +107,7 @@ int trun_seq(bwa_seq_t *s, const int shift) {
 
 bwa_seq_t *merge_seq_to_right(bwa_seq_t *s1, bwa_seq_t *s2, const int gap) {
 	int i = 0;
+	ubyte_t *rev = NULL;
 	if (!s1 || !s2)
 		return 0;
 	if (!s1->seq || !s2->seq)
@@ -121,11 +122,20 @@ bwa_seq_t *merge_seq_to_right(bwa_seq_t *s1, bwa_seq_t *s2, const int gap) {
 	memcpy(s2->seq, s1->seq, sizeof(ubyte_t) * s1->len);
 	s2->len += s1->len + gap;
 	s2->seq[s2->len] = '\0';
+
+	rev = s2->rseq;
+	free(rev);
+	rev = (ubyte_t*) malloc(s2->len + 1);
+	memcpy(rev, s2->seq, s2->len);
+	seq_reverse(s2->len, rev, 1);
+	rev[s2->len] = '\0';
+	s2->rseq = rev;
 	return s2;
 }
 
 bwa_seq_t *merge_seq_to_left(bwa_seq_t *s2, bwa_seq_t *s1, const int gap) {
 	int i = 0;
+	ubyte_t *rev = NULL;
 	if (!s1 || !s2)
 		return 0;
 	s2->full_len = (s1->len + s2->len + 1 + gap);
@@ -137,6 +147,14 @@ bwa_seq_t *merge_seq_to_left(bwa_seq_t *s2, bwa_seq_t *s1, const int gap) {
 	memcpy(&s2->seq[s2->len + gap], s1->seq, sizeof(ubyte_t) * s1->len);
 	s2->len += s1->len + gap;
 	s2->seq[s2->len] = '\0';
+
+	rev = s2->rseq;
+	free(rev);
+	rev = (ubyte_t*) malloc(s2->len + 1);
+	memcpy(rev, s2->seq, s2->len);
+	seq_reverse(s2->len, rev, 1);
+	rev[s2->len] = '\0';
+	s2->rseq = rev;
 	return s2;
 }
 
@@ -683,14 +701,14 @@ int is_sub_seq_byte(const ubyte_t *query, const int q_len, const int shift,
 }
 
 // Check whether two seqs share some portion whose length is ol
-int share_subseq_byte(const ubyte_t *seq_1, const int len, const bwa_seq_t *seq_2,
-		const int mismatches, const int ol) {
+int share_subseq_byte(const ubyte_t *seq_1, const int len,
+		const bwa_seq_t *seq_2, const int mismatches, const int ol) {
 	int i = 0;
 	if (!seq_1 || !seq_2)
 		return 0;
 	for (i = 0; i < len - ol; i++) {
-		if ((ol < seq_2->len)
-				&& is_sub_seq_byte(seq_1, len, i, seq_2, mismatches, ol) != NOT_FOUND)
+		if ((ol < seq_2->len) && is_sub_seq_byte(seq_1, len, i, seq_2,
+				mismatches, ol) != NOT_FOUND)
 			return 1;
 	}
 	return 0;

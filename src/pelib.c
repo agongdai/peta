@@ -666,19 +666,16 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 /**
  * For the transcripts: left side are right side are disconnected.
  */
-void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
+void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
+		const int start, const int end) {
 	int i = 0, share_subseq = 0, share_rev_subseq = 0;
 	bwa_seq_t *seqs = NULL, *unused_read = NULL, *mate = NULL;
 	edge *eg_1 = NULL, *eg_2 = NULL, *eg = NULL;
 	readarray *pairs = NULL;
 
-	show_msg(__func__, "--------------------------------------------------- \n");
-	show_msg(__func__, "Trying to construct disconnected transcripts... \n");
-	show_debug_msg(__func__,
-			"Trying to construct disconnected transcripts... \n");
 	seqs = ht->seqs;
-	for (i = 0; i < seqs->len; i++) {
-		if (n_total_reads > ht->n_seqs * 0.98)
+	for (i = start; i < end; i++) {
+		if (*n_total_reads > ht->n_seqs * 0.98)
 			break;
 		unused_read = &seqs[i];
 		mate = get_mate(unused_read, seqs);
@@ -703,7 +700,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 					if (pairs->len > MIN_VALID_PAIRS) {
 						eg = merge_edges(eg_1, eg_2, ht);
 						if (eg) {
-							validate_edge(all_edges, eg, ht, &n_total_reads);
+							validate_edge(all_edges, eg, ht, n_total_reads);
 							upd_reads_by_ht(ht, eg, MISMATCHES);
 							eg_1 = NULL;
 							eg_2 = NULL;
@@ -716,16 +713,18 @@ void far_construct(hash_table *ht, edgearray *all_edges, int n_total_reads) {
 			}
 		} // If the length is longer than 100, keep it.
 		if (eg_1 && eg_1->len > 100 && has_most_fresh_reads(eg_1->reads, 2)) {
+			show_debug_msg(__func__, "Probable single transcripts: [%d, %d]\n",
+					eg_1->id, eg_1->len);
 			keep_pairs_only(eg_1, ht->seqs);
-			n_total_reads += eg_1->pairs->len;
+			*n_total_reads += eg_1->pairs->len;
 			g_ptr_array_add(all_edges, eg_1);
 			pair_ctg_id++;
-			//validate_edge(all_edges, eg_1, ht, &n_total_reads);
 		}
 		if (eg_2 && eg_2->len > 100 && has_most_fresh_reads(eg_2->reads, 2)) {
-			//if (validate_edge(all_edges, eg_2, ht, &n_total_reads))
+			show_debug_msg(__func__, "Probable single transcripts: [%d, %d]\n",
+					eg_2->id, eg_2->len);
 			keep_pairs_only(eg_2, ht->seqs);
-			n_total_reads += eg_2->pairs->len;
+			*n_total_reads += eg_2->pairs->len;
 			g_ptr_array_add(all_edges, eg_2);
 			upd_ctg_id(eg_2, pair_ctg_id);
 			pair_ctg_id++;
@@ -740,10 +739,17 @@ typedef struct {
 	int *n_total_reads;
 	int start;
 	int end;
+	int tid;
 } thread_aux_t;
 
-static void *pe_lib_part(void *data) {
-	int i = 0;
+static void *far_construct_thread(void *data) {
+	thread_aux_t *d = (thread_aux_t*) data;
+	far_construct(d->ht, d->all_edges, d->n_total_reads, d->start, d->end);
+	return NULL;
+}
+
+static void *pe_lib_thread(void *data) {
+	int i = 0, *n_total_reads = NULL;
 	bwa_seq_t *query = NULL;
 	edge *eg = NULL;
 	thread_aux_t *d = (thread_aux_t*) data;
@@ -751,8 +757,11 @@ static void *pe_lib_part(void *data) {
 	show_debug_msg(__func__, "From %d to %d \n", d->start, d->end);
 	for (i = d->start; i < d->end; i++) {
 		query = g_ptr_array_index(d->solid_reads, i);
+		n_total_reads = d->n_total_reads;
 		if (query->status != FRESH)
 			continue;
+		//if (*n_total_reads > d->ht->n_seqs * 0.9)
+		//	break;
 		show_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", i,
 				pair_ctg_id, query->name);
@@ -794,7 +803,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	}
 	fclose(solid);
 
-	n_per_threads = solid_reads->len / n_threads;
+	n_per_threads = solid_reads->len / 2 / n_threads;
 	data = (thread_aux_t*) calloc(n_threads, sizeof(thread_aux_t));
 	if (!g_thread_supported())
 		g_thread_init(NULL);
@@ -805,11 +814,12 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		data[i].n_total_reads = &n_total_reads;
 		data[i].start = i * n_per_threads;
 		data[i].end = (i + 1) * n_per_threads;
+		data[i].tid = i;
 		if (i == n_threads - 1)
-			data[i].end = solid_reads->len;
+			data[i].end = solid_reads->len / 2;
 		//rc = pthread_create(&threads[i], NULL, pe_lib_part, data + i);
 		threads[i]
-				= g_thread_create((GThreadFunc) pe_lib_part, data + i, TRUE, NULL);
+				= g_thread_create((GThreadFunc) pe_lib_thread, data + i, TRUE, NULL);
 	}
 
 	/* wait for threads to finish */
@@ -817,9 +827,32 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		//rc = pthread_join(threads[i], NULL);
 		g_thread_join(threads[i]);
 	}
+	show_msg(__func__, "--------------------------------------------------- \n");
+	show_msg(__func__, "Trying to construct disconnected transcripts... \n");
+	show_debug_msg(__func__,
+			"Trying to construct disconnected transcripts... \n");
+	n_per_threads = ht->n_seqs / n_threads;
+	for (i = 0; i < n_threads; ++i) {
+		data[i].all_edges = all_edges;
+		data[i].solid_reads = solid_reads;
+		data[i].ht = ht;
+		data[i].n_total_reads = &n_total_reads;
+		data[i].start = i * n_per_threads;
+		data[i].end = (i + 1) * n_per_threads;
+		data[i].tid = i;
+		if (i == n_threads - 1)
+			data[i].end = ht->n_seqs;
+		threads[i]
+				= g_thread_create((GThreadFunc) far_construct_thread, data + i, TRUE, NULL);
+	}
+	/* wait for threads to finish */
+	for (i = 0; i < n_threads; ++i) {
+		//rc = pthread_join(threads[i], NULL);
+		g_thread_join(threads[i]);
+	}
 
+	free(data);
 	g_ptr_array_free(solid_reads, TRUE);
-	//far_construct(ht, all_edges, n_total_reads);
 	save_edges(all_edges, pair_contigs, 0, 0, 100);
 	fflush(pair_contigs);
 	show_msg(__func__, "Merging edges by overlapping... \n");
@@ -842,7 +875,6 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	free(name);
 	fclose(pair_contigs);
 	fclose(merged_pair_contigs);
-	g_ptr_array_free(solid_reads, TRUE);
 	g_ptr_array_free(all_edges, TRUE);
 	destroy_ht(ht);
 }
