@@ -378,15 +378,22 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 				g_ptr_array_free(paired_reads, TRUE);
 				rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len, 0);
 
-				//show_debug_msg(__func__, "\t sub edge [%d/%d, %d]... %.2f sec\n", eg_j->id, single_edges->len, eg_j->len, (float) (clock() - t) / CLOCKS_PER_SEC);
-				ol = find_ol(eg_i->contig, eg_j->contig, MISMATCHES);
+				show_debug_msg(__func__,
+						"\t sub edge [%d/%d, %d]... %.2f sec\n", eg_j->id,
+						single_edges->len, eg_j->len, (float) (clock() - t)
+								/ CLOCKS_PER_SEC);
+				ol = find_ol(eg_i->contig, eg_j->contig, MISMATCHES * 2);
 				// 1. If the overlapping length is shorter than read length,
 				// 		We expect that no common reads
 				// 2. If the overlapping length is longer than read length,
 				//		There mush be some common reads.
 				has_common_read = has_reads_in_common(eg_i, eg_j);
-				if ((ol >= MATE_OVERLAP_THRE && ol < rl && !has_common_read)
-						|| (ol > rl && has_common_read)) {
+				show_debug_msg(__func__,
+						"Overlapped: %d; Has common reads: %d \n", ol,
+						has_common_read);
+				if ((ol >= MATE_OVERLAP_THRE && ol >= MISMATCHES * 10 && ol
+						< rl && !has_common_read) || (ol > rl
+						&& has_common_read)) {
 					show_debug_msg(__func__,
 							"Merging edge [%d, %d] to edge [%d, %d]\n",
 							eg_j->id, eg_j->len, eg_i->id, eg_i->len);
@@ -394,8 +401,13 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 					eg_i->visited = 0;
 					some_one_merged = 1;
 				} else {
+					show_debug_msg(__func__,
+											"Reverse Overlapped: %d; Has common reads: %d \n", ol,
+											has_common_read);
 					ol = find_ol(eg_i->contig, rev, MISMATCHES);
-					if (ol >= MATE_OVERLAP_THRE) {
+					if ((ol >= MATE_OVERLAP_THRE && ol >= MISMATCHES * 10 && ol
+							< rl && !has_common_read) || (ol > rl
+							&& has_common_read)) {
 						show_debug_msg(__func__,
 								"Merging edge [%d, %d] to edge [%d, %d]\n",
 								eg_j->id, eg_j->len, eg_i->id, eg_i->len);

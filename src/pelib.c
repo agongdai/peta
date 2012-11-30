@@ -678,7 +678,8 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 
 	seqs = ht->seqs;
 	for (i = start; i < end; i++) {
-		if (*n_total_reads > ht->n_seqs * 0.92 || *n_single_edges >= MAX_SINGLE_EDGES)
+		if (*n_total_reads > ht->n_seqs * 0.95 || *n_single_edges
+				>= MAX_SINGLE_EDGES)
 			break;
 		s = &seqs[i];
 		mate = get_mate(s, seqs);
@@ -721,9 +722,13 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 				}
 			}
 		} // If the length is longer than 100, keep it.
-		if (eg_1 && eg_1->len > SINGLE_EDGE_THRE && has_most_fresh_reads(eg_1->reads, 2)) {
-			show_debug_msg(__func__, "Probable single transcripts %d: [%d, %d], Total reads %d/%d\n", *n_single_edges,
-					eg_1->id, eg_1->len, *n_total_reads, ht->n_seqs);
+		if (eg_1 && eg_1->len > SINGLE_EDGE_THRE && has_most_fresh_reads(
+				eg_1->reads, 2)) {
+			show_debug_msg(
+					__func__,
+					"Probable single transcripts %d: [%d, %d], Total reads %d/%d\n",
+					*n_single_edges, eg_1->id, eg_1->len, *n_total_reads,
+					ht->n_seqs);
 			keep_pairs_only(eg_1, ht->seqs);
 			g_mutex_lock(update_mutex);
 			*n_total_reads += eg_1->reads->len;
@@ -731,9 +736,13 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 			*n_single_edges += 1;
 			g_mutex_unlock(update_mutex);
 		}
-		if (eg_2 && eg_2->len > SINGLE_EDGE_THRE && has_most_fresh_reads(eg_2->reads, 2)) {
-			show_debug_msg(__func__, "Probable single transcripts %d: [%d, %d], Total reads %d/%d\n", *n_single_edges,
-					eg_2->id, eg_2->len, *n_total_reads, ht->n_seqs);
+		if (eg_2 && eg_2->len > SINGLE_EDGE_THRE && has_most_fresh_reads(
+				eg_2->reads, 2)) {
+			show_debug_msg(
+					__func__,
+					"Probable single transcripts %d: [%d, %d], Total reads %d/%d\n",
+					*n_single_edges, eg_2->id, eg_2->len, *n_total_reads,
+					ht->n_seqs);
 			keep_pairs_only(eg_2, ht->seqs);
 			g_mutex_lock(update_mutex);
 			*n_total_reads += eg_2->reads->len;
@@ -750,6 +759,7 @@ typedef struct {
 	readarray *solid_reads;
 	hash_table *ht;
 	int *n_total_reads;
+	int *n_single_edges;
 	int start;
 	int end;
 	int tid;
@@ -757,8 +767,8 @@ typedef struct {
 
 static void *far_construct_thread(void *data) {
 	thread_aux_t *d = (thread_aux_t*) data;
-	int n_single_edges = 0;
-	far_construct(d->ht, d->all_edges, d->n_total_reads, d->start, d->end, &n_single_edges);
+	far_construct(d->ht, d->all_edges, d->n_total_reads, d->start, d->end,
+			d->n_single_edges);
 	return NULL;
 }
 
@@ -779,7 +789,7 @@ static void *pe_lib_thread(void *data) {
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
 				|| is_repetitive_q(query))
 			continue;
-		if (*n_total_reads > d->ht->n_seqs * 0.90)
+		if (*n_total_reads > d->ht->n_seqs * 0.92)
 			break;
 		show_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", i,
@@ -799,7 +809,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	bwa_seq_t *query = NULL, *seqs = NULL;
 	FILE *solid = NULL;
 	char line[80], *name = NULL;
-	int i = 0, n_total_reads = 0, n_per_threads = 0;
+	int i = 0, n_total_reads = 0, n_per_threads = 0, n_single_edges;
 	GPtrArray *all_edges = NULL, *final_paths = NULL;
 	readarray *solid_reads = NULL;
 	thread_aux_t *data;
@@ -829,6 +839,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		data[i].solid_reads = solid_reads;
 		data[i].ht = ht;
 		data[i].n_total_reads = &n_total_reads;
+		data[i].n_single_edges = &n_single_edges;
 		data[i].start = i * n_per_threads;
 		data[i].end = (i + 1) * n_per_threads;
 		data[i].tid = i;
@@ -854,6 +865,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		data[i].solid_reads = solid_reads;
 		data[i].ht = ht;
 		data[i].n_total_reads = &n_total_reads;
+		data[i].n_single_edges = &n_single_edges;
 		data[i].start = i * n_per_threads;
 		data[i].end = (i + 1) * n_per_threads;
 		data[i].tid = i;
@@ -902,6 +914,22 @@ int pe_lib_usage() {
 	return 1;
 }
 
+void test_smith_waterman(char *lib_file) {
+	hash_table *ht = NULL;
+	bwa_seq_t *seqs = NULL, *read_1 = NULL, *read_2 = NULL;
+	int score = 0;
+
+	ht = pe_load_hash(lib_file);
+	seqs = ht->seqs;
+
+	read_1 = &seqs[0];
+	read_2 = &seqs[1];
+	score = smith_waterman(read_1, read_2, 2, -1, -1, 0);
+	p_query(__func__, read_1);
+	p_query(__func__, read_2);
+	show_debug_msg(__func__, "Similarity score: %d \n", score);
+}
+
 int pe_lib(int argc, char *argv[]) {
 	clock_t t = clock();
 	int c = 0, n_max_pairs = 0;
@@ -927,6 +955,7 @@ int pe_lib(int argc, char *argv[]) {
 			break;
 		}
 	}
+//	test_smith_waterman(argv[optind]);
 	if (optind + 2 > argc) {
 		return pe_lib_usage();
 	}
