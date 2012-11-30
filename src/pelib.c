@@ -780,10 +780,18 @@ static void *pe_lib_thread(void *data) {
 	bwa_seq_t *query = NULL;
 	edge *eg = NULL;
 	thread_aux_t *d = (thread_aux_t*) data;
+	hash_table *ht = NULL;
 	show_debug_msg(__func__, "From %d to %d \n", d->start, d->end);
+	ht = d->ht;
 	for (i = d->start; i < d->end; i++) {
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_total_reads = d->n_total_reads;
+//		if (pair_ctg_id == 0)
+//			query = &ht->seqs[31731];
+//		if (pair_ctg_id == 1)
+//			query = &ht->seqs[3454934];
+//		if (pair_ctg_id == 2)
+//			query = &ht->seqs[2476796];
 		if (query->status != FRESH)
 			continue;
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
@@ -800,6 +808,8 @@ static void *pe_lib_thread(void *data) {
 		eg = pe_ext(d->ht, query);
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		eg = NULL;
+//		if (pair_ctg_id == 3)
+//			break;
 	}
 	return NULL;
 }
@@ -814,9 +824,9 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	readarray *solid_reads = NULL;
 	thread_aux_t *data;
 	GThread *threads[n_threads];
+	FILE *pair_contigs = NULL;
+	FILE *merged_pair_contigs = NULL;
 
-	FILE *pair_contigs = xopen("pair_contigs.fa", "w");
-	FILE *merged_pair_contigs = xopen("merged_pair_contigs.fa", "w");
 	solid = xopen(solid_file, "r");
 	show_msg(__func__, "Library: %s \n", lib_file);
 	show_msg(__func__, "Solid Reads: %s \n", solid_file);
@@ -855,7 +865,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		//rc = pthread_join(threads[i], NULL);
 		g_thread_join(threads[i]);
 	}
-	show_msg(__func__, "--------------------------------------------------- \n");
+	show_msg(__func__, "\n ========================================== \n");
 	show_msg(__func__, "Trying to construct disconnected transcripts... \n");
 	show_debug_msg(__func__,
 			"Trying to construct disconnected transcripts... \n");
@@ -882,15 +892,27 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 
 	free(data);
 	g_ptr_array_free(solid_reads, TRUE);
+
+	name = get_output_file("pair_contigs.fa");
+	pair_contigs = xopen(name, "w");
 	save_edges(all_edges, pair_contigs, 0, 0, 100);
 	fflush(pair_contigs);
+	free(name);
+
+	show_msg(__func__, "\n ========================================== \n");
 	show_msg(__func__, "Merging edges by overlapping... \n");
 	merge_ol_edges(all_edges, insert_size, ht);
+	name = get_output_file("merged_pair_contigs.fa");
+	merged_pair_contigs = xopen(name, "w");
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 100);
 	fflush(merged_pair_contigs);
+	free(name);
+
+	show_msg(__func__, "\n ========================================== \n");
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
 	scaffolding(all_edges, insert_size, ht->seqs);
 
+	show_msg(__func__, "\n ========================================== \n");
 	show_msg(__func__, "Saving the roadmap... \n");
 	name = get_output_file("roadmap.dot");
 	graph_by_edges(all_edges, name);
@@ -901,6 +923,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	final_paths = report_paths(all_edges, seqs);
 	name = get_output_file("peta.fa");
 	save_paths(final_paths, name, 100);
+
 	free(name);
 	fclose(pair_contigs);
 	fclose(merged_pair_contigs);
@@ -922,9 +945,9 @@ void test_smith_waterman(char *lib_file) {
 	ht = pe_load_hash(lib_file);
 	seqs = ht->seqs;
 
-	read_1 = &seqs[0];
-	read_2 = &seqs[1];
-	score = smith_waterman(read_1, read_2, 2, -1, -1, 0);
+	read_1 = &seqs[1646764];
+	read_2 = &seqs[2299221];
+	score = smith_waterman(read_1, read_2, 2, -1, -2, 0);
 	p_query(__func__, read_1);
 	p_query(__func__, read_2);
 	show_debug_msg(__func__, "Similarity score: %d \n", score);
@@ -955,7 +978,7 @@ int pe_lib(int argc, char *argv[]) {
 			break;
 		}
 	}
-//	test_smith_waterman(argv[optind]);
+	//test_smith_waterman(argv[optind]);
 	if (optind + 2 > argc) {
 		return pe_lib_usage();
 	}

@@ -243,7 +243,7 @@ edge *merge_two_ol_edges(hash_table *ht, edge *eg_1, edge *eg_2, const int ol) {
 	//show_debug_msg(__func__, "Clearing reads ... \n");
 	clear_used_reads(eg_2, 0);
 	//show_debug_msg(__func__, "Updating reads %d=>%d ... \n", eg_1->id, eg_1->reads->len);
-	upd_reads_by_ht(ht, eg_1, MISMATCHES);
+	upd_reads(eg_1, MISMATCHES);
 	//show_debug_msg(__func__, "Updated ... \n");
 	for (i = 0; i < eg_1->reads->len; i++) {
 		r = g_ptr_array_index(eg_1->reads, i);
@@ -357,40 +357,38 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		some_one_merged = 0;
 		for (i = 0; i < single_edges->len; i++) {
 			eg_i = g_ptr_array_index(single_edges, i);
-			eg_i->visited = 1;
 			if (!eg_i->alive)
 				continue;
-			//show_debug_msg(__func__, "Trying edge [%d/%d, %d]... %.2f sec\n", eg_i->id, single_edges->len, eg_i->len, (float) (clock() - t) / CLOCKS_PER_SEC);
+			show_debug_msg(__func__, "Trying edge [%d/%d, %d]... %.2f sec\n", eg_i->id, single_edges->len, eg_i->len, (float) (clock() - t) / CLOCKS_PER_SEC);
 			for (j = 0; j < single_edges->len; j++) {
 				eg_j = g_ptr_array_index(single_edges, j);
-				eg_i->visited = 1;
 				if (!eg_j->alive || eg_i == eg_j || (eg_i->len < 100
 						&& eg_j->len < 100))
 					continue;
 				if (eg_i->visited && eg_j->visited)
 					continue;
-				paired_reads
-						= find_unconditional_paired_reads(eg_i, eg_j, seqs);
-				if (paired_reads->len == 0) {
-					g_ptr_array_free(paired_reads, TRUE);
-					continue;
-				}
+				//paired_reads
+				//		= find_unconditional_paired_reads(eg_i, eg_j, seqs);
+				//if (paired_reads->len == 0) {
+				//	g_ptr_array_free(paired_reads, TRUE);
+				//	continue;
+				//}
 				g_ptr_array_free(paired_reads, TRUE);
 				rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len, 0);
 
-				show_debug_msg(__func__,
-						"\t sub edge [%d/%d, %d]... %.2f sec\n", eg_j->id,
-						single_edges->len, eg_j->len, (float) (clock() - t)
-								/ CLOCKS_PER_SEC);
+				//show_debug_msg(__func__,
+				//		"\t sub edge [%d/%d, %d]... %.2f sec\n", eg_j->id,
+				//		single_edges->len, eg_j->len, (float) (clock() - t)
+				//				/ CLOCKS_PER_SEC);
 				ol = find_ol(eg_i->contig, eg_j->contig, MISMATCHES * 2);
 				// 1. If the overlapping length is shorter than read length,
 				// 		We expect that no common reads
 				// 2. If the overlapping length is longer than read length,
 				//		There mush be some common reads.
 				has_common_read = has_reads_in_common(eg_i, eg_j);
-				show_debug_msg(__func__,
-						"Overlapped: %d; Has common reads: %d \n", ol,
-						has_common_read);
+				//show_debug_msg(__func__,
+				//		"Overlapped: %d; Has common reads: %d \n", ol,
+				//		has_common_read);
 				if ((ol >= MATE_OVERLAP_THRE && ol >= MISMATCHES * 10 && ol
 						< rl && !has_common_read) || (ol > rl
 						&& has_common_read)) {
@@ -400,6 +398,8 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 					merge_two_ol_edges(ht, eg_i, eg_j, ol);
 					eg_i->visited = 0;
 					some_one_merged = 1;
+					bwa_free_read_seq(1, rev);
+					continue;
 				} else {
 					show_debug_msg(__func__,
 											"Reverse Overlapped: %d; Has common reads: %d \n", ol,
@@ -419,6 +419,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 						continue; // In case the 'rev' is freed accidently.
 					}
 				}
+				eg_i->visited = 1;
 				bwa_free_read_seq(1, rev);
 			}
 		}

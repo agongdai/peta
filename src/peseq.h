@@ -96,7 +96,7 @@ void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp);
 indexes *load_index(const char *fn);
 int same_q(const bwa_seq_t *query, const bwa_seq_t *seq);
 int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
-		const int mismatches, const int score_mat, const int score_mis,
+		const int mismatches, const int max_n_gaps, const int score_mat, const int score_mis,
 		const int score_gap);
 int is_biased_q(const bwa_seq_t *query);
 int is_sub_seq_aln(const ubyte_t *query, const int q_len, const int shift,

@@ -68,7 +68,6 @@ SPBC1604.14c_T0: Trinity/all.txt,cufflinks/all.txt
 SPBC1706.03_T0: Trinity/all.txt,cufflinks/all.txt
 SPBC1711.18_T0: Trinity/all.txt,cufflinks/all.txt
 SPBC1734.07c_T0: Trinity/all.txt,cufflinks/all.txt
-SPBC1734.10c_T0: Trinity/all.txt,cufflinks/all.txt
 SPBC1773.06c_T0: Trinity/all.txt,cufflinks/all.txt
 SPBC19G7.04_T0: Trinity/all.txt,cufflinks/all.txt
 SPBC1A4.10c_T0: Trinity/all.txt,cufflinks/all.txt
@@ -85,7 +84,6 @@ SPBC354.15_T0: Trinity/all.txt,cufflinks/all.txt
 SPBC3B8.11_T0: Trinity/all.txt,cufflinks/all.txt
 SPBC3B9.15c_T0: Trinity/all.txt,cufflinks/all.txt
 SPBC4.03c_T0: Trinity/all.txt,cufflinks/all.txt
-SPBC405.03c_T0: Trinity/all.txt,cufflinks/all.txt
 SPBC56F2.14_T0: Trinity/all.txt,cufflinks/all.txt
 SPBC83.03c_T0: Trinity/all.txt,cufflinks/all.txt
 SPBC902.02c_T0: Trinity/all.txt,cufflinks/all.txt
@@ -95,6 +93,7 @@ SPBP8B7.07c_T0: Trinity/all.txt,cufflinks/all.txt
 SPCC1183.01_T0: Trinity/all.txt,cufflinks/all.txt
 SPCC1183.03c_T0: Trinity/all.txt,cufflinks/all.txt
 SPCC1620.12c_T0: Trinity/all.txt,cufflinks/all.txt
+SPCC1682.08c_T0: Trinity/all.txt,cufflinks/all.txt
 SPCC1682.11c_T0: Trinity/all.txt,cufflinks/all.txt
 SPCC18.17c_T0: Trinity/all.txt,cufflinks/all.txt
 SPCC1840.08c_T0: Trinity/all.txt,cufflinks/all.txt
@@ -215,6 +214,7 @@ SPAC1952.15c_T0: cufflinks/all.txt
 SPAC1952.16_T0: cufflinks/all.txt
 SPAC1952.17c_T0: cufflinks/all.txt
 SPAC19A8.01c_T0: cufflinks/all.txt
+SPAC19A8.08_T0: cufflinks/all.txt
 SPAC19B12.03_T0: cufflinks/all.txt
 SPAC19B12.07c_T0: cufflinks/all.txt
 SPAC19B12.10_T0: cufflinks/all.txt
@@ -288,7 +288,6 @@ SPAC25A8.02_T0: cufflinks/all.txt
 SPAC25B8.18_T0: cufflinks/all.txt
 SPAC25G10.02_T0: cufflinks/all.txt
 SPAC25G10.09c_T0: cufflinks/all.txt
-SPAC26A3.09c_T0: cufflinks/all.txt
 SPAC26F1.01_T0: cufflinks/all.txt
 SPAC26F1.08c_T0: cufflinks/all.txt
 SPAC26H5.04_T0: cufflinks/all.txt
@@ -472,7 +471,6 @@ SPBC13G1.10c_T0: cufflinks/all.txt
 SPBC13G1.15c_T0: cufflinks/all.txt
 SPBC146.01_T0: cufflinks/all.txt
 SPBC146.02_T0: cufflinks/all.txt
-SPBC146.03c_T0: cufflinks/all.txt
 SPBC146.06c_T0: cufflinks/all.txt
 SPBC14C8.08c_T0: cufflinks/all.txt
 SPBC14C8.09c_T0: cufflinks/all.txt
@@ -611,7 +609,6 @@ SPBC36.13_T0: cufflinks/all.txt
 SPBC365.15_T0: cufflinks/all.txt
 SPBC36B7.05c_T0: cufflinks/all.txt
 SPBC36B7.09_T0: cufflinks/all.txt
-SPBC3D6.03c_T0: cufflinks/all.txt
 SPBC3D6.04c_T0: cufflinks/all.txt
 SPBC3D6.07_T0: cufflinks/all.txt
 SPBC3D6.10_T0: cufflinks/all.txt
@@ -647,7 +644,6 @@ SPBC725.06c_T0: cufflinks/all.txt
 SPBC776.06c_T0: cufflinks/all.txt
 SPBC776.13_T0: cufflinks/all.txt
 SPBC800.11_T0: cufflinks/all.txt
-SPBC800.13_T0: cufflinks/all.txt
 SPBC839.06_T0: cufflinks/all.txt
 SPBC887.16_T0: cufflinks/all.txt
 SPBC8D2.05c_T0: cufflinks/all.txt
@@ -784,7 +780,6 @@ SPCC622.13c_T0: cufflinks/all.txt
 SPCC63.04_T0: cufflinks/all.txt
 SPCC63.05_T0: cufflinks/all.txt
 SPCC63.13_T0: cufflinks/all.txt
-SPCC645.02_T0: cufflinks/all.txt
 SPCC645.05c_T0: cufflinks/all.txt
 SPCC645.06c_T0: cufflinks/all.txt
 SPCC645.07_T0: cufflinks/all.txt
@@ -2947,6 +2942,7 @@ SPBC1734.04_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPBC1734.05c_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPBC1734.06_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPBC1734.08_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
+SPBC1734.10c_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPBC1734.11_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPBC1734.12c_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPBC1734.13_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
@@ -3501,6 +3497,7 @@ SPBC4.06_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPBC4.07c_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPBC405.01_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPBC405.02c_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
+SPBC405.03c_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPBC405.04c_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPBC405.05_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPBC405.06_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
@@ -4034,7 +4031,6 @@ SPCC1682.01_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPCC1682.04_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPCC1682.06_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPCC1682.07_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
-SPCC1682.08c_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPCC1682.09c_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPCC1682.10_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
 SPCC1682.12c_T0: peta/all.txt,Trinity/all.txt,cufflinks/all.txt
@@ -4527,7 +4523,6 @@ SPAC1805.15c_T0: peta/all.txt,cufflinks/all.txt
 SPAC1834.09_T0: peta/all.txt,cufflinks/all.txt
 SPAC186.03_T0: peta/all.txt,cufflinks/all.txt
 SPAC18B11.03c_T0: peta/all.txt,cufflinks/all.txt
-SPAC19A8.08_T0: peta/all.txt,cufflinks/all.txt
 SPAC19B12.08_T0: peta/all.txt,cufflinks/all.txt
 SPAC19B12.14_T0: peta/all.txt,cufflinks/all.txt
 SPAC19D5.07_T0: peta/all.txt,cufflinks/all.txt
@@ -4556,6 +4551,7 @@ SPAC25B8.08_T0: peta/all.txt,cufflinks/all.txt
 SPAC25B8.09_T0: peta/all.txt,cufflinks/all.txt
 SPAC25B8.13c_T0: peta/all.txt,cufflinks/all.txt
 SPAC25B8.14_T0: peta/all.txt,cufflinks/all.txt
+SPAC26A3.09c_T0: peta/all.txt,cufflinks/all.txt
 SPAC26A3.13c_T0: peta/all.txt,cufflinks/all.txt
 SPAC26F1.09_T0: peta/all.txt,cufflinks/all.txt
 SPAC26F1.14c_T0: peta/all.txt,cufflinks/all.txt
@@ -4649,6 +4645,7 @@ SPBC1215.02c_T0: peta/all.txt,cufflinks/all.txt
 SPBC1289.17_T0: peta/all.txt,cufflinks/all.txt
 SPBC1347.03_T0: peta/all.txt,cufflinks/all.txt
 SPBC13E7.02_T0: peta/all.txt,cufflinks/all.txt
+SPBC146.03c_T0: peta/all.txt,cufflinks/all.txt
 SPBC15C4.03_T0: peta/all.txt,cufflinks/all.txt
 SPBC15D4.01c_T0: peta/all.txt,cufflinks/all.txt
 SPBC1604.15_T0: peta/all.txt,cufflinks/all.txt
@@ -4711,6 +4708,7 @@ SPBC3B9.09_T0: peta/all.txt,cufflinks/all.txt
 SPBC3B9.16c_T0: peta/all.txt,cufflinks/all.txt
 SPBC3B9.17_T0: peta/all.txt,cufflinks/all.txt
 SPBC3B9.21_T0: peta/all.txt,cufflinks/all.txt
+SPBC3D6.03c_T0: peta/all.txt,cufflinks/all.txt
 SPBC3F6.05_T0: peta/all.txt,cufflinks/all.txt
 SPBC3H7.02_T0: peta/all.txt,cufflinks/all.txt
 SPBC3H7.06c_T0: peta/all.txt,cufflinks/all.txt
@@ -4738,6 +4736,7 @@ SPBC6B1.07_T0: peta/all.txt,cufflinks/all.txt
 SPBC713.13_T0: peta/all.txt,cufflinks/all.txt
 SPBC776.16_T0: peta/all.txt,cufflinks/all.txt
 SPBC800.10c_T0: peta/all.txt,cufflinks/all.txt
+SPBC800.13_T0: peta/all.txt,cufflinks/all.txt
 SPBC83.04_T0: peta/all.txt,cufflinks/all.txt
 SPBC839.05c_T0: peta/all.txt,cufflinks/all.txt
 SPBC887.02_T0: peta/all.txt,cufflinks/all.txt
@@ -4818,6 +4817,7 @@ SPCC61.01c_T0: peta/all.txt,cufflinks/all.txt
 SPCC61.02_T0: peta/all.txt,cufflinks/all.txt
 SPCC61.05_T0: peta/all.txt,cufflinks/all.txt
 SPCC63.08c_T0: peta/all.txt,cufflinks/all.txt
+SPCC645.02_T0: peta/all.txt,cufflinks/all.txt
 SPCC663.12_T0: peta/all.txt,cufflinks/all.txt
 SPCC736.09c_T0: peta/all.txt,cufflinks/all.txt
 SPCC737.05_T0: peta/all.txt,cufflinks/all.txt

@@ -505,7 +505,7 @@ void mark_duplicate_edges(edgearray *block) {
 		for (j = 0; j < block->len; j++) {
 			eg_j = g_ptr_array_index(block, j);
 			if (eg_i != eg_j && eg_j->alive && similar_seqs(eg_i->contig,
-					eg_j->contig, PATH_MISMATCHES, SCORE_MATCH, SCORE_MISMATCH,
+					eg_j->contig, PATH_MISMATCHES, PATH_MAX_GAPS, SCORE_MATCH, SCORE_MISMATCH,
 					SCORE_GAP)) {
 				if (eg_i->right_ctg == eg_j->right_ctg && abs(eg_i->r_shift
 						- eg_j->r_shift) <= PATH_MISMATCHES) {
@@ -579,7 +579,7 @@ void mark_duplicate_paths(GPtrArray *paths) {
 				path_j = g_ptr_array_index(paths, j);
 				if (path_i != path_j && path_j->alive) {
 					similarity_score = similar_seqs(path_i->seq, path_j->seq,
-							PATH_MISMATCHES * 4, SCORE_MATCH, SCORE_MISMATCH,
+							PATH_MISMATCHES * 4, PATH_MAX_GAPS, SCORE_MATCH, SCORE_MISMATCH,
 							SCORE_GAP);
 					if (similarity_score > 0) {
 						// If similar, keep the longer one
@@ -1046,7 +1046,7 @@ int test_sw(const char *fa_fn) {
 	seqs = load_reads(fa_fn, &n_seqs);
 	p_ctg_seq("SEQ1", &seqs[0]);
 	p_ctg_seq("SEQ1", &seqs[1]);
-	score = similar_seqs(&seqs[0], &seqs[1], 16, 2, -1, -1);
+	score = similar_seqs(&seqs[0], &seqs[1], 16, 4, 2, -1, -1);
 	show_debug_msg(__func__, "Score: %d \n", score);
 	return 1;
 }
