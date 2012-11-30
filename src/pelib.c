@@ -786,12 +786,12 @@ static void *pe_lib_thread(void *data) {
 	for (i = d->start; i < d->end; i++) {
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_total_reads = d->n_total_reads;
-//		if (pair_ctg_id == 0)
-//			query = &ht->seqs[31731];
-//		if (pair_ctg_id == 1)
-//			query = &ht->seqs[3454934];
-//		if (pair_ctg_id == 2)
-//			query = &ht->seqs[2476796];
+		//		if (pair_ctg_id == 0)
+		//			query = &ht->seqs[31731];
+		//		if (pair_ctg_id == 1)
+		//			query = &ht->seqs[3454934];
+		//		if (pair_ctg_id == 2)
+		//			query = &ht->seqs[2476796];
 		if (query->status != FRESH)
 			continue;
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
@@ -808,8 +808,8 @@ static void *pe_lib_thread(void *data) {
 		eg = pe_ext(d->ht, query);
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		eg = NULL;
-//		if (pair_ctg_id == 3)
-//			break;
+		//		if (pair_ctg_id == 3)
+		//			break;
 	}
 	return NULL;
 }
@@ -855,7 +855,6 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		data[i].tid = i;
 		if (i == n_threads - 1)
 			data[i].end = solid_reads->len / 2;
-		//rc = pthread_create(&threads[i], NULL, pe_lib_part, data + i);
 		threads[i]
 				= g_thread_create((GThreadFunc) pe_lib_thread, data + i, TRUE, NULL);
 	}
@@ -886,7 +885,6 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	}
 	/* wait for threads to finish */
 	for (i = 0; i < n_threads; ++i) {
-		//rc = pthread_join(threads[i], NULL);
 		g_thread_join(threads[i]);
 	}
 
@@ -901,7 +899,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 
 	show_msg(__func__, "\n ========================================== \n");
 	show_msg(__func__, "Merging edges by overlapping... \n");
-	merge_ol_edges(all_edges, insert_size, ht);
+	merge_ol_edges(all_edges, insert_size, ht, n_threads);
 	name = get_output_file("merged_pair_contigs.fa");
 	merged_pair_contigs = xopen(name, "w");
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 100);

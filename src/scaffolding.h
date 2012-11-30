@@ -23,7 +23,7 @@ int has_reads_in_common(edge *eg_1, edge *eg_2);
 edge *merge_edges(edge *eg_1, edge *eg_2, hash_table *ht);
 GPtrArray *scaffolding(GPtrArray *single_edges, const int insert_size, bwa_seq_t *seqs);
 void merge_ol_edges(edgearray *single_edges, const int insert_size,
-		hash_table *ht);
+		hash_table *ht, const int n_threads);
 
 #ifdef __cplusplus
 }

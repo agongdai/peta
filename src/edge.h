@@ -43,6 +43,7 @@ struct edge {
 	int is_root;
 	int ori;			// Orientation
 	int level;			// For post-processing
+	int tid;			// Thread id
 	GPtrArray *gaps;
 };
 
