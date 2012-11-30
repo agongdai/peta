@@ -670,7 +670,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
  * For the transcripts: left side are right side are disconnected.
  */
 void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
-		const int start, const int end) {
+		const int start, const int end, int *n_single_edges) {
 	int i = 0, share_subseq = 0, share_rev_subseq = 0;
 	bwa_seq_t *seqs = NULL, *s = NULL, *mate = NULL;
 	edge *eg_1 = NULL, *eg_2 = NULL, *eg = NULL;
@@ -678,7 +678,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 
 	seqs = ht->seqs;
 	for (i = start; i < end; i++) {
-		if (*n_total_reads > ht->n_seqs * 0.92)
+		if (*n_total_reads > ht->n_seqs * 0.92 || *n_single_edges >= MAX_SINGLE_EDGES)
 			break;
 		s = &seqs[i];
 		mate = get_mate(s, seqs);
@@ -721,21 +721,23 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 				}
 			}
 		} // If the length is longer than 100, keep it.
-		if (eg_1 && eg_1->len > 100 && has_most_fresh_reads(eg_1->reads, 2)) {
-			show_debug_msg(__func__, "Probable single transcripts: [%d, %d]\n",
-					eg_1->id, eg_1->len);
+		if (eg_1 && eg_1->len > SINGLE_EDGE_THRE && has_most_fresh_reads(eg_1->reads, 2)) {
+			show_debug_msg(__func__, "Probable single transcripts %d: [%d, %d], Total reads %d/%d\n", *n_single_edges,
+					eg_1->id, eg_1->len, *n_total_reads, ht->n_seqs);
 			keep_pairs_only(eg_1, ht->seqs);
 			g_mutex_lock(update_mutex);
 			*n_total_reads += eg_1->reads->len;
 			g_ptr_array_add(all_edges, eg_1);
+			*n_single_edges += 1;
 			g_mutex_unlock(update_mutex);
 		}
-		if (eg_2 && eg_2->len > 100 && has_most_fresh_reads(eg_2->reads, 2)) {
-			show_debug_msg(__func__, "Probable single transcripts: [%d, %d]\n",
-					eg_2->id, eg_2->len);
+		if (eg_2 && eg_2->len > SINGLE_EDGE_THRE && has_most_fresh_reads(eg_2->reads, 2)) {
+			show_debug_msg(__func__, "Probable single transcripts %d: [%d, %d], Total reads %d/%d\n", *n_single_edges,
+					eg_2->id, eg_2->len, *n_total_reads, ht->n_seqs);
 			keep_pairs_only(eg_2, ht->seqs);
 			g_mutex_lock(update_mutex);
 			*n_total_reads += eg_2->reads->len;
+			*n_single_edges += 1;
 			g_ptr_array_add(all_edges, eg_2);
 			g_mutex_unlock(update_mutex);
 			upd_ctg_id(eg_2, eg_2->id);
@@ -755,7 +757,8 @@ typedef struct {
 
 static void *far_construct_thread(void *data) {
 	thread_aux_t *d = (thread_aux_t*) data;
-	far_construct(d->ht, d->all_edges, d->n_total_reads, d->start, d->end);
+	int n_single_edges = 0;
+	far_construct(d->ht, d->all_edges, d->n_total_reads, d->start, d->end, &n_single_edges);
 	return NULL;
 }
 
