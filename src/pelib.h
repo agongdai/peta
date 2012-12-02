@@ -6,7 +6,7 @@
 #define PAIRS_PER_EDGE		100
 #define MATE_OVERLAP_THRE	11
 #define RELAX_MATE_OL_THRE	6
-#define MAX_SINGLE_EDGES	100
+#define MAX_SINGLE_EDGES	200
 #define SINGLE_EDGE_THRE	150
 
 int pe_lib(int argc, char *argv[]);

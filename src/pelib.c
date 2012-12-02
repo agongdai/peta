@@ -678,7 +678,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 
 	seqs = ht->seqs;
 	for (i = start; i < end; i++) {
-		if (*n_total_reads > ht->n_seqs * 0.95 || *n_single_edges
+		if (*n_total_reads > ht->n_seqs * 0.96 || *n_single_edges
 				>= MAX_SINGLE_EDGES)
 			break;
 		s = &seqs[i];
@@ -797,7 +797,7 @@ static void *pe_lib_thread(void *data) {
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
 				|| is_repetitive_q(query))
 			continue;
-		if (*n_total_reads > d->ht->n_seqs * 0.92)
+		if (*n_total_reads > d->ht->n_seqs * 0.94)
 			break;
 		show_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", i,
@@ -897,7 +897,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	fflush(pair_contigs);
 	free(name);
 
-	show_msg(__func__, "\n ========================================== \n");
+	show_msg(__func__, "========================================== \n\n");
 	show_msg(__func__, "Merging edges by overlapping... \n");
 	merge_ol_edges(all_edges, insert_size, ht, n_threads);
 	name = get_output_file("merged_pair_contigs.fa");
@@ -906,11 +906,11 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	fflush(merged_pair_contigs);
 	free(name);
 
-	show_msg(__func__, "\n ========================================== \n");
+	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
-	scaffolding(all_edges, insert_size, ht->seqs);
+	scaffolding(all_edges, insert_size, ht, n_threads);
 
-	show_msg(__func__, "\n ========================================== \n");
+	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Saving the roadmap... \n");
 	name = get_output_file("roadmap.dot");
 	graph_by_edges(all_edges, name);

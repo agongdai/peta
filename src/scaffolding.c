@@ -28,7 +28,7 @@
 #include "pepath.h"
 #include "scaffolding.h"
 
-GMutex *edge_mutex;
+GMutex *edge_mutex = NULL;
 
 /**
  * Return 0: the two edges are in the same direction
@@ -181,13 +181,13 @@ int has_reads_in_common(edge *eg_1, edge *eg_2) {
 
 GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) {
 	edgearray *probable_in_out = NULL, *raw_in_outs = NULL;
-	int i = 0, n_in_out = 0;
+	int i = 0;
 	edge *in_out = NULL;
 	bwa_seq_t *read = NULL, *mate = NULL;
 	raw_in_outs = g_ptr_array_sized_new(all_edges->len + 1);
-	show_debug_msg(__func__,
-			"Checking probable in_out edges of edge [%d, %d]...\n", eg->id,
-			eg->len);
+	//show_debug_msg(__func__,
+	//		"Checking probable in_out edges of edge [%d, %d]...\n", eg->id,
+	//		eg->len);
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		if (read->status == USED)
@@ -196,32 +196,26 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 		if (mate->status == FRESH || mate->contig_id < 0 || read->contig_id
 				== mate->contig_id)
 			continue;
-		show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id,
-				all_edges->len);
+		//show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id,
+		//		all_edges->len);
 		in_out = edgearray_find_id(all_edges, mate->contig_id);
-		if (in_out && in_out->visited != 1) {
-			g_ptr_array_add(raw_in_outs, in_out);
-			n_in_out++;
-			in_out->visited = 1;
+		if (in_out ){
+			g_ptr_array_uni_add(raw_in_outs, in_out);
 		}
 	}
-	probable_in_out = g_ptr_array_sized_new(n_in_out + 1);
-	show_debug_msg(__func__, "Checking shared subseq... \n");
+	probable_in_out = g_ptr_array_sized_new(raw_in_outs->len + 1);
+	//show_debug_msg(__func__, "Checking shared subseq... \n");
 	for (i = 0; i < raw_in_outs->len; i++) {
 		in_out = g_ptr_array_index(raw_in_outs, i);
-		show_debug_msg(__func__, "[%d] Probable in_out: [%d, %d] \n", i,
-				in_out->id, in_out->len);
-		p_ctg_seq("Contig", eg->contig);
-		if (!has_reads_in_common(eg, in_out) && !share_subseq_byte(
-				eg->contig->seq, eg->len, in_out->contig, MISMATCHES, 100)
-				&& !share_subseq_byte(eg->contig->rseq, eg->len,
-						in_out->contig, MISMATCHES, 100)) {
+		//show_debug_msg(__func__, "[%d] Probable in_out: [%d, %d] \n", i,
+		//		in_out->id, in_out->len);
+		// p_ctg_seq("Contig", eg->contig);
+		if (!share_subseq_byte(eg->contig->seq, eg->len, in_out->contig,
+				MISMATCHES, 100) && !share_subseq_byte(eg->contig->rseq,
+				eg->len, in_out->contig, MISMATCHES, 100)
+				&& !has_reads_in_common(eg, in_out)) {
 			g_ptr_array_add(probable_in_out, in_out);
 		}
-	}
-	for (i = 0; i < raw_in_outs->len; i++) {
-		in_out = g_ptr_array_index(raw_in_outs, i);
-		in_out->visited = 0;
 	}
 	g_ptr_array_free(raw_in_outs, TRUE);
 	return probable_in_out;
@@ -296,53 +290,6 @@ edge *merge_edges(edge *eg_1, edge *eg_2, hash_table *ht) {
 	}
 }
 
-GPtrArray *scaffolding(GPtrArray *single_edges, const int insert_size,
-		bwa_seq_t *seqs) {
-	edge *eg_i = NULL, *eg_j = NULL;
-	int i = 0, j = 0, gap = 0, order = 0;
-	edgearray *probable_in_out = NULL;
-
-	for (i = 0; i < single_edges->len; i++) {
-		eg_i = g_ptr_array_index(single_edges, i);
-		show_debug_msg(__func__, "Trying edge [%d/%d, %d] \n", eg_i->id,
-				single_edges->len, eg_i->len);
-		probable_in_out = get_probable_in_out(single_edges, eg_i, seqs);
-		show_debug_msg(__func__, "Probable in_out size: %d \n",
-				probable_in_out->len);
-		for (j = 0; j < probable_in_out->len; j++) {
-			eg_j = g_ptr_array_index(probable_in_out, j);
-			if (eg_i == eg_j)
-				continue;
-			show_debug_msg(__func__, "Ordering... \n");
-			order = order_two_edges(eg_i, eg_j, seqs);
-			if (order != 0) {
-				//gap = est_pair_gap(eg_i, eg_j, order, insert_size);
-				gap = 0; // @TODO: orientation of edge is not determined yet, skip gap size estimation
-				if (gap >= 0) {
-					show_debug_msg(__func__,
-							"Order of edge %d and edge %d: %d; Gap: %d\n",
-							eg_i->id, eg_j->id, order, gap);
-					if (order == 1) {
-						g_ptr_array_add(eg_i->out_egs, eg_j);
-						g_ptr_array_add(eg_j->in_egs, eg_i);
-					} else {
-						g_ptr_array_add(eg_j->in_egs, eg_i);
-						g_ptr_array_add(eg_i->out_egs, eg_j);
-					}
-				}
-			}
-		}
-		g_ptr_array_free(probable_in_out, TRUE);
-	}
-	for (i = 0; i < single_edges->len; i++) {
-		eg_i = g_ptr_array_index(single_edges, i);
-		if (eg_i && eg_i->in_egs->len == 0 && eg_i->alive) {
-			eg_i->is_root = 1;
-		}
-	}
-	return NULL;
-}
-
 typedef struct {
 	edgearray *single_edges;
 	hash_table *ht;
@@ -350,7 +297,91 @@ typedef struct {
 	int start;
 	int end;
 	int tid;
-} thread_merge_ol_paras;
+} scaffolding_paras_t;
+
+static void *scaffolding_thread(void *data) {
+	edge *eg_i = NULL, *eg_j = NULL;
+	int i = 0, j = 0, gap = 0, order = 0;
+	edgearray *probable_in_out = NULL;
+	scaffolding_paras_t *d = (scaffolding_paras_t*) data;
+
+	for (i = d->start; i < d->end; i++) {
+		eg_i = g_ptr_array_index(d->single_edges, i);
+		show_debug_msg(__func__, "Trying edge [%d/%d, %d] \n", eg_i->id,
+				d->single_edges->len, eg_i->len);
+	//	g_mutex_lock(edge_mutex);
+		probable_in_out = get_probable_in_out(d->single_edges, eg_i, d->ht->seqs);
+	//	g_mutex_unlock(edge_mutex);
+		//show_debug_msg(__func__, "Probable in_out size: %d \n",
+		//		probable_in_out->len);
+		for (j = 0; j < probable_in_out->len; j++) {
+			eg_j = g_ptr_array_index(probable_in_out, j);
+			if (eg_i == eg_j)
+				continue;
+			//show_debug_msg(__func__, "Ordering... \n");
+			order = order_two_edges(eg_i, eg_j, d->ht->seqs);
+			if (order != 0) {
+				//gap = est_pair_gap(eg_i, eg_j, order, insert_size);
+				gap = 0; // @TODO: orientation of edge is not determined yet, skip gap size estimation
+				if (gap >= 0) {
+					show_debug_msg(__func__,
+							"Order of edge %d and edge %d: %d; Gap: %d\n",
+							eg_i->id, eg_j->id, order, gap);
+					g_mutex_lock(edge_mutex);
+					if (order == 1) {
+						g_ptr_array_uni_add(eg_i->out_egs, eg_j);
+						g_ptr_array_uni_add(eg_j->in_egs, eg_i);
+					} else {
+						g_ptr_array_uni_add(eg_j->in_egs, eg_i);
+						g_ptr_array_uni_add(eg_i->out_egs, eg_j);
+					}
+					g_mutex_unlock(edge_mutex);
+				}
+			}
+		}
+		g_ptr_array_free(probable_in_out, TRUE);
+	}
+	return NULL;
+}
+
+void scaffolding(edgearray *single_edges, const int insert_size,
+		hash_table *ht, const int n_threads) {
+	int n_per_threads = 0, i = 0;
+	scaffolding_paras_t *data;
+	GThread *threads[n_threads];
+	edge *eg_i = NULL;
+
+	n_per_threads = single_edges->len / n_threads;
+	if (!edge_mutex)
+		edge_mutex = g_mutex_new();
+
+	data
+			= (scaffolding_paras_t*) calloc(n_threads,
+					sizeof(scaffolding_paras_t));
+
+	for (i = 0; i < n_threads; ++i) {
+		data[i].single_edges = single_edges;
+		data[i].ht = ht;
+		data[i].insert_size = insert_size;
+		data[i].start = i * n_per_threads;
+		data[i].end = (i + 1) * n_per_threads;
+		data[i].tid = i;
+		if (i == n_threads - 1)
+			data[i].end = single_edges->len;
+		threads[i]
+				= g_thread_create((GThreadFunc) scaffolding_thread, data + i, TRUE, NULL);
+	}
+	for (i = 0; i < n_threads; ++i) {
+		g_thread_join(threads[i]);
+	}
+	for (i = 0; i < single_edges->len; i++) {
+		eg_i = g_ptr_array_index(single_edges, i);
+		if (eg_i && eg_i->in_egs->len == 0 && eg_i->alive) {
+			eg_i->is_root = 1;
+		}
+	}
+	free(data);
+}
 
 /**
  * Merge the edges with some overlapping
@@ -362,10 +393,10 @@ static void *merge_ol_edges_thread(void *data) {
 	// readarray *paired_reads = NULL;
 	int rl = 0;
 	clock_t t = clock();
-	thread_merge_ol_paras *d = (thread_merge_ol_paras*) data;
+	scaffolding_paras_t *d = (scaffolding_paras_t*) data;
 
-	rl = seqs->len;
 	seqs = d->ht->seqs;
+	rl = seqs->len;
 
 	while (some_one_merged) {
 		some_one_merged = 0;
@@ -421,8 +452,7 @@ static void *merge_ol_edges_thread(void *data) {
 					rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len, 0);
 					ol = find_ol(eg_i->contig, rev, MISMATCHES);
 					if ((ol >= MATE_OVERLAP_THRE && ol >= MISMATCHES * 10 && ol
-							< rl && !has_common_read) || (ol > rl
-							&& has_common_read)) {
+							< rl) || (ol > rl)) {
 						if (has_common_read == -1) {
 							has_common_read = has_reads_in_common(eg_i, eg_j);
 						}
@@ -455,15 +485,17 @@ static void *merge_ol_edges_thread(void *data) {
 void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		hash_table *ht, const int n_threads) {
 	int n_per_threads = 0, i = 0;
-	thread_merge_ol_paras *data;
+	scaffolding_paras_t *data;
 	GThread *threads[n_threads];
 	edge *eg_i = NULL;
 
 	n_per_threads = single_edges->len / n_threads;
-	edge_mutex = g_mutex_new();
+	if (!edge_mutex)
+		edge_mutex = g_mutex_new();
 
-	data = (thread_merge_ol_paras*) calloc(n_threads,
-			sizeof(thread_merge_ol_paras));
+	data
+			= (scaffolding_paras_t*) calloc(n_threads,
+					sizeof(scaffolding_paras_t));
 	for (i = 0; i < n_threads; ++i) {
 		data[i].single_edges = single_edges;
 		data[i].ht = ht;
@@ -476,7 +508,10 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		threads[i]
 				= g_thread_create((GThreadFunc) merge_ol_edges_thread, data + i, TRUE, NULL);
 	}
-	free(data);
+	for (i = 0; i < n_threads; ++i) {
+		g_thread_join(threads[i]);
+	}
+
 	for (i = 0; i < single_edges->len; i++) {
 		eg_i = g_ptr_array_index(single_edges, i);
 		eg_i->visited = 0;
@@ -486,4 +521,14 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 			i--;
 		}
 	}
+	show_msg(__func__, "\n ========================================== \n");
+	show_msg(__func__, "Trying to construct the roadmap... \n");
+	for (i = 0; i < n_threads; ++i) {
+		threads[i]
+				= g_thread_create((GThreadFunc) scaffolding_thread, data + i, TRUE, NULL);
+	}
+	for (i = 0; i < n_threads; ++i) {
+		g_thread_join(threads[i]);
+	}
+	free(data);
 }
