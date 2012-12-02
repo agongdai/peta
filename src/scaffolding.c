@@ -160,7 +160,6 @@ int has_reads_in_common(edge *eg_1, edge *eg_2) {
 	bwa_seq_t *read = NULL;
 	// Iterate through the array with fewer reads, to perform binary search in the array with more reads.
 	edge *eg_fewer = eg_1, *eg_more = eg_2;
-	g_mutex_lock(edge_mutex);
 	if (eg_1->len > eg_2->len) {
 		eg_fewer = eg_2;
 		eg_more = eg_1;
@@ -168,7 +167,6 @@ int has_reads_in_common(edge *eg_1, edge *eg_2) {
 	} else {
 		g_ptr_array_sort(eg_2->reads, (GCompareFunc) cmp_read_by_name);
 	}
-	g_mutex_unlock(edge_mutex);
 	for (i = 0; i < eg_fewer->reads->len; i++) {
 		read = g_ptr_array_index(eg_fewer->reads, i);
 		exists = binary_exists(eg_more->reads, read);
@@ -210,12 +208,14 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 		//show_debug_msg(__func__, "[%d] Probable in_out: [%d, %d] \n", i,
 		//		in_out->id, in_out->len);
 		// p_ctg_seq("Contig", eg->contig);
+		g_mutex_lock(edge_mutex);
 		if (!share_subseq_byte(eg->contig->seq, eg->len, in_out->contig,
 				MISMATCHES, 100) && !share_subseq_byte(eg->contig->rseq,
 				eg->len, in_out->contig, MISMATCHES, 100)
 				&& !has_reads_in_common(eg, in_out)) {
 			g_ptr_array_add(probable_in_out, in_out);
 		}
+		g_mutex_unlock(edge_mutex);
 	}
 	g_ptr_array_free(raw_in_outs, TRUE);
 	return probable_in_out;
@@ -319,7 +319,9 @@ static void *scaffolding_thread(void *data) {
 			if (eg_i == eg_j)
 				continue;
 			//show_debug_msg(__func__, "Ordering... \n");
+			g_mutex_lock(edge_mutex);
 			order = order_two_edges(eg_i, eg_j, d->ht->seqs);
+			g_mutex_unlock(edge_mutex);
 			if (order != 0) {
 				//gap = est_pair_gap(eg_i, eg_j, order, insert_size);
 				gap = 0; // @TODO: orientation of edge is not determined yet, skip gap size estimation
@@ -435,7 +437,9 @@ static void *merge_ol_edges_thread(void *data) {
 				// To make sure function has_reads_in_common is called as few as possible
 				if ((ol >= MATE_OVERLAP_THRE && ol >= MISMATCHES * 10 && ol
 						< rl) || (ol > rl)) {
+					g_mutex_lock(edge_mutex);
 					has_common_read = has_reads_in_common(eg_i, eg_j);
+					g_mutex_unlock(edge_mutex);
 					if ((ol > rl && has_common_read) || (ol < rl
 							&& !has_common_read)) {
 						show_debug_msg(__func__,
@@ -520,15 +524,6 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 			g_ptr_array_remove_index_fast(single_edges, i);
 			i--;
 		}
-	}
-	show_msg(__func__, "\n ========================================== \n");
-	show_msg(__func__, "Trying to construct the roadmap... \n");
-	for (i = 0; i < n_threads; ++i) {
-		threads[i]
-				= g_thread_create((GThreadFunc) scaffolding_thread, data + i, TRUE, NULL);
-	}
-	for (i = 0; i < n_threads; ++i) {
-		g_thread_join(threads[i]);
 	}
 	free(data);
 }
