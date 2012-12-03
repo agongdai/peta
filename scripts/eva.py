@@ -161,7 +161,10 @@ def eva_tx(args):
 	ref = FastaFile(args.ref)
 	contigs = FastaFile(args.contigs)
 	sam = pysam.Samfile(args.sam, "r")
-	#result = open(os.path.join(args.out_dir, 'result.txt'), 'w')
+	file_full_length = open(os.path.join(args.out_dir, 'full_length.txt'), 'w')
+	file_one_on_one = open(os.path.join(args.out_dir, 'one_on_one.txt'), 'w')
+	file_covered_70 = open(os.path.join(args.out_dir, 'covered_70.txt'), 'w')
+	file_one_covered = open(os.path.join(args.out_dir, 'one_covered.txt'), 'w')
 	summarize_fa(args.ref)
 	summarize_fa(args.contigs)
 	ref.set_n50(get_n50(ref.lengths, ref.n_bases))
@@ -198,9 +201,9 @@ def eva_tx(args):
 		if tx_name in hits:
 			#print tx_name
 			for a in hits[tx_name]:
-				#print '\t' + a.qname + ':[' + str(a.pos) + ', ' + str(a.aend) + ']'
 				if a.alen >= len(tx_seq) * 0.9 and len(tx_seq) >= contigs.get_seq_len(a.qname):
 					summary.n_tx_one_on_one += 1
+					file_one_on_one.write(tx_name + '\n')
 					is_set = True
 					break
 			if not is_set:
@@ -208,18 +211,20 @@ def eva_tx(args):
 					if a.alen >= len(tx_seq) * 0.9:
 						summary.n_tx_full_length += 1
 						is_set = True
+						file_full_length.write(tx_name + '\n')
 						break
 			if not is_set:
 				for a in hits[tx_name]:
 					if a.alen >= len(tx_seq) * 0.7:
 						summary.n_tx_covered_70 += 1
 						is_set = True
+						file_covered_70.write(tx_name + '\n')
 						break
 			seq_len = len(tx_seq)
 			binary_covered = [0 for x in range(seq_len)]
 			group_hits = {}
 			for a in hits[tx_name]:
-				if not tx_name in group_hits:
+				if not a.qname in group_hits:
 					group_hits[a.qname] = []
 				group_hits[a.qname].append(a)
 				end = a.aend
@@ -242,9 +247,9 @@ def eva_tx(args):
 							binary_covered[i] = 1
 					for i in binary_covered:
 						n_base_one_contig += i
-					print tx_name, a.qname, n_base_one_contig
 					if n_base_one_contig >= seq_len * 0.9:
 						summary.n_tx_one_covered += 1
+						file_one_covered.write(tx_name + '\n')
 						break
 
 	summary.n_bases = contigs.n_bases
@@ -255,7 +260,10 @@ def eva_tx(args):
 	summary.n50_optimal = ref.n50
 	summary.report()
 
-	#result.close()	
+	file_one_covered.close()
+	file_full_length.close()
+	file_covered_70.close()
+	file_one_on_one.close()
 
 def main():
     parser = ArgumentParser()
