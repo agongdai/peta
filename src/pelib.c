@@ -812,14 +812,14 @@ static void *pe_lib_thread(void *data) {
 	for (i = d->start; i < d->end; i++) {
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_total_reads = d->n_total_reads;
-		//		if (pair_ctg_id == 0)
-		//			query = &ht->seqs[31731];
-		//		if (pair_ctg_id == 1)
-		//			query = &ht->seqs[3454934];
-		//		if (pair_ctg_id == 2)
-		//			query = &ht->seqs[2476796];
-		if (query->status != FRESH)
-			continue;
+//		if (pair_ctg_id == 0)
+//			query = &ht->seqs[1440654];
+//		if (pair_ctg_id == 1)
+//			query = &ht->seqs[4251536];
+//		if (pair_ctg_id == 2)
+//			query = &ht->seqs[2476796];
+//		if (query->status != FRESH)
+//			continue;
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
 				|| is_repetitive_q(query))
 			continue;
@@ -836,8 +836,8 @@ static void *pe_lib_thread(void *data) {
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		g_mutex_unlock(update_mutex);
 		eg = NULL;
-		//		if (pair_ctg_id == 3)
-		//			break;
+//		if (pair_ctg_id == 3)
+//		break;
 	}
 	return NULL;
 }
