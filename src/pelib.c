@@ -200,7 +200,7 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 				i--;
 			}
 		}
-		if (mate->rev_com)
+		if (tmp != mate)
 			bwa_free_read_seq(1, tmp);
 	}
 }
