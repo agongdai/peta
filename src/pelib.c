@@ -258,8 +258,10 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	g_mutex_unlock(update_mutex);
 	//show_debug_msg(__func__, "Adding mates... \n");
 	// Add mates into current pool by overlapping
-	add_mates_by_ol(seqs, ass_eg, cur_pool, mate_pool, MATE_OVERLAP_THRE,
-			MISMATCHES, query, ori);
+	if (cur_pool->n <= 10) {
+		add_mates_by_ol(seqs, ass_eg, cur_pool, mate_pool, MATE_OVERLAP_THRE,
+				MISMATCHES, query, ori);
+	}
 	//show_debug_msg(__func__, "Keeping mates... \n");
 	// Keep only the reads whose mate is used previously.
 	if (ass_eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
