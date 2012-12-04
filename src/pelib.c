@@ -365,6 +365,13 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		eg = new_eg();
 		g_mutex_lock(update_mutex);
 		eg->id = pair_ctg_id;
+		eg->name = strdup(s->name);
+		show_msg(__func__,
+				"---------- Processing read %d: %s ----------\n",
+				pair_ctg_id, s->name);
+		show_debug_msg(__func__,
+				"---------- Processing read %d: %s ----------\n",
+				pair_ctg_id, s->name);
 		pair_ctg_id++;
 		g_mutex_unlock(update_mutex);
 		eg->contig = new_seq(s, s->len, 0);
@@ -660,13 +667,13 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 		if (eg->len < 100 || eg->pairs->len <= MIN_VALID_PAIRS) {
 			show_msg(
 					__func__,
-					"ABANDONED [%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
-					eg->id, eg->len, eg->reads->len, eg->pairs->len,
+					"ABANDONED [%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
+					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_total_reads, ht->n_seqs);
 			show_debug_msg(
 					__func__,
-					"ABANDONED [%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
-					eg->id, eg->len, eg->reads->len, eg->pairs->len,
+					"ABANDONED [%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
+					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_total_reads, ht->n_seqs);
 			clear_used_reads(eg, 1);
 			destroy_eg(eg);
@@ -675,12 +682,12 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 			*n_total_reads += eg->pairs->len;
 			g_ptr_array_add(all_edges, eg);
 			show_msg(__func__,
-					"[%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
-					eg->id, eg->len, eg->reads->len, eg->pairs->len,
+					"[%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
+					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_total_reads, ht->n_seqs);
 			show_debug_msg(__func__,
-					"[%d]: length %d, reads %d=>%d. Total reads %d/%d \n",
-					eg->id, eg->len, eg->reads->len, eg->pairs->len,
+					"[%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
+					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_total_reads, ht->n_seqs);
 			return 1;
 		}
@@ -700,7 +707,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 
 	seqs = ht->seqs;
 	for (i = start; i < end; i++) {
-		if (*n_total_reads > ht->n_seqs * 0.96 || *n_single_edges
+		if (*n_total_reads > ht->n_seqs * 0.94 || *n_single_edges
 				>= MAX_SINGLE_EDGES)
 			break;
 		s = &seqs[i];
@@ -813,7 +820,7 @@ static void *pe_lib_thread(void *data) {
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_total_reads = d->n_total_reads;
 //		if (pair_ctg_id == 0)
-//			query = &ht->seqs[1440654];
+//			query = &ht->seqs[4319647];
 //		if (pair_ctg_id == 1)
 //			query = &ht->seqs[4251536];
 //		if (pair_ctg_id == 2)
@@ -823,20 +830,14 @@ static void *pe_lib_thread(void *data) {
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
 				|| is_repetitive_q(query))
 			continue;
-		if (*n_total_reads > d->ht->n_seqs * 0.94)
+		if (*n_total_reads > d->ht->n_seqs * 0.92)
 			break;
-		show_msg(__func__,
-				"---------- [%d] Processing read %d: %s ----------\n", i,
-				pair_ctg_id, query->name);
-		show_debug_msg(__func__,
-				"---------- [%d] Processing read %d: %s ----------\n", i,
-				pair_ctg_id, query->name);
 		eg = pe_ext(d->ht, query);
 		g_mutex_lock(update_mutex);
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		g_mutex_unlock(update_mutex);
 		eg = NULL;
-//		if (pair_ctg_id == 3)
+//		if (pair_ctg_id > 100)
 //		break;
 	}
 	return NULL;
