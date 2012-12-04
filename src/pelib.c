@@ -258,10 +258,10 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	g_mutex_unlock(update_mutex);
 	//show_debug_msg(__func__, "Adding mates... \n");
 	// Add mates into current pool by overlapping
-	if (cur_pool->n <= 10) {
-		add_mates_by_ol(seqs, ass_eg, cur_pool, mate_pool, MATE_OVERLAP_THRE,
-				MISMATCHES, query, ori);
-	}
+	//if (cur_pool->n <= 10) {
+	add_mates_by_ol(seqs, ass_eg, cur_pool, mate_pool, MATE_OVERLAP_THRE,
+			MISMATCHES, query, ori);
+	//}
 	//show_debug_msg(__func__, "Keeping mates... \n");
 	// Keep only the reads whose mate is used previously.
 	if (ass_eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
@@ -348,6 +348,33 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) 
 }
 
 /**
+ * Correct the starting contig of an edge
+ */
+void correct_start(edge *eg, pool *cur_pool) {
+	bwa_seq_t *read = NULL;
+	int i = 0, j = 0, cursor = 0, has_more = 1;
+	int *next = (int*) calloc(5, sizeof(int));
+	int correct_c = 0;
+	for (j = 0; j < eg->contig->len; j++) {
+		if (!has_more)
+			break;
+		has_more = 0;
+		reset_c(next, NULL);
+		for (i = 0; i < cur_pool->reads->len; i++) {
+			read = g_ptr_array_index(cur_pool->reads, i);
+			cursor = (read->cursor - read->len) + j;
+			if (cursor >= 0 && cursor < read->len) {
+				check_c(next, read->seq[cursor]);
+				has_more = 1;
+			}
+		}
+		correct_c = get_pure_most(next);
+		eg->contig->seq[j] = correct_c;
+	}
+	free(next);
+}
+
+/**
  * Extend a template
  */
 edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
@@ -366,12 +393,11 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		g_mutex_lock(update_mutex);
 		eg->id = pair_ctg_id;
 		eg->name = strdup(s->name);
-		show_msg(__func__,
-				"---------- Processing read %d: %s ----------\n",
+		show_msg(__func__, "---------- Processing read %d: %s ----------\n",
 				pair_ctg_id, s->name);
 		show_debug_msg(__func__,
-				"---------- Processing read %d: %s ----------\n",
-				pair_ctg_id, s->name);
+				"---------- Processing read %d: %s ----------\n", pair_ctg_id,
+				s->name);
 		pair_ctg_id++;
 		g_mutex_unlock(update_mutex);
 		eg->contig = new_seq(s, s->len, 0);
@@ -388,10 +414,13 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			: get_init_mate_pool(cur_pool, ht->seqs, ori);
 	g_mutex_unlock(update_mutex);
 	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
+	if (!pre_eg) {
+		correct_start(eg, cur_pool);
+	}
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
 	while (1) {
-		//		p_query(__func__, query);
+		//p_query(__func__, query);
 		reset_c(next, NULL); // Reset the counter
 		if (!cur_pool || is_repetitive_q(query)) {
 			show_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n", eg->id,
@@ -481,6 +510,17 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 	return eg;
 }
 
+int pool_reads_tried(pool *init_pool) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < init_pool->reads->len; i++) {
+		r = g_ptr_array_index(init_pool->reads, i);
+		if (r->status == FRESH)
+			return 0;
+	}
+	return 1;
+}
+
 /**
  * Extend a solid read.
  * First round:             ------------  =>
@@ -500,7 +540,7 @@ edge* pe_ext(hash_table *ht, bwa_seq_t *query) {
 	init_pool = get_start_pool(ht, query, 0);
 	g_mutex_unlock(update_mutex);
 	if (!init_pool || init_pool->n == 0 || bases_sup_branches(init_pool, 0,
-			STRICT_BASES_SUP_THRE)) {
+			STRICT_BASES_SUP_THRE || pool_reads_tried(init_pool))) {
 		show_msg(__func__, "Read %s may be in junction area, skip. \n",
 				query->name);
 		g_mutex_lock(update_mutex);
@@ -819,14 +859,14 @@ static void *pe_lib_thread(void *data) {
 	for (i = d->start; i < d->end; i++) {
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_total_reads = d->n_total_reads;
-//		if (pair_ctg_id == 0)
-//			query = &ht->seqs[4319647];
-//		if (pair_ctg_id == 1)
-//			query = &ht->seqs[4251536];
-//		if (pair_ctg_id == 2)
-//			query = &ht->seqs[2476796];
-//		if (query->status != FRESH)
-//			continue;
+		//if (pair_ctg_id == 0)
+		//	query = &ht->seqs[2946771];
+		//		if (pair_ctg_id == 1)
+		//			query = &ht->seqs[4251536];
+		//		if (pair_ctg_id == 2)
+		//			query = &ht->seqs[2476796];
+		//		if (query->status != FRESH)
+		//			continue;
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
 				|| is_repetitive_q(query))
 			continue;
@@ -837,8 +877,8 @@ static void *pe_lib_thread(void *data) {
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		g_mutex_unlock(update_mutex);
 		eg = NULL;
-//		if (pair_ctg_id > 100)
-//		break;
+		//if (pair_ctg_id > 200)
+		//	break;
 	}
 	return NULL;
 }
