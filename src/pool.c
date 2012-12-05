@@ -69,32 +69,32 @@ void pool_sort_ins(pool *r_pool, bwa_seq_t *new_seq) {
 	insert_fast_index(r_pool, index, new_seq);
 }
 
-void pool_add(pool *p, bwa_seq_t *new_seq) {
+void pool_add(pool *p, bwa_seq_t *new_seq, const int tid) {
 	if (!new_seq)
 		return;
 	g_ptr_array_add(p->reads, new_seq);
-	new_seq->is_in_c_pool = 1;
+	new_seq->is_in_c_pool = tid;
 	p->n++;
 }
 
-void mate_pool_add(pool *p, bwa_seq_t *new_seq) {
+void mate_pool_add(pool *p, bwa_seq_t *new_seq, const int tid) {
 	if (!new_seq)
 		return;
 	g_ptr_array_add(p->reads, new_seq);
-	new_seq->is_in_m_pool = 1;
+	new_seq->is_in_m_pool = tid;
 	p->n = p->reads->len;
 }
 
 void pool_uni_add(pool *p, bwa_seq_t *new_seq) {
 	if (pool_exists(p, new_seq))
 		return;
-	pool_add(p, new_seq);
+	pool_add(p, new_seq, 1);
 }
 
 void mate_pool_uni_add(pool *p, bwa_seq_t *new_seq) {
 	if (pool_exists(p, new_seq))
 		return;
-	mate_pool_add(p, new_seq);
+	mate_pool_add(p, new_seq, 1);
 }
 
 gboolean pool_rm(pool *r_pool, bwa_seq_t *rm_seq) {
@@ -138,7 +138,7 @@ gboolean mate_pool_rm_fast(pool *p, bwa_seq_t *read) {
 	return r;
 }
 
-pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs, const int ori) {
+pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs, const int ori, const int tid) {
 	bwa_seq_t *read = NULL, *mate = NULL;
 	int i = 0;
 	pool *mate_pool = new_pool();
@@ -150,7 +150,7 @@ pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs, const int ori) {
 				if (mate->status != USED && !mate->is_in_m_pool
 						&& !mate->is_in_c_pool) {
 					mate->rev_com = read->rev_com;
-					mate_pool_add(mate_pool, mate);
+					mate_pool_add(mate_pool, mate, tid);
 				}
 			}
 		}
@@ -367,7 +367,7 @@ void overlap_mate_pool(pool *cur_pool, pool *mate_pool, bwa_seq_t *contig,
 		overlapped = find_ol(contig, tmp, MISMATCHES);
 		if (overlapped >= MATE_OVERLAP_THRE) {
 			mate->cursor = ori ? (mate->len - overlapped - 1) : overlapped;
-			pool_add(cur_pool, mate);
+			pool_add(cur_pool, mate, 1);
 			if (mate_pool_rm_index(mate_pool, i))
 				i--;
 		}
@@ -434,8 +434,9 @@ void clean_mate_pool(pool *mate_pool, edge *eg) {
 		return;
 	for (i = 0; i < mate_pool->reads->len; i++) {
 		mate = g_ptr_array_index(mate_pool->reads, i);
-		if (mate->status == USED || mate->is_in_c_pool || (mate->status
-				== TRIED && mate->contig_id == eg->id)) {
+		if (mate->status == USED || mate->is_in_c_pool || mate->is_in_m_pool
+				!= eg->tid || (mate->status == TRIED && mate->contig_id
+				== eg->id)) {
 			if (mate_pool_rm_index(mate_pool, i))
 				i--;
 		}

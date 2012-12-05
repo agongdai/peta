@@ -197,7 +197,7 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 		//show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id,
 		//		all_edges->len);
 		in_out = edgearray_find_id(all_edges, mate->contig_id);
-		if (in_out ){
+		if (in_out) {
 			g_ptr_array_uni_add(raw_in_outs, in_out);
 		}
 	}
@@ -208,14 +208,13 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 		//show_debug_msg(__func__, "[%d] Probable in_out: [%d, %d] \n", i,
 		//		in_out->id, in_out->len);
 		// p_ctg_seq("Contig", eg->contig);
-		g_mutex_lock(edge_mutex);
 		if (!share_subseq_byte(eg->contig->seq, eg->len, in_out->contig,
 				MISMATCHES, 100) && !share_subseq_byte(eg->contig->rseq,
 				eg->len, in_out->contig, MISMATCHES, 100)
 				&& !has_reads_in_common(eg, in_out)) {
+			in_out->tid = eg->tid;
 			g_ptr_array_add(probable_in_out, in_out);
 		}
-		g_mutex_unlock(edge_mutex);
 	}
 	g_ptr_array_free(raw_in_outs, TRUE);
 	return probable_in_out;
@@ -227,6 +226,9 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 edge *merge_two_ol_edges(hash_table *ht, edge *eg_1, edge *eg_2, const int ol) {
 	int i = 0;
 	bwa_seq_t *r = NULL;
+
+	if (!eg_1->alive || !eg_2->alive)
+		return eg_1;
 
 	//show_debug_msg(__func__, "Merging edges [%d, %d] and [%d, %d] by overlapping... \n", eg_1->id, eg_1->len, eg_2->id, eg_2->len);
 	eg_1->len -= ol;
@@ -307,21 +309,21 @@ static void *scaffolding_thread(void *data) {
 
 	for (i = d->start; i < d->end; i++) {
 		eg_i = g_ptr_array_index(d->single_edges, i);
+		eg_i->tid = d->tid;
 		show_debug_msg(__func__, "Trying edge [%d/%d, %d] \n", eg_i->id,
 				d->single_edges->len, eg_i->len);
-	//	g_mutex_lock(edge_mutex);
-		probable_in_out = get_probable_in_out(d->single_edges, eg_i, d->ht->seqs);
-	//	g_mutex_unlock(edge_mutex);
+		g_mutex_lock(edge_mutex);
+		probable_in_out = get_probable_in_out(d->single_edges, eg_i,
+				d->ht->seqs);
+		g_mutex_unlock(edge_mutex);
 		//show_debug_msg(__func__, "Probable in_out size: %d \n",
 		//		probable_in_out->len);
 		for (j = 0; j < probable_in_out->len; j++) {
 			eg_j = g_ptr_array_index(probable_in_out, j);
-			if (eg_i == eg_j)
+			if (eg_i == eg_j || eg_i->tid != eg_j->tid)
 				continue;
 			//show_debug_msg(__func__, "Ordering... \n");
-			g_mutex_lock(edge_mutex);
 			order = order_two_edges(eg_i, eg_j, d->ht->seqs);
-			g_mutex_unlock(edge_mutex);
 			if (order != 0) {
 				//gap = est_pair_gap(eg_i, eg_j, order, insert_size);
 				gap = 0; // @TODO: orientation of edge is not determined yet, skip gap size estimation
@@ -340,6 +342,10 @@ static void *scaffolding_thread(void *data) {
 					g_mutex_unlock(edge_mutex);
 				}
 			}
+		}
+		for (j = 0; j < probable_in_out->len; j++) {
+			eg_j = g_ptr_array_index(probable_in_out, j);
+			eg_j->tid = 0;
 		}
 		g_ptr_array_free(probable_in_out, TRUE);
 	}
@@ -367,7 +373,7 @@ void scaffolding(edgearray *single_edges, const int insert_size,
 		data[i].insert_size = insert_size;
 		data[i].start = i * n_per_threads;
 		data[i].end = (i + 1) * n_per_threads;
-		data[i].tid = i;
+		data[i].tid = i + 1;
 		if (i == n_threads - 1)
 			data[i].end = single_edges->len;
 		threads[i]
@@ -404,6 +410,7 @@ static void *merge_ol_edges_thread(void *data) {
 		some_one_merged = 0;
 		for (i = d->start; i < d->end; i++) {
 			eg_i = g_ptr_array_index(d->single_edges, i);
+			eg_i->tid = d->tid;
 			if (!eg_i->alive)
 				continue;
 			show_debug_msg(__func__, "Trying edge [%d/%d, %d]... %.2f sec\n",
@@ -437,9 +444,7 @@ static void *merge_ol_edges_thread(void *data) {
 				// To make sure function has_reads_in_common is called as few as possible
 				if ((ol >= MATE_OVERLAP_THRE && ol >= MISMATCHES * 10 && ol
 						< rl) || (ol > rl)) {
-					g_mutex_lock(edge_mutex);
 					has_common_read = has_reads_in_common(eg_i, eg_j);
-					g_mutex_unlock(edge_mutex);
 					if ((ol > rl && has_common_read) || (ol < rl
 							&& !has_common_read)) {
 						show_debug_msg(__func__,
@@ -447,9 +452,9 @@ static void *merge_ol_edges_thread(void *data) {
 								eg_j->id, eg_j->len, eg_i->id, eg_i->len);
 						g_mutex_lock(edge_mutex);
 						merge_two_ol_edges(d->ht, eg_i, eg_j, ol);
+						g_mutex_unlock(edge_mutex);
 						eg_i->visited = 0;
 						some_one_merged = 1;
-						g_mutex_unlock(edge_mutex);
 						continue;
 					}
 				} else {
@@ -469,17 +474,15 @@ static void *merge_ol_edges_thread(void *data) {
 							bwa_free_read_seq(1, eg_j->contig);
 							eg_j->contig = rev;
 							merge_two_ol_edges(d->ht, eg_i, eg_j, ol);
+							g_mutex_unlock(edge_mutex);
 							eg_i->visited = 0;
 							some_one_merged = 1;
-							g_mutex_unlock(edge_mutex);
 							continue; // In case the 'rev' is freed accidently.
 						}
 					}
 					bwa_free_read_seq(1, rev);
 				}
-				g_mutex_lock(edge_mutex);
 				eg_i->visited = 1;
-				g_mutex_unlock(edge_mutex);
 			}
 		}
 	}
@@ -496,7 +499,10 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 	n_per_threads = single_edges->len / n_threads;
 	if (!edge_mutex)
 		edge_mutex = g_mutex_new();
-
+	for (i = 0; i < single_edges->len; i++) {
+		eg_i = g_ptr_array_index(single_edges, i);
+		eg_i->tid = 0;
+	}
 	data
 			= (scaffolding_paras_t*) calloc(n_threads,
 					sizeof(scaffolding_paras_t));
@@ -506,7 +512,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		data[i].insert_size = insert_size;
 		data[i].start = i * n_per_threads;
 		data[i].end = (i + 1) * n_per_threads;
-		data[i].tid = i;
+		data[i].tid = i + 1;
 		if (i == n_threads - 1)
 			data[i].end = single_edges->len;
 		threads[i]

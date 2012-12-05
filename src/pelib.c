@@ -30,6 +30,8 @@ int sd_insert_size = 0;
 char *out_root = NULL;
 int n_threads = 1;
 GMutex *update_mutex;
+GMutex *id_mutex;
+GMutex *sum_mutex;
 
 void pe_lib_help() {
 	show_msg(__func__, "--------------------------------------------------");
@@ -98,11 +100,10 @@ void keep_mates_in_pool(edge *eg, pool *cur_pool, int *next,
 			to_remove = remove_single;
 		}
 
-		if (to_remove) {
-			g_mutex_lock(update_mutex);
+		// If the read is obtained by another thread, just remove it
+		if (to_remove || read->is_in_c_pool != eg->tid) {
 			if (pool_rm_index(cur_pool, i))
 				i--;
-			g_mutex_unlock(update_mutex);
 		}
 	}
 	reset_c(next, NULL); // Reset the counter
@@ -129,7 +130,7 @@ pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht) {
 		mate = get_mate(r, seqs);
 		if (mate->status == FRESH && mate->is_in_m_pool == 0) {
 			mate->rev_com = r->rev_com;
-			mate_pool_add(mate_pool, mate);
+			mate_pool_add(mate_pool, mate, eg->tid);
 		}
 	}
 	return mate_pool;
@@ -149,15 +150,16 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 		mate = g_ptr_array_index(mate_pool->reads, i);
 		s = get_mate(mate, seqs);
 		// For the reads in the mate pool, these ones are not considered:
-		//	1. Is already in c_pool
+		//	1. Is already in c_pool, or in the mate pool of other thread
 		//	2. Is already used
 		//	3. Its mate is not used
 		//	4. Its mate is used, by by another edge
 		//	5. The distance between the mates are out of range
-		if (mate->is_in_c_pool || mate->status == USED || (s->status == USED
-				&& s->contig_id != eg->id) || (s->status != USED)
-				|| (abs(eg->len - s->shift) > (insert_size + sd_insert_size
-						* SD_TIMES)))
+		if (mate->is_in_c_pool == eg->tid || mate->is_in_m_pool != eg->tid)
+			continue;
+		if (mate->status == USED || (s->status == USED && s->contig_id
+				!= eg->id) || (s->status != USED) || (abs(eg->len - s->shift)
+				> (insert_size + sd_insert_size * SD_TIMES)))
 			continue;
 		tmp = mate;
 		if (mate->rev_com)
@@ -192,11 +194,9 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 				}
 			}
 			if (go_to_add) {
-				g_mutex_lock(update_mutex);
 				mate->cursor = ori ? (mate->len - overlapped - 1) : overlapped;
-				pool_add(cur_pool, mate);
+				pool_add(cur_pool, mate, eg->tid);
 				mate_pool_rm_index(mate_pool, i);
-				g_mutex_unlock(update_mutex);
 				i--;
 			}
 		}
@@ -222,10 +222,6 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 			continue;
 		s = &seqs[index];
 		mate = get_mate(s, seqs);
-		g_mutex_lock(update_mutex);
-		s->rev_com = a->rev_comp;
-		mate->rev_com = s->rev_com;
-		g_mutex_unlock(update_mutex);
 		pre_cursor = s->cursor;
 
 		if (s->is_in_c_pool || (a->pos + query->len - 1) > s->len || s->status
@@ -244,18 +240,17 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		if ((!ori && pre_cursor > s->cursor) || (ori && pre_cursor < s->cursor))
 			continue;
 
-		g_mutex_lock(update_mutex);
-		pool_add(cur_pool, s);
+		s->rev_com = a->rev_comp;
+		mate->rev_com = s->rev_com;
+
+		pool_add(cur_pool, s, ass_eg->tid);
 		if (mate->status != USED && !mate->is_in_c_pool && !mate->is_in_m_pool) {
-			mate_pool_add(mate_pool, mate);
+			mate_pool_add(mate_pool, mate, ass_eg->id);
 		}
-		g_mutex_unlock(update_mutex);
 	}
 	//show_debug_msg(__func__, "Removing partial... \n");
 	// In current pool, if a read does not overlap with the tail properly, remove it
-	g_mutex_lock(update_mutex);
 	rm_partial(cur_pool, mate_pool, ori, seqs, query, 2);
-	g_mutex_unlock(update_mutex);
 	//show_debug_msg(__func__, "Adding mates... \n");
 	// Add mates into current pool by overlapping
 	//if (cur_pool->n <= 10) {
@@ -280,7 +275,8 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
  * If return NULL, it indicates there are too many (>=4 by default) counter pairs.
  * In this case, the caller should not continue to do single extension.
  */
-pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
+pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
+		const int tid) {
 	alignarray *alns = NULL;
 	int i = 0, to_free_query = 0;
 	// In some cases, one mate is forward, but another is backward, which is not reasonable.
@@ -301,6 +297,7 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) 
 	}
 	p_query(__func__, query);
 
+	g_mutex_lock(update_mutex);
 	pe_aln_query(query, query->seq, ht, 4, overlap_len, 0, alns);
 	pe_aln_query(query, query->rseq, ht, 4, overlap_len, 1, alns);
 	//p_align(alns);
@@ -322,13 +319,14 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) 
 		else
 			s->cursor = ori ? (a->pos - 1) : (a->pos + s->len);
 		if (s->contig_id == INVALID_CONTIG_ID || s->status == USED || s->cursor
-				< -1 || s->cursor > s->len || s->is_in_c_pool) {
+				< -1 || s->cursor > s->len || s->is_in_c_pool
+				|| s->is_in_m_pool) {
 			s->cursor = 0;
 			continue;
 		}
 		s->rev_com = a->rev_comp;
 		mate->rev_com = a->rev_comp;
-		pool_add(init_pool, s);
+		pool_add(init_pool, s, tid);
 		//		if (strcmp(s->name, "3563380") == 0) {
 		//			p_query(__func__, mate);
 		//			p_query(__func__, s);
@@ -337,6 +335,7 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) 
 	free_alg(alns);
 	if (to_free_query)
 		bwa_free_read_seq(1, query);
+	g_mutex_unlock(update_mutex);
 	// Indicates that too many counter pairs found, not feasible to extend from init_read
 	if (n_counter_pairs >= MAX_COUNTER_PAIRS) {
 		free_pool(init_pool);
@@ -378,7 +377,7 @@ void correct_start(edge *eg, pool *cur_pool) {
  * Extend a template
  */
 edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
-		const int ori) {
+		const int ori, const int tid) {
 	bwa_seq_t *query = NULL;
 	pool *cur_pool = NULL, *mate_pool = NULL;
 	int *c = NULL, checked_pairs = 0;
@@ -390,16 +389,17 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		eg = pre_eg;
 	} else {
 		eg = new_eg();
-		g_mutex_lock(update_mutex);
+		eg->tid = tid;
+		g_mutex_lock(id_mutex);
 		eg->id = pair_ctg_id;
-		eg->name = strdup(s->name);
 		pair_ctg_id++;
-		g_mutex_unlock(update_mutex);
 		show_msg(__func__, "---------- Processing read %d: %s ----------\n",
 				pair_ctg_id, s->name);
 		show_debug_msg(__func__,
 				"---------- Processing read %d: %s ----------\n", pair_ctg_id,
 				s->name);
+		g_mutex_unlock(id_mutex);
+		eg->name = strdup(s->name);
 		eg->contig = new_seq(s, s->len, 0);
 		eg->len = s->len;
 	}
@@ -408,10 +408,10 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		query = new_seq(s, overlap_len, 0);
 	else
 		query = new_seq(s, overlap_len, s->len - overlap_len);
+	cur_pool = get_start_pool(ht, s, ori, eg->id);
 	g_mutex_lock(update_mutex);
-	cur_pool = get_start_pool(ht, s, ori);
 	mate_pool = pre_eg ? get_mate_pool_from_edge(pre_eg, ht)
-			: get_init_mate_pool(cur_pool, ht->seqs, ori);
+			: get_init_mate_pool(cur_pool, ht->seqs, ori, eg->tid);
 	g_mutex_unlock(update_mutex);
 	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
 	if (!pre_eg) {
@@ -519,53 +519,43 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
  *
  * That is because, after first round, there may not be enough mates to use in mate_pool because length is not enough.
  */
-edge* pe_ext(hash_table *ht, bwa_seq_t *query) {
+edge* pe_ext(hash_table *ht, bwa_seq_t *query, const int tid) {
 	edge *eg = NULL;
 	pool *init_pool = NULL;
 	bwa_seq_t *second_round_q = NULL;
 	ubyte_t *rev = NULL;
 
-	g_mutex_lock(update_mutex);
-	init_pool = get_start_pool(ht, query, 0);
-	g_mutex_unlock(update_mutex);
+	init_pool = get_start_pool(ht, query, 0, 0);
 	if (!init_pool || init_pool->n == 0 || bases_sup_branches(init_pool, 0,
 			STRICT_BASES_SUP_THRE)) {
 		show_msg(__func__, "Read %s may be in junction area, skip. \n",
 				query->name);
-		g_mutex_lock(update_mutex);
 		query->status = TRIED;
 		free_pool(init_pool);
-		g_mutex_unlock(update_mutex);
 		return NULL;
 	}
-	g_mutex_lock(update_mutex);
 	free_pool(init_pool);
-	g_mutex_unlock(update_mutex);
 
 	show_debug_msg(__func__, "Extending to the right... \n");
-	eg = pair_extension(NULL, ht, query, 0);
+	eg = pair_extension(NULL, ht, query, 0, tid);
 	show_debug_msg(__func__, "Edge after right extension: [%d, %d]\n", eg->id,
 			eg->len);
 	show_debug_msg(__func__, "Got edge [%d, %d]. Extending to the left... \n",
 			eg->id, eg->len);
-	pair_extension(eg, ht, query, 1);
+	pair_extension(eg, ht, query, 1, tid);
 	show_debug_msg(__func__, "Edge after left extension: [%d, %d]\n", eg->id,
 			eg->len);
-	g_mutex_lock(update_mutex);
 	upd_reads(eg, MISMATCHES);
-	g_mutex_unlock(update_mutex);
 
 	show_debug_msg(__func__, "Second round: extending to the right... \n");
 	second_round_q = new_seq(eg->contig, query->len, eg->len - query->len);
-	pair_extension(eg, ht, second_round_q, 0);
+	pair_extension(eg, ht, second_round_q, 0, tid);
 	bwa_free_read_seq(1, second_round_q);
 
 	show_debug_msg(__func__, "Second round: extending to the left... \n");
 	second_round_q = new_seq(eg->contig, query->len, 0);
-	pair_extension(eg, ht, second_round_q, 1);
-	g_mutex_lock(update_mutex);
+	pair_extension(eg, ht, second_round_q, 1, tid);
 	upd_reads(eg, MISMATCHES);
-	g_mutex_unlock(update_mutex);
 
 	rev = eg->contig->rseq;
 	free(rev);
@@ -655,7 +645,7 @@ void est_insert_size(int n_max_pairs, char *lib_file, char *solid_file) {
 		show_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", line_no,
 				pair_ctg_id, query->name);
-		eg = pe_ext(ht, query);
+		eg = pe_ext(ht, query, 0);
 		if (!eg)
 			continue;
 		keep_pairs_only(eg, ht->seqs);
@@ -708,8 +698,10 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 			destroy_eg(eg);
 			return 0;
 		} else {
+			g_mutex_lock(sum_mutex);
 			*n_total_reads += eg->pairs->len;
 			g_ptr_array_add(all_edges, eg);
+			g_mutex_unlock(sum_mutex);
 			show_msg(__func__,
 					"[%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
@@ -728,7 +720,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
  * For the transcripts: left side are right side are disconnected.
  */
 void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
-		const int start, const int end, int *n_single_edges) {
+		const int start, const int end, int *n_single_edges, const int tid) {
 	int i = 0, share_subseq = 0, share_rev_subseq = 0;
 	bwa_seq_t *seqs = NULL, *s = NULL, *mate = NULL;
 	edge *eg_1 = NULL, *eg_2 = NULL, *eg = NULL;
@@ -736,7 +728,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 
 	seqs = ht->seqs;
 	for (i = start; i < end; i++) {
-		if (*n_total_reads > ht->n_seqs * 0.92 || *n_single_edges
+		if (*n_total_reads > ht->n_seqs * 0.90 || *n_single_edges
 				>= MAX_SINGLE_EDGES)
 			break;
 		s = &seqs[i];
@@ -749,12 +741,10 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 		if (has_n(mate) || is_biased_q(mate) || has_rep_pattern(mate)
 				|| is_repetitive_q(mate))
 			continue;
-		eg_1 = pe_ext(ht, s);
-		eg_2 = pe_ext(ht, mate);
-		g_mutex_lock(update_mutex);
+		eg_1 = pe_ext(ht, s, tid);
+		eg_2 = pe_ext(ht, mate, tid);
 		s->status = TRIED;
 		mate->status = TRIED;
-		g_mutex_unlock(update_mutex);
 		// If the two edges can be merged
 		if (eg_1 && eg_2) {
 			// Only if the two edges have no common reads, have on common sequence
@@ -764,7 +754,6 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 						eg_2->contig, MISMATCHES, 100);
 				share_rev_subseq = share_subseq_byte(eg_1->contig->rseq,
 						eg_1->len, eg_2->contig, MISMATCHES, 100);
-				g_mutex_lock(update_mutex);
 				if (!share_subseq && !share_subseq && !has_reads_in_common(
 						eg_1, eg_2)) {
 					pairs = find_unconditional_paired_reads(eg_1, eg_2, seqs);
@@ -781,7 +770,6 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 					}
 					g_ptr_array_free(pairs, TRUE);
 				}
-				g_mutex_unlock(update_mutex);
 			}
 		} // If the length is longer than 100, keep it.
 		if (eg_1 && eg_1->len > SINGLE_EDGE_THRE && has_most_fresh_reads(
@@ -791,12 +779,12 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 					"Probable single transcripts %d: [%d, %d], Total reads %d/%d\n",
 					*n_single_edges, eg_1->id, eg_1->len, *n_total_reads,
 					ht->n_seqs);
-			g_mutex_lock(update_mutex);
 			keep_pairs_only(eg_1, ht->seqs);
-			*n_total_reads += eg_1->reads->len;
 			g_ptr_array_add(all_edges, eg_1);
+			g_mutex_lock(sum_mutex);
+			*n_total_reads += eg_1->reads->len;
 			*n_single_edges += 1;
-			g_mutex_unlock(update_mutex);
+			g_mutex_unlock(sum_mutex);
 		}
 		if (eg_2 && eg_2->len > SINGLE_EDGE_THRE && has_most_fresh_reads(
 				eg_2->reads, 2)) {
@@ -806,12 +794,12 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 					*n_single_edges, eg_2->id, eg_2->len, *n_total_reads,
 					ht->n_seqs);
 			keep_pairs_only(eg_2, ht->seqs);
-			g_mutex_lock(update_mutex);
-			*n_total_reads += eg_2->reads->len;
-			*n_single_edges += 1;
 			g_ptr_array_add(all_edges, eg_2);
 			upd_ctg_id(eg_2, eg_2->id);
-			g_mutex_unlock(update_mutex);
+			g_mutex_lock(sum_mutex);
+			*n_total_reads += eg_2->reads->len;
+			*n_single_edges += 1;
+			g_mutex_unlock(sum_mutex);
 		}
 	}
 }
@@ -830,7 +818,7 @@ typedef struct {
 static void *far_construct_thread(void *data) {
 	thread_aux_t *d = (thread_aux_t*) data;
 	far_construct(d->ht, d->all_edges, d->n_total_reads, d->start, d->end,
-			d->n_single_edges);
+			d->n_single_edges, d->tid);
 	return NULL;
 }
 
@@ -859,15 +847,19 @@ static void *pe_lib_thread(void *data) {
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
 				|| is_repetitive_q(query))
 			continue;
-		if (*n_total_reads > d->ht->n_seqs * 0.90)
+		if (*n_total_reads > d->ht->n_seqs * 0.88)
 			break;
-		eg = pe_ext(d->ht, query);
-		g_mutex_lock(update_mutex);
+		eg = pe_ext(d->ht, query, d->tid);
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
-		g_mutex_unlock(update_mutex);
 		eg = NULL;
 		//if (pair_ctg_id > 200)
 		//	break;
+		if (((i - d->start) % (d->end - d->start) / 50) == 0) {
+			show_msg(
+					__func__,
+					"============= Progress of thread %d: [%d, %d, %d] ============= \n",
+					d->tid, d->start, i, d->end);
+		}
 	}
 	return NULL;
 }
@@ -910,7 +902,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		data[i].n_single_edges = &n_single_edges;
 		data[i].start = i * n_per_threads;
 		data[i].end = (i + 1) * n_per_threads;
-		data[i].tid = i;
+		data[i].tid = i + 1;
 		if (i == n_threads - 1)
 			data[i].end = solid_reads->len / 2;
 		threads[i]
@@ -935,7 +927,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		data[i].n_single_edges = &n_single_edges;
 		data[i].start = i * n_per_threads;
 		data[i].end = (i + 1) * n_per_threads;
-		data[i].tid = i;
+		data[i].tid = i + 1;
 		if (i == n_threads - 1)
 			data[i].end = ht->n_seqs;
 		threads[i]
@@ -1041,6 +1033,8 @@ int pe_lib(int argc, char *argv[]) {
 	if (!g_thread_supported())
 		g_thread_init(NULL);
 	update_mutex = g_mutex_new();
+	id_mutex = g_mutex_new();
+	sum_mutex = g_mutex_new();
 	show_msg(__func__, "Maximum pairs: %d \n", n_max_pairs);
 	show_msg(__func__, "Overlap length: %d \n", overlap_len);
 	show_msg(__func__, "Output folder: %s \n", out_root);

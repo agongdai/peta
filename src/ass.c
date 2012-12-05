@@ -194,9 +194,9 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 			s->cursor = ori_cursor;
 			continue;
 		}
-		pool_add(cur_pool, s);
+		pool_add(cur_pool, s, 1);
 		if (mate_pool && !mate->is_in_m_pool && !mate->is_in_c_pool) {
-			mate_pool_add(mate_pool, mate);
+			mate_pool_add(mate_pool, mate, 1);
 		}
 	}
 	// To ensure that current reads are similar to the contig
@@ -470,7 +470,7 @@ pool *get_init_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori) {
 		}
 		s->rev_com = a->rev_comp;
 		mate->rev_com = a->rev_comp;
-		pool_add(init_pool, s);
+		pool_add(init_pool, s, 1);
 	}
 	free_alg(alns);
 	if (to_free_query)
@@ -941,7 +941,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 	show_debug_msg(__func__,
 			"******************* Starting of Single Extension ******************\n");
 	cur_pool = c_pool ? c_pool : new_pool();
-	mate_pool = c_pool ? get_init_mate_pool(c_pool, ht->seqs, ori) : new_pool();
+	mate_pool = c_pool ? get_init_mate_pool(c_pool, ht->seqs, ori, 1) : new_pool();
 	contig = ass_eg->contig;
 	ass_eg->len = contig->len;
 	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
