@@ -221,9 +221,9 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		if (index >= ht->n_seqs)
 			continue;
 		s = &seqs[index];
+		mate = get_mate(s, seqs);
 		g_mutex_lock(update_mutex);
 		s->rev_com = a->rev_comp;
-		mate = get_mate(s, seqs);
 		mate->rev_com = s->rev_com;
 		g_mutex_unlock(update_mutex);
 		pre_cursor = s->cursor;
@@ -393,13 +393,13 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		g_mutex_lock(update_mutex);
 		eg->id = pair_ctg_id;
 		eg->name = strdup(s->name);
+		pair_ctg_id++;
+		g_mutex_unlock(update_mutex);
 		show_msg(__func__, "---------- Processing read %d: %s ----------\n",
 				pair_ctg_id, s->name);
 		show_debug_msg(__func__,
 				"---------- Processing read %d: %s ----------\n", pair_ctg_id,
 				s->name);
-		pair_ctg_id++;
-		g_mutex_unlock(update_mutex);
 		eg->contig = new_seq(s, s->len, 0);
 		eg->len = s->len;
 	}
@@ -510,17 +510,6 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 	return eg;
 }
 
-int pool_reads_tried(pool *init_pool) {
-	int i = 0;
-	bwa_seq_t *r = NULL;
-	for (i = 0; i < init_pool->reads->len; i++) {
-		r = g_ptr_array_index(init_pool->reads, i);
-		if (r->status == FRESH)
-			return 0;
-	}
-	return 1;
-}
-
 /**
  * Extend a solid read.
  * First round:             ------------  =>
@@ -540,7 +529,7 @@ edge* pe_ext(hash_table *ht, bwa_seq_t *query) {
 	init_pool = get_start_pool(ht, query, 0);
 	g_mutex_unlock(update_mutex);
 	if (!init_pool || init_pool->n == 0 || bases_sup_branches(init_pool, 0,
-			STRICT_BASES_SUP_THRE || pool_reads_tried(init_pool))) {
+			STRICT_BASES_SUP_THRE)) {
 		show_msg(__func__, "Read %s may be in junction area, skip. \n",
 				query->name);
 		g_mutex_lock(update_mutex);
@@ -747,7 +736,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 
 	seqs = ht->seqs;
 	for (i = start; i < end; i++) {
-		if (*n_total_reads > ht->n_seqs * 0.94 || *n_single_edges
+		if (*n_total_reads > ht->n_seqs * 0.92 || *n_single_edges
 				>= MAX_SINGLE_EDGES)
 			break;
 		s = &seqs[i];
@@ -870,7 +859,7 @@ static void *pe_lib_thread(void *data) {
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
 				|| is_repetitive_q(query))
 			continue;
-		if (*n_total_reads > d->ht->n_seqs * 0.92)
+		if (*n_total_reads > d->ht->n_seqs * 0.90)
 			break;
 		eg = pe_ext(d->ht, query);
 		g_mutex_lock(update_mutex);
