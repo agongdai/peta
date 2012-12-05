@@ -694,8 +694,8 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 					"ABANDONED [%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_total_reads, ht->n_seqs);
-			mark_multi_reads(eg);
-			clear_used_reads(eg, 0);
+			// mark_multi_reads(eg);
+			clear_used_reads(eg, 1);
 			destroy_eg(eg);
 			return 0;
 		} else {
@@ -729,12 +729,12 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 
 	seqs = ht->seqs;
 	for (i = start; i < end; i++) {
-		if (*n_total_reads > ht->n_seqs * 0.90 || *n_single_edges
+		if (*n_total_reads > ht->n_seqs * 0.94 || *n_single_edges
 				>= MAX_SINGLE_EDGES)
 			break;
 		s = &seqs[i];
 		mate = get_mate(s, seqs);
-		if (s->status != FRESH && mate->status != FRESH)
+		if (s->status == USED || s->status == TRIED || mate->status == TRIED)
 			continue;
 		if (has_n(s) || is_biased_q(s) || has_rep_pattern(s)
 				|| is_repetitive_q(s))
@@ -849,14 +849,14 @@ static void *pe_lib_thread(void *data) {
 				|| is_repetitive_q(query) || query->status == USED
 				|| query->status == MULTI)
 			continue;
-		if (*n_total_reads > d->ht->n_seqs * 0.88)
+		if (*n_total_reads > d->ht->n_seqs * 0.92)
 			break;
 		eg = pe_ext(d->ht, query, d->tid);
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		eg = NULL;
 		//if (pair_ctg_id > 200)
 		//	break;
-		if (((i - d->start) % (d->end - d->start) / 50) == 0) {
+		if (((i - d->start) % ((d->end - d->start) / 50)) == 0) {
 			show_msg(
 					__func__,
 					"============= Progress of thread %d: [%d, %d, %d] ============= \n",

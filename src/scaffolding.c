@@ -310,8 +310,8 @@ static void *scaffolding_thread(void *data) {
 	for (i = d->start; i < d->end; i++) {
 		eg_i = g_ptr_array_index(d->single_edges, i);
 		eg_i->tid = d->tid;
-		show_debug_msg(__func__, "Trying edge [%d/%d, %d] \n", eg_i->id,
-				d->single_edges->len, eg_i->len);
+		show_debug_msg(__func__, "Trying edge %d/%d, [%d, %d] \n", i,
+				d->single_edges->len, eg_i->id, eg_i->len);
 		g_mutex_lock(edge_mutex);
 		probable_in_out = get_probable_in_out(d->single_edges, eg_i,
 				d->ht->seqs);
@@ -413,8 +413,9 @@ static void *merge_ol_edges_thread(void *data) {
 			eg_i->tid = d->tid;
 			if (!eg_i->alive)
 				continue;
-			show_debug_msg(__func__, "Trying edge [%d/%d, %d]... %.2f sec\n",
-					eg_i->id, d->single_edges->len, eg_i->len, (float) (clock()
+			show_debug_msg(__func__,
+					"Trying edge %d/%d [%d, %d]... %.2f sec\n", i,
+					d->single_edges->len, eg_i->id, eg_i->len, (float) (clock()
 							- t) / CLOCKS_PER_SEC);
 			for (j = 0; j < d->single_edges->len; j++) {
 				eg_j = g_ptr_array_index(d->single_edges, j);
