@@ -845,7 +845,7 @@ static void *pe_lib_thread(void *data) {
 		//		if (query->status != FRESH)
 		//			continue;
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
-				|| is_repetitive_q(query))
+				|| is_repetitive_q(query) || query->status == USED)
 			continue;
 		if (*n_total_reads > d->ht->n_seqs * 0.88)
 			break;
