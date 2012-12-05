@@ -694,7 +694,8 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 					"ABANDONED [%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_total_reads, ht->n_seqs);
-			clear_used_reads(eg, 1);
+			mark_multi_reads(eg);
+			clear_used_reads(eg, 0);
 			destroy_eg(eg);
 			return 0;
 		} else {
@@ -845,7 +846,8 @@ static void *pe_lib_thread(void *data) {
 		//		if (query->status != FRESH)
 		//			continue;
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
-				|| is_repetitive_q(query) || query->status == USED)
+				|| is_repetitive_q(query) || query->status == USED
+				|| query->status == MULTI)
 			continue;
 		if (*n_total_reads > d->ht->n_seqs * 0.88)
 			break;

@@ -978,3 +978,12 @@ int has_most_fresh_reads(readarray *ra, const int max) {
 	}
 	return 1;
 }
+
+void mark_multi_reads(edge *eg) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < eg->reads->len; i++) {
+		r = g_ptr_array_index(eg->reads, i);
+		r->status = MULTI;
+	}
+}

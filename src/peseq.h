@@ -38,6 +38,7 @@ enum READ_STATUS
     FRESH,
     USED,
     TRIED,
+    MULTI,
     DEAD,
     HANG,
     HAS_N,
