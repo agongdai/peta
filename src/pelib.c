@@ -261,9 +261,7 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	}
 	//show_debug_msg(__func__, "Removing partial... \n");
 	// In current pool, if a read does not overlap with the tail properly, remove it
-	p_pool("BEFORE ", cur_pool, NULL);
 	rm_partial(ass_eg, cur_pool, mate_pool, ori, seqs, query, 2);
-	p_pool("AFTER REMOVE PARTIAL", cur_pool, NULL);
 	//show_debug_msg(__func__, "Adding mates... \n");
 	// Add mates into current pool by overlapping
 	//if (cur_pool->n <= 10) {
@@ -275,7 +273,6 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	if (ass_eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
 		keep_mates_in_pool(ass_eg, cur_pool, next, ht, ori, 0);
 	}
-	p_pool("AFTER KEEPING MATES", cur_pool, NULL);
 	for (i = 0; i < cur_pool->n; i++) {
 		s = g_ptr_array_index(cur_pool->reads, i);
 		if (s->rev_com)
@@ -351,7 +348,7 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
 		free_pool(init_pool);
 		return NULL;
 	} else {
-		p_pool("INITIAL", init_pool, NULL);
+		//p_pool("INITIAL", init_pool, NULL);
 		return init_pool;
 	}
 }
@@ -364,7 +361,7 @@ void correct_start(edge *eg, pool *cur_pool) {
 	int i = 0, j = 0, cursor = 0, has_more = 1;
 	int *next = (int*) calloc(5, sizeof(int));
 	int correct_c = 0;
-	p_ctg_seq("ORIGINAL", eg->contig);
+	//p_ctg_seq("ORIGINAL", eg->contig);
 	for (j = 0; j < eg->contig->len; j++) {
 		if (!has_more)
 			break;
@@ -384,7 +381,7 @@ void correct_start(edge *eg, pool *cur_pool) {
 		correct_c = get_pure_most(next);
 		eg->contig->seq[j] = correct_c;
 	}
-	p_ctg_seq("CORRECTED", eg->contig);
+	//p_ctg_seq("CORRECTED", eg->contig);
 	free(next);
 }
 
@@ -868,8 +865,8 @@ static void *pe_lib_thread(void *data) {
 		eg = pe_ext(d->ht, query, d->tid);
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		eg = NULL;
-		if (pair_ctg_id == 100)
-			break;
+		//if (pair_ctg_id == 100)
+		//	break;
 		if (((i - d->start) % ((d->end - d->start) / 50)) == 0) {
 			show_msg(
 					__func__,
