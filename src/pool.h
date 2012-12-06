@@ -39,7 +39,7 @@ void pool_uni_add(pool *p, bwa_seq_t *new_seq);
 void mate_pool_uni_add(pool *p, bwa_seq_t *new_seq);
 bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int left_max_ctg_id);
 void pool_sort_ins(pool *r_pool, bwa_seq_t *new_seq);
-void rm_partial(pool *cur_pool, pool *mate_pool, int ori, bwa_seq_t *seqs, bwa_seq_t *query, int nm);
+void rm_partial(edge *eg, pool *cur_pool, pool *mate_pool, int ori, bwa_seq_t *seqs, bwa_seq_t *query, int nm);
 void clean_mate_pool(pool *mate_pool, edge *eg);
 gboolean pool_rm(pool *r_pool, bwa_seq_t *rm_seq);
 gboolean pool_rm_fast(pool *p, bwa_seq_t *read);

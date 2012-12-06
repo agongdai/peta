@@ -62,6 +62,7 @@ void rev_edge(edge *eg);
 int binary_exists(const readarray *reads, const bwa_seq_t *read);
 int has_most_fresh_reads(readarray *ra, const int max);
 void mark_multi_reads(edge *eg);
+void rev_reads_pos(edge *eg);
 
 #ifdef __cplusplus
 }

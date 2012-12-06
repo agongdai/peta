@@ -672,6 +672,7 @@ void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
 	if (!read || eg->len < read->len)
 		return;
 	seqs = ht->seqs;
+	show_debug_msg(__func__, "There are %d => %d reads \n", eg->reads->len, eg->pairs->len);
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		read->status = FRESH;
@@ -682,12 +683,12 @@ void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
 	//show_debug_msg(__func__, "Aligning ... \n");
 	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
 	//p_ctg_seq("CONTIG", eg->contig);
-	for (i = 0; i < eg->len - seqs->len; i++) {
+	for (i = 0; i < eg->len - seqs->len + 1; i++) {
 		query = new_seq(eg->contig, seqs->len, i);
 		//p_query(__func__, query);
 		pe_aln_query(query, query->seq, ht, mismatches, query->len, 0, aligns);
 		pe_aln_query(query, query->rseq, ht, mismatches, query->len, 1, aligns);
-
+		//p_align(aligns);
 		//show_debug_msg(__func__, "%d alignments ... \n", aligns->len);
 		for (j = 0; j < aligns->len; j++) {
 			a = g_ptr_array_index(aligns, j);
@@ -708,6 +709,7 @@ void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
 		read = g_ptr_array_index(eg->reads, i);
 		if (read->status == FRESH) {
 			g_ptr_array_remove_index_fast(eg->reads, i);
+			read->contig_id = UNUSED_CONTIG_ID;
 			i--;
 		} else {
 			mate = get_mate(read, seqs);
@@ -719,6 +721,7 @@ void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
 			}
 		}
 	}
+	show_debug_msg("AFTER", "There are %d => %d reads \n", eg->reads->len, eg->pairs->len);
 }
 
 int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs) {
@@ -727,7 +730,7 @@ int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs) {
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		mate = get_mate(read, seqs);
-		if (mate->status == USED && mate->contig_id == eg->id) {
+		if ((mate->status == USED || mate->status == TRIED)  && mate->contig_id == eg->id) {
 			n_pairs++;
 		}
 		if (n_pairs >= n_stop_pairs)
@@ -847,7 +850,7 @@ void readarray_add(edge *eg, bwa_seq_t *read) {
 	if (!eg || !read)
 		return;
 	g_ptr_array_add(eg->reads, read);
-	read->status = USED;
+	read->status = TRIED;
 	read->contig_id = eg->id;
 }
 
@@ -985,5 +988,14 @@ void mark_multi_reads(edge *eg) {
 	for (i = 0; i < eg->reads->len; i++) {
 		r = g_ptr_array_index(eg->reads, i);
 		r->status = MULTI;
+	}
+}
+void rev_reads_pos(edge *eg) {
+	int i = 0;
+	readarray *reads = eg->reads;
+	bwa_seq_t *r;
+	for (i = 0; i < reads->len; i++) {
+		r = g_ptr_array_index(reads, i);
+		r->shift = eg->len - r->shift + 1;
 	}
 }

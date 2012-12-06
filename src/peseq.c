@@ -283,10 +283,7 @@ void p_query(const char *header, const bwa_seq_t *q) {
 		printf(" [rev_com]");
 	else
 		printf(" [not_rev_com]");
-	if (q->status)
-		printf(" [%d: %d, %d]", q->status, q->contig_id, q->shift);
-	else
-		printf(" [not_used]");
+	printf(" [%d: %d, %d]", q->status, q->contig_id, q->shift);
 	//	printf("\n[rev_com] ");
 	//	for (i = 0; i < q->len; i++) {
 	//		if (q->rseq[i] > 4)

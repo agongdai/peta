@@ -201,7 +201,7 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 	}
 	// To ensure that current reads are similar to the contig
 	//p_pool("Before", cur_pool, NULL);
-	rm_partial(cur_pool, mate_pool, ori, seqs, query, opt->nm);
+	rm_partial(ass_eg, cur_pool, mate_pool, ori, seqs, query, opt->nm);
 	//p_pool("After", cur_pool, NULL);
 	// Add overlapped reads from the mate_pool, the overlapping length is read length / 4.
 	if (mate_pool) {
@@ -542,16 +542,6 @@ int vld_ext(edge *parent, bwa_seq_t *query, const hash_table *ht, const int ori)
 		return 1;
 	else
 		return 0;
-}
-
-void rev_reads_pos(edge *eg) {
-	int i = 0;
-	readarray *reads = eg->reads;
-	bwa_seq_t *r;
-	for (i = 0; i < reads->len; i++) {
-		r = g_ptr_array_index(reads, i);
-		r->shift = eg->len - r->shift + 1;
-	}
 }
 
 // Return 1: added to the pool

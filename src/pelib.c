@@ -78,16 +78,19 @@ void keep_mates_in_pool(edge *eg, pool *cur_pool, int *next,
 	for (i = 0; i < cur_pool->reads->len; i++) {
 		read = g_ptr_array_index(cur_pool->reads, i);
 		mate = get_mate(read, ht->seqs);
+//		// When extending to left, the initial mate pool and current pool overlap
+//		if (read->is_in_m_pool == eg->tid)
+//			continue;
 		to_remove = 0;
 		// The mate of 'read' should be used already
-		//if (strcmp(read->name, "6200654") == 0) {
+		//if (strcmp(read->name, "2660394") == 0) {
 		//	show_debug_msg(__func__, "ORI: %d \n", ori);
 		//	p_query(__func__, mate);
 		//	p_query(__func__, read);
 		//}
 		if (is_paired(read, ori)) {
 			// If the mate is not used, remove 'read'
-			if ((read->rev_com != mate->rev_com) || (mate->status != USED)
+			if ((read->rev_com != mate->rev_com) || (mate->status != TRIED)
 					|| eg->id != mate->contig_id) {
 				to_remove = 1;
 			} else {// If the distance is not within range, remove 'read'
@@ -155,26 +158,35 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 		//	3. Its mate is not used
 		//	4. Its mate is used, by by another edge
 		//	5. The distance between the mates are out of range
-		if (mate->is_in_c_pool == eg->tid || mate->is_in_m_pool != eg->tid)
+		if (mate->is_in_c_pool == eg->tid || mate->is_in_m_pool != eg->tid
+				|| mate->status == USED)
 			continue;
-		if (mate->status == USED || (s->status == USED && s->contig_id
-				!= eg->id) || (s->status != USED) || (abs(eg->len - s->shift)
-				> (insert_size + sd_insert_size * SD_TIMES)))
+		//if (strcmp(mate->name, "793257") == 0) {
+		//	show_debug_msg("EDGE", "EDGE: [%d, %d] \n", eg->id, eg->len);
+		//	show_debug_msg("ORI", "ORI: %d \n", ori);
+		//	p_ctg_seq("QUERY", query);
+		//	p_query("MATE", tmp);
+		//	p_query("ORIG", mate);
+		//	p_query("USED", get_mate(mate, seqs));
+		//}
+		if (!(s->status == TRIED && s->contig_id == eg->id) || (mate->status
+				== TRIED && mate->contig_id == eg->id) || (abs(eg->len
+				- s->shift) > (insert_size + sd_insert_size * SD_TIMES)))
 			continue;
 		tmp = mate;
 		if (mate->rev_com)
 			tmp = new_mem_rev_seq(mate, mate->len, 0);
 
 		overlapped = ori ? find_ol(tmp, query, nm) : find_ol(query, tmp, nm);
-		//		if (strcmp(mate->name, "6334942") == 0) {
-		//			show_debug_msg("ORI", "ORI: %d \n", ori);
-		//			p_ctg_seq("QUERY", query);
-		//			p_query("MATE", tmp);
-		//			p_query("ORIG", mate);
-		//			p_query("USED", get_mate(mate, seqs));
-		//			show_debug_msg(__func__, "OVERLAP 1: %d \n", overlapped);
-		//			show_debug_msg(__func__, "OVERLAP 2: %d \n", read_mate_ol);
-		//		}
+		//if (strcmp(mate->name, "793257") == 0) {
+		//	show_debug_msg("ORI", "ORI: %d \n", ori);
+		//	p_ctg_seq("QUERY", query);
+		//	p_query("MATE", tmp);
+		//p_query("ORIG", mate);
+		//p_query("USED", get_mate(mate, seqs));
+		//show_debug_msg(__func__, "OVERLAP 1: %d \n", overlapped);
+		//	show_debug_msg(__func__, "OVERLAP 2: %d \n", read_mate_ol);
+		//}
 		if (overlapped >= ol) {
 			// Only if this mate overlaps with some read in the cur_pool, add it.
 			// It is important because sometimes it maybe added just for coincidence.
@@ -227,6 +239,8 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		if (s->is_in_c_pool || (a->pos + query->len - 1) > s->len || s->status
 				== USED || s->contig_id == ass_eg->id)
 			continue;
+		s->rev_com = a->rev_comp;
+		mate->rev_com = s->rev_com;
 		if (s->rev_com)
 			s->cursor = ori ? (s->len - query->len - 1 - a->pos) : (s->len
 					- a->pos);
@@ -240,17 +254,16 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		if ((!ori && pre_cursor > s->cursor) || (ori && pre_cursor < s->cursor))
 			continue;
 
-		s->rev_com = a->rev_comp;
-		mate->rev_com = s->rev_com;
-
 		pool_add(cur_pool, s, ass_eg->tid);
 		if (mate->status != USED && !mate->is_in_c_pool && !mate->is_in_m_pool) {
-			mate_pool_add(mate_pool, mate, ass_eg->id);
+			mate_pool_add(mate_pool, mate, ass_eg->tid);
 		}
 	}
 	//show_debug_msg(__func__, "Removing partial... \n");
 	// In current pool, if a read does not overlap with the tail properly, remove it
-	rm_partial(cur_pool, mate_pool, ori, seqs, query, 2);
+	p_pool("BEFORE ", cur_pool, NULL);
+	rm_partial(ass_eg, cur_pool, mate_pool, ori, seqs, query, 2);
+	p_pool("AFTER REMOVE PARTIAL", cur_pool, NULL);
 	//show_debug_msg(__func__, "Adding mates... \n");
 	// Add mates into current pool by overlapping
 	//if (cur_pool->n <= 10) {
@@ -262,6 +275,7 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	if (ass_eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
 		keep_mates_in_pool(ass_eg, cur_pool, next, ht, ori, 0);
 	}
+	p_pool("AFTER KEEPING MATES", cur_pool, NULL);
 	for (i = 0; i < cur_pool->n; i++) {
 		s = g_ptr_array_index(cur_pool->reads, i);
 		if (s->rev_com)
@@ -314,23 +328,19 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
 		if (n_counter_pairs >= MAX_COUNTER_PAIRS) {
 			break;
 		}
+		s->rev_com = a->rev_comp;
 		if (s->rev_com)
 			s->cursor = ori ? (0 - a->pos - 1) : (s->len - a->pos);
 		else
 			s->cursor = ori ? (a->pos - 1) : (a->pos + s->len);
+		p_query(__func__, s);
 		if (s->contig_id == INVALID_CONTIG_ID || s->status == USED || s->cursor
 				< -1 || s->cursor > s->len || s->is_in_c_pool
 				|| s->is_in_m_pool) {
 			s->cursor = 0;
 			continue;
 		}
-		s->rev_com = a->rev_comp;
-		mate->rev_com = a->rev_comp;
 		pool_add(init_pool, s, tid);
-		//		if (strcmp(s->name, "3563380") == 0) {
-		//			p_query(__func__, mate);
-		//			p_query(__func__, s);
-		//		}
 	}
 	free_alg(alns);
 	if (to_free_query)
@@ -341,7 +351,7 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
 		free_pool(init_pool);
 		return NULL;
 	} else {
-		//p_pool("INITIAL", init_pool, NULL);
+		p_pool("INITIAL", init_pool, NULL);
 		return init_pool;
 	}
 }
@@ -354,6 +364,7 @@ void correct_start(edge *eg, pool *cur_pool) {
 	int i = 0, j = 0, cursor = 0, has_more = 1;
 	int *next = (int*) calloc(5, sizeof(int));
 	int correct_c = 0;
+	p_ctg_seq("ORIGINAL", eg->contig);
 	for (j = 0; j < eg->contig->len; j++) {
 		if (!has_more)
 			break;
@@ -363,13 +374,17 @@ void correct_start(edge *eg, pool *cur_pool) {
 			read = g_ptr_array_index(cur_pool->reads, i);
 			cursor = (read->cursor - read->len) + j;
 			if (cursor >= 0 && cursor < read->len) {
-				check_c(next, read->seq[cursor]);
+				if (read->rev_com)
+					check_c(next, read->rseq[cursor]);
+				else
+					check_c(next, read->seq[cursor]);
 				has_more = 1;
 			}
 		}
 		correct_c = get_pure_most(next);
 		eg->contig->seq[j] = correct_c;
 	}
+	p_ctg_seq("CORRECTED", eg->contig);
 	free(next);
 }
 
@@ -408,7 +423,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		query = new_seq(s, overlap_len, 0);
 	else
 		query = new_seq(s, overlap_len, s->len - overlap_len);
-	cur_pool = get_start_pool(ht, s, ori, eg->id);
+	cur_pool = get_start_pool(ht, s, ori, eg->tid);
 	g_mutex_lock(update_mutex);
 	mate_pool = pre_eg ? get_mate_pool_from_edge(pre_eg, ht)
 			: get_init_mate_pool(cur_pool, ht->seqs, ori, eg->tid);
@@ -490,7 +505,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			checked_pairs = 1; // This checking performs only once.
 			// If the length is long enough but there is not enough pairs, just stop
 			if (!has_pairs_on_edge(eg, ht->seqs, MIN_VALID_PAIRS)) {
-				show_msg(__func__, "No enough pairs currently, stop!");
+				show_msg(__func__, "No enough pairs currently, stop! \n");
 				break;
 			}
 		}
@@ -538,6 +553,7 @@ edge* pe_ext(hash_table *ht, bwa_seq_t *query, const int tid) {
 
 	show_debug_msg(__func__, "Extending to the right... \n");
 	eg = pair_extension(NULL, ht, query, 0, tid);
+	rev_reads_pos(eg);
 	show_debug_msg(__func__, "Edge after right extension: [%d, %d]\n", eg->id,
 			eg->len);
 	show_debug_msg(__func__, "Got edge [%d, %d]. Extending to the left... \n",
@@ -545,17 +561,18 @@ edge* pe_ext(hash_table *ht, bwa_seq_t *query, const int tid) {
 	pair_extension(eg, ht, query, 1, tid);
 	show_debug_msg(__func__, "Edge after left extension: [%d, %d]\n", eg->id,
 			eg->len);
-	upd_reads(eg, MISMATCHES);
+	upd_reads_by_ht(ht, eg, MISMATCHES);
 
 	show_debug_msg(__func__, "Second round: extending to the right... \n");
 	second_round_q = new_seq(eg->contig, query->len, eg->len - query->len);
 	pair_extension(eg, ht, second_round_q, 0, tid);
+	rev_reads_pos(eg);
 	bwa_free_read_seq(1, second_round_q);
 
 	show_debug_msg(__func__, "Second round: extending to the left... \n");
 	second_round_q = new_seq(eg->contig, query->len, 0);
 	pair_extension(eg, ht, second_round_q, 1, tid);
-	upd_reads(eg, MISMATCHES);
+	upd_reads_by_ht(ht, eg, MISMATCHES);
 
 	rev = eg->contig->rseq;
 	free(rev);
@@ -581,10 +598,6 @@ void keep_pairs_only(edge *eg, bwa_seq_t *seqs) {
 		read = g_ptr_array_index(eg->reads, i);
 		read_len = read->len;
 		mate = get_mate(read, seqs);
-		//		if (strcmp(read->name, "3563380") == 0) {
-		//			p_query(__func__, mate);
-		//			p_query(__func__, read);
-		//		}
 		if (mate->status != FRESH && mate->contig_id == eg->id) {
 			min_shift = read->shift < min_shift ? read->shift : min_shift;
 			max_shift = read->shift > max_shift ? read->shift : max_shift;
@@ -682,7 +695,7 @@ void est_insert_size(int n_max_pairs, char *lib_file, char *solid_file) {
 int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 		int *n_total_reads) {
 	if (eg) {
-		keep_pairs_only(eg, ht->seqs);
+		// keep_pairs_only(eg, ht->seqs);
 		if (eg->len < 100 || eg->pairs->len <= MIN_VALID_PAIRS) {
 			show_msg(
 					__func__,
@@ -694,7 +707,8 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 					"ABANDONED [%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_total_reads, ht->n_seqs);
-			// mark_multi_reads(eg);
+			if (n_threads > 1)
+				mark_multi_reads(eg);
 			clear_used_reads(eg, 1);
 			destroy_eg(eg);
 			return 0;
@@ -762,7 +776,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 						eg = merge_edges(eg_1, eg_2, ht);
 						if (eg) {
 							validate_edge(all_edges, eg, ht, n_total_reads);
-							upd_reads(eg, MISMATCHES);
+							upd_reads_by_ht(ht, eg, MISMATCHES);
 							eg_1 = NULL;
 							eg_2 = NULL;
 							g_ptr_array_free(pairs, TRUE);
@@ -838,7 +852,7 @@ static void *pe_lib_thread(void *data) {
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_total_reads = d->n_total_reads;
 		//if (pair_ctg_id == 0)
-		//	query = &ht->seqs[2946771];
+		//	query = &ht->seqs[4991764];
 		//		if (pair_ctg_id == 1)
 		//			query = &ht->seqs[4251536];
 		//		if (pair_ctg_id == 2)
@@ -854,8 +868,8 @@ static void *pe_lib_thread(void *data) {
 		eg = pe_ext(d->ht, query, d->tid);
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		eg = NULL;
-		//if (pair_ctg_id > 200)
-		//	break;
+		if (pair_ctg_id == 100)
+			break;
 		if (((i - d->start) % ((d->end - d->start) / 50)) == 0) {
 			show_msg(
 					__func__,

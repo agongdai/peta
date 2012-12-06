@@ -243,7 +243,7 @@ edge *merge_two_ol_edges(hash_table *ht, edge *eg_1, edge *eg_2, const int ol) {
 	//show_debug_msg(__func__, "Clearing reads ... \n");
 	clear_used_reads(eg_2, 0);
 	//show_debug_msg(__func__, "Updating reads %d=>%d ... \n", eg_1->id, eg_1->reads->len);
-	upd_reads(eg_1, MISMATCHES);
+	upd_reads_by_ht(ht, eg_1, MISMATCHES);
 	//show_debug_msg(__func__, "Updated ... \n");
 	for (i = 0; i < eg_1->reads->len; i++) {
 		r = g_ptr_array_index(eg_1->reads, i);
