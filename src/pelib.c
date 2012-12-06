@@ -330,7 +330,7 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
 			s->cursor = ori ? (0 - a->pos - 1) : (s->len - a->pos);
 		else
 			s->cursor = ori ? (a->pos - 1) : (a->pos + s->len);
-		p_query(__func__, s);
+		// p_query(__func__, s);
 		if (s->contig_id == INVALID_CONTIG_ID || s->status == USED || s->cursor
 				< -1 || s->cursor > s->len || s->is_in_c_pool
 				|| s->is_in_m_pool) {
