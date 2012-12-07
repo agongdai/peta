@@ -672,7 +672,7 @@ void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
 	if (!read || eg->len < read->len)
 		return;
 	seqs = ht->seqs;
-	show_debug_msg(__func__, "There are %d => %d reads \n", eg->reads->len, eg->pairs->len);
+	//show_debug_msg(__func__, "There are %d => %d reads \n", eg->reads->len, eg->pairs->len);
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		read->status = FRESH;
@@ -721,7 +721,7 @@ void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
 			}
 		}
 	}
-	show_debug_msg("AFTER", "There are %d => %d reads \n", eg->reads->len, eg->pairs->len);
+	//show_debug_msg("AFTER", "There are %d => %d reads \n", eg->reads->len, eg->pairs->len);
 }
 
 int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs) {

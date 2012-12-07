@@ -264,10 +264,10 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	rm_partial(ass_eg, cur_pool, mate_pool, ori, seqs, query, 2);
 	//show_debug_msg(__func__, "Adding mates... \n");
 	// Add mates into current pool by overlapping
-	//if (cur_pool->n <= 10) {
-	add_mates_by_ol(seqs, ass_eg, cur_pool, mate_pool, MATE_OVERLAP_THRE,
-			MISMATCHES, query, ori);
-	//}
+	if (cur_pool->n <= 10) {
+		add_mates_by_ol(seqs, ass_eg, cur_pool, mate_pool, MATE_OVERLAP_THRE,
+				MISMATCHES, query, ori);
+	}
 	//show_debug_msg(__func__, "Keeping mates... \n");
 	// Keep only the reads whose mate is used previously.
 	if (ass_eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
@@ -704,7 +704,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 					"ABANDONED [%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_total_reads, ht->n_seqs);
-			if (n_threads > 1)
+			if (n_threads == 1)
 				mark_multi_reads(eg);
 			clear_used_reads(eg, 1);
 			destroy_eg(eg);
