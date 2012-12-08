@@ -838,6 +838,23 @@ int is_paired(const bwa_seq_t *read, const int ori) {
 	return paired;
 }
 
+/**
+ * Count how many mismatches on the overlapping region
+ * Query: ----------------------------------
+ * Seq:                           ----*--*----------------------
+ * Return 2.
+ */
+int get_mismatches_on_ol(const bwa_seq_t *query, const bwa_seq_t *seq, const int ol) {
+	int n_mismatches = 0, i = 0;
+	if (ol <= 0)
+		return 0;
+	for (i = 0; i < ol; i++) {
+		if (query->seq[query->len - ol + i] != seq->seq[i])
+			n_mismatches++;
+	}
+	return n_mismatches;
+}
+
 void destroy_index(indexes *in) {
 	if (in) {
 		bwt_destroy(in->bwt[0]);

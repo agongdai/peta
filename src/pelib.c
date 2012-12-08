@@ -78,13 +78,14 @@ void keep_mates_in_pool(edge *eg, pool *cur_pool, int *next,
 	for (i = 0; i < cur_pool->reads->len; i++) {
 		read = g_ptr_array_index(cur_pool->reads, i);
 		mate = get_mate(read, ht->seqs);
-//		// When extending to left, the initial mate pool and current pool overlap
-//		if (read->is_in_m_pool == eg->tid)
-//			continue;
+		//		// When extending to left, the initial mate pool and current pool overlap
+		//		if (read->is_in_m_pool == eg->tid)
+		//			continue;
 		to_remove = 0;
 		// The mate of 'read' should be used already
-		//if (strcmp(read->name, "2660394") == 0) {
+		//if (strcmp(read->name, "158178") == 0) {
 		//	show_debug_msg(__func__, "ORI: %d \n", ori);
+		//	show_debug_msg(__func__, "Edge [%d, %d] \n", eg->id, eg->len);
 		//	p_query(__func__, mate);
 		//	p_query(__func__, read);
 		//}
@@ -161,7 +162,7 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 		if (mate->is_in_c_pool == eg->tid || mate->is_in_m_pool != eg->tid
 				|| mate->status == USED)
 			continue;
-		//if (strcmp(mate->name, "793257") == 0) {
+		//if (strcmp(mate->name, "158178") == 0) {
 		//	show_debug_msg("EDGE", "EDGE: [%d, %d] \n", eg->id, eg->len);
 		//	show_debug_msg("ORI", "ORI: %d \n", ori);
 		//	p_ctg_seq("QUERY", query);
@@ -178,7 +179,7 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 			tmp = new_mem_rev_seq(mate, mate->len, 0);
 
 		overlapped = ori ? find_ol(tmp, query, nm) : find_ol(query, tmp, nm);
-		//if (strcmp(mate->name, "793257") == 0) {
+		//if (strcmp(mate->name, "158178") == 0) {
 		//	show_debug_msg("ORI", "ORI: %d \n", ori);
 		//	p_ctg_seq("QUERY", query);
 		//	p_query("MATE", tmp);
@@ -263,6 +264,7 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	// In current pool, if a read does not overlap with the tail properly, remove it
 	rm_partial(ass_eg, cur_pool, mate_pool, ori, seqs, query, 2);
 	//show_debug_msg(__func__, "Adding mates... \n");
+	//p_pool("AFTER", cur_pool, NULL);
 	// Add mates into current pool by overlapping
 	if (cur_pool->n <= 10) {
 		add_mates_by_ol(seqs, ass_eg, cur_pool, mate_pool, MATE_OVERLAP_THRE,
@@ -272,6 +274,7 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	// Keep only the reads whose mate is used previously.
 	if (ass_eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
 		keep_mates_in_pool(ass_eg, cur_pool, next, ht, ori, 0);
+		//p_pool("AFTER KEEPING MATES", cur_pool, NULL);
 	}
 	for (i = 0; i < cur_pool->n; i++) {
 		s = g_ptr_array_index(cur_pool->reads, i);
@@ -498,7 +501,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		clean_mate_pool(mate_pool, eg);
 		if ((!checked_pairs && eg->len >= (insert_size + sd_insert_size
 				* SD_TIMES))) {
-			show_debug_msg(__func__, "Checking pairs... \n");
+			//show_debug_msg(__func__, "Checking pairs... \n");
 			checked_pairs = 1; // This checking performs only once.
 			// If the length is long enough but there is not enough pairs, just stop
 			if (!has_pairs_on_edge(eg, ht->seqs, MIN_VALID_PAIRS)) {
@@ -740,7 +743,7 @@ void far_construct(hash_table *ht, edgearray *all_edges, int *n_total_reads,
 
 	seqs = ht->seqs;
 	for (i = start; i < end; i++) {
-		if (*n_total_reads > ht->n_seqs * 0.94 || *n_single_edges
+		if (*n_total_reads > ht->n_seqs * 0.96 || *n_single_edges
 				>= MAX_SINGLE_EDGES)
 			break;
 		s = &seqs[i];
@@ -849,23 +852,23 @@ static void *pe_lib_thread(void *data) {
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_total_reads = d->n_total_reads;
 		//if (pair_ctg_id == 0)
-		//	query = &ht->seqs[4991764];
-		//		if (pair_ctg_id == 1)
-		//			query = &ht->seqs[4251536];
-		//		if (pair_ctg_id == 2)
-		//			query = &ht->seqs[2476796];
+		//	query = &ht->seqs[2946771];
+		//if (pair_ctg_id == 1)
+		//	query = &ht->seqs[6693859];
+		//if (pair_ctg_id == 2)
+		//	query = &ht->seqs[552074];
 		//		if (query->status != FRESH)
 		//			continue;
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
 				|| is_repetitive_q(query) || query->status == USED
 				|| query->status == MULTI)
 			continue;
-		if (*n_total_reads > d->ht->n_seqs * 0.92)
+		if (*n_total_reads > d->ht->n_seqs * 0.94)
 			break;
 		eg = pe_ext(d->ht, query, d->tid);
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		eg = NULL;
-		//if (pair_ctg_id == 100)
+		//if (pair_ctg_id == 2)
 		//	break;
 		if (((i - d->start) % ((d->end - d->start) / 50)) == 0) {
 			show_msg(

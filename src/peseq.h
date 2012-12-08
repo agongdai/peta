@@ -115,6 +115,7 @@ int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,
 int is_repetitive_q(const bwa_seq_t *query);
 void pe_reverse_seqs(bwa_seq_t *seqs, const int n_seqs);
 int is_paired(const bwa_seq_t *read, const int ori);
+int get_mismatches_on_ol(const bwa_seq_t *query, const bwa_seq_t *seq, const int ol);
 void destroy_index(indexes *in);
 void free_read_seq(bwa_seq_t *p);
 int has_rep_pattern(const bwa_seq_t *read);

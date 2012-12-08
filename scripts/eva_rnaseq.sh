@@ -1,5 +1,5 @@
 #!/bin/bash
-query="merged_pair_contigs"
+query="peta"
 db_dir="../rnaseq/Spombe/genome/"
 db="spombe.broad.tx.fasta"
 blastdb="../../ncbi-blast-2.2.26+/db/"
@@ -34,11 +34,12 @@ cp $blastdb$query.blastn $query_dir
 echo "Done"
 echo "Evaluating..." 1>&2
 echo "=======================================" 1>&2
+python eva.py blast -t $db_dir$db -c $query_dir$query.fa -b $query_dir$query.blastn -o $query_dir
 #eva read/ass_contigs.blastn read/result.txt graph/gene_10_lengths.txt graph/gene_10_edges.txt read/ass_contigs.fa read/tx.fa read/start_reads_gene.txt
-echo "../peta eva -o 0 -m $query_dir/$query.blastn -r $query_dir -c $query_dir/$query.fa -t $db_dir/$db" 1>&2
-../src/peta eva -o 0 -m $query_dir/$query.blastn -r $query_dir -c $query_dir/$query.fa -t $db_dir/$db
-echo "=======================================" 1>&2
-echo "See result in $query_dir/result.txt" 1>&2
+#echo "../peta eva -o 0 -m $query_dir/$query.blastn -r $query_dir -c $query_dir/$query.fa -t $db_dir/$db" 1>&2
+#../src/peta eva -o 0 -m $query_dir/$query.blastn -r $query_dir -c $query_dir/$query.fa -t $db_dir/$db
+#echo "=======================================" 1>&2
+#echo "See result in $query_dir/result.txt" 1>&2
 echo "Done"
 
 #echo

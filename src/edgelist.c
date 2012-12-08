@@ -245,8 +245,13 @@ readarray *find_unconditional_paired_reads(edge *eg_1, edge *eg_2,
 			continue;
 		mate = get_mate(read_1, seqs);
 		if (mate->status != USED && mate->contig_id == eg_more->id) {
-			g_ptr_array_add(paired, read_1);
-			g_ptr_array_add(paired, mate);
+			if (read_1->contig_id == eg_1->id) {
+				g_ptr_array_add(paired, read_1);
+				g_ptr_array_add(paired, mate);
+			} else {
+				g_ptr_array_add(paired, mate);
+				g_ptr_array_add(paired, read_1);
+			}
 		}
 	}
 	return paired;
@@ -730,7 +735,8 @@ int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs) {
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		mate = get_mate(read, seqs);
-		if ((mate->status == USED || mate->status == TRIED)  && mate->contig_id == eg->id) {
+		if ((mate->status == USED || mate->status == TRIED) && mate->contig_id
+				== eg->id) {
 			n_pairs++;
 		}
 		if (n_pairs >= n_stop_pairs)

@@ -125,6 +125,8 @@ int order_two_edges(edge *eg_1, edge *eg_2, bwa_seq_t *seqs) {
 		for (i = 0; i < paired_reads->len; i += 2) {
 			read = g_ptr_array_index(paired_reads, i);
 			mate = g_ptr_array_index(paired_reads, i + 1);
+			//p_query(__func__, read);
+			//p_query(__func__, mate);
 			if (ori && read->rev_com == mate->rev_com)
 				continue;
 			if (!ori && read->rev_com != mate->rev_com)
@@ -336,8 +338,8 @@ static void *scaffolding_thread(void *data) {
 						g_ptr_array_uni_add(eg_i->out_egs, eg_j);
 						g_ptr_array_uni_add(eg_j->in_egs, eg_i);
 					} else {
-						g_ptr_array_uni_add(eg_j->in_egs, eg_i);
-						g_ptr_array_uni_add(eg_i->out_egs, eg_j);
+						g_ptr_array_uni_add(eg_j->out_egs, eg_i);
+						g_ptr_array_uni_add(eg_i->in_egs, eg_j);
 					}
 					g_mutex_unlock(edge_mutex);
 				}
@@ -396,7 +398,8 @@ void scaffolding(edgearray *single_edges, const int insert_size,
  */
 static void *merge_ol_edges_thread(void *data) {
 	edge *eg_i = NULL, *eg_j = NULL;
-	int i = 0, j = 0, some_one_merged = 1, ol = 0, has_common_read = -1;
+	int i = 0, j = 0, some_one_merged = 1, ol = 0, has_common_read = -1,
+			n_mismatches = 0;
 	bwa_seq_t *seqs = NULL, *rev = NULL;
 	// readarray *paired_reads = NULL;
 	int rl = 0;
@@ -436,15 +439,21 @@ static void *merge_ol_edges_thread(void *data) {
 				//		"\t sub edge [%d/%d, %d]... %.2f sec\n", eg_j->id,
 				//		single_edges->len, eg_j->len, (float) (clock() - t)
 				//				/ CLOCKS_PER_SEC);
-				ol = find_ol(eg_i->contig, eg_j->contig, MISMATCHES * 2);
+				ol = find_ol(eg_i->contig, eg_j->contig, MISMATCHES * 3);
+				n_mismatches = get_mismatches_on_ol(eg_i->contig, eg_j->contig,
+						ol);
+				//p_ctg_seq("eg_i", eg_i->contig);
+				//p_ctg_seq("eg_j", eg_j->contig);
+				//show_debug_msg(__func__, "Overlap: %d \n", ol);
 				// 1. If the overlapping length is shorter than read length,
 				// 		We expect that no common reads
 				// 2. If the overlapping length is longer than read length,
 				//		There mush be some common reads.
 
 				// To make sure function has_reads_in_common is called as few as possible
-				if ((ol >= MATE_OVERLAP_THRE && ol >= MISMATCHES * 10 && ol
-						< rl) || (ol > rl)) {
+				if ((ol > rl) || (ol >= MATE_OVERLAP_THRE && n_mismatches
+						<= MISMATCHES && ol < rl) || (ol >= STRICT_MATCH_OL
+						&& n_mismatches == 0)) {
 					has_common_read = has_reads_in_common(eg_i, eg_j);
 					if ((ol > rl && has_common_read) || (ol < rl
 							&& !has_common_read)) {
@@ -460,9 +469,15 @@ static void *merge_ol_edges_thread(void *data) {
 					}
 				} else {
 					rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len, 0);
-					ol = find_ol(eg_i->contig, rev, MISMATCHES);
-					if ((ol >= MATE_OVERLAP_THRE && ol >= MISMATCHES * 10 && ol
-							< rl) || (ol > rl)) {
+					ol = find_ol(eg_i->contig, rev, MISMATCHES * 3);
+					n_mismatches = get_mismatches_on_ol(eg_i->contig, rev, ol);
+					//p_ctg_seq("eg_i", eg_i->contig);
+					//p_ctg_seq("eg_j", rev);
+					//show_debug_msg(__func__, "Overlap: %d; Mismatches: %d \n",
+					//		ol, n_mismatches);
+					if ((ol > rl) || (ol >= MATE_OVERLAP_THRE && n_mismatches
+							<= MISMATCHES && ol < rl) || (ol >= STRICT_MATCH_OL
+							&& n_mismatches == 0)) {
 						if (has_common_read == -1) {
 							has_common_read = has_reads_in_common(eg_i, eg_j);
 						}
@@ -479,6 +494,42 @@ static void *merge_ol_edges_thread(void *data) {
 							eg_i->visited = 0;
 							some_one_merged = 1;
 							continue; // In case the 'rev' is freed accidently.
+						}
+					} else {
+						bwa_free_read_seq(1, rev);
+						rev = new_mem_rev_seq(eg_i->contig, eg_i->contig->len,
+								0);
+						ol = find_ol(rev, eg_j->contig, MISMATCHES * 3);
+						n_mismatches = get_mismatches_on_ol(rev, eg_j->contig,
+								ol);
+						//p_ctg_seq("eg_j", rev);
+						//p_ctg_seq("eg_i", eg_j->contig);
+						//show_debug_msg(__func__,
+						//		"Overlap: %d; Mismatches: %d \n", ol,
+						//		n_mismatches);
+						if ((ol > rl) || (ol >= MATE_OVERLAP_THRE
+								&& n_mismatches <= MISMATCHES && ol < rl)
+								|| (ol >= STRICT_MATCH_OL && n_mismatches == 0)) {
+							if (has_common_read == -1) {
+								has_common_read = has_reads_in_common(eg_i,
+										eg_j);
+							}
+							if ((ol > rl && has_common_read) || (ol < rl
+									&& !has_common_read)) {
+								show_debug_msg(
+										__func__,
+										"Merging edge [%d, %d] to reverse edge [%d, %d]\n",
+										eg_j->id, eg_j->len, eg_i->id,
+										eg_i->len);
+								g_mutex_lock(edge_mutex);
+								bwa_free_read_seq(1, eg_i->contig);
+								eg_i->contig = rev;
+								merge_two_ol_edges(d->ht, eg_i, eg_j, ol);
+								g_mutex_unlock(edge_mutex);
+								eg_i->visited = 0;
+								some_one_merged = 1;
+								continue; // In case the 'rev' is freed accidently.
+							}
 						}
 					}
 					bwa_free_read_seq(1, rev);
