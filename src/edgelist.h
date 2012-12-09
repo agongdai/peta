@@ -21,6 +21,7 @@ extern "C" {
 #define NOT_FOUND		-1
 #define INVALID			-1
 #define STOP_PAIRING	400
+#define MIN_VALID_PAIRS			2
 
 gint cmp_read_by_name(gpointer a, gpointer b);
 void g_ptr_array_add_index(GPtrArray *array, gpointer data, const int index);

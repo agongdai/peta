@@ -401,7 +401,7 @@ static void *merge_ol_edges_thread(void *data) {
 	int i = 0, j = 0, some_one_merged = 1, ol = 0, has_common_read = -1,
 			n_mismatches = 0;
 	bwa_seq_t *seqs = NULL, *rev = NULL;
-	// readarray *paired_reads = NULL;
+	readarray *paired_reads = NULL;
 	int rl = 0;
 	clock_t t = clock();
 	scaffolding_paras_t *d = (scaffolding_paras_t*) data;
@@ -422,6 +422,7 @@ static void *merge_ol_edges_thread(void *data) {
 							- t) / CLOCKS_PER_SEC);
 			for (j = 0; j < d->single_edges->len; j++) {
 				eg_j = g_ptr_array_index(d->single_edges, j);
+				paired_reads = NULL;
 				if (!eg_j->alive || eg_i == eg_j || (eg_i->len < 100
 						&& eg_j->len < 100))
 					continue;
@@ -457,15 +458,20 @@ static void *merge_ol_edges_thread(void *data) {
 					has_common_read = has_reads_in_common(eg_i, eg_j);
 					if ((ol > rl && has_common_read) || (ol < rl
 							&& !has_common_read)) {
-						show_debug_msg(__func__,
-								"Merging edge [%d, %d] to edge [%d, %d]\n",
-								eg_j->id, eg_j->len, eg_i->id, eg_i->len);
-						g_mutex_lock(edge_mutex);
-						merge_two_ol_edges(d->ht, eg_i, eg_j, ol);
-						g_mutex_unlock(edge_mutex);
-						eg_i->visited = 0;
-						some_one_merged = 1;
-						continue;
+						paired_reads = find_unconditional_paired_reads(eg_i,
+								eg_j, seqs);
+						if (paired_reads->len > MIN_VALID_PAIRS) {
+							show_debug_msg(__func__,
+									"Merging edge [%d, %d] to edge [%d, %d]\n",
+									eg_j->id, eg_j->len, eg_i->id, eg_i->len);
+							g_mutex_lock(edge_mutex);
+							merge_two_ol_edges(d->ht, eg_i, eg_j, ol);
+							g_mutex_unlock(edge_mutex);
+							eg_i->visited = 0;
+							some_one_merged = 1;
+							g_ptr_array_free(paired_reads, TRUE);
+							continue;
+						}
 					}
 				} else {
 					rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len, 0);
@@ -483,17 +489,25 @@ static void *merge_ol_edges_thread(void *data) {
 						}
 						if ((ol > rl && has_common_read) || (ol < rl
 								&& !has_common_read)) {
-							show_debug_msg(__func__,
-									"Merging edge [%d, %d] to edge [%d, %d]\n",
-									eg_j->id, eg_j->len, eg_i->id, eg_i->len);
-							g_mutex_lock(edge_mutex);
-							bwa_free_read_seq(1, eg_j->contig);
-							eg_j->contig = rev;
-							merge_two_ol_edges(d->ht, eg_i, eg_j, ol);
-							g_mutex_unlock(edge_mutex);
-							eg_i->visited = 0;
-							some_one_merged = 1;
-							continue; // In case the 'rev' is freed accidently.
+							if (!paired_reads)
+								paired_reads = find_unconditional_paired_reads(
+										eg_i, eg_j, seqs);
+							if (paired_reads->len > MIN_VALID_PAIRS) {
+								show_debug_msg(
+										__func__,
+										"Merging edge [%d, %d] to edge [%d, %d]\n",
+										eg_j->id, eg_j->len, eg_i->id,
+										eg_i->len);
+								g_mutex_lock(edge_mutex);
+								bwa_free_read_seq(1, eg_j->contig);
+								eg_j->contig = rev;
+								merge_two_ol_edges(d->ht, eg_i, eg_j, ol);
+								g_mutex_unlock(edge_mutex);
+								eg_i->visited = 0;
+								some_one_merged = 1;
+								g_ptr_array_free(paired_reads, TRUE);
+								continue; // In case the 'rev' is freed accidently.
+							}
 						}
 					} else {
 						bwa_free_read_seq(1, rev);
@@ -516,22 +530,30 @@ static void *merge_ol_edges_thread(void *data) {
 							}
 							if ((ol > rl && has_common_read) || (ol < rl
 									&& !has_common_read)) {
-								show_debug_msg(
-										__func__,
-										"Merging edge [%d, %d] to reverse edge [%d, %d]\n",
-										eg_j->id, eg_j->len, eg_i->id,
-										eg_i->len);
-								g_mutex_lock(edge_mutex);
-								bwa_free_read_seq(1, eg_i->contig);
-								eg_i->contig = rev;
-								merge_two_ol_edges(d->ht, eg_i, eg_j, ol);
-								g_mutex_unlock(edge_mutex);
-								eg_i->visited = 0;
-								some_one_merged = 1;
-								continue; // In case the 'rev' is freed accidently.
+								if (!paired_reads)
+									paired_reads
+											= find_unconditional_paired_reads(
+													eg_i, eg_j, seqs);
+								if (paired_reads->len > MIN_VALID_PAIRS) {
+									show_debug_msg(
+											__func__,
+											"Merging edge [%d, %d] to reverse edge [%d, %d]\n",
+											eg_j->id, eg_j->len, eg_i->id,
+											eg_i->len);
+									g_mutex_lock(edge_mutex);
+									bwa_free_read_seq(1, eg_i->contig);
+									eg_i->contig = rev;
+									merge_two_ol_edges(d->ht, eg_i, eg_j, ol);
+									g_mutex_unlock(edge_mutex);
+									eg_i->visited = 0;
+									some_one_merged = 1;
+									g_ptr_array_free(paired_reads, TRUE);
+									continue; // In case the 'rev' is freed accidently.
+								}
 							}
 						}
 					}
+					g_ptr_array_free(paired_reads, TRUE);
 					bwa_free_read_seq(1, rev);
 				}
 				eg_i->visited = 1;

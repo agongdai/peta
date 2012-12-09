@@ -20,7 +20,6 @@
 #define INVALID					-1
 #define STOP_THRE				0.95
 #define GRACE_NM				2
-#define MIN_VALID_PAIRS			2
 #define MAX_COUNTER_PAIRS		4
 
 enum RESULT_TYPE

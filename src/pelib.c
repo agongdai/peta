@@ -868,7 +868,7 @@ static void *pe_lib_thread(void *data) {
 		eg = pe_ext(d->ht, query, d->tid);
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		eg = NULL;
-		//if (pair_ctg_id == 2)
+		//if (pair_ctg_id >= 100)
 		//	break;
 		if (((i - d->start) % ((d->end - d->start) / 50)) == 0) {
 			show_msg(
