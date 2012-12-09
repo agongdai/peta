@@ -618,6 +618,7 @@ void upd_ctg_id(edge *eg, const int ctg_id) {
 	eg->id = ctg_id;
 	for (i = 0; i < eg->reads->len; i++) {
 		s = g_ptr_array_index(eg->reads, i);
+		s->status = TRIED;
 		s->contig_id = ctg_id;
 	}
 }
@@ -964,28 +965,6 @@ int binary_exists(const readarray *reads, const bwa_seq_t *read) {
 		}
 	}
 	return 0;
-}
-
-/**
- * Check whether there are no more than 'max' reads which are not FRESH,
- * 	or is TRIED but contig id is -1 (the edge is destroyed).
- */
-int has_most_fresh_reads(readarray *ra, const int max) {
-	int i = 0, n_not_fresh = 0;
-	bwa_seq_t *read = NULL;
-	for (i = 0; i < ra->len; i++) {
-		read = g_ptr_array_index(ra, i);
-		if (read->status == USED) {
-			n_not_fresh++;
-		}
-		if (read->status == TRIED && read->contig_id > 0) {
-			n_not_fresh++;
-		}
-		if (n_not_fresh > max) {
-			return 0;
-		}
-	}
-	return 1;
 }
 
 void mark_multi_reads(edge *eg) {

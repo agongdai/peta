@@ -333,6 +333,8 @@ void rm_partial(edge *eg, pool *cur_pool, pool *mate_pool, int ori, bwa_seq_t *s
 			if (!similar
 					|| (check_c_1 != confirm_c && check_c_2 != confirm_c_2)) {
 				removed = pool_rm_index(cur_pool, i);
+				s->contig_id = eg->id;
+				s->status = TRIED;
 				if (removed) {
 					mate = get_mate(s, seqs);
 					if (mate->is_in_m_pool == eg->tid) {
