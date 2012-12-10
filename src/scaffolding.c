@@ -470,6 +470,7 @@ static void *merge_ol_edges_thread(void *data) {
 							eg_i->visited = 0;
 							some_one_merged = 1;
 							g_ptr_array_free(paired_reads, TRUE);
+							paired_reads = NULL;
 							continue;
 						}
 					}
@@ -506,6 +507,7 @@ static void *merge_ol_edges_thread(void *data) {
 								eg_i->visited = 0;
 								some_one_merged = 1;
 								g_ptr_array_free(paired_reads, TRUE);
+								paired_reads = NULL;
 								continue; // In case the 'rev' is freed accidently.
 							}
 						}
@@ -548,12 +550,14 @@ static void *merge_ol_edges_thread(void *data) {
 									eg_i->visited = 0;
 									some_one_merged = 1;
 									g_ptr_array_free(paired_reads, TRUE);
+									paired_reads = NULL;
 									continue; // In case the 'rev' is freed accidently.
 								}
 							}
 						}
 					}
-					g_ptr_array_free(paired_reads, TRUE);
+					if (paired_reads != NULL)
+						g_ptr_array_free(paired_reads, TRUE);
 					bwa_free_read_seq(1, rev);
 				}
 				eg_i->visited = 1;
