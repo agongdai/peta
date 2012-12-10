@@ -759,7 +759,7 @@ void clean_edges(hash_table *ht, edgearray *all_edges) {
 				eg->alive = 1;
 				upd_reads_by_ht(ht, eg, MISMATCHES);
 				show_debug_msg(__func__,
-						"Edge [%d, %d] is rescued: reads %d=>%d \n",
+						"Edge [%d, %d] is rescued: reads %d=>%d \n", eg->id, eg->len,
 						eg->reads->len, eg->pairs->len);
 				n_rescued++;
 			} else {
