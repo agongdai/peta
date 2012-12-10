@@ -113,66 +113,20 @@ class FastaFile(object):
 		print '==================================================================='
 
 class BlastHit(object):
-	def __init__(self, qname = None, rname = None, alen = 0, pos = 0, astart = 0, aend = 0):
+	def __init__(self, qname = None, rname = None, alen = 0, pos = 0, astart = 0, aend = 0, tid = 0):
 		self.qname = qname
 		self.rname = rname
 		self.alen = alen
 		self.pos = pos
 		self.astart = astart
 		self.aend = aend
+		self.tid = 0
 
-def read_blastn_hits(blastn_fn):
-	blastn = open(blastn_fn, 'r')
-	hits = []
-	qname = ''
-	for line in blastn:
-		line = line.strip()
-		if line.startswith('#'):
-			if 'Query' in line:
-				f = line.split()
-				qname = f[2]
-			if '0 hits found' in line:
-				hit = BlastHit(qname)
-				hits.append(hit)
-			continue
-		f = line.split('\t')
-		pos = f[7]
-		if int(f[6]) < int(f[7]):
-			pos = f[6]
-		hit = BlastHit(f[0], f[1], int(f[3]), int(pos), int(f[9]), int(f[10]))
-		hits.append(hit)
-	blastn.close()
-	return hits
-
-def eva_blastn(args):
-	ref = FastaFile(args.ref)
-	contigs = FastaFile(args.contigs)
-	aligns = read_blastn_hits(args.blastn)
+def eva_hits(args, ref, contigs, aligns, summary, hits, aligned_lengths):
 	file_full_length = open(os.path.join(args.out_dir, 'full_length.txt'), 'w')
 	file_one_on_one = open(os.path.join(args.out_dir, 'one_on_one.txt'), 'w')
 	file_covered_70 = open(os.path.join(args.out_dir, 'covered_70.txt'), 'w')
 	file_one_covered = open(os.path.join(args.out_dir, 'one_covered.txt'), 'w')
-	summarize_fa(args.ref)
-	summarize_fa(args.contigs)
-	ref.set_n50(get_n50(ref.lengths, ref.n_bases))
-	contigs.set_n50(get_n50(contigs.lengths, contigs.n_bases))
-
-	summary = ResultSummary(args.contigs)
-	hits = {}
-	aligned_lengths = []
-	# Set all hits
-	for a in aligns: 
-		if a.alen == 0:
-			summary.n_not_aligned += 1
-			summary.n_bases_not_aligned += contigs.get_seq_len(a.qname)
-		else:
-			rid = a.rname
-			if not rid in hits:
-				hits[rid] = []
-			hits[rid].append(a)
-			summary.n_aligned_bases += a.alen
-			aligned_lengths.append(a.alen)
-			# print a.qname, rid, a.pos, a.alen, a.astart, a.aend
 
 	for tx_name, tx_seq in ref.seqs.iteritems():
 		if not tx_name in hits:
@@ -256,6 +210,58 @@ def eva_blastn(args):
 	file_covered_70.close()
 	file_one_on_one.close()
 
+def read_blastn_hits(blastn_fn):
+	blastn = open(blastn_fn, 'r')
+	hits = []
+	qname = ''
+	for line in blastn:
+		line = line.strip()
+		if line.startswith('#'):
+			if 'Query' in line:
+				f = line.split()
+				qname = f[2]
+			if '0 hits found' in line:
+				hit = BlastHit(qname)
+				hits.append(hit)
+			continue
+		f = line.split('\t')
+		pos = f[7]
+		if int(f[6]) < int(f[7]):
+			pos = f[6]
+		hit = BlastHit(f[0], f[1], int(f[3]), int(pos), int(f[9]), int(f[10]))
+		hits.append(hit)
+	blastn.close()
+	return hits
+
+def eva_blastn(args):
+	ref = FastaFile(args.ref)
+	contigs = FastaFile(args.contigs)
+	aligns = read_blastn_hits(args.blastn)
+
+	summarize_fa(args.ref)
+	summarize_fa(args.contigs)
+	ref.set_n50(get_n50(ref.lengths, ref.n_bases))
+	contigs.set_n50(get_n50(contigs.lengths, contigs.n_bases))
+
+	summary = ResultSummary(args.contigs)
+
+	hits = {}
+	aligned_lengths = []
+	# Set all hits
+	for a in aligns: 
+		if a.alen == 0:
+			summary.n_not_aligned += 1
+			summary.n_bases_not_aligned += contigs.get_seq_len(a.qname)
+		else:
+			rid = a.rname
+			if not rid in hits:
+				hits[rid] = []
+			hits[rid].append(a)
+			summary.n_aligned_bases += a.alen
+			aligned_lengths.append(a.alen)
+			# print a.qname, rid, a.pos, a.alen, a.astart, a.aend
+	eva_hits(args, ref, contigs, aligns, summary, hits, aligned_lengths)
+
 def get_n50(arr, total_length=0):
 	arr.sort()
 	arr.reverse()
@@ -305,10 +311,6 @@ def eva_bwa(args):
 	ref = FastaFile(args.ref)
 	contigs = FastaFile(args.contigs)
 	sam = pysam.Samfile(args.sam, "r")
-	file_full_length = open(os.path.join(args.out_dir, 'full_length.txt'), 'w')
-	file_one_on_one = open(os.path.join(args.out_dir, 'one_on_one.txt'), 'w')
-	file_covered_70 = open(os.path.join(args.out_dir, 'covered_70.txt'), 'w')
-	file_one_covered = open(os.path.join(args.out_dir, 'one_covered.txt'), 'w')
 	summarize_fa(args.ref)
 	summarize_fa(args.contigs)
 	ref.set_n50(get_n50(ref.lengths, ref.n_bases))
@@ -319,7 +321,7 @@ def eva_bwa(args):
 	hits = {}
 	aligned_lengths = []
 	# Set all hits
-	for a in aligns: 
+	for a in aligns:
 		if a.tid == -1:
 			summary.n_not_aligned += 1
 			summary.n_bases_not_aligned += contigs.get_seq_len(a.qname)
@@ -331,89 +333,7 @@ def eva_bwa(args):
 			summary.n_aligned_bases += a.alen
 			aligned_lengths.append(a.alen)
 			# print a.qname, rid, a.pos, a.aend
-
-	for tx_name, tx_seq in ref.seqs.iteritems():
-		if not tx_name in hits:
-			summary.n_not_reached += 1
-			summary.n_bases_not_reached += len(tx_seq)
-		else:
-			hits[tx_name].sort(key=lambda x: x.pos, reverse=True)
-
-	n_obtained_bases = 0
-	for tx_name, tx_seq in ref.seqs.iteritems():
-		is_set = False
-		if tx_name in hits:
-			#print tx_name
-			for a in hits[tx_name]:
-				if a.alen >= len(tx_seq) * 0.9 and a.alen >= contigs.get_seq_len(a.qname) * 0.9:
-					summary.n_tx_one_on_one += 1
-					file_one_on_one.write(tx_name + '\n')
-					is_set = True
-					break
-			if not is_set:
-				for a in hits[tx_name]:
-					if a.alen >= len(tx_seq) * 0.9:
-						summary.n_tx_full_length += 1
-						is_set = True
-						file_full_length.write(tx_name + '\n')
-						break
-			if not is_set:
-				for a in hits[tx_name]:
-					if a.alen >= len(tx_seq) * 0.7:
-						summary.n_tx_covered_70 += 1
-						is_set = True
-						file_covered_70.write(tx_name + '\n')
-						break
-			seq_len = len(tx_seq)
-			binary_covered = [0 for x in range(seq_len)]
-			group_hits = {}
-			for a in hits[tx_name]:
-				if not a.qname in group_hits:
-					group_hits[a.qname] = []
-				group_hits[a.qname].append(a)
-				end = a.pos + a.alen
-				if end > len(tx_seq):
-					end = len(tx_seq)
-				for i in range(a.pos, end):
-					binary_covered[i] = 1
-			for i in binary_covered:
-				n_obtained_bases += i
-
-			if not is_set:
-				for qname, algs in group_hits.iteritems():
-					binary_covered = [0 for x in range(seq_len)]
-					n_base_one_contig = 0
-					for a in algs:
-						end = a.aend
-						if a.aend > len(tx_seq):
-							end = len(tx_seq)
-						for i in range(a.pos, end):
-							binary_covered[i] = 1
-					for i in binary_covered:
-						n_base_one_contig += i
-					if n_base_one_contig >= seq_len * 0.9:
-						summary.n_tx_one_covered += 1
-						file_one_covered.write(tx_name + '\n')
-						break
-
-
-	summary.n_bases = contigs.n_bases
-	summary.n_contigs = contigs.n_seqs
-	summary.n50_aligned = get_n50(aligned_lengths)
-	summary.base_coverage = n_obtained_bases / ref.n_bases
-	summary.n50_raw = contigs.n50
-	summary.n50_optimal = ref.n50
-	summary.report()
-
-	print 'Check %s.'%os.path.join(args.out_dir, 'full_length.txt')
-	print 'Check %s.'%os.path.join(args.out_dir, 'one_on_one.txt')
-	print 'Check %s.'%os.path.join(args.out_dir, 'covered_70.txt')
-	print 'Check %s.'%os.path.join(args.out_dir, 'one_covered.txt')
-
-	file_one_covered.close()
-	file_full_length.close()
-	file_covered_70.close()
-	file_one_on_one.close()
+	eva_hits(args, ref, contigs, aligns, summary, hits, aligned_lengths)
 
 def check_dup(args):
 	ids = open(args.input, 'r')

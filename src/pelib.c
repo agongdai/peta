@@ -240,7 +240,7 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		pre_cursor = s->cursor;
 
 		if (s->is_in_c_pool || (a->pos + query->len - 1) > s->len || s->status
-				== USED || s->contig_id == ass_eg->id)
+				== USED || (s->status == TRIED && s->contig_id == ass_eg->id))
 			continue;
 		s->rev_com = a->rev_comp;
 		mate->rev_com = s->rev_com;

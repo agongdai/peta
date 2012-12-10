@@ -221,6 +221,8 @@ bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int ori) {
 			p->cursor++;
 		// If the cursor char is 'N', just ignore it.
 		if (p->seq[p->cursor] == 4) {
+			p->status = TRIED;
+			p->contig_id = ass_eg->id;
 			pool_rm_index(cur_pool, i);
 			i--;
 			continue;
