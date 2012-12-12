@@ -39,7 +39,6 @@ rm_path *new_path() {
 	return p;
 }
 
-
 void p_path(const rm_path *p) {
 	int i = 0;
 	edge *eg = NULL;
@@ -505,8 +504,8 @@ void mark_duplicate_edges(edgearray *block) {
 		for (j = 0; j < block->len; j++) {
 			eg_j = g_ptr_array_index(block, j);
 			if (eg_i != eg_j && eg_j->alive && similar_seqs(eg_i->contig,
-					eg_j->contig, PATH_MISMATCHES, PATH_MAX_GAPS, SCORE_MATCH, SCORE_MISMATCH,
-					SCORE_GAP)) {
+					eg_j->contig, PATH_MISMATCHES, PATH_MAX_GAPS, SCORE_MATCH,
+					SCORE_MISMATCH, SCORE_GAP)) {
 				if (eg_i->right_ctg == eg_j->right_ctg && abs(eg_i->r_shift
 						- eg_j->r_shift) <= PATH_MISMATCHES) {
 					eg_i->alive = 0;
@@ -579,8 +578,8 @@ void mark_duplicate_paths(GPtrArray *paths) {
 				path_j = g_ptr_array_index(paths, j);
 				if (path_i != path_j && path_j->alive) {
 					similarity_score = similar_seqs(path_i->seq, path_j->seq,
-							PATH_MISMATCHES * 4, PATH_MAX_GAPS, SCORE_MATCH, SCORE_MISMATCH,
-							SCORE_GAP);
+							PATH_MISMATCHES * 4, PATH_MAX_GAPS, SCORE_MATCH,
+							SCORE_MISMATCH, SCORE_GAP);
 					if (similarity_score > 0) {
 						// If similar, keep the longer one
 						if (path_i->len < path_j->len)
@@ -613,7 +612,8 @@ GPtrArray *report_paths(edgearray *all_edges, bwa_seq_t *seqs) {
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
 		if (!eg->visited) {
-			show_debug_msg(__func__, "REPORTING PATHS ---------------------------\n");
+			show_debug_msg(__func__,
+					"REPORTING PATHS ---------------------------\n");
 			block = g_ptr_array_sized_new(32);
 			get_block_edges(eg, block);
 			mark_duplicate_edges(block);
@@ -692,7 +692,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 			}
 			eg = new_eg();
 			eg->id = atoi(attr[0]);
-			show_debug_msg(__func__, "Initiating edge %s ...\n", attr[0]);
+			// show_debug_msg(__func__, "Initiating edge %s ...\n", attr[0]);
 
 			if (attr[1] != NULL && strcmp(attr[1], "") != 0) {
 				len = count_comma(attr[1], strlen(attr[1]));
@@ -847,10 +847,17 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 		}
 		//		p_ctg_seq("CONTIG", eg->contig);
 	}
+	show_msg(__func__, "Updating reads... \n");
+	for (i = 0; i < edges->len; i++) {
+		eg = g_ptr_array_index(edges, i);
+		if (i % 100 == 0) {
+			show_msg(__func__, "Progress: %d/%d...\n", i, edges->len);
+		}
+		upd_reads(eg, MISMATCHES);
+	}
 	free(read_str);
 	fclose(reads_fp);
 	fclose(dump_fp);
-	show_debug_msg(__func__, "Reached the end. \n");
 	return edges;
 }
 
@@ -1057,17 +1064,22 @@ int pe_path(int argc, char *argv[]) {
 	edgearray *edges = NULL;
 	GPtrArray *final_paths = NULL;
 
-	fprintf(stderr, "%s \n", argv[1]);
-	fprintf(stderr, "%s \n", argv[2]);
-	fprintf(stderr, "%s \n", argv[3]);
-	fprintf(stderr, "%s \n", argv[4]);
-	fprintf(stderr, "%s \n", argv[5]);
+	show_msg(__func__, "%s \n", argv[1]);
+	show_msg(__func__, "%s \n", argv[2]);
+	show_msg(__func__, "%s \n", argv[3]);
+	show_msg(__func__, "%s \n", argv[4]);
+	show_msg(__func__, "%s \n", argv[5]);
 
+	if (!g_thread_supported())
+			g_thread_init(NULL);
 	ht = pe_load_hash(argv[2]);
 	edges = load_rm(ht, argv[3], argv[4], argv[5]);
+	scaffolding(edges, 197, ht, 4);
+	graph_by_edges(edges, "../SRR097897_out/roadmap.1.dot");
+	//dump_rm(edges, "../SRR097897/roadmap.graph", "../SRR097897/roadmap.reads");
 	final_paths = report_paths(edges, ht->seqs);
 	//validate_paths(ht, final_paths, atoi(argv[1]));
-	save_paths(final_paths, "read/peta.fa", 100);
+	save_paths(final_paths, "../SRR097897_out/peta.fa", 100);
 	g_ptr_array_free(final_paths, TRUE);
 
 	// test_sw(argv[4]);

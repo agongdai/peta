@@ -164,6 +164,8 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 		if (mate->is_in_c_pool == eg->tid || mate->is_in_m_pool != eg->tid
 				|| mate->status == USED)
 			continue;
+		if (is_paired(s, ori))
+			continue;
 		//if (strcmp(mate->name, "158178") == 0) {
 		//	show_debug_msg("EDGE", "EDGE: [%d, %d] \n", eg->id, eg->len);
 		//	show_debug_msg("ORI", "ORI: %d \n", ori);
@@ -242,6 +244,14 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		if (s->is_in_c_pool || (a->pos + query->len - 1) > s->len || s->status
 				== USED || (s->status == TRIED && s->contig_id == ass_eg->id))
 			continue;
+		if (strcmp(s->name, "9844") == 0) {
+			p_query(__func__, s);
+			p_query(__func__, mate);
+		}
+		if (mate->status == TRIED && mate->contig_id == ass_eg->id) {
+			if (is_paired(mate, ori))
+				continue;
+		}
 		s->rev_com = a->rev_comp;
 		mate->rev_com = s->rev_com;
 		if (s->rev_com)
@@ -256,7 +266,10 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		}
 		if ((!ori && pre_cursor > s->cursor) || (ori && pre_cursor < s->cursor))
 			continue;
-
+		if (strcmp(s->name, "9844") == 0) {
+					p_query(__func__, s);
+					p_query(__func__, mate);
+				}
 		pool_add(cur_pool, s, ass_eg->tid);
 		if (mate->status != USED && !mate->is_in_c_pool && !mate->is_in_m_pool) {
 			mate_pool_add(mate_pool, mate, ass_eg->tid);
@@ -437,7 +450,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
 	while (1) {
-		//p_query(__func__, query);
+		p_query(__func__, query);
 		reset_c(next, NULL); // Reset the counter
 		if (!cur_pool || is_repetitive_q(query)) {
 			show_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n", eg->id,
@@ -445,7 +458,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			p_query(__func__, query);
 			break;
 		}
-		//p_query(__func__, query);
+		p_query(__func__, query);
 		pe_aln_query(query, query->seq, ht, MISMATCHES, query->len, 0, aligns);
 		pe_aln_query(query, query->rseq, ht, MISMATCHES, query->len, 1, aligns);
 		//p_align(aligns);
@@ -456,8 +469,8 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 					RELAX_MATE_OL_THRE, 0, query, ori);
 		}
 		reset_alg(aligns);
-		//p_ctg_seq("Contig", eg->contig);
-		//p_pool("Current Pool", cur_pool, next);
+		p_ctg_seq("Contig", eg->contig);
+		p_pool("Current Pool", cur_pool, next);
 		//p_pool("Mate Pool", mate_pool, next);
 		c = get_abs_most(next, STRICT_PERC);
 		// show_debug_msg(__func__, "Next char: %d \n", c[0]);
@@ -582,6 +595,7 @@ edge* pe_ext(hash_table *ht, bwa_seq_t *query, const int tid) {
 	memcpy(rev, eg->contig->seq, eg->len);
 	seq_reverse(eg->len, rev, 1);
 	eg->contig->rseq = rev;
+	log_edge(eg);
 	//p_readarray(eg->reads, 1);
 	return eg;
 }
@@ -759,8 +773,8 @@ void clean_edges(hash_table *ht, edgearray *all_edges) {
 				eg->alive = 1;
 				upd_reads_by_ht(ht, eg, MISMATCHES);
 				show_debug_msg(__func__,
-						"Edge [%d, %d] is rescued: reads %d=>%d \n", eg->id, eg->len,
-						eg->reads->len, eg->pairs->len);
+						"Edge [%d, %d] is rescued: reads %d=>%d \n", eg->id,
+						eg->len, eg->reads->len, eg->pairs->len);
 				n_rescued++;
 			} else {
 				clear_used_reads(eg, 0);
@@ -799,24 +813,24 @@ static void *pe_lib_thread(void *data) {
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_total_reads = d->n_total_reads;
 		//if (pair_ctg_id == 0)
-		//	query = &ht->seqs[2946771];
-		//if (pair_ctg_id == 1)
-		//	query = &ht->seqs[6693859];
+		//	query = &ht->seqs[2592602];
+		//if (pair_ctg_id == 0)
+		//	query = &ht->seqs[2353067];
 		//if (pair_ctg_id == 2)
-		//	query = &ht->seqs[552074];
+		//	query = &ht->seqs[2738138];
 		//		if (query->status != FRESH)
 		//			continue;
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
 				|| is_repetitive_q(query) || query->status == USED
 				|| query->status == MULTI)
 			continue;
-		if (*n_total_reads > d->ht->n_seqs * 0.94)
+		if (*n_total_reads > d->ht->n_seqs * 0.96)
 			break;
 		eg = pe_ext(d->ht, query, d->tid);
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		eg = NULL;
-		//if (pair_ctg_id >= 100)
-		//	break;
+		if (pair_ctg_id >= 40)
+			break;
 		if (((i - d->start) % ((d->end - d->start) / 50)) == 0) {
 			show_msg(
 					__func__,
@@ -831,7 +845,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	hash_table *ht = NULL;
 	bwa_seq_t *query = NULL, *seqs = NULL;
 	FILE *solid = NULL;
-	char line[80], *name = NULL;
+	char line[80], *name = NULL, *reads_name = NULL;
 	int i = 0, n_total_reads = 0, n_per_threads = 0, n_single_edges;
 	GPtrArray *all_edges = NULL, *final_paths = NULL;
 	readarray *solid_reads = NULL;
@@ -902,6 +916,11 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 
 	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
+	name = get_output_file("roadmap.graph");
+	reads_name = get_output_file("roadmap.reads");
+	dump_rm(all_edges, name, reads_name);
+	free(name);
+	free(reads_name);
 	scaffolding(all_edges, insert_size, ht, n_threads);
 
 	show_msg(__func__, "========================================== \n\n ");
@@ -909,8 +928,6 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	name = get_output_file("roadmap.dot");
 	graph_by_edges(all_edges, name);
 	free(name);
-	name = get_output_file("roadmap_compact.dot");
-	graph_by_edges(all_edges, name);
 	show_msg(__func__, "Reporting combinatorial paths... \n");
 	final_paths = report_paths(all_edges, seqs);
 	name = get_output_file("peta.fa");
