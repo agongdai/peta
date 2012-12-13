@@ -436,9 +436,9 @@ static void *merge_ol_edges_thread(void *data) {
 				ol = find_ol(eg_i->contig, eg_j->contig, MISMATCHES * 3);
 				n_mismatches = get_mismatches_on_ol(eg_i->contig, eg_j->contig,
 						ol);
-				p_ctg_seq("eg_i", eg_i->contig);
-				p_ctg_seq("eg_j", eg_j->contig);
-				show_debug_msg(__func__, "Overlap: %d \n", ol);
+				//p_ctg_seq("eg_i", eg_i->contig);
+				//p_ctg_seq("eg_j", eg_j->contig);
+				//show_debug_msg(__func__, "Overlap: %d \n", ol);
 				// 1. If the overlapping length is shorter than read length,
 				// 		We expect that no common reads
 				// 2. If the overlapping length is longer than read length,
@@ -449,7 +449,7 @@ static void *merge_ol_edges_thread(void *data) {
 						<= MISMATCHES && ol < rl) || (ol >= STRICT_MATCH_OL
 						&& n_mismatches == 0)) {
 					has_common_read = has_reads_in_common(eg_i, eg_j);
-					show_debug_msg(__func__, "Has Common: %d \n", has_common_read);
+					//show_debug_msg(__func__, "Has Common: %d \n", has_common_read);
 					if ((ol > rl) || (ol < rl
 							&& !has_common_read)) {
 						paired_reads = find_unconditional_paired_reads(eg_i,

@@ -340,8 +340,10 @@ void rm_partial(edge *eg, pool *cur_pool, pool *mate_pool, int ori, bwa_seq_t *s
 				if (removed) {
 					mate = get_mate(s, seqs);
 					if (mate->is_in_m_pool == eg->tid) {
-						mate_pool_rm(mate_pool, mate);
+						// Leave the cleanning to clean_mate_pool
+						// mate_pool_rm(mate_pool, mate);
 						mate->status = TRIED;
+						mate->contig_id = eg->id;
 					}
 					i--;
 				}

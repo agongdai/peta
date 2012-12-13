@@ -16,7 +16,7 @@ extern "C" {
 #define POOLSIZE 				32
 #define EXT_BY_POOL_SIZE		8
 #define	BASES_SUPPORT_THRE		0.85
-#define STRICT_BASES_SUP_THRE	0.95
+#define STRICT_BASES_SUP_THRE	0.9
 
 typedef struct {
 	readarray *reads;
