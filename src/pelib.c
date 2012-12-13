@@ -148,13 +148,13 @@ void add_mates_by_ol(bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 		mate = g_ptr_array_index(mate_pool->reads, i);
 		s = get_mate(mate, seqs);
 		// For the reads in the mate pool, these ones are not considered:
-		//	1. Is already in c_pool, or in the mate pool of other thread
+		//	1. Is already in c_pool (in this or another thread), or in the mate pool of other thread
 		//	2. Is already used
 		//	3. Its mate is not used
 		//	4. Its mate is used, by by another edge
 		//	5. The distance between the mates are out of range
-		if (mate->is_in_c_pool == eg->tid || mate->is_in_m_pool != eg->tid
-				|| mate->status == USED)
+		if (mate->is_in_c_pool || mate->is_in_m_pool != eg->tid || mate->status
+				== USED)
 			continue;
 		if (is_paired(s, ori))
 			continue;
@@ -237,7 +237,7 @@ void check_next_char(pool *cur_pool, edge *eg, int *next, const int ori) {
  * From the alignment results, add/remove reads to/from the current pool.
  */
 void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
-		pool *mate_pool, edge *ass_eg, bwa_seq_t *query, int *next, int ori) {
+		pool *mate_pool, edge *eg, bwa_seq_t *query, int *next, int ori) {
 	alg *a = NULL;
 	int i = 0, index = 0, pre_cursor = 0;
 	bwa_seq_t *s = NULL, *mate = NULL, *seqs = ht->seqs;
@@ -252,11 +252,11 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		mate = get_mate(s, seqs);
 		pre_cursor = s->cursor;
 
-		if (s->is_in_c_pool || s->status == USED || (s->status == TRIED
-				&& s->contig_id == ass_eg->id) || (a->pos + query->len - 1)
-				> s->len)
+		if (s->is_in_c_pool || (s->is_in_m_pool && s->is_in_m_pool != eg->tid)
+				|| s->status == USED || (s->status == TRIED && s->contig_id
+				== eg->id))
 			continue;
-		if (mate->status == TRIED && mate->contig_id == ass_eg->id) {
+		if (mate->status == TRIED && mate->contig_id == eg->id) {
 			if (is_paired(mate, ori))
 				continue;
 		}
@@ -274,32 +274,32 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		}
 		if ((!ori && pre_cursor > s->cursor) || (ori && pre_cursor < s->cursor))
 			continue;
-		pool_add(cur_pool, s, ass_eg->tid);
+		pool_add(cur_pool, s, eg->tid);
 		if (mate->status != USED && !mate->is_in_c_pool && !mate->is_in_m_pool) {
-			mate_pool_add(mate_pool, mate, ass_eg->tid);
+			mate_pool_add(mate_pool, mate, eg->tid);
 		}
 	}
 	//show_debug_msg(__func__, "Removing partial... \n");
 	// In current pool, if a read does not overlap with the tail properly, remove it
-	rm_partial(ass_eg, cur_pool, mate_pool, ori, seqs, query, 2);
+	rm_partial(eg, cur_pool, mate_pool, ori, seqs, query, 2);
 	//show_debug_msg(__func__, "Adding mates... \n");
 	//p_pool("AFTER", cur_pool, NULL);
 	// Add mates into current pool by overlapping
-	if (ass_eg->len >= insert_size) {
-		clean_mate_pool(mate_pool, ass_eg);
+	if (eg->len >= insert_size) {
+		clean_mate_pool(mate_pool, eg);
 		if (cur_pool->n <= 10) {
-			add_mates_by_ol(seqs, ass_eg, cur_pool, mate_pool,
-					MATE_OVERLAP_THRE, MISMATCHES, query, ori);
+			add_mates_by_ol(seqs, eg, cur_pool, mate_pool, MATE_OVERLAP_THRE,
+					MISMATCHES, query, ori);
 		}
 	}
 
 	//show_debug_msg(__func__, "Keeping mates... \n");
 	// Keep only the reads whose mate is used previously.
-	if (ass_eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
-		keep_mates_in_pool(ass_eg, cur_pool, ht, ori, 0);
+	if (eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
+		keep_mates_in_pool(eg, cur_pool, ht, ori, 0);
 		//p_pool("AFTER KEEPING MATES", cur_pool, NULL);
 	}
-	check_next_char(cur_pool, ass_eg, next, ori);
+	check_next_char(cur_pool, eg, next, ori);
 }
 
 /**
@@ -492,9 +492,11 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		if (c[0] == -1) {
 			if (bases_sup_branches(cur_pool, ori, BASES_SUPPORT_THRE)) {
 				// If there may be branches, keep those paired reads only
+				show_debug_msg(__func__, "Keep mates only \n");
 				keep_mates_in_pool(eg, cur_pool, ht, ori, 1);
 				reset_c(next, NULL);
 				check_next_char(cur_pool, eg, next, ori);
+				p_pool(__func__, cur_pool, next);
 			}
 			c[0] = get_pure_most(next);
 		}
@@ -514,10 +516,10 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 				break;
 			}
 		}
-		if (eg->len % 50 == 0) {
-			show_debug_msg(__func__, "Assembling... [%d, %d] \n", eg->id,
-					eg->len);
-		}
+		//if (eg->len % 50 == 0) {
+		//	show_debug_msg(__func__, "Assembling... [%d, %d] \n", eg->id,
+		//			eg->len);
+		//}
 	}
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
@@ -577,7 +579,9 @@ edge* pe_ext(hash_table *ht, bwa_seq_t *query, const int tid) {
 	show_debug_msg(__func__, "Second round: extending to the left... \n");
 	second_round_q = new_seq(eg->contig, query->len, 0);
 	pair_extension(eg, ht, second_round_q, 1, tid);
+	g_mutex_lock(update_mutex);
 	upd_reads_by_ht(ht, eg, MISMATCHES);
+	g_mutex_unlock(update_mutex);
 
 	rev = eg->contig->rseq;
 	free(rev);
@@ -789,9 +793,9 @@ static void *pe_lib_thread(void *data) {
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_total_reads = d->n_total_reads;
 		//if (pair_ctg_id == 0)
-		//	query = &ht->seqs[2592602];
-		//if (pair_ctg_id == 0)
-		//	query = &ht->seqs[2353067];
+		//	query = &ht->seqs[1809231];
+		//if (pair_ctg_id == 1)
+		//	query = &ht->seqs[3589151];
 		//if (pair_ctg_id == 2)
 		//	query = &ht->seqs[2738138];
 		//		if (query->status != FRESH)
@@ -800,12 +804,12 @@ static void *pe_lib_thread(void *data) {
 				|| is_repetitive_q(query) || query->status == USED
 				|| query->status == MULTI)
 			continue;
-		if (*n_total_reads > d->ht->n_seqs * 0.1)
+		if (*n_total_reads > d->ht->n_seqs * 0.92)
 			break;
 		eg = pe_ext(d->ht, query, d->tid);
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		eg = NULL;
-		//if (pair_ctg_id >= 100)
+		//if (pair_ctg_id >= 1)
 		//	break;
 		if (((i - d->start) % ((d->end - d->start) / 50)) == 0) {
 			show_msg(

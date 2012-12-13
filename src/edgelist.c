@@ -680,8 +680,13 @@ void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
 	seqs = ht->seqs;
 	//show_debug_msg(__func__, "There are %d => %d reads \n", eg->reads->len, eg->pairs->len);
 	for (i = 0; i < eg->reads->len; i++) {
-		read = g_ptr_array_index(eg->reads, i);
-		read->status = FRESH;
+		if (read->contig_id != eg->id) { // Used by another edge in another thread
+			if (g_ptr_array_remove_index_fast(eg->reads, i))
+				i--;
+		} else {
+			read = g_ptr_array_index(eg->reads, i);
+			read->status = FRESH;
+		}
 	}
 	while (eg->pairs->len > 0) {
 		g_ptr_array_remove_index_fast(eg->pairs, 0);
