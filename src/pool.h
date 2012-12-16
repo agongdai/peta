@@ -9,6 +9,7 @@
 #include <glib.h>
 #include "bwtaln.h"
 #include "edge.h"
+#include "pehash.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,14 +41,14 @@ void mate_pool_uni_add(pool *p, bwa_seq_t *new_seq);
 bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int left_max_ctg_id);
 void pool_sort_ins(pool *r_pool, bwa_seq_t *new_seq);
 void rm_partial(edge *eg, pool *cur_pool, pool *mate_pool, int ori, bwa_seq_t *seqs, bwa_seq_t *query, int nm);
-void clean_mate_pool(pool *mate_pool, edge *eg);
+void clean_mate_pool(reads_ht *rht, pool *mate_pool, edge *eg);
 gboolean pool_rm(pool *r_pool, bwa_seq_t *rm_seq);
 gboolean pool_rm_fast(pool *p, bwa_seq_t *read);
 gboolean pool_rm_index(pool *p, const int i);
 gboolean mate_pool_rm(pool *r_pool, bwa_seq_t *rm_seq);
 gboolean mate_pool_rm_fast(pool *p, bwa_seq_t *read);
 pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs, const int ori, const int tid);
-gboolean mate_pool_rm_index(pool *p, const int i);
+gpointer mate_pool_rm_index(pool *p, const int i);
 void syn_pools(pool *cur_pool, pool *mate_pool, const bwa_seq_t *seqs, const int ori);
 void clear_pool(pool *r_pool);
 void pool_get_majority(pool *cur_pool, const char c, edge *ass_eg);

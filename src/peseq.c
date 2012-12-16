@@ -85,6 +85,17 @@ seq *read_seq(const char *fn) {
 	return fa;
 }
 
+void p_seq(const char *header, const ubyte_t *seq, const int len) {
+	int i = 0;
+	printf("%s \n", header);
+	for (i = 0; i < len; i++) {
+		if (seq[i] > 4)
+			printf("%c", seq[i]);
+		else
+			printf("%c", "acgtn"[(int) seq[i]]);
+	}
+}
+
 int trun_seq(bwa_seq_t *s, const int shift) {
 	ubyte_t *seq = 0;
 	if (!s || shift <= 0 || shift > s->len)
@@ -103,6 +114,29 @@ int trun_seq(bwa_seq_t *s, const int shift) {
 	s->len -= shift;
 	s->seq[s->len] = '\0';
 	return 1;
+}
+
+ubyte_t *mutate_one_base(ubyte_t *seq, const int start_index, const int len) {
+	ubyte_t *mutated_all = NULL, *mutated = NULL, *target_sub_seq = NULL;
+	int j = 0, i = 0, n_mutated = 0;
+	mutated_all = (ubyte_t*) calloc(len * 3 + 1, sizeof(ubyte_t));
+	target_sub_seq = (ubyte_t*) calloc(len + 1, sizeof(ubyte_t));
+	memcpy(target_sub_seq, &seq[start_index], len);
+	target_sub_seq[len] = '\0';
+	for (i = 0; i < len; i++) {
+		// i: the position to mutate;
+		// j: four possible nucleotides: 'a'=>0, 'c'=>1, ...
+		for (j = 0; j < 4; j++) {
+			if (target_sub_seq[j] != j) {
+				mutated = strdup(target_sub_seq);
+				mutated[len] = '\0';
+				mutated[j] = j;
+				mutated_all[n_mutated++] = *mutated;
+			}
+		}
+	}
+	free(target_sub_seq);
+	return mutated_all;
 }
 
 bwa_seq_t *merge_seq_to_right(bwa_seq_t *s1, bwa_seq_t *s2, const int gap) {
@@ -540,7 +574,7 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 		}
 		//printf("Previous row: \n");
 		for (j = 0; j < columns; j++) {
-		//	printf("%d,", previous_row[j]);
+			//	printf("%d,", previous_row[j]);
 			previous_row[j] = current_row[j];
 			max_score = current_row[j] > max_score ? current_row[j] : max_score;
 		}
@@ -567,8 +601,8 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
  * Smith-waterman local alignment algorithm.
  */
 int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
-		const int mismatches, const int max_n_gaps, const int score_mat, const int score_mis,
-		const int score_gap) {
+		const int mismatches, const int max_n_gaps, const int score_mat,
+		const int score_mis, const int score_gap) {
 	int min_acceptable_score = 0, min_len = 0, similarity_score = 0;
 	if (!query || !seq || !seq->seq || !query->seq || mismatches < 0)
 		return 0;
@@ -730,6 +764,23 @@ int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 	return 1;
 }
 
+int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *template,
+		const int mismatches, const int min_len, const int max_len,
+		const int ori) {
+	int i = 0, olpped = 0;
+	if (!mate || !template)
+		return 0;
+	for (i = max_len; i > min_len; i--) {
+		olpped = ori ? seq_ol(mate, template, i, mismatches) : seq_ol(template,
+				mate, i, mismatches);
+		if (olpped > 0) {
+			olpped = i;
+			break;
+		}
+	}
+	return olpped;
+}
+
 int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,
 		const int mismatches) {
 	int i = 0, min_len = 0, olpped = 0;
@@ -844,7 +895,8 @@ int is_paired(const bwa_seq_t *read, const int ori) {
  * Seq:                           ----*--*----------------------
  * Return 2.
  */
-int get_mismatches_on_ol(const bwa_seq_t *query, const bwa_seq_t *seq, const int ol) {
+int get_mismatches_on_ol(const bwa_seq_t *query, const bwa_seq_t *seq,
+		const int ol) {
 	int n_mismatches = 0, i = 0;
 	if (ol <= 0)
 		return 0;

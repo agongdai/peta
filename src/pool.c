@@ -15,6 +15,7 @@
 #include "utils.h"
 #include "pelib.h"
 #include "pechar.h"
+#include "pehash.h"
 
 /**
  * Assume that the new read has been verified not existed using exists().
@@ -158,8 +159,8 @@ pool *get_init_mate_pool(pool *cur_pool, bwa_seq_t *seqs, const int ori, const i
 	return mate_pool;
 }
 
-gboolean mate_pool_rm_index(pool *p, const int i) {
-	gboolean r;
+gpointer mate_pool_rm_index(pool *p, const int i) {
+	gpointer r;
 	bwa_seq_t *read = g_ptr_array_index(p->reads, i);
 	read->is_in_m_pool = 0;
 	r = g_ptr_array_remove_index_fast(p->reads, i);
@@ -433,7 +434,7 @@ int bases_sup_branches(pool *cur_pool, const int ori, double threshold) {
 	return 0;
 }
 
-void clean_mate_pool(pool *mate_pool, edge *eg) {
+void clean_mate_pool(reads_ht *rht, pool *mate_pool, edge *eg) {
 	bwa_seq_t *mate = NULL;
 	int i = 0;
 	if (!mate_pool)
@@ -443,8 +444,10 @@ void clean_mate_pool(pool *mate_pool, edge *eg) {
 		if (mate->status == USED || mate->is_in_c_pool == eg->tid || mate->is_in_m_pool
 				!= eg->tid || (mate->status == TRIED && mate->contig_id
 				== eg->id)) {
-			if (mate_pool_rm_index(mate_pool, i))
+			if (mate_pool_rm_index(mate_pool, i)) {
 				i--;
+				rm_read_from_ht(rht, mate);
+			}
 		}
 	}
 }

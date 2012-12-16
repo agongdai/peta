@@ -454,7 +454,7 @@ static void *merge_ol_edges_thread(void *data) {
 							&& !has_common_read)) {
 						paired_reads = find_unconditional_paired_reads(eg_i,
 								eg_j, seqs);
-						p_readarray(paired_reads, 1);
+						//p_readarray(paired_reads, 1);
 						if (ol > d->insert_size || paired_reads->len > MIN_VALID_PAIRS) {
 							show_debug_msg(__func__,
 									"Merging edge [%d, %d] to edge [%d, %d]\n",
