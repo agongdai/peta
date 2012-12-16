@@ -97,10 +97,11 @@ void add_read_to_ht(reads_ht *ht, bwa_seq_t *read) {
 	hash_value value = 0;
 	GArray *occs = NULL;
 
+	p_query(__func__, read);
 	for (i = 0; i < read->len - ht->k; i++) {
 		key = get_hash_key(read->seq, i, 1, ht->k);
 		value = get_hash_value(atoi(read->name), i);
-		occs = &ht->pos[key];
+		occs = g_ptr_array_index(ht->pos, key);
 		g_array_append_val(occs, value);
 	}
 	ht->n_reads++;
@@ -115,10 +116,36 @@ void rm_read_from_ht(reads_ht *ht, bwa_seq_t *read) {
 	for (i = 0; i < read->len - ht->k; i++) {
 		key = get_hash_key(read->seq, i, 1, ht->k);
 		value = get_hash_value(atoi(read->name), i);
-		occs = &ht->pos[key];
+		occs = g_ptr_array_index(ht->pos, key);
 		g_array_remove_fast(occs, value);
 	}
 	ht->n_reads--;
+}
+
+GPtrArray *mutate_one_base(ubyte_t *seq, const int start_index, const int len) {
+	GPtrArray *mutated_all = NULL;
+	ubyte_t *mutated = NULL, *target_sub_seq = NULL;
+	int j = 0, i = 0;
+	mutated_all = g_ptr_array_sized_new(len * 3 + 1);
+	target_sub_seq = (ubyte_t*) calloc(len + 1, sizeof(ubyte_t));
+	memcpy(target_sub_seq, &seq[start_index], len);
+	target_sub_seq[len] = '\0';
+	//p_seq(__func__, target_sub_seq, len);
+	for (i = 0; i < len; i++) {
+		// i: the position to mutate;
+		// j: four possible nucleotides: 'a'=>0, 'c'=>1, ...
+		for (j = 0; j < 4; j++) {
+			if (target_sub_seq[i] != j) {
+				mutated = (ubyte_t*) calloc(len + 1, sizeof(ubyte_t));
+				memcpy(mutated, target_sub_seq, len);
+				mutated[len] = '\0';
+				mutated[i] = j;
+				g_ptr_array_add(mutated_all, mutated);
+			}
+		}
+	}
+	free(target_sub_seq);
+	return mutated_all;
 }
 
 GPtrArray *find_ol_reads(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs, GPtrArray *hit_reads) {
@@ -128,16 +155,19 @@ GPtrArray *find_ol_reads(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs, GPt
 	index64 seq_id = 0;
 	hash_value value = 0;
 	bwa_seq_t *r = NULL;
-	ubyte_t *mutated = NULL;
+	GPtrArray *mutated = NULL;
+	ubyte_t *tmp = NULL, *m = NULL;
+	//show_debug_msg(__func__, "Getting mutated template... \n");
 	mutated = mutate_one_base(template->seq, template->len - ht->k, ht->k);
 	for (j = 0; j < ht->k * 3 + 1; j++) {
 		if (j == 0)
 			key = get_hash_key(template->seq, template->len - ht->k, 1, ht->k);
 		else {
-			p_seq(__func__, &mutated[j - 1], ht->k);
-			key = get_hash_key(&mutated[j - 1], 0, 1, ht->k);
+			m = g_ptr_array_index(mutated, j - 1);
+			//p_seq(__func__, m, ht->k);
+			key = get_hash_key(m, 0, 1, ht->k);
 		}
-		occs = &ht->pos[key];
+		occs = g_ptr_array_index(ht->pos, key);
 		if (occs) {
 			if (!hit_reads)
 				hit_reads = g_ptr_array_sized_new(occs->len);
@@ -149,11 +179,12 @@ GPtrArray *find_ol_reads(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs, GPt
 			}
 		}
 	}
-	for (i = 0; i < ht->k * 3; i++) {
-		ubyte_t *tmp = mutated + i;
+	//show_debug_msg(__func__, "Freeing mutated template... \n");
+	for (i = 0; i < mutated->len; i++) {
+		tmp = g_ptr_array_index(mutated, i);
 		free(tmp);
 	}
-	free(mutated);
+	g_ptr_array_free(mutated, TRUE);
 	return hit_reads;
 }
 
@@ -177,11 +208,11 @@ void destroy_reads_ht(reads_ht *ht) {
 	if (ht) {
 		n_k_mers = (1 << (ht->k * 2)) + 1;
 		for (i = 0; i < n_k_mers; i++) {
-			occs = &ht->pos[i];
+			occs = g_ptr_array_index(ht->pos, i);
 			if (occs)
 				g_array_free(occs, TRUE);
 		}
-		free(ht->pos);
+		g_ptr_array_free(ht->pos, TRUE);
 		free(ht);
 	}
 }
@@ -191,15 +222,16 @@ reads_ht *build_reads_ht(const int k, GPtrArray *initial_reads) {
 	int n_k_mers = 0, i = 0;
 	GArray *occs = NULL;
 	// For each k-mer, there is an arraylist storing the reads with this k-mer.
-	GArray *pos = NULL;
+	GPtrArray *pos = NULL;
 	bwa_seq_t *r = NULL;
 
+	//show_msg(__func__, "Building hash table for mates... \n");
 	n_k_mers = (1 << (k * 2)) + 1;
 	ht = (reads_ht*) malloc(sizeof(reads_ht));
-	pos = (GArray*) calloc(n_k_mers, sizeof(GArray));
+	pos = g_ptr_array_sized_new(n_k_mers);
 	for (i = 0; i < n_k_mers; i++) {
-		occs = g_array_sized_new(TRUE, TRUE, sizeof(hash_value), 4);
-		pos[i] = *occs;
+		occs = g_array_sized_new(TRUE, TRUE, sizeof(hash_value), 0);
+		g_ptr_array_add(pos, occs);
 	}
 	ht->pos = pos;
 	ht->k = k;

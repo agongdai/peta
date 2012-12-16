@@ -87,13 +87,14 @@ seq *read_seq(const char *fn) {
 
 void p_seq(const char *header, const ubyte_t *seq, const int len) {
 	int i = 0;
-	printf("%s \n", header);
+	printf("[%s] ", header);
 	for (i = 0; i < len; i++) {
 		if (seq[i] > 4)
 			printf("%c", seq[i]);
 		else
 			printf("%c", "acgtn"[(int) seq[i]]);
 	}
+	printf("\n");
 }
 
 int trun_seq(bwa_seq_t *s, const int shift) {
@@ -114,29 +115,6 @@ int trun_seq(bwa_seq_t *s, const int shift) {
 	s->len -= shift;
 	s->seq[s->len] = '\0';
 	return 1;
-}
-
-ubyte_t *mutate_one_base(ubyte_t *seq, const int start_index, const int len) {
-	ubyte_t *mutated_all = NULL, *mutated = NULL, *target_sub_seq = NULL;
-	int j = 0, i = 0, n_mutated = 0;
-	mutated_all = (ubyte_t*) calloc(len * 3 + 1, sizeof(ubyte_t));
-	target_sub_seq = (ubyte_t*) calloc(len + 1, sizeof(ubyte_t));
-	memcpy(target_sub_seq, &seq[start_index], len);
-	target_sub_seq[len] = '\0';
-	for (i = 0; i < len; i++) {
-		// i: the position to mutate;
-		// j: four possible nucleotides: 'a'=>0, 'c'=>1, ...
-		for (j = 0; j < 4; j++) {
-			if (target_sub_seq[j] != j) {
-				mutated = strdup(target_sub_seq);
-				mutated[len] = '\0';
-				mutated[j] = j;
-				mutated_all[n_mutated++] = *mutated;
-			}
-		}
-	}
-	free(target_sub_seq);
-	return mutated_all;
 }
 
 bwa_seq_t *merge_seq_to_right(bwa_seq_t *s1, bwa_seq_t *s2, const int gap) {

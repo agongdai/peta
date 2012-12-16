@@ -62,7 +62,6 @@ typedef struct {
 
 void save_fq(const bwa_seq_t *seqs, const char *fp_fn, const uint16_t ol);
 seq *read_seq(const char *fn);
-ubyte_t *mutate_one_base(ubyte_t *seq, const int start_index, const int len);
 bwa_seq_t *merge_seq_to_right(bwa_seq_t *s1, bwa_seq_t *s2, const int gap);
 int trun_seq(bwa_seq_t *s, const int shift);
 bwa_seq_t *merge_seq_to_left(bwa_seq_t *s2, bwa_seq_t *s1, const int gap);

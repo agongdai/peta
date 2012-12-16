@@ -150,8 +150,6 @@ void add_mates_by_ol(reads_ht *rht, bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 	if (ori) {
 		seq_reverse(template->len, template->seq, 0);
 	}
-	show_debug_msg(__func__, "ORI: %d \n", ori);
-	p_query("TEMPLATE", template);
 	ol_mates = find_reads_ol_template(rht, template, seqs);
 	// Add the mate reads which overlap with the tail into the current pool
 	for (i = 0; i < ol_mates->len; i++) {
@@ -216,6 +214,10 @@ void add_mates_by_ol(reads_ht *rht, bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 			if (go_to_add) {
 				mate->cursor = ori ? (mate->len - overlapped - 1) : overlapped;
 				pool_add(cur_pool, mate, eg->tid);
+				show_debug_msg(__func__, "ORI: %d \n", ori);
+				p_query("ADDED MATE", mate);
+				p_ctg_seq("TEMPLATE", template);
+				show_debug_msg(__func__, "Overlapped: %d \n", overlapped);
 				if(mate_pool_rm_index(mate_pool, i)) {
 					rm_read_from_ht(rht, mate);
 					i--;
@@ -475,7 +477,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
 	while (1) {
-		p_query(__func__, query);
+		//p_query(__func__, query);
 		reset_c(next, NULL); // Reset the counter
 		if (!cur_pool || is_repetitive_q(query)) {
 			show_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n", eg->id,
@@ -494,10 +496,10 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 					RELAX_MATE_OL_THRE, 0, query, ori);
 		}
 		reset_alg(aligns);
-		show_debug_msg(__func__, "Edge %d, length %d \n", eg->id, eg->len);
-		p_ctg_seq("Contig", eg->contig);
-		p_pool("Current Pool", cur_pool, next);
-		p_pool("Mate Pool", mate_pool, next);
+		//show_debug_msg(__func__, "Edge %d, length %d \n", eg->id, eg->len);
+		//p_ctg_seq("Contig", eg->contig);
+		//p_pool("Current Pool", cur_pool, next);
+		//p_pool("Mate Pool", mate_pool, next);
 		c = get_abs_most(next, STRICT_PERC);
 		// show_debug_msg(__func__, "Next char: %d \n", c[0]);
 		if (cur_pool->n <= 0) {
@@ -712,7 +714,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 	if (eg) {
 		// keep_pairs_only(eg, ht->seqs);
 		if (eg->len < insert_size && eg->reads->len * ht->seqs->len
-                                        < eg->len * 5) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
+                                        < eg->len * 10) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
 			show_msg(
 					__func__,
 					"ABANDONED [%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
@@ -812,10 +814,10 @@ static void *pe_lib_thread(void *data) {
 	for (i = d->start; i < d->end; i++) {
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_total_reads = d->n_total_reads;
-		if (pair_ctg_id == 0)
-			query = &ht->seqs[1809231];
-		//if (pair_ctg_id == 1)
-		//	query = &ht->seqs[3589151];
+		//if (pair_ctg_id == 0)
+		//	query = &ht->seqs[4275635];
+		//if (pair_ctg_id == 0)
+		//	query = &ht->seqs[2738138];
 		//if (pair_ctg_id == 2)
 		//	query = &ht->seqs[2738138];
 		//		if (query->status != FRESH)
@@ -824,13 +826,13 @@ static void *pe_lib_thread(void *data) {
 				|| is_repetitive_q(query) || query->status == USED
 				|| query->status == MULTI || query->status == TRIED)
 			continue;
-		if (*n_total_reads > d->ht->n_seqs * 0.95)
+		if (*n_total_reads > d->ht->n_seqs * 0.7)
 			break;
 		eg = pe_ext(d->ht, query, d->tid);
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		eg = NULL;
-		if (pair_ctg_id >= 10)
-			break;
+		//if (pair_ctg_id >= 50)
+		//	break;
 		if (((i - d->start) % ((d->end - d->start) / 50)) == 0) {
 			show_msg(
 					__func__,

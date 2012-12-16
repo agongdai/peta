@@ -48,7 +48,7 @@ typedef struct {
 typedef struct {
 	int k;
 	index64 n_reads;
-	GArray *pos;
+	GPtrArray *pos;
 } reads_ht;
 
 int pe_hash(int argc, char *argv[]);
