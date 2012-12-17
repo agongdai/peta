@@ -201,7 +201,7 @@ void upd_cur_pool(const alignarray *alns, int *next, pool *cur_pool,
 	}
 	// To ensure that current reads are similar to the contig
 	//p_pool("Before", cur_pool, NULL);
-	rm_partial(ass_eg, cur_pool, mate_pool, ori, seqs, query, opt->nm);
+	rm_partial(ass_eg, cur_pool, ori, seqs, query, opt->nm);
 	//p_pool("After", cur_pool, NULL);
 	// Add overlapped reads from the mate_pool, the overlapping length is read length / 4.
 	if (mate_pool) {
@@ -947,7 +947,7 @@ ext_msg *single_ext(edge *ass_eg, pool *c_pool, bwa_seq_t *init_q,
 		if (ass_eg->len % 50 == 0) {
 			show_debug_msg(__func__, "Assembling... [%d, %d] \n", ass_eg->id,
 					ass_eg->len);
-			clean_mate_pool(mate_pool, ass_eg);
+			clean_mate_pool(NULL, mate_pool, ass_eg);
 		}
 		// p_ctg_seq("CURRENT CONTIG", ass_eg->contig);
 		reset_c(next, c); // Reset the counter
