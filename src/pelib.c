@@ -912,7 +912,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__,
-			"Stage 2/3: Trying to start assembly from unused reads... \n");
+			"Stage 2/3: Trying to start assembly from unused mates... \n");
 	start_from_mates(all_edges, ht, &n_total_reads);
 	n_total_reads = 0;
 	for (i = 0; i < all_edges->len; i++) {
@@ -927,16 +927,16 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 3/3: Trying to pick up the rest... \n");
-	n_total_reads = 0;
-	for (i = 0; i < all_edges->len; i++) {
-		eg = g_ptr_array_index(all_edges, i);
-		if (eg->alive) {
-			n_total_reads += eg->pairs->len;
-			n_single_reads += eg->reads->len;
-		}
-	}
 	if (n_total_reads < ht->n_seqs * 0.95 && n_single_reads < ht->n_seqs * 0.99) {
 		pick_up_rest(all_edges, ht, &n_total_reads);
+		n_total_reads = 0;
+		for (i = 0; i < all_edges->len; i++) {
+			eg = g_ptr_array_index(all_edges, i);
+			if (eg->alive) {
+				n_total_reads += eg->pairs->len;
+				n_single_reads += eg->reads->len;
+			}
+		}
 	}
 	show_msg(__func__, "Total reads after stage 3: [%d=>%d]/%d \n",
 			n_single_reads, n_total_reads, ht->n_seqs);
