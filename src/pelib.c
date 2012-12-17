@@ -460,7 +460,8 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		maintain_pool(aligns, ht, cur_pool, eg, query, next, ori);
 		// If no read in current pool, try less stringent overlapped length and zero mismatches
 		if (eg->len > insert_size - sd_insert_size && cur_pool->reads->len == 0) {
-			add_mates_by_ol(ht, eg, cur_pool, MATE_OVERLAP_THRE, MISMATCHES, query, ori);
+			add_mates_by_ol(ht, eg, cur_pool, MATE_OVERLAP_THRE, MISMATCHES,
+					query, ori);
 			check_next_char(cur_pool, eg, next, ori);
 		}
 		reset_alg(aligns);
@@ -747,9 +748,9 @@ static void *pe_lib_thread(void *data) {
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_total_reads = d->n_total_reads;
 		//if (pair_ctg_id == 0)
-		//	query = &ht->seqs[4275635];
-		//if (pair_ctg_id == 0)
-		//	query = &ht->seqs[2738138];
+		//	query = &ht->seqs[5990525];
+		//if (pair_ctg_id == 1)
+		//	query = &ht->seqs[1826911];
 		//if (pair_ctg_id == 2)
 		//	query = &ht->seqs[2738138];
 		//		if (query->status != FRESH)
@@ -767,8 +768,8 @@ static void *pe_lib_thread(void *data) {
 
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		eg = NULL;
-		//if (pair_ctg_id >= 1)
-		//	break;
+		if (pair_ctg_id >= 50)
+			break;
 		if (((i - d->start) % ((d->end - d->start) / 50)) == 0) {
 			show_msg(
 					__func__,
@@ -815,8 +816,9 @@ void start_from_mates(edgearray *all_edges, const hash_table *ht,
 	bwa_seq_t *s = NULL, *mate = NULL;
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
+		tried_times = 0;
 		for (j = 0; j < eg->reads->len; j++) {
-			if (tried_times >= 3)
+			if (tried_times >= 10)
 				break;
 			s = g_ptr_array_index(eg->reads, j);
 			if (s->status == TRIED) {
@@ -844,6 +846,9 @@ void pick_up_rest(edgearray *all_edges, const hash_table *ht,
 	bwa_seq_t *s = NULL, *mate = NULL, *seqs = NULL;
 	for (i = 0; i < ht->n_seqs; i++) {
 		s = &seqs[i];
+		if (i % (ht->n_seqs / 100) == 0) {
+			show_debug_msg(__func__, "Reads tried: %d/%d \n", i, ht->n_seqs);
+		}
 		mate = get_mate(s, seqs);
 		if (s->status == FRESH && mate->status == FRESH) {
 			if (has_n(s) || is_biased_q(s) || has_rep_pattern(s)
@@ -891,40 +896,45 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 
 	n_per_threads = solid_reads->len / 2 / n_threads;
 	show_msg(__func__, "========================================== \n");
-	show_msg(__func__,
-			"Stage 1/3: Trying to use up to 80% of the paired reads... \n");
+	show_msg(__func__, "Stage 1/3: Trying to use up the paired reads... \n");
 	run_threads(all_edges, solid_reads, ht, &n_total_reads, 0, solid_reads->len
 			/ 2, n_per_threads, 1, 0.9);
-
-	show_msg(__func__, "========================================== \n");
-	show_msg(__func__,
-			"Stage 2/3: Trying to merge overlapped templates... \n");
-	merge_ol_edges(all_edges, insert_size, ht, n_threads);
 	n_total_reads = 0;
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
-		n_total_reads += eg->pairs->len;
-		n_single_reads += eg->reads->len;
+		if (eg->alive) {
+			n_total_reads += eg->pairs->len;
+			n_single_reads += eg->reads->len;
+		}
 	}
-	show_msg(__func__, "Total reads after merging: [%d=>%d]/%d \n",
-			n_single_reads, n_total_reads, ht->n_seqs);
-	if (n_total_reads < ht->n_seqs * 0.95 && n_single_reads < ht->n_seqs * 0.99) {
-		start_from_mates(all_edges, ht, &n_total_reads);
+	show_msg(__func__, "Total reads: [%d=>%d]/%d \n", n_single_reads,
+			n_total_reads, ht->n_seqs);
+
+	show_msg(__func__, "========================================== \n");
+	show_msg(__func__,
+			"Stage 2/3: Trying to start assembly from unused reads... \n");
+	start_from_mates(all_edges, ht, &n_total_reads);
+	n_total_reads = 0;
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		if (eg->alive) {
+			n_total_reads += eg->pairs->len;
+			n_single_reads += eg->reads->len;
+		}
 	}
-	show_msg(__func__, "Total reads after stage 2: [%d=>%d]/%d \n",
-			n_single_reads, n_total_reads, ht->n_seqs);
+	show_msg(__func__, "Total reads: [%d=>%d]/%d \n", n_single_reads,
+			n_total_reads, ht->n_seqs);
 
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 3/3: Trying to pick up the rest... \n");
-	merge_ol_edges(all_edges, insert_size, ht, n_threads);
 	n_total_reads = 0;
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
-		n_total_reads += eg->pairs->len;
-		n_single_reads += eg->reads->len;
+		if (eg->alive) {
+			n_total_reads += eg->pairs->len;
+			n_single_reads += eg->reads->len;
+		}
 	}
-	show_msg(__func__, "Total reads after merging: [%d=>%d]/%d \n",
-			n_single_reads, n_total_reads, ht->n_seqs);
 	if (n_total_reads < ht->n_seqs * 0.95 && n_single_reads < ht->n_seqs * 0.99) {
 		pick_up_rest(all_edges, ht, &n_total_reads);
 	}

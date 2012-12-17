@@ -27,6 +27,7 @@
 #include "pelib.h"
 #include "pepath.h"
 #include "scaffolding.h"
+#include "pehash.h"
 
 GMutex *edge_mutex = NULL;
 
@@ -117,6 +118,7 @@ int order_two_edges(edge *eg_1, edge *eg_2, bwa_seq_t *seqs) {
 	paired_reads = find_unconditional_paired_reads(eg_1, eg_2, seqs);
 	show_debug_msg(__func__, "Ordering edge %d and %d: %d pairs ...\n",
 			eg_1->id, eg_2->id, paired_reads->len);
+	p_readarray(paired_reads, 1);
 	if (paired_reads->len < MIN_VALID_PAIRS) {
 		g_ptr_array_free(paired_reads, TRUE);
 		return 0;
@@ -240,22 +242,16 @@ edge *merge_two_ol_edges(hash_table *ht, edge *eg_1, edge *eg_2, const int ol) {
 	eg_1->len = eg_1->contig->len;
 	//show_debug_msg(__func__, "Concating reads ... \n");
 	concat_readarray(eg_1->reads, eg_2->reads);
-	//show_debug_msg(__func__, "Concating pairs ... \n");
-	concat_readarray(eg_1->pairs, eg_2->pairs);
 	//show_debug_msg(__func__, "Clearing reads ... \n");
 	clear_used_reads(eg_2, 0);
-	//show_debug_msg(__func__, "Updating reads %d=>%d ... \n", eg_1->id, eg_1->reads->len);
-	upd_reads_by_ht(ht, eg_1, MISMATCHES);
 	//show_debug_msg(__func__, "Updated ... \n");
 	for (i = 0; i < eg_1->reads->len; i++) {
 		r = g_ptr_array_index(eg_1->reads, i);
 		r->status = TRIED;
 		r->contig_id = eg_1->id;
 	}
-	for (i = 0; i < eg_1->pairs->len; i++) {
-		r = g_ptr_array_index(eg_1->pairs, i);
-		r->status = USED;
-	}
+	//show_debug_msg(__func__, "Updating reads %d=>%d ... \n", eg_1->id, eg_1->reads->len);
+	upd_reads_by_ht(ht, eg_1, MISMATCHES);
 	eg_2->alive = 0;
 	return eg_1;
 }
@@ -301,6 +297,7 @@ typedef struct {
 	int start;
 	int end;
 	int tid;
+	reads_ht *rht;
 } scaffolding_paras_t;
 
 static void *scaffolding_thread(void *data) {
@@ -429,10 +426,6 @@ static void *merge_ol_edges_thread(void *data) {
 				if (eg_i->visited && eg_j->visited)
 					continue;
 
-				//show_debug_msg(__func__,
-				//		"\t sub edge [%d/%d, %d]... %.2f sec\n", eg_j->id,
-				//		single_edges->len, eg_j->len, (float) (clock() - t)
-				//				/ CLOCKS_PER_SEC);
 				ol = find_ol(eg_i->contig, eg_j->contig, MISMATCHES * 3);
 				n_mismatches = get_mismatches_on_ol(eg_i->contig, eg_j->contig,
 						ol);
@@ -450,12 +443,12 @@ static void *merge_ol_edges_thread(void *data) {
 						&& n_mismatches == 0)) {
 					has_common_read = has_reads_in_common(eg_i, eg_j);
 					//show_debug_msg(__func__, "Has Common: %d \n", has_common_read);
-					if ((ol > rl) || (ol < rl
-							&& !has_common_read)) {
+					if ((ol > rl) || (ol < rl && !has_common_read)) {
 						paired_reads = find_unconditional_paired_reads(eg_i,
 								eg_j, seqs);
 						//p_readarray(paired_reads, 1);
-						if (ol > d->insert_size || paired_reads->len > MIN_VALID_PAIRS) {
+						if (ol > d->insert_size || paired_reads->len
+								> MIN_VALID_PAIRS) {
 							show_debug_msg(__func__,
 									"Merging edge [%d, %d] to edge [%d, %d]\n",
 									eg_j->id, eg_j->len, eg_i->id, eg_i->len);
@@ -483,12 +476,12 @@ static void *merge_ol_edges_thread(void *data) {
 						if (has_common_read == -1) {
 							has_common_read = has_reads_in_common(eg_i, eg_j);
 						}
-						if ((ol > rl) || (ol < rl
-								&& !has_common_read)) {
+						if ((ol > rl) || (ol < rl && !has_common_read)) {
 							if (!paired_reads)
 								paired_reads = find_unconditional_paired_reads(
 										eg_i, eg_j, seqs);
-							if (ol > d->insert_size || paired_reads->len > MIN_VALID_PAIRS) {
+							if (ol > d->insert_size || paired_reads->len
+									> MIN_VALID_PAIRS) {
 								show_debug_msg(
 										__func__,
 										"Merging edge [%d, %d] to edge [%d, %d]\n",
@@ -525,13 +518,13 @@ static void *merge_ol_edges_thread(void *data) {
 								has_common_read = has_reads_in_common(eg_i,
 										eg_j);
 							}
-							if ((ol > rl) || (ol < rl
-									&& !has_common_read)) {
+							if ((ol > rl) || (ol < rl && !has_common_read)) {
 								if (!paired_reads)
 									paired_reads
 											= find_unconditional_paired_reads(
 													eg_i, eg_j, seqs);
-								if (ol > d->insert_size || paired_reads->len > MIN_VALID_PAIRS) {
+								if (ol > d->insert_size || paired_reads->len
+										> MIN_VALID_PAIRS) {
 									show_debug_msg(
 											__func__,
 											"Merging edge [%d, %d] to reverse edge [%d, %d]\n",
@@ -568,6 +561,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 	scaffolding_paras_t *data;
 	GThread *threads[n_threads];
 	edge *eg_i = NULL;
+	reads_ht *rht = NULL;
 
 	n_per_threads = single_edges->len / n_threads;
 	if (!edge_mutex)
@@ -586,6 +580,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		data[i].start = i * n_per_threads;
 		data[i].end = (i + 1) * n_per_threads;
 		data[i].tid = i + 1;
+		data[i].rht = rht;
 		if (i == n_threads - 1)
 			data[i].end = single_edges->len;
 		threads[i]
