@@ -59,7 +59,7 @@ hash_value get_hash_value(const index64 seq_id, const int pos_start);
 void read_hash_value(index64 *seq_id, int *pos_start, hash_value value);
 void destroy_ht(hash_table *ht);
 
-GPtrArray *find_reads_ol_template(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs);
+GPtrArray *find_reads_ol_template(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs, const int ori);
 void destroy_reads_ht(reads_ht *ht);
 reads_ht *build_reads_ht(const int k, GPtrArray *initial_reads);
 void add_read_to_ht(reads_ht *ht, bwa_seq_t *read);

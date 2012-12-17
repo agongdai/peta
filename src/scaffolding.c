@@ -416,10 +416,10 @@ static void *merge_ol_edges_thread(void *data) {
 			eg_i->tid = d->tid;
 			if (!eg_i->alive)
 				continue;
-			show_debug_msg(__func__,
-					"Trying edge %d/%d [%d, %d]... %.2f sec\n", i,
-					d->single_edges->len, eg_i->id, eg_i->len, (float) (clock()
-							- t) / CLOCKS_PER_SEC);
+			//show_debug_msg(__func__,
+			//		"Trying edge %d/%d [%d, %d]... %.2f sec\n", i,
+			//		d->single_edges->len, eg_i->id, eg_i->len, (float) (clock()
+			//				- t) / CLOCKS_PER_SEC);
 			for (j = 0; j < d->single_edges->len; j++) {
 				eg_j = g_ptr_array_index(d->single_edges, j);
 				paired_reads = NULL;

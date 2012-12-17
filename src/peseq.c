@@ -284,7 +284,7 @@ void p_query(const char *header, const bwa_seq_t *q) {
 		}
 	}
 	if (q->is_in_c_pool)
-		printf(" [pool]");
+		printf(" [pool: %d]", q->is_in_c_pool);
 	else
 		printf(" [no_pool]");
 	if (q->is_in_c_pool)

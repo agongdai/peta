@@ -8,6 +8,10 @@
 #define RELAX_MATE_OL_THRE	6
 #define MAX_SINGLE_EDGES	200
 #define SINGLE_EDGE_THRE	150
+#define N_BIG_MATE_POOL		1000
+#define STOP_THRE_STAGE_1	0.8
+#define STOP_THRE_STAGE_2	0.95
+#define STOP_THRE_STAGE_3	0.99
 
 int pe_lib(int argc, char *argv[]);
 

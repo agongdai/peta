@@ -309,7 +309,7 @@ int pool_exists(const pool *p, const bwa_seq_t *read) {
  * 'tg' and not the same as 'ct', remove read from the current pool.
  */
 
-void rm_partial(edge *eg, pool *cur_pool, pool *mate_pool, int ori, bwa_seq_t *seqs,
+void rm_partial(edge *eg, pool *cur_pool, int ori, bwa_seq_t *seqs,
 		bwa_seq_t *query, int nm) {
 	int check_c_1 = 0, check_c_2 = 0, confirm_c = 0, confirm_c_2 = 0;
 	int removed = 0, is_at_end = 0, i = 0;
@@ -336,16 +336,11 @@ void rm_partial(edge *eg, pool *cur_pool, pool *mate_pool, int ori, bwa_seq_t *s
 			if (!similar
 					|| (check_c_1 != confirm_c && check_c_2 != confirm_c_2)) {
 				removed = pool_rm_index(cur_pool, i);
+				//p_query(__func__, s);
+				//p_ctg_seq(__func__, eg->contig);
 				s->contig_id = eg->id;
 				s->status = TRIED;
 				if (removed) {
-					mate = get_mate(s, seqs);
-					if (mate->is_in_m_pool == eg->tid) {
-						// Leave the cleanning to clean_mate_pool
-						// mate_pool_rm(mate_pool, mate);
-						mate->status = TRIED;
-						mate->contig_id = eg->id;
-					}
 					i--;
 				}
 			}
@@ -544,7 +539,7 @@ void p_pool_read(gpointer *data, gpointer *user_data) {
 			printf("%s", p2->seq);
 			for (i = 0; i < p2->cursor + 2; i++)
 				printf(" ");
-			printf("%d->%c\t%s\t%d", p2->cursor, c, p2->name, p2->status);
+			printf("%d->%c\t%s\t%d\t[pool: %d]", p2->cursor, c, p2->name, p2->status, p2->is_in_c_pool);
 		}
 		printf("\n");
 		bwa_free_read_seq(1, p2);

@@ -85,8 +85,8 @@ void g_array_remove_fast(GArray *arr, hash_value value) {
 	for (i = 0; i < arr->len; i++) {
 		v = g_array_index(arr, hash_value, i);
 		if (v == value) {
-			g_array_remove_index(arr, i);
-			return;
+			if (g_array_remove_index_fast(arr, i))
+				i--;
 		}
 	}
 }
@@ -97,10 +97,12 @@ void add_read_to_ht(reads_ht *ht, bwa_seq_t *read) {
 	hash_value value = 0;
 	GArray *occs = NULL;
 
-	p_query(__func__, read);
+	//p_query(__func__, read);
 	for (i = 0; i < read->len - ht->k; i++) {
 		key = get_hash_key(read->seq, i, 1, ht->k);
 		value = get_hash_value(atoi(read->name), i);
+		//show_debug_msg(__func__, "ADDED ENTRY: %" ID64 "=>%" ID64 " \n", key,
+		//		value);
 		occs = g_ptr_array_index(ht->pos, key);
 		g_array_append_val(occs, value);
 	}
@@ -112,7 +114,8 @@ void rm_read_from_ht(reads_ht *ht, bwa_seq_t *read) {
 	hash_key key = 0;
 	hash_value value = 0;
 	GArray *occs = NULL;
-
+	if (!ht)
+		return;
 	for (i = 0; i < read->len - ht->k; i++) {
 		key = get_hash_key(read->seq, i, 1, ht->k);
 		value = get_hash_value(atoi(read->name), i);
@@ -144,11 +147,12 @@ GPtrArray *mutate_one_base(ubyte_t *seq, const int start_index, const int len) {
 			}
 		}
 	}
-	free(target_sub_seq);
+	g_ptr_array_add(mutated_all, target_sub_seq);
 	return mutated_all;
 }
 
-GPtrArray *find_ol_reads(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs, GPtrArray *hit_reads) {
+GPtrArray *find_ol_reads(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs,
+		GPtrArray *hit_reads, const int ori) {
 	hash_key key = 0;
 	GArray *occs = NULL;
 	int i = 0, j = 0, locus = 0;
@@ -158,14 +162,22 @@ GPtrArray *find_ol_reads(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs, GPt
 	GPtrArray *mutated = NULL;
 	ubyte_t *tmp = NULL, *m = NULL;
 	//show_debug_msg(__func__, "Getting mutated template... \n");
-	mutated = mutate_one_base(template->seq, template->len - ht->k, ht->k);
+	if (ori) {
+		mutated = mutate_one_base(template->seq, 0, ht->k);
+		key = get_hash_key(template->seq, 0, 1, ht->k);
+	} else {
+		mutated = mutate_one_base(template->seq, template->len - ht->k, ht->k);
+		key = get_hash_key(template->seq, template->len - ht->k, 1, ht->k);
+	}
 	for (j = 0; j < ht->k * 3 + 1; j++) {
-		if (j == 0)
-			key = get_hash_key(template->seq, template->len - ht->k, 1, ht->k);
-		else {
+		if (j == 0) {
+			//p_seq(__func__, template->seq, template->len);
+			//show_debug_msg(__func__, "KEY: %" ID64 " \n", key);
+		} else {
 			m = g_ptr_array_index(mutated, j - 1);
 			//p_seq(__func__, m, ht->k);
 			key = get_hash_key(m, 0, 1, ht->k);
+			//show_debug_msg(__func__, "KEY: %" ID64 " \n", key);
 		}
 		occs = g_ptr_array_index(ht->pos, key);
 		if (occs) {
@@ -173,8 +185,10 @@ GPtrArray *find_ol_reads(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs, GPt
 				hit_reads = g_ptr_array_sized_new(occs->len);
 			for (i = 0; i < occs->len; i++) {
 				value = g_array_index(occs, hash_value, i);
+				//show_debug_msg(__func__, "VALUE: %" ID64 "\n", value);
 				read_hash_value(&seq_id, &locus, value);
 				r = &seqs[seq_id];
+				//p_query("HIT", r);
 				g_ptr_array_add(hit_reads, r);
 			}
 		}
@@ -188,15 +202,17 @@ GPtrArray *find_ol_reads(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs, GPt
 	return hit_reads;
 }
 
-GPtrArray *find_reads_ol_template(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs) {
+GPtrArray *find_reads_ol_template(reads_ht *ht, bwa_seq_t *template,
+		bwa_seq_t *seqs, const int ori) {
 	bwa_seq_t *rev = NULL;
 	GPtrArray *hit_reads = NULL;
 	if (ht->n_reads == 0) {
 		hit_reads = g_ptr_array_sized_new(0);
 	} else {
+		//p_ctg_seq(__func__, template);
 		rev = new_mem_rev_seq(template, template->len, 0);
-		hit_reads = find_ol_reads(ht, template, seqs, hit_reads);
-		hit_reads = find_ol_reads(ht, rev, seqs, hit_reads);
+		hit_reads = find_ol_reads(ht, template, seqs, hit_reads, ori);
+		hit_reads = find_ol_reads(ht, rev, seqs, hit_reads, ori);
 		bwa_free_read_seq(1, rev);
 	}
 	return hit_reads;
@@ -236,7 +252,7 @@ reads_ht *build_reads_ht(const int k, GPtrArray *initial_reads) {
 	ht->pos = pos;
 	ht->k = k;
 	ht->n_reads = 0;
-	if (!initial_reads && initial_reads->len > 0) {
+	if (initial_reads && initial_reads->len > 0) {
 		for (i = 0; i < initial_reads->len; i++) {
 			r = g_ptr_array_index(initial_reads, i);
 			add_read_to_ht(ht, r);

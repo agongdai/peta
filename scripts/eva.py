@@ -13,6 +13,7 @@ class ResultSummary(object):
 		self.n_tx_one_covered = 0
 		self.n_tx_covered_70 = 0
 		self.n_not_aligned = 0
+		self.n_fragmented = 0
 		self.n_bases_not_aligned = 0
 		self.n_not_reached = 0
 		self.n_bases_not_reached = 0
@@ -34,6 +35,7 @@ class ResultSummary(object):
 		print '\t# of one-on-one: \t\t' + str(self.n_tx_one_on_one)
 		print '\t# of 70% covered: \t\t' + str(self.n_tx_covered_70)
 		print '\tCovered by one contig: \t\t' + str(self.n_tx_one_covered)
+		print '\t# of fragmented: \t\t' + str(self.n_fragmented)
 		print '\t# of Ctgs not aligned: \t\t' + str(self.n_not_aligned)
 		print '\tBases not aligned: \t\t' + str(self.n_bases_not_aligned)
 		print '\t# of Ctgs not reached: \t\t' + str(self.n_not_reached)
@@ -194,6 +196,7 @@ def eva_hits(args, ref, contigs, aligns, summary, hits, aligned_lengths):
 	
 	summary.n_bases = contigs.n_bases
 	summary.n_contigs = contigs.n_seqs
+	summary.n_fragmented = summary.n_contigs - summary.n_tx_full_length - summary.n_tx_one_on_one - summary.n_tx_covered_70 - summary.n_not_aligned
 	summary.n50_aligned = get_n50(aligned_lengths)
 	summary.base_coverage = n_obtained_bases / ref.n_bases
 	summary.n50_raw = contigs.n50

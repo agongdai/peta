@@ -667,7 +667,7 @@ void upd_reads(edge *eg, const int mismatches) {
 	}
 }
 
-void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches) {
+void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
 	int i = 0, index = 0, j = 0;
 	bwa_seq_t *read = NULL, *query = NULL, *seqs = NULL, *mate = NULL;
 	alignarray *aligns = NULL;
@@ -970,15 +970,6 @@ int binary_exists(const readarray *reads, const bwa_seq_t *read) {
 		}
 	}
 	return 0;
-}
-
-void mark_multi_reads(edge *eg) {
-	int i = 0;
-	bwa_seq_t *r = NULL;
-	for (i = 0; i < eg->reads->len; i++) {
-		r = g_ptr_array_index(eg->reads, i);
-		r->status = MULTI;
-	}
 }
 void rev_reads_pos(edge *eg) {
 	int i = 0;

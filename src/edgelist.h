@@ -44,7 +44,7 @@ void merge_eg_to_right(edge *left_eg, edge *right_eg, const int gap);
 int get_mid_pos(readarray *ra, const int ori, const int lib_mean);
 void upd_ctg_id(edge *eg, const int ctg_id);
 void upd_reads(edge *eg, const int mismatches);
-void upd_reads_by_ht(hash_table *ht, edge *eg, const int mismatches);
+void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches);
 int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs);
 void log_reads(edgearray *ea);
 void log_edge(const edge *eg);
@@ -63,7 +63,6 @@ void readarray_unfrozen(readarray *ra);
 void rev_edge(edge *eg);
 int binary_exists(const readarray *reads, const bwa_seq_t *read);
 int has_most_fresh_reads(readarray *ra, const int max);
-void mark_multi_reads(edge *eg);
 void rev_reads_pos(edge *eg);
 
 #ifdef __cplusplus
