@@ -29,6 +29,7 @@ int insert_size = 0;
 int sd_insert_size = 0;
 char *out_root = NULL;
 int n_threads = 1;
+int stage = 1;
 GMutex *id_mutex;
 GMutex *sum_mutex;
 
@@ -460,7 +461,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		//p_align(aligns);
 		maintain_pool(aligns, ht, cur_pool, eg, query, next, ori);
 		// If no read in current pool, try less stringent overlapped length and zero mismatches
-		if (eg->len > insert_size - sd_insert_size && cur_pool->reads->len == 0) {
+		if (stage != 3 && eg->len > insert_size - sd_insert_size && cur_pool->reads->len == 0) {
 			add_mates_by_ol(ht, eg, cur_pool, MATE_OVERLAP_THRE, MISMATCHES,
 					query, ori);
 			check_next_char(cur_pool, eg, next, ori);
@@ -853,115 +854,6 @@ void pick_up_rest(edgearray *all_edges, const hash_table *ht,
 	}
 }
 
-void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
-	clock_t t = clock();
-	hash_table *ht = NULL;
-	bwa_seq_t *query = NULL, *seqs = NULL;
-	FILE *solid = NULL;
-	char line[80];
-	int i = 0, n_total_reads = 0, n_per_threads = 0, n_single_reads = 0;
-	GPtrArray *all_edges = NULL;
-	readarray *solid_reads = NULL;
-	edge *eg = NULL;
-
-	solid = xopen(solid_file, "r");
-	show_msg(__func__, "Library: %s \n", lib_file);
-	show_msg(__func__, "Solid Reads: %s \n", solid_file);
-
-	all_edges = g_ptr_array_sized_new(BUFSIZ);
-	ht = pe_load_hash(lib_file);
-	seqs = &ht->seqs[0];
-	solid_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
-	while (fgets(line, 80, solid) != NULL) {
-		i = atoi(line);
-		query = &ht->seqs[i];
-		g_ptr_array_add(solid_reads, query);
-	}
-	fclose(solid);
-
-	show_msg(__func__, "Solid reads loaded: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
-
-	n_per_threads = solid_reads->len / 2 / n_threads;
-	show_msg(__func__, "========================================== \n");
-	show_msg(__func__, "Stage 1/3: Trying to use up the paired reads... \n");
-	run_threads(all_edges, solid_reads, ht, &n_total_reads, 0, solid_reads->len
-			/ 2, n_per_threads, 1, 0.9);
-	n_total_reads = 0;
-	for (i = 0; i < all_edges->len; i++) {
-		eg = g_ptr_array_index(all_edges, i);
-		if (eg->alive) {
-			n_total_reads += eg->pairs->len;
-			n_single_reads += eg->reads->len;
-		}
-	}
-	show_msg(__func__, "Total reads: [%d=>%d]/%d \n", n_single_reads,
-			n_total_reads, ht->n_seqs);
-	show_msg(__func__, "Stage 1 finished: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
-
-	show_msg(__func__, "========================================== \n");
-	show_msg(__func__,
-			"Stage 2/3: Trying to start assembly from unused mates... \n");
-	merge_ol_edges(all_edges, insert_size, ht, n_threads);
-	start_from_mates(all_edges, ht, &n_total_reads);
-	n_total_reads = 0;
-	for (i = 0; i < all_edges->len; i++) {
-		eg = g_ptr_array_index(all_edges, i);
-		if (eg->alive) {
-			n_total_reads += eg->pairs->len;
-			n_single_reads += eg->reads->len;
-		}
-	}
-	show_msg(__func__, "Total reads: [%d=>%d]/%d \n", n_single_reads,
-			n_total_reads, ht->n_seqs);
-	show_msg(__func__, "Stage 2 finished: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
-
-	//	show_msg(__func__, "========================================== \n");
-	//	show_msg(__func__, "Stage 3/3: Trying to pick up the rest... \n");
-	//	if (n_total_reads < ht->n_seqs * 0.96) {
-	//		pick_up_rest(all_edges, ht, &n_total_reads);
-	//		n_total_reads = 0;
-	//		for (i = 0; i < all_edges->len; i++) {
-	//			eg = g_ptr_array_index(all_edges, i);
-	//			if (eg->alive) {
-	//				n_total_reads += eg->pairs->len;
-	//				n_single_reads += eg->reads->len;
-	//			}
-	//		}
-	//	}
-	//	show_msg(__func__, "Total reads after stage 3: [%d=>%d]/%d \n",
-	//			n_single_reads, n_total_reads, ht->n_seqs);
-	//	show_msg(__func__, "Stage 3 finished: %.2f sec\n", (float) (clock() - t)
-	//			/ CLOCKS_PER_SEC);
-
-	g_ptr_array_free(solid_reads, TRUE);
-	destroy_ht(ht);
-}
-
-int pe_lib_usage() {
-	show_msg(__func__,
-			"Command: ./peta pair -p MAX_PAIRS read_file starting_reads \n");
-	return 1;
-}
-
-void test_smith_waterman(char *lib_file) {
-	hash_table *ht = NULL;
-	bwa_seq_t *seqs = NULL, *read_1 = NULL, *read_2 = NULL;
-	int score = 0;
-
-	ht = pe_load_hash(lib_file);
-	seqs = ht->seqs;
-
-	read_1 = &seqs[1646764];
-	read_2 = &seqs[2299221];
-	score = smith_waterman(read_1, read_2, 2, -1, -2, 0);
-	p_query(__func__, read_1);
-	p_query(__func__, read_2);
-	show_debug_msg(__func__, "Similarity score: %d \n", score);
-}
-
 void post_process_edges(const hash_table *ht, edgearray *all_edges) {
 	edgearray *final_paths = NULL;
 	FILE *pair_contigs = NULL;
@@ -1024,6 +916,122 @@ void post_process_edges(const hash_table *ht, edgearray *all_edges) {
 	show_msg(__func__, "Post processing finished: %.2f sec\n", (float) (clock()
 			- t) / CLOCKS_PER_SEC);
 }
+
+
+void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
+	clock_t t = clock();
+	hash_table *ht = NULL;
+	bwa_seq_t *query = NULL, *seqs = NULL;
+	FILE *solid = NULL;
+	char line[80];
+	int i = 0, n_total_reads = 0, n_per_threads = 0, n_single_reads = 0;
+	GPtrArray *all_edges = NULL;
+	readarray *solid_reads = NULL;
+	edge *eg = NULL;
+
+	solid = xopen(solid_file, "r");
+	show_msg(__func__, "Library: %s \n", lib_file);
+	show_msg(__func__, "Solid Reads: %s \n", solid_file);
+
+	all_edges = g_ptr_array_sized_new(BUFSIZ);
+	ht = pe_load_hash(lib_file);
+	seqs = &ht->seqs[0];
+	solid_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
+	while (fgets(line, 80, solid) != NULL) {
+		i = atoi(line);
+		query = &ht->seqs[i];
+		g_ptr_array_add(solid_reads, query);
+	}
+	fclose(solid);
+
+	show_msg(__func__, "Solid reads loaded: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
+
+	n_per_threads = solid_reads->len / 2 / n_threads;
+	show_msg(__func__, "========================================== \n");
+	show_msg(__func__, "Stage 1/3: Trying to use up the paired reads... \n");
+	run_threads(all_edges, solid_reads, ht, &n_total_reads, 0, solid_reads->len
+			/ 2, n_per_threads, 1, 0.9);
+	n_total_reads = 0;
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		if (eg->alive) {
+			n_total_reads += eg->pairs->len;
+			n_single_reads += eg->reads->len;
+		}
+	}
+	show_msg(__func__, "Total reads: [%d=>%d]/%d \n", n_single_reads,
+			n_total_reads, ht->n_seqs);
+	show_msg(__func__, "Stage 1 finished: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
+
+	show_msg(__func__, "========================================== \n");
+	show_msg(__func__,
+			"Stage 2/3: Trying to start assembly from unused mates... \n");
+	stage = 2;
+	merge_ol_edges(all_edges, insert_size, ht, n_threads);
+	start_from_mates(all_edges, ht, &n_total_reads);
+	n_total_reads = 0;
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		if (eg->alive) {
+			n_total_reads += eg->pairs->len;
+			n_single_reads += eg->reads->len;
+		}
+	}
+	show_msg(__func__, "Total reads: [%d=>%d]/%d \n", n_single_reads,
+			n_total_reads, ht->n_seqs);
+	show_msg(__func__, "Stage 2 finished: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
+
+	stage = 3;
+	
+
+	//	show_msg(__func__, "========================================== \n");
+	//	show_msg(__func__, "Stage 3/3: Trying to pick up the rest... \n");
+	//	if (n_total_reads < ht->n_seqs * 0.96) {
+	//		pick_up_rest(all_edges, ht, &n_total_reads);
+	//		n_total_reads = 0;
+	//		for (i = 0; i < all_edges->len; i++) {
+	//			eg = g_ptr_array_index(all_edges, i);
+	//			if (eg->alive) {
+	//				n_total_reads += eg->pairs->len;
+	//				n_single_reads += eg->reads->len;
+	//			}
+	//		}
+	//	}
+	//	show_msg(__func__, "Total reads after stage 3: [%d=>%d]/%d \n",
+	//			n_single_reads, n_total_reads, ht->n_seqs);
+	//	show_msg(__func__, "Stage 3 finished: %.2f sec\n", (float) (clock() - t)
+	//			/ CLOCKS_PER_SEC);
+
+	post_process_edges(ht, all_edges);
+	g_ptr_array_free(solid_reads, TRUE);
+	destroy_ht(ht);
+}
+
+int pe_lib_usage() {
+	show_msg(__func__,
+			"Command: ./peta pair -p MAX_PAIRS read_file starting_reads \n");
+	return 1;
+}
+
+void test_smith_waterman(char *lib_file) {
+	hash_table *ht = NULL;
+	bwa_seq_t *seqs = NULL, *read_1 = NULL, *read_2 = NULL;
+	int score = 0;
+
+	ht = pe_load_hash(lib_file);
+	seqs = ht->seqs;
+
+	read_1 = &seqs[1646764];
+	read_2 = &seqs[2299221];
+	score = smith_waterman(read_1, read_2, 2, -1, -2, 0);
+	p_query(__func__, read_1);
+	p_query(__func__, read_2);
+	show_debug_msg(__func__, "Similarity score: %d \n", score);
+}
+
 
 int pe_lib(int argc, char *argv[]) {
 	clock_t t = clock();

@@ -4,7 +4,6 @@
 #include "pehash.h"
 #include "ass.h"
 #include "pealn.h"
-#include "eva.h"
 #include "clean.h"
 #include "pelib.h"
 #include "pepath.h"
@@ -24,7 +23,6 @@ static int usage() {
 	fprintf(stderr, "Command: index		create indexes using BWA\n");
 	fprintf(stderr, "Command: hash		create a hash table\n");
 	fprintf(stderr, "Command: ass		assemble transcriptomes\n");
-	fprintf(stderr, "Command: eva		evaluate the performance\n");
 	fprintf(stderr, "\n");
 	return 1;
 }
@@ -55,8 +53,6 @@ int main(int argc, char *argv[]) {
 		return pe_ass(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "samse") == 0)
 		return bwa_sai2sam_se(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "eva") == 0)
-		return eva_main(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "test") == 0)
 		return test(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "clean") == 0)
