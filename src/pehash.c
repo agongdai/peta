@@ -97,12 +97,10 @@ void add_read_to_ht(reads_ht *ht, bwa_seq_t *read) {
 	hash_value value = 0;
 	GArray *occs = NULL;
 
-	//p_query(__func__, read);
+	// p_query(__func__, read);
 	for (i = 0; i < read->len - ht->k; i++) {
 		key = get_hash_key(read->seq, i, 1, ht->k);
 		value = get_hash_value(atoi(read->name), i);
-		//show_debug_msg(__func__, "ADDED ENTRY: %" ID64 "=>%" ID64 " \n", key,
-		//		value);
 		occs = g_ptr_array_index(ht->pos, key);
 		g_array_append_val(occs, value);
 	}
@@ -259,6 +257,21 @@ reads_ht *build_reads_ht(const int k, GPtrArray *initial_reads) {
 		}
 	}
 	return ht;
+}
+
+reads_ht *build_edges_ht(const int k, GPtrArray *init_edges) {
+	reads_ht *rht = NULL;
+	int i = 0;
+	edge *eg = NULL;
+	rht = build_reads_ht(k, NULL);
+	if (init_edges && init_edges->len > 0) {
+		for (i = 0; i < init_edges->len; i++) {
+			eg = g_ptr_array_index(init_edges, i);
+			if (eg->alive)
+				add_read_to_ht(rht, eg->contig);
+		}
+	}
+	return rht;
 }
 
 void pe_hash_core(const char *fa_fn, hash_opt *opt) {

@@ -62,6 +62,7 @@ void destroy_ht(hash_table *ht);
 GPtrArray *find_reads_ol_template(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs, const int ori);
 void destroy_reads_ht(reads_ht *ht);
 reads_ht *build_reads_ht(const int k, GPtrArray *initial_reads);
+reads_ht *build_edges_ht(const int k, GPtrArray *init_edges);
 void add_read_to_ht(reads_ht *ht, bwa_seq_t *read);
 void rm_read_from_ht(reads_ht *ht, bwa_seq_t *read);
 

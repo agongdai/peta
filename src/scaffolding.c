@@ -562,6 +562,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 	GThread *threads[n_threads];
 	edge *eg_i = NULL;
 	reads_ht *rht = NULL;
+	clock_t t = clock();
 
 	n_per_threads = single_edges->len / n_threads;
 	if (!edge_mutex)
@@ -573,6 +574,9 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 	data
 			= (scaffolding_paras_t*) calloc(n_threads,
 					sizeof(scaffolding_paras_t));
+	show_msg(__func__, "Building hash table for templates...\n");
+	rht = build_edges_ht(MATE_OVERLAP_THRE, single_edges);
+	show_msg(__func__, "Merging %d templates...\n", single_edges->len);
 	for (i = 0; i < n_threads; ++i) {
 		data[i].single_edges = single_edges;
 		data[i].ht = ht;
@@ -599,5 +603,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 			i--;
 		}
 	}
+	show_msg(__func__, "Merged to %d templates: %.2f sec\n", single_edges->len, (float) (clock() - t)
+				/ CLOCKS_PER_SEC);
 	free(data);
 }

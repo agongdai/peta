@@ -720,6 +720,7 @@ void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
 		read = g_ptr_array_index(eg->reads, i);
 		if (read->status == FRESH) {
 			g_ptr_array_remove_index_fast(eg->reads, i);
+			read->status = TRIED;
 			read->contig_id = UNUSED_CONTIG_ID;
 			i--;
 		} else {
