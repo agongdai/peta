@@ -319,8 +319,8 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
 	}
 	//p_query(__func__, query);
 
-	pe_aln_query(query, query->seq, ht, 4, overlap_len, 0, alns);
-	pe_aln_query(query, query->rseq, ht, 4, overlap_len, 1, alns);
+	pe_aln_query(query, query->seq, ht, 0, overlap_len, 0, alns);
+	pe_aln_query(query, query->rseq, ht, 0, overlap_len, 1, alns);
 	//p_align(alns);
 	for (i = 0; i < alns->len; i++) {
 		a = (alg*) g_ptr_array_index(alns, i);
@@ -403,7 +403,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		const int ori, const int tid) {
 	bwa_seq_t *query = NULL;
 	pool *cur_pool = NULL;
-	int *c = NULL;
+	int c = 0;
 	int *next = NULL;
 	alignarray *aligns = NULL;
 	edge *eg = NULL;
@@ -440,9 +440,9 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		query = new_seq(s, overlap_len, s->len - overlap_len);
 	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
 	next = (int*) calloc(5, sizeof(int));
-	if (!pre_eg) {
-		correct_start(eg, cur_pool);
-	}
+	//	if (!pre_eg) {
+	//		correct_start(eg, cur_pool);
+	//	}
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
 	while (1) {
@@ -469,7 +469,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		//show_debug_msg(__func__, "Edge %d, length %d \n", eg->id, eg->len);
 		//p_ctg_seq("Contig", eg->contig);
 		//p_pool("Current Pool", cur_pool, next);
-		c = get_abs_most(next, STRICT_PERC);
+		c = get_pure_most(next);
 		// show_debug_msg(__func__, "Next char: %d \n", c[0]);
 		if (cur_pool->n <= 0) {
 			show_msg(__func__, "[%d, %d] No hits, stop here. \n", eg->id,
@@ -478,33 +478,16 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 					eg->len);
 			break;
 		}
-		if (c[0] == -1) {
-			if (bases_sup_branches(cur_pool, ori, BASES_SUPPORT_THRE)) {
-				// If there may be branches, keep those paired reads only
-				//show_debug_msg(__func__, "Keep mates only \n");
-				keep_mates_in_pool(eg, cur_pool, ht, ori, 1);
-				reset_c(next, NULL);
-				check_next_char(cur_pool, eg, next, ori);
-				//p_pool(__func__, cur_pool, next);
-			}
-			c[0] = get_pure_most(next);
-		}
-		forward(cur_pool, c[0], eg, ori);
-		ext_con(eg->contig, c[0], 0);
+		forward(cur_pool, c, eg, ori);
+		ext_con(eg->contig, c, 0);
 		eg->len = eg->contig->len;
-		ext_que(query, c[0], ori);
-		free(c);
+		ext_que(query, c, ori);
 		c = NULL;
-		//if (eg->len % 50 == 0) {
-		//	show_debug_msg(__func__, "Assembling... [%d, %d] \n", eg->id,
-		//			eg->len);
-		//}
 	}
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
 	free_alg(aligns);
 	free(next);
-	free(c);
 	free_pool(cur_pool);
 	bwa_free_read_seq(1, query);
 
@@ -709,7 +692,7 @@ int validate_edge(edgearray *all_edges, edge *eg, const hash_table *ht,
 	return 0;
 }
 
-void clean_edges(hash_table *ht, edgearray *all_edges) {
+void clean_edges(const hash_table *ht, edgearray *all_edges) {
 	int i = 0;
 	edge *eg = NULL;
 	for (i = 0; i < all_edges->len; i++) {
@@ -770,8 +753,8 @@ static void *pe_lib_thread(void *data) {
 
 		validate_edge(d->all_edges, eg, d->ht, d->n_total_reads);
 		eg = NULL;
-		//if (pair_ctg_id >= 50)
-		//	break;
+		if (pair_ctg_id >= 50)
+			break;
 		if (((i - d->start) % ((d->end - d->start) / 50)) == 0) {
 			show_msg(
 					__func__,
@@ -875,12 +858,10 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	hash_table *ht = NULL;
 	bwa_seq_t *query = NULL, *seqs = NULL;
 	FILE *solid = NULL;
-	char line[80], *name = NULL, *reads_name = NULL;
+	char line[80];
 	int i = 0, n_total_reads = 0, n_per_threads = 0, n_single_reads = 0;
-	GPtrArray *all_edges = NULL, *final_paths = NULL;
+	GPtrArray *all_edges = NULL;
 	readarray *solid_reads = NULL;
-	FILE *pair_contigs = NULL;
-	FILE *merged_pair_contigs = NULL;
 	edge *eg = NULL;
 
 	solid = xopen(solid_file, "r");
@@ -937,29 +918,63 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "Stage 2 finished: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
 
-	show_msg(__func__, "========================================== \n");
-	show_msg(__func__, "Stage 3/3: Trying to pick up the rest... \n");
-	if (n_total_reads < ht->n_seqs * 0.96) {
-		pick_up_rest(all_edges, ht, &n_total_reads);
-		n_total_reads = 0;
-		for (i = 0; i < all_edges->len; i++) {
-			eg = g_ptr_array_index(all_edges, i);
-			if (eg->alive) {
-				n_total_reads += eg->pairs->len;
-				n_single_reads += eg->reads->len;
-			}
-		}
-	}
-	show_msg(__func__, "Total reads after stage 3: [%d=>%d]/%d \n",
-			n_single_reads, n_total_reads, ht->n_seqs);
-	show_msg(__func__, "Stage 3 finished: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
+	//	show_msg(__func__, "========================================== \n");
+	//	show_msg(__func__, "Stage 3/3: Trying to pick up the rest... \n");
+	//	if (n_total_reads < ht->n_seqs * 0.96) {
+	//		pick_up_rest(all_edges, ht, &n_total_reads);
+	//		n_total_reads = 0;
+	//		for (i = 0; i < all_edges->len; i++) {
+	//			eg = g_ptr_array_index(all_edges, i);
+	//			if (eg->alive) {
+	//				n_total_reads += eg->pairs->len;
+	//				n_single_reads += eg->reads->len;
+	//			}
+	//		}
+	//	}
+	//	show_msg(__func__, "Total reads after stage 3: [%d=>%d]/%d \n",
+	//			n_single_reads, n_total_reads, ht->n_seqs);
+	//	show_msg(__func__, "Stage 3 finished: %.2f sec\n", (float) (clock() - t)
+	//			/ CLOCKS_PER_SEC);
 
+	g_ptr_array_free(solid_reads, TRUE);
+	destroy_ht(ht);
+}
+
+int pe_lib_usage() {
+	show_msg(__func__,
+			"Command: ./peta pair -p MAX_PAIRS read_file starting_reads \n");
+	return 1;
+}
+
+void test_smith_waterman(char *lib_file) {
+	hash_table *ht = NULL;
+	bwa_seq_t *seqs = NULL, *read_1 = NULL, *read_2 = NULL;
+	int score = 0;
+
+	ht = pe_load_hash(lib_file);
+	seqs = ht->seqs;
+
+	read_1 = &seqs[1646764];
+	read_2 = &seqs[2299221];
+	score = smith_waterman(read_1, read_2, 2, -1, -2, 0);
+	p_query(__func__, read_1);
+	p_query(__func__, read_2);
+	show_debug_msg(__func__, "Similarity score: %d \n", score);
+}
+
+void post_process_edges(const hash_table *ht, edgearray *all_edges) {
+	edgearray *final_paths = NULL;
+	FILE *pair_contigs = NULL;
+	FILE *merged_pair_contigs = NULL;
+	char *name = NULL, *reads_name = NULL;
+	clock_t t = clock();
+	bwa_seq_t *seqs = NULL;
+
+	seqs = ht->seqs;
 	clean_edges(ht, all_edges);
 	show_msg(__func__, "Total valid edges reported: %d \n", all_edges->len);
 	show_debug_msg(__func__, "Total valid edges reported: %d \n",
 			all_edges->len);
-	g_ptr_array_free(solid_reads, TRUE);
 
 	name = get_output_file("pair_contigs.fa");
 	pair_contigs = xopen(name, "w");
@@ -1006,29 +1021,8 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	fclose(pair_contigs);
 	fclose(merged_pair_contigs);
 	g_ptr_array_free(all_edges, TRUE);
-	destroy_ht(ht);
-}
-
-int pe_lib_usage() {
-	show_msg(__func__,
-			"Command: ./peta pair -p MAX_PAIRS read_file starting_reads \n");
-	return 1;
-}
-
-void test_smith_waterman(char *lib_file) {
-	hash_table *ht = NULL;
-	bwa_seq_t *seqs = NULL, *read_1 = NULL, *read_2 = NULL;
-	int score = 0;
-
-	ht = pe_load_hash(lib_file);
-	seqs = ht->seqs;
-
-	read_1 = &seqs[1646764];
-	read_2 = &seqs[2299221];
-	score = smith_waterman(read_1, read_2, 2, -1, -2, 0);
-	p_query(__func__, read_1);
-	p_query(__func__, read_2);
-	show_debug_msg(__func__, "Similarity score: %d \n", score);
+	show_msg(__func__, "Post processing finished: %.2f sec\n", (float) (clock()
+			- t) / CLOCKS_PER_SEC);
 }
 
 int pe_lib(int argc, char *argv[]) {
