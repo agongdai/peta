@@ -30,4 +30,6 @@ typedef struct {
 } counter;
 
 int clean_reads(int argc, char *argv[]);
+clean_opt *init_clean_opt();
+void pe_clean_core(char *fa_fn, clean_opt *opt);
 #endif

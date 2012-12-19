@@ -24,8 +24,8 @@ hash_opt *init_hash_opt() {
 	o->read_len = 0;
 	o->n_k_mers = 0;
 	o->n_pos = 0;
-	o->interleaving = 0;
-	o->n_hash_block = 2;
+	o->interleaving = 2;
+	o->n_hash_block = 5;
 	o->block_size = o->k / 2;
 	return o;
 }
@@ -149,7 +149,7 @@ GPtrArray *mutate_one_base(ubyte_t *seq, const int start_index, const int len) {
 	return mutated_all;
 }
 
-GPtrArray *find_ol_reads(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs,
+GPtrArray *find_reads_on_ht(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs,
 		GPtrArray *hit_reads, const int ori) {
 	hash_key key = 0;
 	GArray *occs = NULL;
@@ -209,11 +209,75 @@ GPtrArray *find_reads_ol_template(reads_ht *ht, bwa_seq_t *template,
 	} else {
 		//p_ctg_seq(__func__, template);
 		rev = new_mem_rev_seq(template, template->len, 0);
-		hit_reads = find_ol_reads(ht, template, seqs, hit_reads, ori);
-		hit_reads = find_ol_reads(ht, rev, seqs, hit_reads, ori);
+		hit_reads = find_reads_on_ht(ht, template, seqs, hit_reads, ori);
+		hit_reads = find_reads_on_ht(ht, rev, seqs, hit_reads, ori);
 		bwa_free_read_seq(1, rev);
 	}
 	return hit_reads;
+}
+
+GPtrArray *find_edges_on_ht(reads_ht *ht, bwa_seq_t *template, GPtrArray *all_edges,
+		GPtrArray *hit_edges, const int ori) {
+	hash_key key = 0;
+	GArray *occs = NULL;
+	int i = 0, j = 0, locus = 0;
+	index64 ctg_id = 0;
+	hash_value value = 0;
+	edge *eg = NULL;
+	GPtrArray *mutated = NULL;
+	ubyte_t *tmp = NULL, *m = NULL;
+	//show_debug_msg(__func__, "Getting mutated template... \n");
+	if (ori) {
+		mutated = mutate_one_base(template->seq, 0, ht->k);
+		key = get_hash_key(template->seq, 0, 1, ht->k);
+	} else {
+		mutated = mutate_one_base(template->seq, template->len - ht->k, ht->k);
+		key = get_hash_key(template->seq, template->len - ht->k, 1, ht->k);
+	}
+	for (j = 0; j < ht->k * 3 + 1; j++) {
+		if (j > 0) {
+			m = g_ptr_array_index(mutated, j - 1);
+			key = get_hash_key(m, 0, 1, ht->k);
+		}
+		occs = g_ptr_array_index(ht->pos, key);
+		if (occs) {
+			if (!hit_edges)
+				hit_edges = g_ptr_array_sized_new(occs->len);
+			for (i = 0; i < occs->len; i++) {
+				value = g_array_index(occs, hash_value, i);
+				read_hash_value(&ctg_id, &locus, value);
+				eg = g_ptr_array_index(all_edges, ctg_id);
+				//show_debug_msg(__func__, "HIT: Edge [%d, %d] \n", eg->id, eg->len);
+				//p_ctg_seq(__func__, eg->contig);
+				if (eg->alive)
+					g_ptr_array_add(hit_edges, eg);
+			}
+		}
+	}
+	for (i = 0; i < mutated->len; i++) {
+		tmp = g_ptr_array_index(mutated, i);
+		free(tmp);
+	}
+	g_ptr_array_free(mutated, TRUE);
+	return hit_edges;
+}
+
+GPtrArray *find_edges_ol(reads_ht *ht, bwa_seq_t *template,
+		GPtrArray *all_edges) {
+	bwa_seq_t *rev = NULL;
+	GPtrArray *hit_edges = NULL;
+	if (ht->n_reads == 0) {
+		hit_edges = g_ptr_array_sized_new(0);
+	} else {
+		//p_ctg_seq(__func__, template);
+		rev = new_mem_rev_seq(template, template->len, 0);
+		hit_edges = find_edges_on_ht(ht, template, all_edges, hit_edges, 0);
+		hit_edges = find_edges_on_ht(ht, rev, all_edges, hit_edges, 0);
+		hit_edges = find_edges_on_ht(ht, template, all_edges, hit_edges, 1);
+		hit_edges = find_edges_on_ht(ht, rev, all_edges, hit_edges, 1);
+		bwa_free_read_seq(1, rev);
+	}
+	return hit_edges;
 }
 
 void destroy_reads_ht(reads_ht *ht) {

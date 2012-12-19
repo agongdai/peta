@@ -80,7 +80,7 @@ void save_paths(GPtrArray *paths, const char *tx_fn, const int min_len) {
 		p = g_ptr_array_index(paths, i);
 		//p_path(p);
 		if (p->len >= min_len) {
-			sprintf(header, ">%d.%d len=%d \n", i, p->id, p->len);
+			sprintf(header, ">%d len=%d \n", i, p->len);
 			save_con(header, p->seq, tx);
 		}
 	}
@@ -853,7 +853,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 		if (i % 100 == 0) {
 			show_msg(__func__, "Progress: %d/%d...\n", i, edges->len);
 		}
-		upd_reads(eg, MISMATCHES);
+		upd_reads(ht->seqs, eg, MISMATCHES);
 	}
 	free(read_str);
 	fclose(reads_fp);

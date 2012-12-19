@@ -1,6 +1,7 @@
 from __future__ import division
 import sys, os, pysam
 from argparse import ArgumentParser
+import collections
 
 class ResultSummary(object):
 	def __init__(self, contig_fn):
@@ -113,6 +114,19 @@ class FastaFile(object):
 		print '\tAverage length: \t%.2f' % self.ave_len
 		print '\tN50 value: \t\t' + str(self.n50)
 		print '==================================================================='
+		
+	def cal_coverage(self, sam):
+		coverage_file = open(sam + '.cov', 'w')
+		sam_file = pysam.Samfile(sam, "rb")
+		sorted_rnames = sorted(self.seqs.iterkeys())
+		
+		coverage_file.write('Transcript\tLength\t# of reads\tCoverage\n')
+		for rname in sorted_rnames:
+			n_reads = 0
+			for a in sam_file.fetch(rname):
+				n_reads += 1
+			coverage_file.write('%s\t%d\t%d\t%.2f\n' % (rname, len(self.seqs[rname]), n_reads, n_reads / len(self.seqs[rname])))
+		coverage_file.close()
 
 class BlastHit(object):
 	def __init__(self, qname = None, rname = None, alen = 0, pos = 0, astart = 0, aend = 0, tid = 0):
@@ -213,6 +227,45 @@ def eva_hits(args, ref, contigs, aligns, summary, hits, aligned_lengths):
 	file_covered_70.close()
 	file_one_on_one.close()
 
+def analyze(args, ref, contigs, aligns, hits):
+	report = open(os.path.join(args.out_dir, 'report.txt'), 'w')
+	sorted_rnames = sorted(ref.seqs.iterkeys())
+	report.write('Transcript\tLength\tContigs\tHits\tCovered\tLargest Covered\t# of reads\tCoverage\n')
+	for rname in sorted_rnames:
+		ref_len = len(ref.seqs[rname])
+		report.write(rname + '\t' + str(ref_len) + '\t')
+		if rname in hits:
+			hit = hits[rname]
+			report.write(str(len(hit)) + '\t') # Number of contigs
+			hit.sort(key=lambda x: x.pos)
+			longest_hit = None
+			covered = 0
+			most_end = 0
+			for h in hit:
+				report.write('[' + h.qname + ':' + str(h.pos) + ',' + str(h.pos + h.alen) + ']; ')
+				if longest_hit is None:
+					longest_hit = h
+					covered = h.alen
+					most_end = h.pos + h.alen - 1
+				else:
+					if longest_hit.alen < h.alen:
+						longest_hit = h
+					if h.pos + h.alen > most_end:
+						if h.pos > most_end:
+							covered += h.alen
+						else:
+							covered += h.pos + h.alen - most_end - 1
+						most_end = h.pos + h.alen
+			report.write('\t')
+			covered_perc = covered / ref_len
+			report.write('%.2f\t' % (covered_perc))
+			largest_cover_perc = longest_hit.alen / ref_len
+			report.write('%.2f\t' % (largest_cover_perc))
+		else:
+			report.write('0\tNONE\t0\t0\t')
+		report.write('\n')
+	report.close()
+
 def read_blastn_hits(blastn_fn):
 	blastn = open(blastn_fn, 'r')
 	hits = []
@@ -264,6 +317,9 @@ def eva_blastn(args):
 			aligned_lengths.append(a.alen)
 			# print a.qname, rid, a.pos, a.alen, a.astart, a.aend
 	eva_hits(args, ref, contigs, aligns, summary, hits, aligned_lengths)
+	analyze(args, ref, contigs, aligns, hits)
+	if not args.sam is None:
+		ref.cal_coverage(args.sam)
 
 def get_n50(arr, total_length=0):
 	arr.sort()
@@ -373,6 +429,14 @@ def main():
     parser_bla.add_argument('-c', required=True, help='transcripts reported to be evaluated', dest='contigs')
     parser_bla.add_argument('-b', required=True, help='blastn file', dest='blastn')
     parser_bla.add_argument('-o', required=True, help='output folder', dest='out_dir')
+    parser_bla.add_argument('-s', required=False, help='reads sam file', dest='sam')
+
+    parser_ana = subparsers.add_parser('report', help='evaluate the performance by alinging by Blastn')
+    parser_ana.set_defaults(func=analyze)
+    parser_ana.add_argument('-t', required=True, help='reference transcript file', dest='ref')
+    parser_ana.add_argument('-c', required=True, help='transcripts reported to be evaluated', dest='contigs')
+    parser_ana.add_argument('-b', required=True, help='blastn file', dest='blastn')
+    parser_ana.add_argument('-o', required=True, help='output folder', dest='out_dir')
 
     parser_cmp = subparsers.add_parser('hasdup', help='evaluate the performance by alinging by Blastn')
     parser_cmp.set_defaults(func=check_dup)

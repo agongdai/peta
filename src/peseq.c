@@ -404,6 +404,14 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	return p;
 }
 
+void set_rev_com(bwa_seq_t *s) {
+	free(s->rseq);
+	s->rseq = (ubyte_t*) malloc(s->len + 1);
+	memcpy(s->rseq, s->seq, s->len);
+	seq_reverse(s->len, s->rseq, 1);
+	s->rseq[s->len] = '\0';
+}
+
 bwa_seq_t *blank_seq() {
 	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
 	int i = 0;
@@ -486,6 +494,28 @@ void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp) {
 	}
 	if (i % LINELEN != 0)
 		fputc('\n', tx_fp);
+}
+
+int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs, const int n_seqs) {
+	int n_unpaired = 0, i = 0;
+	bwa_seq_t *s = NULL;
+	FILE *solid = NULL;
+	char *h = malloc(BUFSIZ);
+
+	solid = xopen(part_solid_fn, "w");
+	for (i = 0; i < n_seqs; i++) {
+		s = &seqs[i];
+		if (s->status != USED) {
+			sprintf(h, ">%d\n", n_unpaired);
+			save_con(h, s, solid);
+			n_unpaired++;
+		}
+		if (n_unpaired > 100000)
+			break;
+	}
+	free(h);
+	fclose(solid);
+	return n_unpaired;
 }
 
 indexes *load_index(const char *fn) {

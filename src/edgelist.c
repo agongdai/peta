@@ -612,25 +612,29 @@ int get_mid_pos(readarray *ra, const int ori, const int lib_mean) {
 	return INVALID;
 }
 
-void upd_ctg_id(edge *eg, const int ctg_id) {
+void upd_ctg_id(edge *eg, const int ctg_id, const int status) {
 	int i = 0;
 	bwa_seq_t *s = NULL;
 	// eg->id = ctg_id;
 	for (i = 0; i < eg->reads->len; i++) {
 		s = g_ptr_array_index(eg->reads, i);
-		s->status = TRIED;
+		if (status != -1)
+			s->status = status;
 		s->contig_id = ctg_id;
 	}
 }
 
-void upd_reads(edge *eg, const int mismatches) {
+void upd_reads(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 	int i = 0, index = 0, overlap_len = 0;
-	bwa_seq_t *read, *rev_read = NULL;
+	bwa_seq_t *read, *rev_read = NULL, *mate = NULL;
 	if (!eg || !eg->reads || eg->reads->len == 0)
 		return;
 	read = g_ptr_array_index(eg->reads, 0);
 	if (!read || eg->len < read->len)
 		return;
+	while (eg->pairs->len > 0) {
+		g_ptr_array_remove_index_fast(eg->pairs, 0);
+	}
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		if (read->shift < 0) {
@@ -663,11 +667,27 @@ void upd_reads(edge *eg, const int mismatches) {
 		}
 		read->shift = index;
 		read->contig_id = eg->id;
-		read->status = USED;
+		read->status = FRESH;
+	}
+	for (i = 0; i < eg->reads->len; i++) {
+		read = g_ptr_array_index(eg->reads, i);
+		mate = get_mate(read, seqs);
+		if (mate->contig_id == read->contig_id && mate->status != USED) {
+			g_ptr_array_add(eg->pairs, read);
+			g_ptr_array_add(eg->pairs, mate);
+			read->status = USED;
+			mate->status = USED;
+		}
+	}
+	for (i = 0; i < eg->reads->len; i++) {
+		read = g_ptr_array_index(eg->reads, i);
+		if (read->status != USED)
+			read->status = TRIED;
 	}
 }
 
-void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
+void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches,
+		const int stage) {
 	int i = 0, index = 0, j = 0;
 	bwa_seq_t *read = NULL, *query = NULL, *seqs = NULL, *mate = NULL;
 	alignarray *aligns = NULL;
@@ -691,6 +711,11 @@ void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
 	while (eg->pairs->len > 0) {
 		g_ptr_array_remove_index_fast(eg->pairs, 0);
 	}
+	if (stage == 3) {
+		while (eg->reads->len > 0) {
+			g_ptr_array_remove_index_fast(eg->reads, 0);
+		}
+	}
 	//show_debug_msg(__func__, "Aligning ... \n");
 	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
 	//p_ctg_seq("CONTIG", eg->contig);
@@ -707,9 +732,12 @@ void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
 			if (index >= ht->n_seqs)
 				continue;
 			read = &seqs[index];
-			if (read->contig_id == eg->id) {
+			if (read->contig_id == eg->id || stage == 3) {
 				read->status = TRIED;
 				read->shift = i;
+			}
+			if (stage == 3) {
+				g_ptr_array_add(eg->reads, read);
 			}
 		}
 		bwa_free_read_seq(1, query);

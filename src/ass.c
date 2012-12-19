@@ -1192,7 +1192,7 @@ int linear_ext(edge *ass_eg, const hash_table *ht, bwa_seq_t *cur_query,
 			}
 		}
 	}
-	upd_reads(ass_eg, opt->nm);
+	upd_reads(ht->seqs, ass_eg, opt->nm);
 	destroy_eg(m_eg);
 	return extended;
 }
@@ -1401,7 +1401,7 @@ edge *pe_ass_ctg(roadmap *rm, bwa_seq_t *read, hash_table *ht) {
 		n_reads_consumed++;
 		return 0;
 	}
-	upd_reads(cur_eg, opt->nm);
+	upd_reads(ht->seqs, cur_eg, opt->nm);
 	for (i = 0; i < all_edges->len; i++) {
 		eg_i = g_ptr_array_index(all_edges, i);
 		if (eg_i && eg_i->in_egs->len == 0 && eg_i->alive) {
