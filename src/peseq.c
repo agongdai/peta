@@ -510,8 +510,14 @@ int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs, const int n_s
 			save_con(h, s, solid);
 			n_unpaired++;
 		}
-		if (n_unpaired > 100000)
-			break;
+		//if (n_unpaired > 100000)
+		//	break;
+	}
+	// To make sure the n_unpaired is even value
+	if (n_unpaired % 2 != 0) {
+		sprintf(s, ">%d\n", n_unpaired);
+		save_con(h, s, solid);
+		n_unpaired++;
 	}
 	free(h);
 	fclose(solid);

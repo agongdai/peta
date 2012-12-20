@@ -263,14 +263,16 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 				|| s->status == USED || (s->status == TRIED && s->contig_id
 				== eg->id))
 			continue;
-		if (mate->status == TRIED && mate->contig_id == eg->id) {
-			if (is_paired(mate, ori))
-				continue;
-		}
+
 		// Stage 3 only use single reads, so TRIED reads are not used any more
 		if (stage == 3) {
 			if (s->status != FRESH)
 				continue;
+		} else {
+			if (mate->status == TRIED && mate->contig_id == eg->id) {
+				if (is_paired(mate, ori))
+					continue;
+			}
 		}
 		s->rev_com = a->rev_comp;
 		mate->rev_com = s->rev_com;
@@ -293,7 +295,7 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	rm_partial(eg, cur_pool, ori, seqs, query, 2);
 	//p_pool("AFTER REMOVING PARTIAL", cur_pool, NULL);
 	// Keep only the reads whose mate is used previously.
-	if (eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
+	if (stage != 3 && eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
 		keep_mates_in_pool(eg, cur_pool, ht, ori, 0);
 		//p_pool("AFTER KEEPING MATES", cur_pool, NULL);
 	}
@@ -334,7 +336,7 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
 		s = &seqs[a->r_id];
 		mate = get_mate(s, seqs);
 		// If the read's mate is used, but the orientation is not the same, not add to pool
-		if (mate->status == USED && (mate->rev_com != a->rev_comp)) {
+		if (stage != 3 && mate->status == USED && (mate->rev_com != a->rev_comp)) {
 			n_counter_pairs++;
 			continue;
 		}
@@ -511,6 +513,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
  * That is because, after first round, there may not be enough mates to use in mate_pool because length is not enough.
  */
 edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
+	int round_3_len = 0;
 	edge *eg = NULL;
 	pool *init_pool = NULL;
 	bwa_seq_t *second_round_q = NULL;
@@ -538,20 +541,23 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 	pair_extension(eg, ht, query, 1, tid);
 	show_debug_msg(__func__, "Edge after left extension: [%d, %d]\n", eg->id,
 			eg->len);
-	//upd_reads_by_ht(ht, eg, MISMATCHES, stage);
 	upd_reads(ht->seqs, eg, MISMATCHES);
 
 	show_debug_msg(__func__, "Second round: extending to the right... \n");
 	second_round_q = new_seq(eg->contig, query->len, eg->len - query->len);
 	pair_extension(eg, ht, second_round_q, 0, tid);
+	round_3_len = eg->len;
 	rev_reads_pos(eg);
 	bwa_free_read_seq(1, second_round_q);
 
 	show_debug_msg(__func__, "Second round: extending to the left... \n");
 	second_round_q = new_seq(eg->contig, query->len, 0);
 	pair_extension(eg, ht, second_round_q, 1, tid);
-	//upd_reads_by_ht(ht, eg, MISMATCHES, stage);
-	upd_reads(ht->seqs, eg, MISMATCHES);
+	if (eg->len - round_3_len > 2) {
+		upd_reads(ht->seqs, eg, MISMATCHES);
+	} else {
+		rev_reads_pos(eg);
+	}
 
 	rev = eg->contig->rseq;
 	free(rev);
@@ -814,37 +820,6 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	free(data);
 }
 
-void start_from_mates(edgearray *all_edges, const hash_table *ht,
-		int *n_paired_reads, int *n_single_reads) {
-	edge *eg = NULL, *new_eg = NULL;
-	int i = 0, j = 0, tried_times = 0;
-	bwa_seq_t *s = NULL, *mate = NULL;
-	for (i = 0; i < all_edges->len; i++) {
-		eg = g_ptr_array_index(all_edges, i);
-		tried_times = 0;
-		for (j = 0; j < eg->reads->len; j++) {
-			if (tried_times >= 2)
-				break;
-			s = g_ptr_array_index(eg->reads, j);
-			if (s->status == TRIED) {
-				mate = get_mate(s, ht->seqs);
-				if (has_n(mate) || is_biased_q(mate) || has_rep_pattern(mate)
-						|| is_repetitive_q(mate) || mate->status != FRESH) {
-					mate->status = TRIED;
-					continue;
-				}
-				new_eg = pe_ext(ht, mate, n_threads + 1);
-				if (new_eg) {
-					tried_times++;
-					validate_edge(all_edges, new_eg, ht, n_paired_reads,
-							n_single_reads);
-				}
-				mate->status = TRIED;
-			}
-		}
-	}
-}
-
 void reset_edge_ids(edgearray *all_edges) {
 	int i = 0;
 	edge *eg = NULL;
@@ -1005,7 +980,7 @@ void pe_lib_single(const hash_table *ht, edgearray *all_edges,
 		if (eg->alive) {
 			//show_msg(__func__, "Updating edge [%d, %d]: %d ", eg->id,
 			//		eg->len, eg->reads->len);
-			upd_reads(ht->seqs, eg, MISMATCHES);
+			upd_reads_by_ht(ht, eg, MISMATCHES, stage);
 			//show_msg(__func__, " to %d \n", eg->reads->len);
 			g_ptr_array_add(all_edges, eg);
 		} else {
@@ -1049,7 +1024,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 
 	n_per_threads = solid_reads->len / 2 / n_threads;
 	show_msg(__func__, "========================================== \n");
-	show_msg(__func__, "Stage 1/3: Trying to use up the paired reads... \n");
+	show_msg(__func__, "Stage 1/2: Trying to use up the paired reads... \n");
 	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
 			0, solid_reads->len / 2, n_per_threads, 0.9);
 	n_paired_reads = 0;
@@ -1067,28 +1042,9 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	reset_edge_ids(all_edges);
 
 	show_msg(__func__, "========================================== \n");
-	show_msg(__func__,
-			"Stage 2/3: Trying to start assembly from unused mates... \n");
-	stage = 2;
-	merge_ol_edges(all_edges, insert_size, ht, n_threads);
-	start_from_mates(all_edges, ht, &n_paired_reads, &n_single_reads);
-	n_paired_reads = 0;
-	for (i = 0; i < all_edges->len; i++) {
-		eg = g_ptr_array_index(all_edges, i);
-		if (eg->alive) {
-			n_paired_reads += eg->pairs->len;
-			n_single_reads += eg->reads->len;
-		}
-	}
-	show_msg(__func__, "Total reads: [%d=>%d]/%d \n", n_single_reads,
-			n_paired_reads, ht->n_seqs);
-	show_msg(__func__, "Stage 2 finished: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
-
-	show_msg(__func__, "========================================== \n");
-	show_msg(__func__, "Stage 3/3: Trying to assembly unpaired reads... \n");
+	show_msg(__func__, "Stage 2/2: Trying to assembly unpaired reads... \n");
 	pe_lib_single(ht, all_edges, &n_paired_reads, &n_single_reads);
-	show_msg(__func__, "Stage 3 finished: %.2f sec\n", (float) (clock() - t)
+	show_msg(__func__, "Stage 2 finished: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
 
 	post_process_edges(ht, all_edges);
