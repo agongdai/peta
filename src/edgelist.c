@@ -637,21 +637,21 @@ void upd_reads(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 	}
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
-		if (read->shift < 0) {
-			overlap_len = find_ol(read, eg->contig, mismatches);
-			if (overlap_len > read->len / 4) {
-				read->contig_id = eg->id;
-				read->shift = read->len - overlap_len;
-				continue;
-			} else {
-				overlap_len = find_ol(eg->contig, read, mismatches);
-				if (overlap_len > read->len / 4) {
-					read->contig_id = eg->id;
-					read->shift = eg->len - overlap_len;
-					continue;
-				}
-			}
-		}
+		//		if (read->shift < 0) {
+		//			overlap_len = find_ol(read, eg->contig, mismatches);
+		//			if (overlap_len > read->len / 4) {
+		//				read->contig_id = eg->id;
+		//				read->shift = read->len - overlap_len;
+		//				continue;
+		//			} else {
+		//				overlap_len = find_ol(eg->contig, read, mismatches);
+		//				if (overlap_len > read->len / 4) {
+		//					read->contig_id = eg->id;
+		//					read->shift = eg->len - overlap_len;
+		//					continue;
+		//				}
+		//			}
+		//		}
 		rev_read = new_mem_rev_seq(read, read->len, 0);
 		index = read->rev_com ? is_sub_seq(rev_read, 0, eg->contig, mismatches
 				+ 2, 0) : is_sub_seq(read, 0, eg->contig, mismatches + 2, 0);
@@ -662,8 +662,8 @@ void upd_reads(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 				read->contig_id = UNUSED_CONTIG_ID;
 				read->shift = 0;
 				i--;
+				continue;
 			}
-			continue;
 		}
 		read->shift = index;
 		read->contig_id = eg->id;
@@ -672,7 +672,8 @@ void upd_reads(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		mate = get_mate(read, seqs);
-		if (mate->contig_id == read->contig_id && mate->status != USED) {
+		if (mate->contig_id == read->contig_id && read->status == FRESH
+				&& mate->status == FRESH) {
 			g_ptr_array_add(eg->pairs, read);
 			g_ptr_array_add(eg->pairs, mate);
 			read->status = USED;
@@ -753,7 +754,8 @@ void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches,
 			i--;
 		} else {
 			mate = get_mate(read, seqs);
-			if (mate->contig_id == read->contig_id && mate->status != USED) {
+			if (mate->contig_id == read->contig_id && mate->status != USED
+					&& read->status != USED) {
 				g_ptr_array_add(eg->pairs, read);
 				g_ptr_array_add(eg->pairs, mate);
 				read->status = USED;

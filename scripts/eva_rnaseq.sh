@@ -1,6 +1,6 @@
 #!/bin/bash
 
-query="Trinity"
+query="peta.1"
 db_dir="../rnaseq/Spombe/genome/"
 db="spombe.broad.tx.fasta"
 blastdb="../../ncbi-blast-2.2.26+/db/"
@@ -42,7 +42,7 @@ python eva.py blast -t $db_dir$db -c $query_dir$query.fa -b $query_dir$query.bla
 echo "=======================================" 1>&2
 if [ $1 = "bwa" ]; 
 	then
-	echo "bwa bwasw -t 6 $db_dir$db $query_dir$query.fa > $query_dir$query.tx.sam"
+	echo "bwa bwasw -t 2 $db_dir$db $query_dir$query.fa > $query_dir$query.tx.sam"
 	bwa bwasw -t 6 $db_dir$db $query_dir$query.fa > $query_dir$query.tx.sam
 fi
 echo "=======================================" 1>&2

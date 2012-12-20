@@ -169,22 +169,6 @@ gpointer mate_pool_rm_index(pool *p, const int i) {
 	return r;
 }
 
-void syn_pools(pool *cur_pool, pool *mate_pool, const bwa_seq_t *seqs,
-		const int ori) {
-	int i = 0;
-	bwa_seq_t *read, *mate;
-	for (i = 0; i < cur_pool->n; i++) {
-		read = g_ptr_array_index(cur_pool->reads, i);
-		mate = get_mate(read, seqs);
-		if (ori && is_right_mate(read->name)) {
-			pool_uni_add(mate_pool, mate);
-		}
-		if (!ori && is_left_mate(read->name)) {
-			pool_uni_add(mate_pool, mate);
-		}
-	}
-}
-
 void pool_get_majority(pool *cur_pool, const char c, edge *ass_eg) {
 	bwa_seq_t *s = NULL;
 	readarray *reads = cur_pool->reads;
@@ -314,7 +298,7 @@ void rm_partial(edge *eg, pool *cur_pool, int ori, bwa_seq_t *seqs,
 		bwa_seq_t *query, int nm) {
 	int check_c_1 = 0, check_c_2 = 0, confirm_c = 0, confirm_c_2 = 0;
 	int removed = 0, is_at_end = 0, i = 0;
-	bwa_seq_t *s = NULL, *mate = NULL;
+	bwa_seq_t *s = NULL;
 	check_c_1 = ori ? query->seq[0] : query->seq[query->len - 1];
 	check_c_2 = ori ? query->seq[1] : query->seq[query->len - 2];
 	for (i = 0; i < cur_pool->n; i++) {
