@@ -496,7 +496,22 @@ void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp) {
 		fputc('\n', tx_fp);
 }
 
-int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs, const int n_seqs) {
+void save_read(const char *header, const bwa_seq_t *read, FILE *read_fp) {
+	int i = 0;
+	char c = to_upper_lower('N');
+	if (!read)
+		return;
+	fputs(header, read_fp);
+	for (i = 0; i < read->len; i++) {
+		c = read->seq[i];
+		c = "acgtn"[(int) c];
+		fputc(c, read_fp);
+	}
+	fputc('\n', read_fp);
+}
+
+int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs,
+		const int n_seqs) {
 	int n_unpaired = 0, i = 0;
 	bwa_seq_t *s = NULL;
 	FILE *solid = NULL;

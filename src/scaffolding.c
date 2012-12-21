@@ -240,7 +240,13 @@ edge *merge_two_ol_edges(reads_ht *rht, hash_table *ht, edge *eg_1, edge *eg_2, 
 	merge_seq_to_left(eg_1->contig, eg_2->contig, 0);
 	eg_1->len = eg_1->contig->len;
 	//show_debug_msg(__func__, "Concating reads ... \n");
-	concat_readarray(eg_1->reads, eg_2->reads);
+	for (i = 0; i < eg_2->reads->len; i++) {
+		r = g_ptr_array_index(eg_2->reads, i);
+		if (r->contig_id != eg_1->id) {
+			g_ptr_array_add(eg_1->reads, r);
+			r->contig_id = eg_1->id;
+		}
+	}
 	//show_debug_msg(__func__, "Clearing reads ... \n");
 	clear_used_reads(eg_2, 0);
 	//show_debug_msg(__func__, "Updated ... \n");
@@ -250,7 +256,7 @@ edge *merge_two_ol_edges(reads_ht *rht, hash_table *ht, edge *eg_1, edge *eg_2, 
 		r->contig_id = eg_1->id;
 	}
 	//show_debug_msg(__func__, "Updating reads %d=>%d ... \n", eg_1->id, eg_1->reads->len);
-	upd_reads_by_ht(ht, eg_1, MISMATCHES, 0);
+	upd_reads(ht, eg_1, MISMATCHES, 0);
 	eg_2->alive = 0;
 	add_read_to_ht(rht, eg_1->contig);
 	return eg_1;

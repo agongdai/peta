@@ -24,6 +24,7 @@ extern "C" {
 #define MIN_VALID_PAIRS			8
 #define MISMATCHES				2
 #define SHORT_MISMATCH			1
+#define UPD_READS_THRE			10000
 
 gint cmp_read_by_name(gpointer a, gpointer b);
 void g_ptr_array_add_index(GPtrArray *array, gpointer data, const int index);
@@ -44,8 +45,9 @@ void merge_eg_to_left(edge *left_eg, edge *right_eg, const int gap);
 void merge_eg_to_right(edge *left_eg, edge *right_eg, const int gap);
 int get_mid_pos(readarray *ra, const int ori, const int lib_mean);
 void upd_ctg_id(edge *eg, const int ctg_id, const int status);
-void upd_reads(bwa_seq_t *seqs, edge *eg, const int mismatches);
+void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches);
 void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches, const int stage);
+void upd_reads(const hash_table *ht, edge *eg, const int mismatches, const int stage);
 int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs);
 void log_reads(edgearray *ea);
 void log_edge(const edge *eg);

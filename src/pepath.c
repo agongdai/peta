@@ -853,7 +853,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 		if (i % 100 == 0) {
 			show_msg(__func__, "Progress: %d/%d...\n", i, edges->len);
 		}
-		upd_reads(ht->seqs, eg, MISMATCHES);
+		upd_reads_by_ol(ht->seqs, eg, MISMATCHES);
 	}
 	free(read_str);
 	fclose(reads_fp);

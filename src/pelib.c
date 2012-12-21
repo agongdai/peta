@@ -553,8 +553,7 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 	pair_extension(eg, ht, query, 1, tid);
 	show_debug_msg(__func__, "Edge after left extension: [%d, %d]\n", eg->id,
 			eg->len);
-	show_msg(__func__, "Before update: %d=>%d \n", eg->reads->len, eg->pairs->len);
-	upd_reads(ht->seqs, eg, MISMATCHES);
+	upd_reads(ht, eg, MISMATCHES, stage);
 
 	show_debug_msg(__func__, "Second round: extending to the right... \n");
 	second_round_q = new_seq(eg->contig, query->len, eg->len - query->len);
@@ -567,7 +566,7 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 	second_round_q = new_seq(eg->contig, query->len, 0);
 	pair_extension(eg, ht, second_round_q, 1, tid);
 	if (eg->len - round_3_len > 2) {
-		upd_reads(ht->seqs, eg, MISMATCHES);
+		upd_reads(ht, eg, MISMATCHES, stage);
 	} else {
 		rev_reads_pos(eg);
 	}
@@ -779,9 +778,11 @@ static void *pe_lib_thread(void *data) {
 		//		if (query->status != FRESH)
 		//			continue;
 		if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
-				|| is_repetitive_q(query) || query->status == USED
-				|| query->status == TRIED) {
-			query->status = TRIED;
+				|| is_repetitive_q(query)) {
+			query->status = USED;
+			continue;
+		}
+		if (query->status != FRESH) {
 			continue;
 		}
 		query->status = TRIED;
@@ -974,6 +975,7 @@ void pe_lib_single(const hash_table *ht, edgearray *all_edges,
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
 	c_opt->lib_name = lib_name;
+	c_opt->stop_thre = 0.3;
 	pe_clean_core(name, c_opt);
 
 	solid_name = get_output_file("part.solid");
@@ -983,7 +985,7 @@ void pe_lib_single(const hash_table *ht, edgearray *all_edges,
 	n_per_threads = solid_reads->len / n_threads;
 	single_edges = g_ptr_array_sized_new(64);
 	run_threads(single_edges, solid_reads, pht, n_paired_reads, &n_single, 0,
-			solid_reads->len, n_per_threads, 0.9);
+			solid_reads->len, n_per_threads, 0.95);
 
 	show_msg(__func__, "Updating single edges... \n");
 	show_msg(__func__, "Before: %.2f sec\n", (float) (clock() - t)
@@ -1035,11 +1037,11 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "Solid reads loaded: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
 
-	n_per_threads = solid_reads->len / 2 / n_threads;
+	n_per_threads = 2 * solid_reads->len / 3 / n_threads;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 1/2: Trying to use up the paired reads... \n");
 	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
-			0, solid_reads->len / 2, n_per_threads, 0.95);
+			0, 2 * solid_reads->len / 3, n_per_threads, 0.95);
 	n_paired_reads = 0;
 	n_single_reads = 0;
 	for (i = 0; i < all_edges->len; i++) {

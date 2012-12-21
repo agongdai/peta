@@ -13,6 +13,7 @@
 typedef struct {
 	int kmer;
 	int mode;
+	double stop_thre;
 	char *lib_name;
 } clean_opt;
 

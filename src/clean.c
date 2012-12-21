@@ -275,7 +275,7 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 			if (k_count->checked)
 				continue;
 			s = &seqs[k_count->read_id];
-			if (pick_within_range(s, k_count, kmer_list, opt, UNEVEN_THRE * j)) {
+			if (pick_within_range(s, k_count, kmer_list, opt, opt->stop_thre * j)) {
 				n_solid++;
 				k_count->checked = 4;
 				g_ptr_array_add(solid_reads, s);
@@ -313,13 +313,16 @@ int clean_reads(int argc, char *argv[]) {
 	t = clock();
 	clean_opt *opt = init_clean_opt();
 
-	while ((c = getopt(argc, argv, "k:l:")) >= 0) {
+	while ((c = getopt(argc, argv, "k:l:s:")) >= 0) {
 		switch (c) {
 		case 'k':
 			opt->kmer = atoi(optarg);
 			break;
 		case 'l':
 			opt->lib_name = optarg;
+			break;
+		case 's':
+			opt->stop_thre = atof(optarg);
 			break;
 		default:
 			return 1;

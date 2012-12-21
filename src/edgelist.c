@@ -624,7 +624,7 @@ void upd_ctg_id(edge *eg, const int ctg_id, const int status) {
 	}
 }
 
-void upd_reads(bwa_seq_t *seqs, edge *eg, const int mismatches) {
+void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 	int i = 0, index = 0, overlap_len = 0;
 	bwa_seq_t *read, *rev_read = NULL, *mate = NULL;
 	if (!eg || !eg->reads || eg->reads->len == 0)
@@ -637,21 +637,21 @@ void upd_reads(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 	}
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
-		//		if (read->shift < 0) {
-		//			overlap_len = find_ol(read, eg->contig, mismatches);
-		//			if (overlap_len > read->len / 4) {
-		//				read->contig_id = eg->id;
-		//				read->shift = read->len - overlap_len;
-		//				continue;
-		//			} else {
-		//				overlap_len = find_ol(eg->contig, read, mismatches);
-		//				if (overlap_len > read->len / 4) {
-		//					read->contig_id = eg->id;
-		//					read->shift = eg->len - overlap_len;
-		//					continue;
-		//				}
-		//			}
-		//		}
+		if (read->shift < 0) {
+			overlap_len = find_ol(read, eg->contig, mismatches);
+			if (overlap_len > read->len / 4) {
+				read->contig_id = eg->id;
+				read->shift = read->len - overlap_len;
+				continue;
+			} else {
+				overlap_len = find_ol(eg->contig, read, mismatches);
+				if (overlap_len > read->len / 4) {
+					read->contig_id = eg->id;
+					read->shift = eg->len - overlap_len;
+					continue;
+				}
+			}
+		}
 		rev_read = new_mem_rev_seq(read, read->len, 0);
 		index = read->rev_com ? is_sub_seq(rev_read, 0, eg->contig, mismatches
 				+ 2, 0) : is_sub_seq(read, 0, eg->contig, mismatches + 2, 0);
@@ -764,6 +764,14 @@ void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches,
 		}
 	}
 	//show_debug_msg("AFTER", "There are %d => %d reads \n", eg->reads->len, eg->pairs->len);
+}
+
+void upd_reads(const hash_table *ht, edge *eg, const int mismatches, const int stage) {
+	if (eg->reads->len >= UPD_READS_THRE) {
+		upd_reads_by_ht(ht, eg, mismatches, stage);
+	} else {
+		upd_reads_by_ol(ht->seqs, eg, mismatches);
+	}
 }
 
 int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs) {
