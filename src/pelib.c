@@ -190,16 +190,16 @@ void add_mates_by_ol(const hash_table *ht, edge *eg, pool *cur_pool,
 		tmp = mate;
 		if (mate->rev_com)
 			tmp = new_mem_rev_seq(mate, mate->len, 0);
-		overlapped = find_ol_within_k(tmp, template, nm, ol - 1, query->len - 1,
-				ori);
+		overlapped = find_ol_within_k(tmp, template, nm, ol - 1,
+				query->len - 1, ori);
 		/*if (strcmp(mate->name, "2460877") == 0) {
-			show_debug_msg("ORI", "ORI: %d \n", ori);
-			p_ctg_seq("QUERY", query);
-			p_query("MATE", tmp);
-			p_query("ORIG", mate);
-			p_query("USED", get_mate(mate, seqs));
-			show_debug_msg(__func__, "OVERLAP 1: %d \n", overlapped);
-		}*/
+		 show_debug_msg("ORI", "ORI: %d \n", ori);
+		 p_ctg_seq("QUERY", query);
+		 p_query("MATE", tmp);
+		 p_query("ORIG", mate);
+		 p_query("USED", get_mate(mate, seqs));
+		 show_debug_msg(__func__, "OVERLAP 1: %d \n", overlapped);
+		 }*/
 		if (overlapped >= ol) {
 			// Only if this mate overlaps with some read in the cur_pool, add it.
 			// It is important because sometimes it maybe added just for coincidence.
@@ -766,13 +766,18 @@ static void *pe_lib_thread(void *data) {
 	show_debug_msg(__func__, "From %d to %d \n", d->start, d->end);
 	ht = d->ht;
 	for (i = d->start; i < d->end; i++) {
+		if (i % 1000 == 0) {
+			show_debug_msg(__func__,
+					"Progress [start, now, end]: [%d, %d, %d]... \n", d->start,
+					i, d->end);
+		}
 		query = g_ptr_array_index(d->solid_reads, i);
 		n_paired_reads = d->n_paired_reads;
 		n_single_reads = d->n_single_reads;
 		//if (pair_ctg_id == 0)
-		//	query = &ht->seqs[2592602];
+		//	query = &ht->seqs[4749837];
 		//if (pair_ctg_id == 1)
-		//	query = &ht->seqs[3535214];
+		//	query = &ht->seqs[1385200];
 		//if (pair_ctg_id == 2)
 		//	query = &ht->seqs[2738138];
 		//		if (query->status != FRESH)
@@ -798,7 +803,7 @@ static void *pe_lib_thread(void *data) {
 		validate_edge(d->all_edges, eg, d->ht, d->n_paired_reads,
 				d->n_single_reads);
 		eg = NULL;
-		//if (pair_ctg_id >= 1)
+		//if (pair_ctg_id >= 2)
 		//	break;
 	}
 	return NULL;
