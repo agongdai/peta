@@ -767,7 +767,7 @@ static void *pe_lib_thread(void *data) {
 	ht = d->ht;
 	for (i = d->start; i < d->end; i++) {
 		if (i % 1000 == 0) {
-			show_debug_msg(__func__,
+			show_msg(__func__,
 					"Progress [start, now, end]: [%d, %d, %d]... \n", d->start,
 					i, d->end);
 		}
@@ -787,7 +787,7 @@ static void *pe_lib_thread(void *data) {
 			query->status = USED;
 			continue;
 		}
-		if (query->status != FRESH) {
+		if (query->status == USED) {
 			continue;
 		}
 		query->status = TRIED;
@@ -1042,11 +1042,11 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "Solid reads loaded: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
 
-	n_per_threads = 2 * solid_reads->len / 3 / n_threads;
+	n_per_threads = solid_reads->len / n_threads;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 1/2: Trying to use up the paired reads... \n");
 	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
-			0, 2 * solid_reads->len / 3, n_per_threads, 0.95);
+			0, solid_reads->len, n_per_threads, 0.96);
 	n_paired_reads = 0;
 	n_single_reads = 0;
 	for (i = 0; i < all_edges->len; i++) {
