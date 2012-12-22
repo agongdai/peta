@@ -787,7 +787,7 @@ static void *pe_lib_thread(void *data) {
 			query->status = USED;
 			continue;
 		}
-		if (query->status == USED) {
+		if (query->status != FRESH) {
 			continue;
 		}
 		query->status = TRIED;
