@@ -4,14 +4,14 @@
  *  Created on: May 16, 2011
  *      Author: Carl
  */
+#ifndef PESEQ_H_
+#define PESEQ_H_
+
 #include <stdio.h>
 #include <glib.h>
 #include "bwtaln.h"
 #include "bwase.h"
 #include "pehash.h"
-
-#ifndef SEQ_UTIL_H_
-#define SEQ_UTIL_H_
 
 #ifndef kroundup32
 #define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
@@ -127,4 +127,4 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 }
 #endif
 
-#endif /* SEQ_UTIL_H_ */
+#endif /* PESEQ_H_ */

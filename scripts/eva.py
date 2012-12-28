@@ -72,7 +72,7 @@ class FastaFile(object):
 				if not name == '' and not s == '':
 					self.seqs[name] = s
 					self.lengths.append(len(s))
-				line = line[1:-1]
+				line = line[1:]
 				fields = line.split()
 				name = fields[0]
 				s = ''

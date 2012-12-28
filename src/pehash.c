@@ -338,7 +338,7 @@ reads_ht *build_edges_ht(const int k, GPtrArray *init_edges) {
 	return rht;
 }
 
-void pe_hash_core(const char *fa_fn, hash_opt *opt) {
+void pe_hash_core(char *fa_fn, hash_opt *opt) {
 	bwa_seq_t *s, *part_seqs;
 	bwa_seqio_t *ks;
 	index64 key, n_k_mers = 0;
@@ -484,7 +484,7 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 	free(n_occ);
 }
 
-hash_table *pe_load_hash(const char *fa_fn) {
+hash_table *pe_load_hash(char *fa_fn) {
 	hash_table *h;
 	FILE *fp;
 	hash_opt *opt;

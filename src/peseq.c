@@ -504,7 +504,7 @@ void save_read(const char *header, const bwa_seq_t *read, FILE *read_fp) {
 	fputs(header, read_fp);
 	for (i = 0; i < read->len; i++) {
 		c = read->seq[i];
-		c = "acgtn"[(int) c];
+		c = "ACGTN"[(int) c];
 		fputc(c, read_fp);
 	}
 	fputc('\n', read_fp);

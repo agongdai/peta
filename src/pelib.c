@@ -21,6 +21,8 @@
 #include "pelib.h"
 #include "pepath.h"
 #include "scaffolding.h"
+#include "pehash.h"
+#include "rnaseq.h"
 #include <pthread.h>
 //#include <glib_global.h> // Always include as the last include.
 
@@ -476,7 +478,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		//p_query(__func__, query);
 		pe_aln_query(query, query->seq, ht, MISMATCHES, query->len, 0, aligns);
 		pe_aln_query(query, query->rseq, ht, MISMATCHES, query->len, 1, aligns);
-		//p_align(aligns);
+		// p_align(aligns);
 		maintain_pool(aligns, ht, cur_pool, eg, query, next, ori);
 		// If no read in current pool, try less stringent overlapped length and zero mismatches
 		if (stage != 3 && eg->len > insert_size - sd_insert_size
@@ -678,15 +680,17 @@ void est_insert_size(int n_max_pairs, char *lib_file, char *solid_file) {
 /**
  * Keep only pairs on one edge
  */
-int validate_edge(edgearray *all_edges, edge *eg, const hash_table *ht,
+int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 		int *n_paired_reads, int *n_single_reads) {
 	int n = 0;
 	if (eg) {
+		show_msg(__func__, "Single: %d \n", n);
 		n = *n_paired_reads;
 		if (stage == 3) {
 			//p_ctg_seq(__func__, eg->contig);
 			//p_readarray(eg->reads, 1);
 			n = *n_single_reads;
+			show_msg(__func__, "Single: %d \n", n);
 		}
 		// keep_pairs_only(eg, ht->seqs);
 		if (eg->len < insert_size && eg->reads->len * ht->seqs->len < eg->len
@@ -763,6 +767,7 @@ static void *pe_lib_thread(void *data) {
 	edge *eg = NULL;
 	thread_aux_t *d = (thread_aux_t*) data;
 	hash_table *ht = NULL;
+	readarray *solid = d->solid_reads;
 	show_debug_msg(__func__, "From %d to %d \n", d->start, d->end);
 	ht = d->ht;
 	for (i = d->start; i < d->end; i++) {
@@ -771,7 +776,8 @@ static void *pe_lib_thread(void *data) {
 					"Progress [start, now, end]: [%d, %d, %d]... \n", d->start,
 					i, d->end);
 		}
-		query = g_ptr_array_index(d->solid_reads, i);
+		query = g_ptr_array_index(solid, i);
+		p_query(__func__, query);
 		n_paired_reads = d->n_paired_reads;
 		n_single_reads = d->n_single_reads;
 		//if (pair_ctg_id == 0)
@@ -803,7 +809,7 @@ static void *pe_lib_thread(void *data) {
 		validate_edge(d->all_edges, eg, d->ht, d->n_paired_reads,
 				d->n_single_reads);
 		eg = NULL;
-		//if (pair_ctg_id >= 2)
+		//if (pair_ctg_id >= 100)
 		//	break;
 	}
 	return NULL;
@@ -982,13 +988,15 @@ void pe_lib_single(const hash_table *ht, edgearray *all_edges,
 	c_opt->lib_name = lib_name;
 	c_opt->stop_thre = 0.3;
 	pe_clean_core(name, c_opt);
-
+//
 	solid_name = get_output_file("part.solid");
 	pht = pe_load_hash(name);
+	show_msg(__func__, "n_seqs: %d \n", pht->n_seqs);
 	solid_reads = load_solid_reads(solid_name, pht->seqs, pht->n_seqs);
-
+	show_msg(__func__, "solid: %d \n", solid_reads->len);
 	n_per_threads = solid_reads->len / n_threads;
 	single_edges = g_ptr_array_sized_new(64);
+	show_msg(__func__, "Assembling single edges... \n");
 	run_threads(single_edges, solid_reads, pht, n_paired_reads, &n_single, 0,
 			solid_reads->len, n_per_threads, 0.95);
 
@@ -1025,11 +1033,12 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	clock_t t = clock();
 	hash_table *ht = NULL;
 	bwa_seq_t *seqs = NULL;
-	FILE *solid = NULL;
+	FILE *solid = NULL, *raw = NULL;
 	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_single_reads = 0;
 	GPtrArray *all_edges = NULL;
 	readarray *solid_reads = NULL;
 	edge *eg = NULL;
+	char *name = NULL;
 
 	solid = xopen(solid_file, "r");
 	show_msg(__func__, "Library: %s \n", lib_file);
@@ -1042,11 +1051,11 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "Solid reads loaded: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
 
-	n_per_threads = solid_reads->len / n_threads;
+	n_per_threads = solid_reads->len / n_threads / 2;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 1/2: Trying to use up the paired reads... \n");
 	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
-			0, solid_reads->len, n_per_threads, 0.96);
+			0, solid_reads->len / 2, n_per_threads, 0.01);
 	n_paired_reads = 0;
 	n_single_reads = 0;
 	for (i = 0; i < all_edges->len; i++) {
@@ -1060,6 +1069,12 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 			n_paired_reads, ht->n_seqs);
 	show_msg(__func__, "Stage 1 finished: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
+	name = get_output_file("raw.fa");
+	raw = xopen(name, "w");
+	save_edges(all_edges, raw, 0, 0, 100);
+	fflush(raw);
+	free(name);
+	fclose(raw);
 	reset_edge_ids(all_edges);
 
 	show_msg(__func__, "========================================== \n");
@@ -1078,24 +1093,28 @@ int pe_lib_usage() {
 			"Command: ./peta pair -p MAX_PAIRS read_file starting_reads \n");
 	return 1;
 }
-
-void test_smith_waterman(char *lib_file) {
-	hash_table *ht = NULL;
-	bwa_seq_t *seqs = NULL, *read_1 = NULL, *read_2 = NULL;
-	int score = 0;
-
-	ht = pe_load_hash(lib_file);
-	seqs = ht->seqs;
-
-	read_1 = &seqs[1646764];
-	read_2 = &seqs[2299221];
-	score = smith_waterman(read_1, read_2, 2, -1, -2, 0);
-	p_query(__func__, read_1);
-	p_query(__func__, read_2);
-	show_debug_msg(__func__, "Similarity score: %d \n", score);
-}
+//
+//void test_smith_waterman(char *lib_file) {
+//	hash_table *ht = NULL;
+//	bwa_seq_t *seqs = NULL, *read_1 = NULL, *read_2 = NULL;
+//	int score = 0;
+//
+//	ht = pe_load_hash(lib_file);
+//	seqs = ht->seqs;
+//
+//	read_1 = &seqs[1646764];
+//	read_2 = &seqs[2299221];
+//	score = smith_waterman(read_1, read_2, 2, -1, -2, 0);
+//	p_query(__func__, read_1);
+//	p_query(__func__, read_2);
+//	show_debug_msg(__func__, "Similarity score: %d \n", score);
+//}
 
 int pe_lib(int argc, char *argv[]) {
+	char *name = NULL;
+	int tmp = 0;
+	hash_table *ht = NULL, *tht = NULL;
+
 	clock_t t = clock();
 	int c = 0, n_max_pairs = 0;
 	while ((c = getopt(argc, argv, "p:k:m:d:o:t:")) >= 0) {
@@ -1133,6 +1152,14 @@ int pe_lib(int argc, char *argv[]) {
 	show_msg(__func__, "Output folder: %s \n", out_root);
 	show_msg(__func__, "Insert size: %d \n", insert_size);
 	show_msg(__func__, "Standard deviation: %d \n", sd_insert_size);
+
+//	name = get_output_file("small.fa");
+//	ht = pe_load_hash("../SRR097897_part/small.fa");
+//	show_msg(__func__, "======================================================\n");
+//	ht = pe_load_hash("../SRR097897_part/small.fa");
+//	show_msg(__func__, "======================================================\n");
+//	//ht = pe_load_hash(name);
+//	pe_lib_single(NULL, NULL, &tmp, NULL);
 	if (n_max_pairs > 0) {
 		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
 	} else {

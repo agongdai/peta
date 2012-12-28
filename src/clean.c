@@ -33,7 +33,7 @@ counter *init_counter() {
 clean_opt *init_clean_opt() {
 	clean_opt *o = (clean_opt*) malloc(sizeof(clean_opt));
 	o->kmer = 0;
-	o->lib_name = 0;
+	o->lib_name = NULL;
 	o->mode = (BWA_MODE_GAPE | BWA_MODE_COMPREAD);
 	return o;
 }

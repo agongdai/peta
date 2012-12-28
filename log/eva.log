@@ -1,2 +1,0 @@
-python eva.py blast -t ../rnaseq/Spombe/genome/spombe.broad.tx.fasta -c ../SRR097897_out/merged_pair_contigs.fa -b ../SRR097897_out/merged_pair_contigs.blastn -o ../SRR097897_out/
-Done

@@ -235,8 +235,8 @@ void pe_aln_dummy(const char *fa_fn, const char *query_fn, const int mismatches)
 	int i = 0;
 
 	ht = pe_load_hash(fa_fn);
-	ks = bwa_open_reads(BWA_MODE, query_fn);
-	while ((queries = bwa_read_seq(ks, 0x400000, &n_qs, BWA_MODE, 0)) != 0) {
+	ks = bwa_open_reads(3, query_fn);
+	while ((queries = bwa_read_seq(ks, 0x400000, &n_qs, 3, 0)) != 0) {
 		pe_reverse_seqs(queries, n_qs);
 		break;
 	}

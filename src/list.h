@@ -1,6 +1,6 @@
 /* mystack.h -- Stack declaration and function prototypes:  */
-#ifndef STACK_H_
-#define STACK_H_
+#ifndef LIST_H_
+#define LIST_H_
 
 #define STACK_SIZE 1024
 #define NOT_FOUND = -999;
