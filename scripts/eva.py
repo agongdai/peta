@@ -19,6 +19,7 @@ class ResultSummary(object):
 		self.n_not_reached = 0
 		self.n_bases_not_reached = 0
 		self.n50_aligned = 0
+		self.n50_aligned_on_all = 0
 		self.n50_raw = 0
 		self.n50_optimal = 0
 		self.base_coverage = 0.0
@@ -29,22 +30,23 @@ class ResultSummary(object):
 	def report(self):
 		print '==================================================================='
 		print 'Evaluation result of ' + self.contig_fn
-		print '\tAssembled base: \t\t' + str(self.n_bases)
-		print '\tBases aligned: \t\t\t' + str(self.n_aligned_bases)
-		print '\t# of contigs: \t\t\t' + str(self.n_contigs)
-		print '\t# of Full length: \t\t' + str(self.n_tx_full_length)
-		print '\t# of one-on-one: \t\t' + str(self.n_tx_one_on_one)
-		print '\t# of 70% covered: \t\t' + str(self.n_tx_covered_70)
-		print '\tCovered by one contig: \t\t' + str(self.n_tx_one_covered)
-		print '\t# of fragmented: \t\t' + str(self.n_fragmented)
-		print '\t# of Ctgs not aligned: \t\t' + str(self.n_not_aligned)
-		print '\tBases not aligned: \t\t' + str(self.n_bases_not_aligned)
-		print '\t# of Ctgs not reached: \t\t' + str(self.n_not_reached)
-		print '\tBases not reached: \t\t' + str(self.n_bases_not_reached)
-		print '\tOptimal N50: \t\t\t' + str(self.n50_optimal)
-		print '\tRaw N50: \t\t\t' + str(self.n50_raw)
-		print '\tAligned N50: \t\t\t' + str(self.n50_aligned)
-		print '\tBase coverage: \t\t\t%.2f%%' % (self.base_coverage * 100)
+		print '\tAssembled base:               ' + str(self.n_bases)
+		print '\tBases aligned:                ' + str(self.n_aligned_bases)
+		print '\t# of contigs:                 ' + str(self.n_contigs)
+		print '\t# of Full length:             ' + str(self.n_tx_full_length)
+		print '\t# of one-on-one:              ' + str(self.n_tx_one_on_one)
+		print '\t# of 70% covered:             ' + str(self.n_tx_covered_70)
+		print '\tCovered by one contig:        ' + str(self.n_tx_one_covered)
+		print '\t# of fragmented:              ' + str(self.n_fragmented)
+		print '\t# of Ctgs not aligned:        ' + str(self.n_not_aligned)
+		print '\tBases not aligned:            ' + str(self.n_bases_not_aligned)
+		print '\t# of Ctgs not reached:        ' + str(self.n_not_reached)
+		print '\tBases not reached:            ' + str(self.n_bases_not_reached)
+		print '\tOptimal N50:                  ' + str(self.n50_optimal)
+		print '\tRaw N50:                      ' + str(self.n50_raw)
+		print '\tAligned N50:                  ' + str(self.n50_aligned)
+		print '\tAligned N50 based on all:     ' + str(self.n50_aligned_on_all)
+		print '\tBase coverage:                %.2f%%' % (self.base_coverage * 100)
 		print '==================================================================='
 
 class FastaFile(object):
@@ -212,6 +214,7 @@ def eva_hits(args, ref, contigs, aligns, summary, hits, aligned_lengths):
 	summary.n_contigs = contigs.n_seqs
 	summary.n_fragmented = summary.n_contigs - summary.n_tx_full_length - summary.n_tx_one_on_one - summary.n_tx_covered_70 - summary.n_not_aligned
 	summary.n50_aligned = get_n50(aligned_lengths)
+	summary.n50_aligned_on_all = get_n50(aligned_lengths, summary.n_bases)
 	summary.base_coverage = n_obtained_bases / ref.n_bases
 	summary.n50_raw = contigs.n50
 	summary.n50_optimal = ref.n50

@@ -7,8 +7,6 @@
 #include <inttypes.h>
 #include "bwase.h"
 #include "peseq.h"
-#include "utils.h"
-#include "bwtaln.h"
 #include "rnaseq.h"
 
 bwa_seq_t *load_reads(const char *fa_fn, uint32_t *n_seqs) {

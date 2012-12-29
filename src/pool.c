@@ -237,7 +237,7 @@ void clean_cur_pool(pool *cur_pool) {
 	for (i = 0; i < ra->len; i++) {
 		r = g_ptr_array_index(ra, i);
 		if (r->status) {
-			if (pool_rm_index(ra, i))
+			if (pool_rm_index(cur_pool, i))
 				i--;
 		}
 	}

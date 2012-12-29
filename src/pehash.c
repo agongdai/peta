@@ -216,49 +216,37 @@ GPtrArray *find_reads_ol_template(reads_ht *ht, bwa_seq_t *template,
 	return hit_reads;
 }
 
-GPtrArray *find_edges_on_ht(reads_ht *ht, bwa_seq_t *template, GPtrArray *all_edges,
-		GPtrArray *hit_edges, const int ori) {
+GPtrArray *find_edges_on_ht(reads_ht *ht, bwa_seq_t *template,
+		GPtrArray *all_edges, GPtrArray *hit_edges, const int ori) {
 	hash_key key = 0;
 	GArray *occs = NULL;
 	int i = 0, j = 0, locus = 0;
 	index64 ctg_id = 0;
 	hash_value value = 0;
 	edge *eg = NULL;
-	GPtrArray *mutated = NULL;
-	ubyte_t *tmp = NULL, *m = NULL;
-	//show_debug_msg(__func__, "Getting mutated template... \n");
+	ubyte_t *target_sub_seq = NULL;
+	target_sub_seq = (ubyte_t*) calloc(ht->k + 1, sizeof(ubyte_t));
 	if (ori) {
-		mutated = mutate_one_base(template->seq, 0, ht->k);
-		key = get_hash_key(template->seq, 0, 1, ht->k);
+		memcpy(target_sub_seq, template->seq, ht->k);
 	} else {
-		mutated = mutate_one_base(template->seq, template->len - ht->k, ht->k);
-		key = get_hash_key(template->seq, template->len - ht->k, 1, ht->k);
+		memcpy(target_sub_seq, template->seq + (template->len - ht->k), ht->k);
 	}
-	for (j = 0; j < ht->k * 3 + 1; j++) {
-		if (j > 0) {
-			m = g_ptr_array_index(mutated, j - 1);
-			key = get_hash_key(m, 0, 1, ht->k);
-		}
-		occs = g_ptr_array_index(ht->pos, key);
-		if (occs) {
-			if (!hit_edges)
-				hit_edges = g_ptr_array_sized_new(occs->len);
-			for (i = 0; i < occs->len; i++) {
-				value = g_array_index(occs, hash_value, i);
-				read_hash_value(&ctg_id, &locus, value);
-				eg = g_ptr_array_index(all_edges, ctg_id);
-				//show_debug_msg(__func__, "HIT: Edge [%d, %d] \n", eg->id, eg->len);
-				//p_ctg_seq(__func__, eg->contig);
-				if (eg->alive)
-					g_ptr_array_add(hit_edges, eg);
-			}
+
+	key = get_hash_key(target_sub_seq, 0, 1, ht->k);
+	occs = g_ptr_array_index(ht->pos, key);
+	if (occs) {
+		if (!hit_edges)
+			hit_edges = g_ptr_array_sized_new(occs->len);
+		for (i = 0; i < occs->len; i++) {
+			value = g_array_index(occs, hash_value, i);
+			read_hash_value(&ctg_id, &locus, value);
+			eg = g_ptr_array_index(all_edges, ctg_id);
+			//show_debug_msg(__func__, "HIT: Edge [%d, %d] \n", eg->id, eg->len);
+			//p_ctg_seq(__func__, eg->contig);
+			if (eg->alive)
+				g_ptr_array_add(hit_edges, eg);
 		}
 	}
-	for (i = 0; i < mutated->len; i++) {
-		tmp = g_ptr_array_index(mutated, i);
-		free(tmp);
-	}
-	g_ptr_array_free(mutated, TRUE);
 	return hit_edges;
 }
 
@@ -338,7 +326,7 @@ reads_ht *build_edges_ht(const int k, GPtrArray *init_edges) {
 	return rht;
 }
 
-void pe_hash_core(char *fa_fn, hash_opt *opt) {
+void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 	bwa_seq_t *s, *part_seqs;
 	bwa_seqio_t *ks;
 	index64 key, n_k_mers = 0;
@@ -348,7 +336,7 @@ void pe_hash_core(char *fa_fn, hash_opt *opt) {
 	uint64_t n_part_seqs = 0, n_seqs = 0;
 	clock_t t = clock();
 	FILE *hash_fp;
-	hash_key *k_mers, *k_mers_occ_acc;
+	hash_key *k_mers_occ_acc;
 	hash_value *pos;
 	char *hash_fn = malloc(BUFSIZE);
 	int *n_occ;
@@ -359,7 +347,6 @@ void pe_hash_core(char *fa_fn, hash_opt *opt) {
 	fprintf(stderr,
 			"[pe_hash_core] K-mer size: %d; k-mer hashtable size: %" ID64 "\n",
 			opt->k, n_k_mers);
-	k_mers = (hash_value*) calloc(n_k_mers, sizeof(hash_value));
 	k_mers_occ_acc = (hash_value*) calloc(n_k_mers, sizeof(hash_value));
 	n_occ = (int*) calloc(n_k_mers, sizeof(int)); // Store how many occs through the iteration
 	hash_len = (opt->read_len / opt->k) * opt->k;
@@ -482,6 +469,7 @@ void pe_hash_core(char *fa_fn, hash_opt *opt) {
 	fclose(hash_fp);
 	free(k_mers_occ_acc);
 	free(n_occ);
+	free(hash_fn);
 }
 
 hash_table *pe_load_hash(char *fa_fn) {
@@ -527,7 +515,7 @@ hash_table *pe_load_hash(char *fa_fn) {
 	return h;
 }
 
-void pe_hash_test(const char *fa_fn, hash_opt *opt) {
+void pe_hash_test(char *fa_fn, hash_opt *opt) {
 	hash_table *ht = NULL;
 	int i = 0;
 	bwa_seq_t *s;

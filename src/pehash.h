@@ -6,6 +6,7 @@
  */
 #ifndef PEHASH_H_
 #define PEHASH_H_
+
 #include <stdint.h>
 #include <inttypes.h>
 #include <glib.h>
@@ -48,7 +49,7 @@ typedef struct {
 
 int pe_hash(int argc, char *argv[]);
 hash_table *pe_load_hash(char *hash_fn);
-void pe_hash_core(char *fa_fn, hash_opt *opt);
+void pe_hash_core(const char *fa_fn, hash_opt *opt);
 hash_key get_hash_key(const ubyte_t *seq, const int start,
 		const int interleaving, const int len);
 hash_value get_hash_value(const index64 seq_id, const int pos_start);

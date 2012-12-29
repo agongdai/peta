@@ -10,9 +10,7 @@
 #include "peseq.h"
 #include "utils.h"
 #include "clean.h"
-#include "pehash.h"
 #include "rnaseq.h"
-#include "pealn.h"
 
 int clean_usage() {
 	fprintf(stderr, "\n");
@@ -149,16 +147,13 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	int i = 0, j = 0;
 	int n_dup = 0, n_bad = 0, n_solid = 0, n_rep = 0, n_has_n = 0;
 	uint32_t n_kmers = 0, n_seqs = 0;
-	char item[BUFSIZE], solid[BUFSIZE];
+	char *item = (char*) malloc(BUFSIZE), *solid = malloc(BUFSIZE);
 	FILE *solid_file;
 	clock_t t = clock();
 	uint16_t *kmer_list;
 	counter *k_count = NULL, *counter_pre = NULL, *counter_list = NULL,
 			*sorted_counters = NULL;
-	GPtrArray *solid_reads = g_ptr_array_sized_new(16384);
-
-	sprintf(solid, "%s.solid", opt->lib_name);
-	solid_file = xopen(solid, "w");
+	GPtrArray *solid_reads = NULL;
 
 	show_debug_msg(__func__, "Loading library %s...\n", fa_fn);
 	seqs = load_reads(fa_fn, &n_seqs);
@@ -236,9 +231,8 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	// Sort the counters
 	show_debug_msg(__func__, "Sorting reads by k_freq: %.2f sec...\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
-	memcpy(sorted_counters, counter_list, sizeof(counter) * n_seqs);
-	qsort(sorted_counters, n_seqs, sizeof(counter), cmp_kmer);
-	free(counter_list);
+	qsort(counter_list, n_seqs, sizeof(counter), cmp_kmer);
+	sorted_counters = counter_list;
 
 	show_debug_msg(__func__, "Removing duplicates: %.2f sec...\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
@@ -249,22 +243,21 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 		k_count = &sorted_counters[i];
 		s = &seqs[k_count->read_id];
 		if (k_count->k_freq == counter_pre->k_freq && same_q(s, s_unique)) {
-			//			p_query("DUPLICATED", s);
 			k_count->checked = 3;
 			n_dup++;
 		} else {
 			s_unique = s;
-			//			p_query("UNIQUE", s_unique);
 		}
 		counter_pre = k_count;
 	}
 	show_debug_msg(__func__, "%d duplicates removed: %.2f sec...\n", n_dup,
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	show_debug_msg(__func__, "Getting solid reads: %.2f sec...\n", n_dup,
-				(float) (clock() - t) / CLOCKS_PER_SEC);
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 
-	j = 0;
-	while (++j < MAX_TIME && (n_seqs * SOLID_PERCERN) > n_solid) {
+	solid_reads = g_ptr_array_sized_new(16384);
+	j = 14;
+	while (++j < MAX_TIME && (n_seqs * opt->stop_thre) > n_solid) {
 		// For low sd range, there are only few reads are solid
 		// Here is to avoid unnecessary loops on the reads.
 		show_debug_msg(__func__,
@@ -275,7 +268,7 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 			if (k_count->checked)
 				continue;
 			s = &seqs[k_count->read_id];
-			if (pick_within_range(s, k_count, kmer_list, opt, opt->stop_thre * j)) {
+			if (pick_within_range(s, k_count, kmer_list, opt, UNEVEN_THRE * j)) {
 				n_solid++;
 				k_count->checked = 4;
 				g_ptr_array_add(solid_reads, s);
@@ -284,27 +277,24 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	}
 
 	show_debug_msg(__func__, "%d solid reads remained.\n", n_solid);
-
 	show_debug_msg(__func__, "Saving k-mer frequencies: %.2f sec...\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
+	sprintf(solid, "%s.solid", opt->lib_name);
+	solid_file = xopen(solid, "w");
 	for (i = 0; i < solid_reads->len; i++) {
 		s = g_ptr_array_index(solid_reads, i);
 		sprintf(item, "%s\n", s->name);
 		fputs(item, solid_file);
 	}
-
-	show_debug_msg(__func__, "Cleaning done: %.2f.\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	show_debug_msg(__func__, "Cleaning done: %.2f.\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
+	free(item);
+	free(solid);
 	free(kmer_list);
-	free(sorted_counters);
+	free(counter_list);
+	g_ptr_array_free(solid_reads, TRUE);
 	bwa_free_read_seq(n_seqs, seqs);
 	fclose(solid_file);
-}
-
-void test_clean() {
-	double numbers[] = { 2.0, 4.0, 4.0, 4.0, 5, 5.0, 7.0, 9.0 };
-	printf("Mean: %.3f \n", mean(numbers, 8));
-	printf("SD: %.3f \n", std_dev(numbers, 8));
 }
 
 int clean_reads(int argc, char *argv[]) {
@@ -334,8 +324,8 @@ int clean_reads(int argc, char *argv[]) {
 	}
 
 	pe_clean_core(argv[optind], opt);
-	//	test_clean();
-	fprintf(stderr, "[clean_reads] Cleaning done: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	free(opt);
+	fprintf(stderr, "[clean_reads] Cleaning done: %.2f sec\n", (float) (clock()
+			- t) / CLOCKS_PER_SEC);
 	return 0;
 }
