@@ -776,9 +776,9 @@ static void *pe_lib_thread(void *data) {
 		n_paired_reads = d->n_paired_reads;
 		n_single_reads = d->n_single_reads;
 		//if (pair_ctg_id == 0)
-		//	query = &ht->seqs[4749837];
+		//	query = &ht->seqs[2156689];
 		//if (pair_ctg_id == 1)
-		//	query = &ht->seqs[1385200];
+		//	query = &ht->seqs[3878420];
 		//if (pair_ctg_id == 2)
 		//	query = &ht->seqs[2738138];
 		//		if (query->status != FRESH)
@@ -804,7 +804,7 @@ static void *pe_lib_thread(void *data) {
 		validate_edge(d->all_edges, eg, d->ht, d->n_paired_reads,
 				d->n_single_reads);
 		eg = NULL;
-		//if (pair_ctg_id >= 100)
+		//if (pair_ctg_id >= 2)
 		//	break;
 	}
 	return NULL;

@@ -378,13 +378,15 @@ void scaffolding(edgearray *single_edges, const int insert_size,
 GPtrArray *short_ol_edges(GPtrArray *all_edges, edge *eg,
 		GPtrArray *edge_candidates) {
 	edge *eg_i = NULL;
-	int i = 0;
+	int i = 0, ol = 0;
+	bwa_seq_t *rev = NULL;
 	for (i = 0; i < all_edges->len; i++) {
 		eg_i = g_ptr_array_index(all_edges, i);
 		if (!eg_i->alive || eg == eg_i || (eg->len < 100 && eg_i->len < 100))
 			continue;
 		if (eg_i->visited && eg_i->visited)
 			continue;
+		ol = find_ol_within_k(eg->contig, eg_i->contig, MISMATCHES, 6, EDGE_OL_THRE, 0);
 	}
 }
 
@@ -447,7 +449,7 @@ static void *merge_ol_edges_thread(void *data) {
 				// 2. If the overlapping length is longer than read length,
 				//		There mush be some common reads.
 
-				if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC <= nm) {
+				if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC > nm) {
 					if ((ol > rl) || (ol < rl && !has_reads_in_common(eg_i,
 							eg_j))) {
 						paired_reads = find_unconditional_paired_reads(eg_i,
@@ -469,7 +471,7 @@ static void *merge_ol_edges_thread(void *data) {
 					ol = find_ol(eg_i->contig, rev, MAX_EDGE_NM);
 					nm = get_mismatches_on_ol(eg_i->contig, rev, ol,
 							MAX_EDGE_NM);
-					if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC <= nm) {
+					if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC > nm) {
 						if ((ol > rl) || (ol < rl && !has_reads_in_common(eg_i,
 								eg_j))) {
 							paired_reads = find_unconditional_paired_reads(
@@ -496,7 +498,7 @@ static void *merge_ol_edges_thread(void *data) {
 						ol = find_ol(rev, eg_j->contig, MAX_EDGE_NM);
 						nm = get_mismatches_on_ol(rev, eg_j->contig, ol,
 								MAX_EDGE_NM);
-						if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC <= nm) {
+						if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC > nm) {
 							if ((ol > rl) || (ol < rl && !has_reads_in_common(
 									eg_i, eg_j))) {
 								paired_reads = find_unconditional_paired_reads(
