@@ -965,7 +965,9 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	hash_table *ht = NULL;
 	bwa_seq_t *seqs = NULL;
 	FILE *solid = NULL, *raw = NULL;
-	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_single_reads = 0;
+	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_single_reads = 0,
+			n_unit = 10;
+	double unit_perc = 0.1, max_perc = 0.95, perc_thre = 0;
 	GPtrArray *all_edges = NULL;
 	readarray *solid_reads = NULL;
 	edge *eg = NULL;
@@ -986,31 +988,20 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	n_per_threads = solid_reads->len / n_threads / 2;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 1/2: Trying to use up the paired reads... \n");
-	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
-			0, solid_reads->len / 2, n_per_threads, 0.25);
-	erase_reads_on_ht(ht);
-	shrink_ht(ht);
-	show_msg(__func__, "Stage 1 finished 0.25: %.2f sec\n", (float) (clock()
-			- t) / CLOCKS_PER_SEC);
-
-	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
-			0, solid_reads->len / 2, n_per_threads, 0.5);
-	erase_reads_on_ht(ht);
-	shrink_ht(ht);
-	show_msg(__func__, "Stage 1 finished 0.5: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
-	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
-			0, solid_reads->len / 2, n_per_threads, 0.75);
-	erase_reads_on_ht(ht);
-	shrink_ht(ht);
-	show_msg(__func__, "Stage 1 finished 0.75: %.2f sec\n", (float) (clock()
-			- t) / CLOCKS_PER_SEC);
-	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
-			0, solid_reads->len / 2, n_per_threads, 0.95);
-	show_msg(__func__, "Stage 1 finished 0.95: %.2f sec\n", (float) (clock()
-			- t) / CLOCKS_PER_SEC);
-	erase_reads_on_ht(ht);
-	shrink_ht(ht);
+	for (i = 1; i <= n_unit; i++) {
+		max_perc = i * unit_perc;
+		if (i * unit_perc > max_perc)
+			perc_thre = max_perc;
+		run_threads(all_edges, solid_reads, ht, &n_paired_reads,
+				&n_single_reads, 0, solid_reads->len / 2, n_per_threads,
+				unit_perc * i);
+		erase_reads_on_ht(ht);
+		shrink_ht(ht);
+		show_msg(__func__, "Stage 1 finished %.2f: %.2f sec\n", i * unit_perc,
+				(float) (clock() - t) / CLOCKS_PER_SEC);
+		if (i * unit_perc > max_perc)
+			break;
+	}
 
 	n_paired_reads = 0;
 	n_single_reads = 0;
