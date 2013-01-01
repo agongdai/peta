@@ -173,6 +173,29 @@ void extract_alns(const bwa_seq_t *seqs, const bwa_seq_t *query,
 	}
 }
 
+void erase_reads_on_ht(hash_table *ht) {
+	int i = 0, locus = 0;
+	hash_value *pos = NULL, value = 0;
+	index64 seq_id = 0, n_pos = 0;
+	hash_opt *hash_o = NULL;
+	bwa_seq_t *seqs = NULL, *read = NULL;
+	hash_o = ht->o;
+	pos = ht->pos;
+	seqs = ht->seqs;
+	for (i = 0; i < hash_o->n_pos; i++) {
+		value = pos[i];
+		read_hash_value(&seq_id, &locus, value);
+		if (value > 0) {
+			read = &seqs[seq_id];
+			if (read->status == USED) {
+				pos[i] = 0;
+			} else {
+				n_pos++;
+			}
+		}
+	}
+}
+
 void pe_aln_query(const bwa_seq_t *query, const ubyte_t *q_seq,
 		const hash_table *ht, const int mismatches, const int ol,
 		const int is_rc, alignarray *aligns) {
@@ -199,9 +222,11 @@ void pe_aln_query(const bwa_seq_t *query, const ubyte_t *q_seq,
 		pos_index = k_mers_occ_acc[key];
 		for (j = 0; j < n_occ; j++) {
 			value = pos[pos_index + j];
-			//			printf("i: %d; pos: %" ID64 "\n", i, value);
+			if (value == 0)
+				continue;
+			// printf("i: %d; pos: %" ID64 "\n", i, value);
 			read_hash_value(&seq_id, &locus, value);
-			//			printf("id: %" ID64 ", locus: %d \n", seq_id, locus);
+			// printf("id: %" ID64 ", locus: %d \n", seq_id, locus);
 			h = set_hit(seq_id, locus - i, locus);
 			if (query->len == ol && ol == seqs->len) { // If it is a full-length query, only return hits at pos 0
 				if (h->shift == 0) {
@@ -215,7 +240,7 @@ void pe_aln_query(const bwa_seq_t *query, const ubyte_t *q_seq,
 				n_hits++;
 			}
 			// printf("[pe_aln_query] K-mer starts at %d: %" ID64 ", %d \n", i,
-			//		seq_id, locus);
+			// seq_id, locus);
 		}
 	}
 

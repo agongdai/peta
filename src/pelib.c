@@ -530,7 +530,6 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 	pool *init_pool = NULL;
 	bwa_seq_t *second_round_q = NULL;
 	ubyte_t *rev = NULL;
-	clock_t t = clock();
 
 	init_pool = get_start_pool(ht, query, 0, 0);
 	if (!init_pool || init_pool->n == 0 || bases_sup_branches(init_pool, 0,
@@ -579,8 +578,6 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 	eg->contig->rseq = rev;
 	//log_edge(eg);
 	//p_readarray(eg->reads, 1);
-	show_msg(__func__, "Time for [%d, %d]: %.2f sec\n", eg->id, eg->len,
-			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return eg;
 }
 
@@ -764,6 +761,7 @@ static void *pe_lib_thread(void *data) {
 	thread_aux_t *d = (thread_aux_t*) data;
 	hash_table *ht = NULL;
 	readarray *solid = d->solid_reads;
+	clock_t t = clock();
 	show_debug_msg(__func__, "From %d to %d \n", d->start, d->end);
 	ht = d->ht;
 	for (i = d->start; i < d->end; i++) {
@@ -776,9 +774,9 @@ static void *pe_lib_thread(void *data) {
 		n_paired_reads = d->n_paired_reads;
 		n_single_reads = d->n_single_reads;
 		//if (pair_ctg_id == 0)
-		//	query = &ht->seqs[2156689];
+		//	query = &ht->seqs[820390];
 		//if (pair_ctg_id == 1)
-		//	query = &ht->seqs[3878420];
+		//	query = &ht->seqs[790558];
 		//if (pair_ctg_id == 2)
 		//	query = &ht->seqs[2738138];
 		//		if (query->status != FRESH)
@@ -788,8 +786,14 @@ static void *pe_lib_thread(void *data) {
 			query->status = USED;
 			continue;
 		}
-		if (query->status != FRESH) {
-			continue;
+		if (stage == 3) {
+			if (query->status == USED) {
+				continue;
+			}
+		} else {
+			if (query->status != FRESH) {
+				continue;
+			}
 		}
 		query->status = TRIED;
 		if (stage == 3) {
@@ -800,11 +804,13 @@ static void *pe_lib_thread(void *data) {
 				break;
 		}
 		eg = pe_ext(d->ht, query, d->tid);
-
 		validate_edge(d->all_edges, eg, d->ht, d->n_paired_reads,
 				d->n_single_reads);
+		if (eg)
+			show_msg(__func__, "Time eclipsed [%d, %d]: %.2f sec\n", eg->id,
+					eg->len, (float) (clock() - t) / CLOCKS_PER_SEC);
 		eg = NULL;
-		//if (pair_ctg_id >= 2)
+		//if (pair_ctg_id >= 1)
 		//	break;
 	}
 	return NULL;
@@ -847,7 +853,8 @@ void reset_edge_ids(edgearray *all_edges) {
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
 		if (eg->alive) {
-			show_debug_msg(__func__, "Edge [%d, %d] set to be [%d, %d] \n", eg->id, eg->len, i, eg->len);
+			show_debug_msg(__func__, "Edge [%d, %d] set to be [%d, %d] \n",
+					eg->id, eg->len, i, eg->len);
 			eg->id = i;
 			// Set all 'contig_id' of reads to 'i', but not reset the status
 			upd_ctg_id(eg, i, -1);
@@ -953,76 +960,6 @@ readarray *load_solid_reads(const char *solid_fn, bwa_seq_t *seqs,
 	return solid_reads;
 }
 
-void pe_lib_single(const hash_table *ht, edgearray *all_edges,
-		int *n_paired_reads, int *n_single_reads) {
-	char *name = NULL, *lib_name = NULL, *solid_name = NULL;
-	int n_unpaired = 0, n_per_threads = 0, n_single = 0, i = 0;
-	hash_table *pht = NULL;
-	hash_opt *h_opt = NULL;
-	clean_opt *c_opt = NULL;
-	readarray *solid_reads = NULL;
-	edgearray *single_edges = NULL;
-	edge *eg = NULL;
-	clock_t t = clock();
-
-	name = get_output_file("part.fa");
-	n_unpaired = save_unpaired_seqs(name, ht->seqs, ht->n_seqs);
-	show_msg(__func__, "Reads unpaired: %d, saved to %s \n", n_unpaired, name);
-
-	lib_name = get_output_file("part");
-	c_opt = init_clean_opt();
-	c_opt->kmer = 15;
-	c_opt->lib_name = lib_name;
-	c_opt->stop_thre = 0.3;
-	pe_clean_core(name, c_opt);
-
-	// Hash the unpaired reads
-	h_opt = init_hash_opt();
-	h_opt->read_len = ht->seqs->len;
-	h_opt->block_size = 9;
-	h_opt->n_hash_block = (h_opt->read_len - h_opt->interleaving * h_opt->k)
-			/ h_opt->block_size;
-	pe_hash_core(name, h_opt);
-	pht = pe_load_hash(name);
-	show_msg(__func__, "n_seqs: %d \n", pht->n_seqs);
-	solid_name = get_output_file("part.solid");
-	solid_reads = load_solid_reads(solid_name, pht->seqs, pht->n_seqs);
-	show_msg(__func__, "solid: %d \n", solid_reads->len);
-	n_per_threads = solid_reads->len / n_threads;
-	single_edges = g_ptr_array_sized_new(64);
-	show_msg(__func__, "Assembling single edges... \n");
-	run_threads(single_edges, solid_reads, pht, n_paired_reads, &n_single, 0,
-			solid_reads->len, n_per_threads, 0.95);
-
-	show_msg(__func__, "Updating single edges... \n");
-	show_msg(__func__, "Before: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
-	for (i = 0; i < single_edges->len; i++) {
-		eg = g_ptr_array_index(single_edges, i);
-		if (eg->alive) {
-			//show_msg(__func__, "Updating edge [%d, %d]: %d ", eg->id,
-			//		eg->len, eg->reads->len);
-			upd_reads_by_ht(ht, eg, MISMATCHES, stage);
-			//show_msg(__func__, " to %d \n", eg->reads->len);
-			g_ptr_array_add(all_edges, eg);
-		} else {
-			g_ptr_array_remove_index_fast(single_edges, i);
-			i--;
-		}
-	}
-	show_msg(__func__, "After: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
-
-	free(solid_name);
-	free(name);
-	free(lib_name);
-	free(h_opt);
-	free(c_opt);
-	destroy_ht(pht);
-	g_ptr_array_free(solid_reads, TRUE);
-	g_ptr_array_free(single_edges, TRUE);
-}
-
 void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	clock_t t = clock();
 	hash_table *ht = NULL;
@@ -1033,6 +970,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	readarray *solid_reads = NULL;
 	edge *eg = NULL;
 	char *name = NULL;
+	clean_opt *c_opt = NULL;
 
 	solid = xopen(solid_file, "r");
 	show_msg(__func__, "Library: %s \n", lib_file);
@@ -1049,7 +987,31 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 1/2: Trying to use up the paired reads... \n");
 	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
-			0, solid_reads->len / 2, n_per_threads, 0.9);
+			0, solid_reads->len / 2, n_per_threads, 0.25);
+	erase_reads_on_ht(ht);
+	shrink_ht(ht);
+	show_msg(__func__, "Stage 1 finished 0.25: %.2f sec\n", (float) (clock()
+			- t) / CLOCKS_PER_SEC);
+
+	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
+			0, solid_reads->len / 2, n_per_threads, 0.5);
+	erase_reads_on_ht(ht);
+	shrink_ht(ht);
+	show_msg(__func__, "Stage 1 finished 0.5: %.2f sec\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
+	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
+			0, solid_reads->len / 2, n_per_threads, 0.75);
+	erase_reads_on_ht(ht);
+	shrink_ht(ht);
+	show_msg(__func__, "Stage 1 finished 0.75: %.2f sec\n", (float) (clock()
+			- t) / CLOCKS_PER_SEC);
+	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
+			0, solid_reads->len / 2, n_per_threads, 0.95);
+	show_msg(__func__, "Stage 1 finished 0.95: %.2f sec\n", (float) (clock()
+			- t) / CLOCKS_PER_SEC);
+	erase_reads_on_ht(ht);
+	shrink_ht(ht);
+
 	n_paired_reads = 0;
 	n_single_reads = 0;
 	for (i = 0; i < all_edges->len; i++) {
@@ -1070,17 +1032,23 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	free(name);
 	fclose(raw);
 
+	stage = 3;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 2/2: Trying to assembly unpaired reads... \n");
-	stage = 3;
-	pe_lib_single(ht, all_edges, &n_paired_reads, &n_single_reads);
+	g_ptr_array_free(solid_reads, TRUE);
+	c_opt = init_clean_opt();
+	c_opt->kmer = 15;
+	c_opt->stop_thre = 0.3;
+	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt);
+	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
+			0, solid_reads->len / 2, n_per_threads, 1.5);
 	show_msg(__func__, "Stage 2 finished: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
-
 	reset_edge_ids(all_edges);
 	post_process_edges(ht, all_edges);
 	g_ptr_array_free(solid_reads, TRUE);
 	destroy_ht(ht);
+	free(c_opt);
 }
 
 int pe_lib_usage() {

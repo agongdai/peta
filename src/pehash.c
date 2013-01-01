@@ -220,7 +220,7 @@ GPtrArray *find_edges_on_ht(reads_ht *ht, bwa_seq_t *template,
 		GPtrArray *all_edges, GPtrArray *hit_edges, const int ori) {
 	hash_key key = 0;
 	GArray *occs = NULL;
-	int i = 0, j = 0, locus = 0;
+	int i = 0, locus = 0;
 	index64 ctg_id = 0;
 	hash_value value = 0;
 	edge *eg = NULL;
@@ -324,6 +324,47 @@ reads_ht *build_edges_ht(const int k, GPtrArray *init_edges) {
 		}
 	}
 	return rht;
+}
+
+void shrink_ht(hash_table *ht) {
+	int i = 0, j = 0, n_valid = 0, n_empty = 0, pos_index = 0;
+	index64 n_k_mers = 0;
+	hash_opt *opt = NULL;
+	hash_key *k_mers_occ_acc = NULL, *new_k_mers = NULL, key_this = 0, key_next = 0;
+	hash_value *pos = NULL, *new_pos = NULL, value = 0;
+
+	opt = ht->o;
+	k_mers_occ_acc = ht->k_mers_occ_acc;
+	pos = ht->pos;
+	n_k_mers = (1 << (opt->k * 2)) + 1;
+	new_k_mers = (hash_value*) calloc(n_k_mers, sizeof(hash_value));
+	for (i = 0; i < n_k_mers - 1; i++) {
+		key_this = k_mers_occ_acc[i];
+		key_next = k_mers_occ_acc[i + 1];
+		for (j = key_this; j < key_next; j++) {
+			value = pos[j];
+			if (value == 0) {
+				n_empty++;
+			} else {
+				n_valid++;
+			}
+		}
+		new_k_mers[i + 1] = key_next - n_empty;
+	}
+	free(k_mers_occ_acc);
+	ht->k_mers_occ_acc = new_k_mers;
+
+	new_pos = (hash_value*) calloc(n_valid + 1, sizeof(hash_value));
+	for (i = 0; i < n_valid + n_empty; i++) {
+		value = pos[i];
+		if (value > 0) {
+			new_pos[pos_index] = value;
+			pos_index++;
+		}
+	}
+	free(pos);
+	ht->pos = new_pos;
+	opt->n_pos = n_valid;
 }
 
 void pe_hash_core(const char *fa_fn, hash_opt *opt) {

@@ -65,6 +65,7 @@ void reset_alg(alignarray *alns);
 alg *aligned(const alignarray *alns, const index64 id);
 void p_align(const alignarray *alns);
 int pe_aln_test(int argc, char *argv[]);
+void erase_reads_on_ht(hash_table *ht);
 void pe_aln_query(const bwa_seq_t *query, const ubyte_t *q_seq, const hash_table *ht,
 		const int mismatches, const int ol, const int rev, alignarray *aligns);
 

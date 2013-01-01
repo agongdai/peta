@@ -49,6 +49,7 @@ typedef struct {
 
 int pe_hash(int argc, char *argv[]);
 hash_table *pe_load_hash(char *hash_fn);
+void shrink_ht(hash_table *ht);
 void pe_hash_core(const char *fa_fn, hash_opt *opt);
 hash_key get_hash_key(const ubyte_t *seq, const int start,
 		const int interleaving, const int len);

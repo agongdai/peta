@@ -337,7 +337,7 @@ static void *scaffolding_thread(void *data) {
 }
 
 void scaffolding(edgearray *single_edges, const int insert_size,
-		hash_table *ht, const int n_threads) {
+		const hash_table *ht, const int n_threads) {
 	int n_per_threads = 0, i = 0;
 	scaffolding_paras_t *data;
 	GThread *threads[n_threads];

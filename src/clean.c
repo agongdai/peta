@@ -142,25 +142,19 @@ void set_k_freq(bwa_seq_t *read, counter *k_count, uint16_t *kmer_list,
 	free(base_counter);
 }
 
-void pe_clean_core(char *fa_fn, clean_opt *opt) {
-	bwa_seq_t *seqs, *s, *s_unique = NULL;
+GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt) {
 	int i = 0, j = 0;
 	int n_dup = 0, n_bad = 0, n_solid = 0, n_rep = 0, n_has_n = 0;
-	uint32_t n_kmers = 0, n_seqs = 0;
-	char *item = (char*) malloc(BUFSIZE), *solid = malloc(BUFSIZE);
-	FILE *solid_file;
-	clock_t t = clock();
+	uint32_t n_kmers = 0;
 	uint16_t *kmer_list;
 	counter *k_count = NULL, *counter_pre = NULL, *counter_list = NULL,
 			*sorted_counters = NULL;
 	GPtrArray *solid_reads = NULL;
-
-	show_debug_msg(__func__, "Loading library %s...\n", fa_fn);
-	seqs = load_reads(fa_fn, &n_seqs);
+	bwa_seq_t *s = NULL, *s_unique = NULL;
+	clock_t t = clock();
 	// Each counter corresponds to a read.
 	// It contains the kmer frequencies.
 	counter_list = (counter*) calloc(n_seqs, sizeof(counter));
-	sorted_counters = (counter*) calloc(n_seqs, sizeof(counter));
 
 	n_kmers = (1 << (opt->kmer * 2)) + 1;
 	if (opt->kmer >= 16)
@@ -177,6 +171,8 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
+		if (s->status == USED)
+			continue;
 		k_count = &counter_list[i];
 		k_count->read_id = atoi(s->name);
 		k_count->checked = 0;
@@ -197,6 +193,8 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
+		if (s->status == USED)
+			continue;
 		k_count = &counter_list[i];
 		if (k_count->checked) {
 			continue;
@@ -211,6 +209,8 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	// Remove repetitive reads and those reads having low frequency kmers.
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
+		if (s->status == USED)
+			continue;
 		k_count = &counter_list[i];
 		if (k_count->checked) {
 			continue;
@@ -242,6 +242,8 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	for (i = 1; i < n_seqs; i++) {
 		k_count = &sorted_counters[i];
 		s = &seqs[k_count->read_id];
+		if (s->status == USED)
+			continue;
 		if (k_count->k_freq == counter_pre->k_freq && same_q(s, s_unique)) {
 			k_count->checked = 3;
 			n_dup++;
@@ -256,7 +258,7 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 
 	solid_reads = g_ptr_array_sized_new(16384);
-	j = 14;
+	j = 0;
 	while (++j < MAX_TIME && (n_seqs * opt->stop_thre) > n_solid) {
 		// For low sd range, there are only few reads are solid
 		// Here is to avoid unnecessary loops on the reads.
@@ -268,6 +270,8 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 			if (k_count->checked)
 				continue;
 			s = &seqs[k_count->read_id];
+			if (s->status == USED)
+				continue;
 			if (pick_within_range(s, k_count, kmer_list, opt, UNEVEN_THRE * j)) {
 				n_solid++;
 				k_count->checked = 4;
@@ -275,23 +279,38 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 			}
 		}
 	}
-
+	show_debug_msg(__func__, "Cleaning done: %.2f.\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
 	show_debug_msg(__func__, "%d solid reads remained.\n", n_solid);
+	free(kmer_list);
+	free(counter_list);
+	return solid_reads;
+}
+
+void pe_clean_core(char *fa_fn, clean_opt *opt) {
+	bwa_seq_t *seqs, *s = NULL;
+	int n_seqs = 0, i = 0;
+	char *item = (char*) malloc(BUFSIZE), *solid = malloc(BUFSIZE);
+	FILE *solid_file;
+	clock_t t = clock();
+	GPtrArray *solid_reads = NULL;
+
+	show_debug_msg(__func__, "Loading library %s...\n", fa_fn);
+	seqs = load_reads(fa_fn, &n_seqs);
+
 	show_debug_msg(__func__, "Saving k-mer frequencies: %.2f sec...\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	sprintf(solid, "%s.solid", opt->lib_name);
 	solid_file = xopen(solid, "w");
+	solid_reads = calc_solid_reads(seqs, n_seqs, opt);
 	for (i = 0; i < solid_reads->len; i++) {
 		s = g_ptr_array_index(solid_reads, i);
 		sprintf(item, "%s\n", s->name);
 		fputs(item, solid_file);
 	}
-	show_debug_msg(__func__, "Cleaning done: %.2f.\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
+
 	free(item);
 	free(solid);
-	free(kmer_list);
-	free(counter_list);
 	g_ptr_array_free(solid_reads, TRUE);
 	bwa_free_read_seq(n_seqs, seqs);
 	fclose(solid_file);
