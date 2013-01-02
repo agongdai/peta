@@ -846,29 +846,6 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	free(data);
 }
 
-void reset_edge_ids(edgearray *all_edges) {
-	int i = 0;
-	edge *eg = NULL;
-	char *ctg_name = malloc(16);
-	for (i = 0; i < all_edges->len; i++) {
-		eg = g_ptr_array_index(all_edges, i);
-		if (eg->alive) {
-			show_debug_msg(__func__, "Edge [%d, %d] set to be [%d, %d] \n",
-					eg->id, eg->len, i, eg->len);
-			eg->id = i;
-			// Set all 'contig_id' of reads to 'i', but not reset the status
-			upd_ctg_id(eg, i, -1);
-			set_rev_com(eg->contig);
-			sprintf(ctg_name, "%d", eg->id);
-			memcpy(eg->contig->name, ctg_name, 16);
-		} else {
-			if (g_ptr_array_remove_index_fast(all_edges, i))
-				i--;
-		}
-	}
-	free(ctg_name);
-}
-
 void post_process_edges(const hash_table *ht, edgearray *all_edges) {
 	edgearray *final_paths = NULL;
 	FILE *pair_contigs = NULL;
@@ -917,27 +894,27 @@ void post_process_edges(const hash_table *ht, edgearray *all_edges) {
 	dump_rm(all_edges, name, reads_name);
 	free(reads_name);
 	free(name);
-	scaffolding(all_edges, insert_size, ht, n_threads);
-	show_msg(__func__, "Scaffolding finished: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
-
-	show_msg(__func__, "========================================== \n\n ");
-	show_msg(__func__, "Drawing the roadmap... \n");
-	name = get_output_file("roadmap.dot");
-	graph_by_edges(all_edges, name);
-	free(name);
-	show_msg(__func__, "Reporting combinatorial paths... \n");
-	final_paths = report_paths(all_edges, seqs);
-	name = get_output_file("peta.fa");
-	save_paths(final_paths, name, 100);
-
-	show_msg(__func__, "Saving finished: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
-
-	free(name);
-	fclose(pair_contigs);
-	fclose(merged_pair_contigs);
-	g_ptr_array_free(all_edges, TRUE);
+//	scaffolding(all_edges, insert_size, ht, n_threads);
+//	show_msg(__func__, "Scaffolding finished: %.2f sec\n",
+//			(float) (clock() - t) / CLOCKS_PER_SEC);
+//
+//	show_msg(__func__, "========================================== \n\n ");
+//	show_msg(__func__, "Drawing the roadmap... \n");
+//	name = get_output_file("roadmap.dot");
+//	graph_by_edges(all_edges, name);
+//	free(name);
+//	show_msg(__func__, "Reporting combinatorial paths... \n");
+//	final_paths = report_paths(all_edges, seqs);
+//	name = get_output_file("peta.fa");
+//	save_paths(final_paths, name, 100);
+//
+//	show_msg(__func__, "Saving finished: %.2f sec\n", (float) (clock() - t)
+//			/ CLOCKS_PER_SEC);
+//
+//	free(name);
+//	fclose(pair_contigs);
+//	fclose(merged_pair_contigs);
+//	g_ptr_array_free(all_edges, TRUE);
 	show_msg(__func__, "Post processing finished: %.2f sec\n", (float) (clock()
 			- t) / CLOCKS_PER_SEC);
 }
@@ -966,7 +943,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	bwa_seq_t *seqs = NULL;
 	FILE *solid = NULL, *raw = NULL;
 	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_single_reads = 0,
-			n_unit = 1;
+			n_unit = 10;
 	double unit_perc = 0.1, max_perc = 0.95, perc_thre = 0;
 	GPtrArray *all_edges = NULL;
 	readarray *solid_reads = NULL;

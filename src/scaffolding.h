@@ -18,7 +18,7 @@ extern "C" {
 #include "bwase.h"
 #include <glib.h>
 
-#define MAX_EDGE_NM				6
+#define MAX_EDGE_NM				11
 #define EDGE_OL_THRE			11
 #define EDGE_OL_PERC			0.2
 

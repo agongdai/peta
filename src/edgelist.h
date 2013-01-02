@@ -21,7 +21,7 @@ extern "C" {
 #define NOT_FOUND				-1
 #define INVALID					-1
 #define STOP_PAIRING			400
-#define MIN_VALID_PAIRS			8
+#define MIN_VALID_PAIRS			4
 #define MISMATCHES				2
 #define SHORT_MISMATCH			1
 #define UPD_READS_THRE			10000
@@ -67,6 +67,7 @@ void rev_edge(edge *eg);
 int binary_exists(const readarray *reads, const bwa_seq_t *read);
 int has_most_fresh_reads(readarray *ra, const int max);
 void rev_reads_pos(edge *eg);
+void reset_edge_ids(edgearray *all_edges);
 
 #ifdef __cplusplus
 }

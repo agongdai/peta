@@ -823,6 +823,11 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 				break;
 			}
 		}
+		if (eg->len <= 100) {
+			g_ptr_array_remove_index_fast(edges, i);
+			i--;
+			continue;
+		}
 		// Set the root edges
 		// If an edge right connects to some other edge, go to the edge
 		while (eg->right_ctg) {
@@ -1075,6 +1080,7 @@ int pe_path(int argc, char *argv[]) {
 		g_thread_init(NULL);
 	ht = pe_load_hash(argv[2]);
 	edges = load_rm(ht, argv[3], argv[4], argv[5]);
+	reset_edge_ids(edges);
 	merge_ol_edges(edges, 197, ht, 1);
 	merged_pair_contigs
 			= xopen("../SRR097897_out/merged_pair_contigs.1.fa", "w");

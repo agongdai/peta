@@ -386,7 +386,8 @@ GPtrArray *short_ol_edges(GPtrArray *all_edges, edge *eg,
 			continue;
 		if (eg_i->visited && eg_i->visited)
 			continue;
-		ol = find_ol_within_k(eg->contig, eg_i->contig, MISMATCHES, 6, EDGE_OL_THRE, 0);
+		ol = find_ol_within_k(eg->contig, eg_i->contig, MISMATCHES, 6,
+				EDGE_OL_THRE, 0);
 	}
 }
 
@@ -432,6 +433,10 @@ static void *merge_ol_edges_thread(void *data) {
 			for (j = 0; j < edge_candidates->len; j++) {
 				eg_j = g_ptr_array_index(edge_candidates, j);
 				paired_reads = NULL;
+				if (eg_i->id == 3176 || eg_i->id == 4619) {
+					p_ctg_seq("eg_i", eg_i->contig);
+					p_ctg_seq("eg_j", eg_j->contig);
+				}
 				if (!eg_j->alive || eg_i == eg_j || (eg_i->len < 100
 						&& eg_j->len < 100))
 					continue;
@@ -441,9 +446,10 @@ static void *merge_ol_edges_thread(void *data) {
 				ol = find_ol(eg_i->contig, eg_j->contig, MAX_EDGE_NM);
 				nm = get_mismatches_on_ol(eg_i->contig, eg_j->contig, ol,
 						MAX_EDGE_NM);
-				//p_ctg_seq("eg_i", eg_i->contig);
-				//p_ctg_seq("eg_j", eg_j->contig);
-				//show_debug_msg(__func__, "Overlap: %d \n", ol);
+				if (eg_i->id == 3176 || eg_i->id == 4619) {
+					show_debug_msg(__func__, "Overlap: %d; Mismatches: %d \n",
+							ol, nm);
+				}
 				// 1. If the overlapping length is shorter than read length,
 				// 		We expect that no common reads
 				// 2. If the overlapping length is longer than read length,
@@ -455,7 +461,9 @@ static void *merge_ol_edges_thread(void *data) {
 						paired_reads = find_unconditional_paired_reads(eg_i,
 								eg_j, seqs);
 						if (ol > d->insert_size || paired_reads->len
-								>= MIN_VALID_PAIRS) {
+								>= MIN_VALID_PAIRS || abs(ol - eg_i->len)
+								<= EDGE_OL_THRE || abs(ol - eg_j->len)
+								<= EDGE_OL_THRE) {
 							g_mutex_lock(edge_mutex);
 							merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j, ol);
 							g_mutex_unlock(edge_mutex);
@@ -471,15 +479,21 @@ static void *merge_ol_edges_thread(void *data) {
 					ol = find_ol(eg_i->contig, rev, MAX_EDGE_NM);
 					nm = get_mismatches_on_ol(eg_i->contig, rev, ol,
 							MAX_EDGE_NM);
+					if (eg_i->id == 3176 || eg_i->id == 4619) {
+						show_debug_msg(__func__,
+								"Overlap: %d; Mismatches: %d \n", ol, nm);
+					}
 					if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC > nm) {
 						if ((ol > rl) || (ol < rl && !has_reads_in_common(eg_i,
 								eg_j))) {
 							paired_reads = find_unconditional_paired_reads(
 									eg_i, eg_j, seqs);
 							if (ol > d->insert_size || paired_reads->len
-									>= MIN_VALID_PAIRS) {
+									>= MIN_VALID_PAIRS || abs(ol - eg_i->len)
+									<= EDGE_OL_THRE || abs(ol - eg_j->len)
+									<= EDGE_OL_THRE) {
 								g_mutex_lock(edge_mutex);
-								bwa_free_read_seq(1, eg_j->contig);
+								//bwa_free_read_seq(1, eg_j->contig);
 								eg_j->contig = rev;
 								merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j,
 										ol);
@@ -492,21 +506,29 @@ static void *merge_ol_edges_thread(void *data) {
 							}
 						}
 					} else {
-						bwa_free_read_seq(1, rev);
 						rev = new_mem_rev_seq(eg_i->contig, eg_i->contig->len,
 								0);
 						ol = find_ol(rev, eg_j->contig, MAX_EDGE_NM);
 						nm = get_mismatches_on_ol(rev, eg_j->contig, ol,
 								MAX_EDGE_NM);
+						if (eg_i->id == 3176 || eg_i->id == 4619) {
+							show_debug_msg(__func__,
+									"Overlap: %d; Mismatches: %d \n", ol, nm);
+						}
 						if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC > nm) {
 							if ((ol > rl) || (ol < rl && !has_reads_in_common(
 									eg_i, eg_j))) {
 								paired_reads = find_unconditional_paired_reads(
 										eg_i, eg_j, seqs);
 								if (ol > d->insert_size || paired_reads->len
-										>= MIN_VALID_PAIRS) {
+										>= MIN_VALID_PAIRS || abs(ol
+										- eg_i->len) <= EDGE_OL_THRE || abs(ol
+										- eg_j->len) <= EDGE_OL_THRE) {
 									g_mutex_lock(edge_mutex);
-									bwa_free_read_seq(1, eg_i->contig);
+									//show_debug_msg(__func__, "Name: %s \n",
+									//		eg_i->contig->name);
+									//p_ctg_seq("Contig", eg_i->contig);
+									//bwa_free_read_seq(1, eg_i->contig);
 									eg_i->contig = rev;
 									merge_two_ol_edges(d->rht, d->ht, eg_i,
 											eg_j, ol);
@@ -519,13 +541,20 @@ static void *merge_ol_edges_thread(void *data) {
 								}
 							}
 						}
+						if (eg_i->contig != rev) {
+							bwa_free_read_seq(1, rev);
+							rev = NULL;
+						}
 					}
 					if (paired_reads != NULL)
 						g_ptr_array_free(paired_reads, TRUE);
-					bwa_free_read_seq(1, rev);
+					if (eg_j->contig != rev) {
+						bwa_free_read_seq(1, rev);
+						rev = NULL;
+					}
 				}
-				eg_i->visited = 1;
 			}
+			eg_i->visited = 1;
 		}
 	}
 	if (edge_candidates) {
@@ -579,7 +608,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		eg_i->visited = 0;
 		g_ptr_array_sort(eg_i->reads, (GCompareFunc) cmp_read_by_name);
 		if (!eg_i->alive) {
-			destroy_eg(eg_i);
+			//destroy_eg(eg_i);
 			g_ptr_array_remove_index_fast(single_edges, i);
 			i--;
 		}

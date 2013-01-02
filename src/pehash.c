@@ -216,8 +216,8 @@ GPtrArray *find_reads_ol_template(reads_ht *ht, bwa_seq_t *template,
 	return hit_reads;
 }
 
-GPtrArray *find_edges_on_ht(reads_ht *ht, bwa_seq_t *template,
-		GPtrArray *all_edges, GPtrArray *hit_edges, const int ori) {
+GPtrArray *find_edges_on_ht(reads_ht *rht, bwa_seq_t *template,
+		GPtrArray *all_edges, GPtrArray *hit_edges, const int shift, const int ori) {
 	hash_key key = 0;
 	GArray *occs = NULL;
 	int i = 0, locus = 0;
@@ -225,15 +225,15 @@ GPtrArray *find_edges_on_ht(reads_ht *ht, bwa_seq_t *template,
 	hash_value value = 0;
 	edge *eg = NULL;
 	ubyte_t *target_sub_seq = NULL;
-	target_sub_seq = (ubyte_t*) calloc(ht->k + 1, sizeof(ubyte_t));
+	target_sub_seq = (ubyte_t*) calloc(rht->k + 1, sizeof(ubyte_t));
 	if (ori) {
-		memcpy(target_sub_seq, template->seq, ht->k);
+		memcpy(target_sub_seq, template->seq + shift, rht->k);
 	} else {
-		memcpy(target_sub_seq, template->seq + (template->len - ht->k), ht->k);
+		memcpy(target_sub_seq, template->seq + (template->len - rht->k - shift), rht->k);
 	}
 
-	key = get_hash_key(target_sub_seq, 0, 1, ht->k);
-	occs = g_ptr_array_index(ht->pos, key);
+	key = get_hash_key(target_sub_seq, 0, 1, rht->k);
+	occs = g_ptr_array_index(rht->pos, key);
 	if (occs) {
 		if (!hit_edges)
 			hit_edges = g_ptr_array_sized_new(occs->len);
@@ -259,10 +259,14 @@ GPtrArray *find_edges_ol(reads_ht *ht, bwa_seq_t *template,
 	} else {
 		//p_ctg_seq(__func__, template);
 		rev = new_mem_rev_seq(template, template->len, 0);
-		hit_edges = find_edges_on_ht(ht, template, all_edges, hit_edges, 0);
-		hit_edges = find_edges_on_ht(ht, rev, all_edges, hit_edges, 0);
-		hit_edges = find_edges_on_ht(ht, template, all_edges, hit_edges, 1);
-		hit_edges = find_edges_on_ht(ht, rev, all_edges, hit_edges, 1);
+		hit_edges = find_edges_on_ht(ht, template, all_edges, hit_edges, 0, 0);
+		hit_edges = find_edges_on_ht(ht, rev, all_edges, hit_edges, 0, 0);
+		hit_edges = find_edges_on_ht(ht, template, all_edges, hit_edges, 0, 1);
+		hit_edges = find_edges_on_ht(ht, rev, all_edges, hit_edges, 0, 1);
+		hit_edges = find_edges_on_ht(ht, template, all_edges, hit_edges, ht->k, 0);
+		hit_edges = find_edges_on_ht(ht, rev, all_edges, hit_edges, ht->k, 0);
+		hit_edges = find_edges_on_ht(ht, template, all_edges, hit_edges, ht->k, 1);
+		hit_edges = find_edges_on_ht(ht, rev, all_edges, hit_edges, ht->k, 1);
 		bwa_free_read_seq(1, rev);
 	}
 	return hit_edges;

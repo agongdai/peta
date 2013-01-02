@@ -1019,3 +1019,26 @@ void rev_reads_pos(edge *eg) {
 		r->shift = eg->len - r->shift + 1;
 	}
 }
+
+void reset_edge_ids(edgearray *all_edges) {
+	int i = 0;
+	edge *eg = NULL;
+	char *ctg_name = (char*)calloc(16, sizeof(char));
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		if (eg->alive) {
+			show_debug_msg(__func__, "Edge [%d, %d] set to be [%d, %d] \n",
+					eg->id, eg->len, i, eg->len);
+			eg->id = i;
+			// Set all 'contig_id' of reads to 'i', but not reset the status
+			upd_ctg_id(eg, i, -1);
+			set_rev_com(eg->contig);
+			sprintf(ctg_name, "%d", eg->id);
+			eg->contig->name = strdup(ctg_name);
+		} else {
+			if (g_ptr_array_remove_index_fast(all_edges, i))
+				i--;
+		}
+	}
+	free(ctg_name);
+}
