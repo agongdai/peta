@@ -142,9 +142,11 @@ void set_k_freq(bwa_seq_t *read, counter *k_count, uint16_t *kmer_list,
 	free(base_counter);
 }
 
-GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt) {
+GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
+		const int by_coverage) {
 	int i = 0, j = 0;
-	int n_dup = 0, n_bad = 0, n_solid = 0, n_rep = 0, n_has_n = 0;
+	int n_dup = 0, n_bad = 0, n_solid = 0, n_rep = 0, n_has_n = 0, try_times =
+			0;
 	uint32_t n_kmers = 0;
 	uint16_t *kmer_list;
 	counter *k_count = NULL, *counter_pre = NULL, *counter_list = NULL,
@@ -259,7 +261,8 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt) {
 
 	solid_reads = g_ptr_array_sized_new(16384);
 	j = 0;
-	while (++j < MAX_TIME && (n_seqs * opt->stop_thre) > n_solid) {
+	try_times = by_coverage ? 1 : MAX_TIME;
+	while (++j <= try_times && (n_seqs * opt->stop_thre) > n_solid) {
 		// For low sd range, there are only few reads are solid
 		// Here is to avoid unnecessary loops on the reads.
 		show_debug_msg(__func__,
@@ -272,10 +275,21 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt) {
 			s = &seqs[k_count->read_id];
 			if (s->status == USED)
 				continue;
-			if (pick_within_range(s, k_count, kmer_list, opt, UNEVEN_THRE * j)) {
-				n_solid++;
-				k_count->checked = 4;
-				g_ptr_array_add(solid_reads, s);
+			if (by_coverage) {
+				if (n_solid > n_seqs * opt->stop_thre) {
+					break;
+				} else {
+					n_solid++;
+					k_count->checked = 4;
+					g_ptr_array_add(solid_reads, s);
+				}
+			} else {
+				if (pick_within_range(s, k_count, kmer_list, opt, UNEVEN_THRE
+						* j)) {
+					n_solid++;
+					k_count->checked = 4;
+					g_ptr_array_add(solid_reads, s);
+				}
 			}
 		}
 	}
@@ -302,7 +316,7 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	sprintf(solid, "%s.solid", opt->lib_name);
 	solid_file = xopen(solid, "w");
-	solid_reads = calc_solid_reads(seqs, n_seqs, opt);
+	solid_reads = calc_solid_reads(seqs, n_seqs, opt, 0);
 	for (i = 0; i < solid_reads->len; i++) {
 		s = g_ptr_array_index(solid_reads, i);
 		sprintf(item, "%s\n", s->name);

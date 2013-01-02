@@ -317,8 +317,18 @@ def eva_blastn(args):
 				hits[rid] = []
 			hits[rid].append(a)
 			summary.n_aligned_bases += a.alen
-			aligned_lengths.append(a.alen)
 			# print a.qname, rid, a.pos, a.alen, a.astart, a.aend
+	# For the hits on the same transcript, get the longest alignment length
+	for rid, a_list in hits.iteritems():
+		longest = 0
+		a_longest = None
+		for a in a_list:
+			if a.alen > longest:
+				longest = a.alen
+				a_longest = a
+		if longest > 0:
+			aligned_lengths.append(longest)
+			# print a_longest.qname, a_longest.rname, a_longest.pos, a_longest.alen, a_longest.astart, a_longest.aend
 	eva_hits(args, ref, contigs, aligns, summary, hits, aligned_lengths)
 	analyze(args, ref, contigs, aligns, hits)
 	if not args.sam is None:
@@ -393,8 +403,16 @@ def eva_bwa(args):
 				hits[rid] = []
 			hits[rid].append(a)
 			summary.n_aligned_bases += a.alen
-			aligned_lengths.append(a.alen)
 			# print a.qname, rid, a.pos, a.aend
+	for rid, a_list in hits.iteritems():
+		longest = 0
+		a_longest = None
+		for a in a_list:
+			if a.alen > longest:
+				longest = a.alen
+				a_longest = a
+		if longest > 0:
+			aligned_lengths.append(longest)
 	eva_hits(args, ref, contigs, aligns, summary, hits, aligned_lengths)
 
 def check_dup(args):

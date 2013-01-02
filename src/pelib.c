@@ -774,9 +774,9 @@ static void *pe_lib_thread(void *data) {
 		n_paired_reads = d->n_paired_reads;
 		n_single_reads = d->n_single_reads;
 		//if (pair_ctg_id == 0)
-		//	query = &ht->seqs[820390];
+		//	query = &ht->seqs[2156689];
 		//if (pair_ctg_id == 1)
-		//	query = &ht->seqs[790558];
+		//	query = &ht->seqs[3878420];
 		//if (pair_ctg_id == 2)
 		//	query = &ht->seqs[2738138];
 		//		if (query->status != FRESH)
@@ -810,7 +810,7 @@ static void *pe_lib_thread(void *data) {
 			show_msg(__func__, "Time eclipsed [%d, %d]: %.2f sec\n", eg->id,
 					eg->len, (float) (clock() - t) / CLOCKS_PER_SEC);
 		eg = NULL;
-		//if (pair_ctg_id >= 1)
+		//if (pair_ctg_id >= 2)
 		//	break;
 	}
 	return NULL;
@@ -891,10 +891,10 @@ void post_process_edges(const hash_table *ht, edgearray *all_edges) {
 	fflush(pair_contigs);
 	free(name);
 
-	//reset_edge_ids(all_edges);
-
+	reset_edge_ids(all_edges);
 	show_msg(__func__, "========================================== \n\n");
 	show_msg(__func__, "Merging edges by overlapping... \n");
+	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
 	merge_ol_edges(all_edges, insert_size, ht, n_threads);
 	name = get_output_file("merged_pair_contigs.fa");
 	merged_pair_contigs = xopen(name, "w");
@@ -966,7 +966,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	bwa_seq_t *seqs = NULL;
 	FILE *solid = NULL, *raw = NULL;
 	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_single_reads = 0,
-			n_unit = 10;
+			n_unit = 1;
 	double unit_perc = 0.1, max_perc = 0.95, perc_thre = 0;
 	GPtrArray *all_edges = NULL;
 	readarray *solid_reads = NULL;
@@ -995,6 +995,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		run_threads(all_edges, solid_reads, ht, &n_paired_reads,
 				&n_single_reads, 0, solid_reads->len / 2, n_per_threads,
 				unit_perc * i);
+		show_msg(__func__, "Shrinking the hash table... \n");
 		erase_reads_on_ht(ht);
 		shrink_ht(ht);
 		show_msg(__func__, "Stage 1 finished %.2f: %.2f sec\n", i * unit_perc,
@@ -1026,16 +1027,15 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	stage = 3;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 2/2: Trying to assembly unpaired reads... \n");
-	g_ptr_array_free(solid_reads, TRUE);
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
-	c_opt->stop_thre = 0.3;
-	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt);
+	c_opt->stop_thre = 0.4;
+	g_ptr_array_free(solid_reads, TRUE);
+	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs - n_paired_reads, c_opt, 1);
 	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
-			0, solid_reads->len / 2, n_per_threads, 1.5);
+			0, solid_reads->len, n_per_threads, 1.5);
 	show_msg(__func__, "Stage 2 finished: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
-	reset_edge_ids(all_edges);
 	post_process_edges(ht, all_edges);
 	g_ptr_array_free(solid_reads, TRUE);
 	destroy_ht(ht);

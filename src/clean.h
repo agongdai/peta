@@ -33,6 +33,6 @@ typedef struct {
 
 int clean_reads(int argc, char *argv[]);
 clean_opt *init_clean_opt();
-GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt);
+GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt, const int by_coverage);
 void pe_clean_core(char *fa_fn, clean_opt *opt);
 #endif

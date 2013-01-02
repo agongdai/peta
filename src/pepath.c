@@ -847,14 +847,14 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 		}
 		//		p_ctg_seq("CONTIG", eg->contig);
 	}
-	show_msg(__func__, "Updating reads... \n");
-	for (i = 0; i < edges->len; i++) {
-		eg = g_ptr_array_index(edges, i);
-		if (i % 100 == 0) {
-			show_msg(__func__, "Progress: %d/%d...\n", i, edges->len);
-		}
-		upd_reads_by_ol(ht->seqs, eg, MISMATCHES);
-	}
+//	show_msg(__func__, "Updating reads... \n");
+//	for (i = 0; i < edges->len; i++) {
+//		eg = g_ptr_array_index(edges, i);
+//		if (i % 100 == 0) {
+//			show_msg(__func__, "Progress: %d/%d...\n", i, edges->len);
+//		}
+//		upd_reads_by_ol(ht->seqs, eg, MISMATCHES);
+//	}
 	free(read_str);
 	fclose(reads_fp);
 	fclose(dump_fp);
@@ -1063,6 +1063,7 @@ int pe_path(int argc, char *argv[]) {
 	hash_table *ht = NULL;
 	edgearray *edges = NULL;
 	GPtrArray *final_paths = NULL;
+	FILE *merged_pair_contigs = NULL;
 
 	show_msg(__func__, "%s \n", argv[1]);
 	show_msg(__func__, "%s \n", argv[2]);
@@ -1071,16 +1072,21 @@ int pe_path(int argc, char *argv[]) {
 	show_msg(__func__, "%s \n", argv[5]);
 
 	if (!g_thread_supported())
-			g_thread_init(NULL);
+		g_thread_init(NULL);
 	ht = pe_load_hash(argv[2]);
 	edges = load_rm(ht, argv[3], argv[4], argv[5]);
-	scaffolding(edges, 197, ht, 4);
-	graph_by_edges(edges, "../SRR097897_out/roadmap.1.dot");
+	merge_ol_edges(edges, 197, ht, 1);
+	merged_pair_contigs
+			= xopen("../SRR097897_out/merged_pair_contigs.1.fa", "w");
+	save_edges(edges, merged_pair_contigs, 0, 0, 100);
+	fclose(merged_pair_contigs);
+	//scaffolding(edges, 197, ht, 4);
+	//graph_by_edges(edges, "../SRR097897_part/roadmap.1.dot");
 	//dump_rm(edges, "../SRR097897/roadmap.graph", "../SRR097897/roadmap.reads");
-	final_paths = report_paths(edges, ht->seqs);
+	//final_paths = report_paths(edges, ht->seqs);
 	//validate_paths(ht, final_paths, atoi(argv[1]));
-	save_paths(final_paths, "../SRR097897_out/peta.fa", 100);
-	g_ptr_array_free(final_paths, TRUE);
+	//save_paths(final_paths, "../SRR097897_out/peta.fa", 100);
+	//g_ptr_array_free(final_paths, TRUE);
 
 	// test_sw(argv[4]);
 
