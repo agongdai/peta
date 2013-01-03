@@ -860,14 +860,18 @@ int is_biased_q(const bwa_seq_t *query) {
 }
 
 int has_rep_pattern(const bwa_seq_t *read) {
-	int i = 0, j = 0, is_rep = 1;
+	int i = 0, j = 0, is_rep = 1, n_mis = 0;
 	ubyte_t c = 0, c2 = 0;
 	for (i = 0; i < read->len - NO_REPEAT_LEN - 1; i++) {
 		is_rep = 1;
+		n_mis = 0;
 		for (j = i; j < i + NO_REPEAT_LEN; j++) {
 			c = read->seq[j];
 			c2 = read->seq[j + 1];
 			if (c != c2) {
+				n_mis++;
+			}
+			if (n_mis > 2) {
 				is_rep = 0;
 				break;
 			}

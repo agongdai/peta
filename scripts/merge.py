@@ -184,6 +184,7 @@ def main():
     parser_merge.add_argument('-l', required=True, help='left mate file', dest='left', metavar='FILE')
     parser_merge.add_argument('-r', required=True, help='right mate file', dest='right', metavar='FILE')
     parser_merge.add_argument('-s', required=False, help='shuffle or not', dest='shuffle', default=True, metavar='FILE')
+    parser_merge.add_argument('-p', required=False, help='pair or not', dest='pair', default=False, metavar='FILE')
 
     parser_rename = subparsers.add_parser('rename', help='rename read ids to be 0, 1, 2...')
     parser_rename.set_defaults(func=rename_ids)

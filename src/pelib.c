@@ -467,7 +467,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 	while (1) {
 		//p_query(__func__, query);
 		reset_c(next, NULL); // Reset the counter
-		if (!cur_pool || is_repetitive_q(query)) {
+		if (!cur_pool || is_repetitive_q(query) || has_rep_pattern(query)) {
 			show_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n", eg->id,
 					eg->len);
 			p_query("Repetitive pattern", query);
@@ -620,7 +620,7 @@ void est_insert_size(int n_max_pairs, char *lib_file, char *solid_file) {
 	FILE *solid = xopen(solid_file, "r");
 	char line[80];
 	int index = 0, ol = 0, n_pairs = 0, n_part_pairs = 0;
-	int line_no = 0;
+	int line_no = 0, start = 400;
 	edge *eg = NULL;
 	double *pairs = NULL, *partial_pairs = NULL, mean_ins_size = 0,
 			sd_ins_size = 0;
@@ -635,8 +635,8 @@ void est_insert_size(int n_max_pairs, char *lib_file, char *solid_file) {
 	while (fgets(line, 80, solid) != NULL && n_pairs < n_max_pairs) {
 		index = atoi(line);
 		query = &ht->seqs[index];
-
-		if (query->status != FRESH)
+		line_no++;
+		if (query->status != FRESH || line_no < start)
 			continue;
 		show_msg(__func__,
 				"---------- [%d] Processing read %d: %s ----------\n", line_no,
@@ -645,10 +645,6 @@ void est_insert_size(int n_max_pairs, char *lib_file, char *solid_file) {
 		if (!eg)
 			continue;
 		keep_pairs_only(eg, ht->seqs);
-		if (eg->pairs->len * 2 < eg->reads->len) {
-			destroy_eg(eg);
-			continue;
-		}
 		g_ptr_array_sort(eg->pairs, (GCompareFunc) cmp_reads_by_name);
 		partial_pairs = get_pair_dis_on_edge(eg, &n_part_pairs);
 		if (n_part_pairs >= PAIRS_PER_EDGE)
@@ -774,7 +770,7 @@ static void *pe_lib_thread(void *data) {
 		n_paired_reads = d->n_paired_reads;
 		n_single_reads = d->n_single_reads;
 		//if (pair_ctg_id == 0)
-		//	query = &ht->seqs[2156689];
+		//	query = &ht->seqs[1137307];
 		//if (pair_ctg_id == 1)
 		//	query = &ht->seqs[3878420];
 		//if (pair_ctg_id == 2)
@@ -810,7 +806,7 @@ static void *pe_lib_thread(void *data) {
 			show_msg(__func__, "Time eclipsed [%d, %d]: %.2f sec\n", eg->id,
 					eg->len, (float) (clock() - t) / CLOCKS_PER_SEC);
 		eg = NULL;
-		//if (pair_ctg_id >= 2)
+		//if (pair_ctg_id >= 1)
 		//	break;
 	}
 	return NULL;
@@ -894,27 +890,27 @@ void post_process_edges(const hash_table *ht, edgearray *all_edges) {
 	dump_rm(all_edges, name, reads_name);
 	free(reads_name);
 	free(name);
-//	scaffolding(all_edges, insert_size, ht, n_threads);
-//	show_msg(__func__, "Scaffolding finished: %.2f sec\n",
-//			(float) (clock() - t) / CLOCKS_PER_SEC);
-//
-//	show_msg(__func__, "========================================== \n\n ");
-//	show_msg(__func__, "Drawing the roadmap... \n");
-//	name = get_output_file("roadmap.dot");
-//	graph_by_edges(all_edges, name);
-//	free(name);
-//	show_msg(__func__, "Reporting combinatorial paths... \n");
-//	final_paths = report_paths(all_edges, seqs);
-//	name = get_output_file("peta.fa");
-//	save_paths(final_paths, name, 100);
-//
-//	show_msg(__func__, "Saving finished: %.2f sec\n", (float) (clock() - t)
-//			/ CLOCKS_PER_SEC);
-//
-//	free(name);
-//	fclose(pair_contigs);
-//	fclose(merged_pair_contigs);
-//	g_ptr_array_free(all_edges, TRUE);
+	scaffolding(all_edges, insert_size, ht, n_threads);
+	show_msg(__func__, "Scaffolding finished: %.2f sec\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
+
+	show_msg(__func__, "========================================== \n\n ");
+	show_msg(__func__, "Drawing the roadmap... \n");
+	name = get_output_file("roadmap.dot");
+	graph_by_edges(all_edges, name);
+	free(name);
+	show_msg(__func__, "Reporting combinatorial paths... \n");
+	final_paths = report_paths(all_edges, seqs);
+	name = get_output_file("peta.fa");
+	save_paths(final_paths, name, 100);
+
+	show_msg(__func__, "Saving finished: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
+
+	free(name);
+	fclose(pair_contigs);
+	fclose(merged_pair_contigs);
+	g_ptr_array_free(all_edges, TRUE);
 	show_msg(__func__, "Post processing finished: %.2f sec\n", (float) (clock()
 			- t) / CLOCKS_PER_SEC);
 }
@@ -965,7 +961,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	n_per_threads = solid_reads->len / n_threads / 2;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 1/2: Trying to use up the paired reads... \n");
-	for (i = 1; i <= n_unit; i++) {
+	for (i = 1; i <= 1; i++) {
 		max_perc = i * unit_perc;
 		if (i * unit_perc > max_perc)
 			perc_thre = max_perc;
@@ -1007,10 +1003,10 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
 	c_opt->stop_thre = 0.4;
-	g_ptr_array_free(solid_reads, TRUE);
-	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs - n_paired_reads, c_opt, 1);
-	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
-			0, solid_reads->len, n_per_threads, 1.5);
+	//g_ptr_array_free(solid_reads, TRUE);
+	//solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs - n_paired_reads, c_opt, 1);
+	//run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
+	//		0, solid_reads->len, n_per_threads, 1.5);
 	show_msg(__func__, "Stage 2 finished: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
 	post_process_edges(ht, all_edges);

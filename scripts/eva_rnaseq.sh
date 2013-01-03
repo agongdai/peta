@@ -1,6 +1,6 @@
 #!/bin/bash
 
-query="merged_pair_contigs.1"
+query="peta"
 db_dir="../rnaseq/Spombe/genome/"
 db="spombe.broad.tx.fasta"
 blastdb="../../ncbi-blast-2.2.26+/db/"
