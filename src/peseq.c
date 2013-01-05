@@ -871,7 +871,7 @@ int has_rep_pattern(const bwa_seq_t *read) {
 			if (c != c2) {
 				n_mis++;
 			}
-			if (n_mis > 2) {
+			if (n_mis > 1) {
 				is_rep = 0;
 				break;
 			}

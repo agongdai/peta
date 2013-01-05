@@ -806,8 +806,8 @@ static void *pe_lib_thread(void *data) {
 			show_msg(__func__, "Time eclipsed [%d, %d]: %.2f sec\n", eg->id,
 					eg->len, (float) (clock() - t) / CLOCKS_PER_SEC);
 		eg = NULL;
-		//if (pair_ctg_id >= 1)
-		//	break;
+		if (pair_ctg_id >= 100)
+			break;
 	}
 	return NULL;
 }
@@ -1003,10 +1003,10 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
 	c_opt->stop_thre = 0.4;
-	//g_ptr_array_free(solid_reads, TRUE);
-	//solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs - n_paired_reads, c_opt, 1);
-	//run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
-	//		0, solid_reads->len, n_per_threads, 1.5);
+//	g_ptr_array_free(solid_reads, TRUE);
+//	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs - n_paired_reads, c_opt, 1, 0);
+//	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
+//			0, solid_reads->len, n_per_threads, 1.5);
 	show_msg(__func__, "Stage 2 finished: %.2f sec\n", (float) (clock() - t)
 			/ CLOCKS_PER_SEC);
 	post_process_edges(ht, all_edges);
