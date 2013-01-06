@@ -520,7 +520,7 @@ int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs,
 	solid = xopen(part_solid_fn, "w");
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
-		if (s->status != USED) {
+		if (s->status != USED && s->status != DEAD) {
 			sprintf(h, ">%d\n", n_unpaired);
 			save_read(h, s, solid);
 			n_unpaired++;

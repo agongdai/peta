@@ -23,6 +23,7 @@
 #include "pepath.h"
 #include "scaffolding.h"
 #include "pehash.h"
+#include "correct.h"
 
 int pair_ctg_id = 0;
 int overlap_len = 0;
@@ -673,27 +674,20 @@ void est_insert_size(int n_max_pairs, char *lib_file, char *solid_file) {
  */
 int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 		int *n_paired_reads, int *n_single_reads) {
-	int n = 0;
 	if (eg) {
-		n = *n_paired_reads;
-		if (stage == 3) {
-			//p_ctg_seq(__func__, eg->contig);
-			//p_readarray(eg->reads, 1);
-			n = *n_single_reads;
-		}
 		// keep_pairs_only(eg, ht->seqs);
 		if (eg->len < insert_size && eg->reads->len * ht->seqs->len < eg->len
 				* 10) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
 			show_msg(
 					__func__,
-					"ABANDONED [%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
+					"ABANDONED [%d] %s: length %d, reads %d=>%d. Single reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
-					n, ht->n_seqs);
+					*n_single_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
 			show_debug_msg(
 					__func__,
-					"ABANDONED [%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
+					"ABANDONED [%d] %s: length %d, reads %d=>%d. Single reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
-					n, ht->n_seqs);
+					*n_single_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
 			upd_ctg_id(eg, -1, TRIED);
 			eg->alive = 0;
 			g_mutex_lock(sum_mutex);
@@ -707,13 +701,13 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 			g_ptr_array_add(all_edges, eg);
 			g_mutex_unlock(sum_mutex);
 			show_msg(__func__,
-					"[%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
+					"[%d] %s: length %d, reads %d=>%d. Single reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
-					n, ht->n_seqs);
+					*n_single_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
 			show_debug_msg(__func__,
-					"[%d] %s: length %d, reads %d=>%d. Total reads %d/%d \n",
+					"[%d] %s: length %d, reads %d=>%d. Single reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
-					n, ht->n_seqs);
+					*n_single_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
 			return 1;
 		}
 	}
@@ -939,7 +933,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	bwa_seq_t *seqs = NULL;
 	FILE *solid = NULL, *raw = NULL;
 	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_single_reads = 0,
-			n_unit = 10;
+			n_unit = 10, n_rep = 0;
 	double unit_perc = 0.1, max_perc = 0.95, perc_thre = 0;
 	GPtrArray *all_edges = NULL;
 	readarray *solid_reads = NULL;
@@ -954,65 +948,72 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	all_edges = g_ptr_array_sized_new(BUFSIZ);
 	ht = pe_load_hash(lib_file);
 	seqs = &ht->seqs[0];
-	solid_reads = load_solid_reads(solid_file, seqs, ht->n_seqs);
-	show_msg(__func__, "Solid reads loaded: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
+	show_msg(__func__, "Removing repetitive reads... \n");
+	n_rep = rm_repetitive_reads(seqs, ht->n_seqs);
+	show_msg(__func__, "# of repetitive reads are marked DEAD: %d\n", n_rep);
+	show_msg(__func__, "Correcting reads... \n");
+	correct_reads(ht);
+	save_unpaired_seqs("../SRR027876_out/part.fa", ht->seqs, ht->n_seqs);
 
-	n_per_threads = solid_reads->len / n_threads / 2;
-	show_msg(__func__, "========================================== \n");
-	show_msg(__func__, "Stage 1/2: Trying to use up the paired reads... \n");
-	for (i = 1; i <= 1; i++) {
-		max_perc = i * unit_perc;
-		if (i * unit_perc > max_perc)
-			perc_thre = max_perc;
-		run_threads(all_edges, solid_reads, ht, &n_paired_reads,
-				&n_single_reads, 0, solid_reads->len / 2, n_per_threads,
-				unit_perc * i);
-		show_msg(__func__, "Shrinking the hash table... \n");
-		erase_reads_on_ht(ht);
-		shrink_ht(ht);
-		show_msg(__func__, "Stage 1 finished %.2f: %.2f sec\n", i * unit_perc,
-				(float) (clock() - t) / CLOCKS_PER_SEC);
-		if (i * unit_perc > max_perc)
-			break;
-	}
-
-	n_paired_reads = 0;
-	n_single_reads = 0;
-	for (i = 0; i < all_edges->len; i++) {
-		eg = g_ptr_array_index(all_edges, i);
-		if (eg->alive) {
-			n_paired_reads += eg->pairs->len;
-			n_single_reads += eg->reads->len;
-		}
-	}
-	show_msg(__func__, "Total reads: [%d=>%d]/%d \n", n_single_reads,
-			n_paired_reads, ht->n_seqs);
-	show_msg(__func__, "Stage 1 finished: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
-	name = get_output_file("raw.fa");
-	raw = xopen(name, "w");
-	save_edges(all_edges, raw, 0, 0, 100);
-	fflush(raw);
-	free(name);
-	fclose(raw);
-
-	stage = 3;
-	show_msg(__func__, "========================================== \n");
-	show_msg(__func__, "Stage 2/2: Trying to assembly unpaired reads... \n");
-	c_opt = init_clean_opt();
-	c_opt->kmer = 15;
-	c_opt->stop_thre = 0.4;
+//	solid_reads = load_solid_reads(solid_file, seqs, ht->n_seqs);
+//	show_msg(__func__, "Solid reads loaded: %.2f sec\n", (float) (clock() - t)
+//			/ CLOCKS_PER_SEC);
+//
+//	n_per_threads = solid_reads->len / n_threads / 2;
+//	show_msg(__func__, "========================================== \n");
+//	show_msg(__func__, "Stage 1/2: Trying to use up the paired reads... \n");
+//	for (i = 1; i <= 1; i++) {
+//		max_perc = i * unit_perc;
+//		if (i * unit_perc > max_perc)
+//			perc_thre = max_perc;
+//		run_threads(all_edges, solid_reads, ht, &n_paired_reads,
+//				&n_single_reads, 0, solid_reads->len / 2, n_per_threads,
+//				unit_perc * i);
+//		show_msg(__func__, "Shrinking the hash table... \n");
+//		erase_reads_on_ht(ht);
+//		shrink_ht(ht);
+//		show_msg(__func__, "Stage 1 finished %.2f: %.2f sec\n", i * unit_perc,
+//				(float) (clock() - t) / CLOCKS_PER_SEC);
+//		if (i * unit_perc > max_perc)
+//			break;
+//	}
+//
+//	n_paired_reads = 0;
+//	n_single_reads = 0;
+//	for (i = 0; i < all_edges->len; i++) {
+//		eg = g_ptr_array_index(all_edges, i);
+//		if (eg->alive) {
+//			n_paired_reads += eg->pairs->len;
+//			n_single_reads += eg->reads->len;
+//		}
+//	}
+//	show_msg(__func__, "Total reads: [%d=>%d]/%d \n", n_single_reads,
+//			n_paired_reads, ht->n_seqs);
+//	show_msg(__func__, "Stage 1 finished: %.2f sec\n", (float) (clock() - t)
+//			/ CLOCKS_PER_SEC);
+//	name = get_output_file("raw.fa");
+//	raw = xopen(name, "w");
+//	save_edges(all_edges, raw, 0, 0, 100);
+//	fflush(raw);
+//	free(name);
+//	fclose(raw);
+//
+//	stage = 3;
+//	show_msg(__func__, "========================================== \n");
+//	show_msg(__func__, "Stage 2/2: Trying to assembly unpaired reads... \n");
+//	c_opt = init_clean_opt();
+//	c_opt->kmer = 15;
+//	c_opt->stop_thre = 0.4;
+////	g_ptr_array_free(solid_reads, TRUE);
+////	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs - n_paired_reads, c_opt, 1, 0);
+////	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
+////			0, solid_reads->len, n_per_threads, 1.5);
+//	show_msg(__func__, "Stage 2 finished: %.2f sec\n", (float) (clock() - t)
+//			/ CLOCKS_PER_SEC);
+//	post_process_edges(ht, all_edges);
 //	g_ptr_array_free(solid_reads, TRUE);
-//	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs - n_paired_reads, c_opt, 1, 0);
-//	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_single_reads,
-//			0, solid_reads->len, n_per_threads, 1.5);
-	show_msg(__func__, "Stage 2 finished: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
-	post_process_edges(ht, all_edges);
-	g_ptr_array_free(solid_reads, TRUE);
-	destroy_ht(ht);
-	free(c_opt);
+//	destroy_ht(ht);
+//	free(c_opt);
 }
 
 int pe_lib_usage() {

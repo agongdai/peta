@@ -187,7 +187,7 @@ void erase_reads_on_ht(hash_table *ht) {
 		read_hash_value(&seq_id, &locus, value);
 		if (value > 0) {
 			read = &seqs[seq_id];
-			if (read->status == USED) {
+			if (read->status == USED || read->status == DEAD) {
 				pos[i] = 0;
 			} else {
 				n_pos++;
