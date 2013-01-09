@@ -67,8 +67,8 @@ int get_edges_ori(edge *eg_left, edge *eg_right, bwa_seq_t *seqs) {
  * 	1: eg_1 is left
  *  -1: eg_1 is right
  */
-int est_pair_gap(edge *eg_1, edge *eg_2, const int order,
-		const int insert_size, bwa_seq_t *seqs) {
+int est_pair_gap(edge *eg_1, edge *eg_2, const int order, const int insert_size,
+		bwa_seq_t *seqs) {
 	GPtrArray *paired_reads = NULL;
 	int i = 0;
 	bwa_seq_t *read = NULL, *mate = NULL;
@@ -127,8 +127,6 @@ int order_two_edges(edge *eg_1, edge *eg_2, bwa_seq_t *seqs) {
 		for (i = 0; i < paired_reads->len; i += 2) {
 			read = g_ptr_array_index(paired_reads, i);
 			mate = g_ptr_array_index(paired_reads, i + 1);
-			//p_query(__func__, read);
-			//p_query(__func__, mate);
 			if (ori && read->rev_com == mate->rev_com)
 				continue;
 			if (!ori && read->rev_com != mate->rev_com)
@@ -192,8 +190,8 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 		if (read->status == USED)
 			continue;
 		mate = get_mate(read, seqs);
-		if (mate->status == FRESH || mate->contig_id < 0 || read->contig_id
-				== mate->contig_id)
+		if (mate->status == FRESH || mate->contig_id < 0
+				|| read->contig_id == mate->contig_id)
 			continue;
 		//show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id,
 		//		all_edges->len);
@@ -210,9 +208,9 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 		//		in_out->id, in_out->len);
 		// p_ctg_seq("Contig", eg->contig);
 		if (!share_subseq_byte(eg->contig->seq, eg->len, in_out->contig,
-				MISMATCHES, 100) && !share_subseq_byte(eg->contig->rseq,
-				eg->len, in_out->contig, MISMATCHES, 100)
-				&& !has_reads_in_common(eg, in_out)) {
+				MISMATCHES, 100)
+				&& !share_subseq_byte(eg->contig->rseq, eg->len, in_out->contig,
+						MISMATCHES, 100) && !has_reads_in_common(eg, in_out)) {
 			in_out->tid = eg->tid;
 			g_ptr_array_add(probable_in_out, in_out);
 		}
@@ -347,9 +345,8 @@ void scaffolding(edgearray *single_edges, const int insert_size,
 	if (!edge_mutex)
 		edge_mutex = g_mutex_new();
 
-	data
-			= (scaffolding_paras_t*) calloc(n_threads,
-					sizeof(scaffolding_paras_t));
+	data = (scaffolding_paras_t*) calloc(n_threads,
+			sizeof(scaffolding_paras_t));
 
 	for (i = 0; i < n_threads; ++i) {
 		data[i].single_edges = single_edges;
@@ -360,8 +357,8 @@ void scaffolding(edgearray *single_edges, const int insert_size,
 		data[i].tid = i + 1;
 		if (i == n_threads - 1)
 			data[i].end = single_edges->len;
-		threads[i]
-				= g_thread_create((GThreadFunc) scaffolding_thread, data + i, TRUE, NULL);
+		threads[i] = g_thread_create((GThreadFunc) scaffolding_thread, data + i,
+				TRUE, NULL);
 	}
 	for (i = 0; i < n_threads; ++i) {
 		g_thread_join(threads[i]);
@@ -432,13 +429,12 @@ static void *merge_ol_edges_thread(void *data) {
 					d->single_edges);
 			for (j = 0; j < edge_candidates->len; j++) {
 				eg_j = g_ptr_array_index(edge_candidates, j);
-				paired_reads = NULL;
-				if (eg_i->id == 3176 || eg_i->id == 4619) {
-					p_ctg_seq("eg_i", eg_i->contig);
-					p_ctg_seq("eg_j", eg_j->contig);
+				if (paired_reads != NULL) {
+					g_ptr_array_free(paired_reads, TRUE);
+					paired_reads = NULL;
 				}
-				if (!eg_j->alive || eg_i == eg_j || (eg_i->len < 100
-						&& eg_j->len < 100))
+				if (!eg_j->alive || eg_i == eg_j
+						|| (eg_i->len < 100 && eg_j->len < 100))
 					continue;
 				if (eg_i->visited && eg_j->visited)
 					continue;
@@ -446,24 +442,22 @@ static void *merge_ol_edges_thread(void *data) {
 				ol = find_ol(eg_i->contig, eg_j->contig, MAX_EDGE_NM);
 				nm = get_mismatches_on_ol(eg_i->contig, eg_j->contig, ol,
 						MAX_EDGE_NM);
-				if (eg_i->id == 3176 || eg_i->id == 4619) {
-					show_debug_msg(__func__, "Overlap: %d; Mismatches: %d \n",
-							ol, nm);
-				}
 				// 1. If the overlapping length is shorter than read length,
 				// 		We expect that no common reads
 				// 2. If the overlapping length is longer than read length,
 				//		There mush be some common reads.
 
+				// --------------->
+				//           -------------->
 				if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC > nm) {
-					if ((ol > rl) || (ol < rl && !has_reads_in_common(eg_i,
-							eg_j))) {
+					if ((ol > rl)
+							|| (ol < rl && !has_reads_in_common(eg_i, eg_j))) {
 						paired_reads = find_unconditional_paired_reads(eg_i,
 								eg_j, seqs);
-						if (ol > d->insert_size || paired_reads->len
-								>= MIN_VALID_PAIRS || abs(ol - eg_i->len)
-								<= EDGE_OL_THRE || abs(ol - eg_j->len)
-								<= EDGE_OL_THRE) {
+						if (ol > d->insert_size|| paired_reads->len
+						>= MIN_VALID_PAIRS || abs(ol - eg_i->len)
+						<= EDGE_OL_THRE || abs(ol - eg_j->len)
+						<= EDGE_OL_THRE) {
 							g_mutex_lock(edge_mutex);
 							merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j, ol);
 							g_mutex_unlock(edge_mutex);
@@ -472,88 +466,86 @@ static void *merge_ol_edges_thread(void *data) {
 							g_ptr_array_free(paired_reads, TRUE);
 							paired_reads = NULL;
 							continue;
+					}
+				}
+			} else {
+				// ------------->
+				//         <--------------
+				rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len, 0);
+				ol = find_ol(eg_i->contig, rev, MAX_EDGE_NM);
+				nm = get_mismatches_on_ol(eg_i->contig, rev, ol,
+						MAX_EDGE_NM);
+				if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC > nm) {
+					if ((ol > rl) || (ol < rl && !has_reads_in_common(eg_i,
+											eg_j))) {
+						paired_reads = find_unconditional_paired_reads(
+								eg_i, eg_j, seqs);
+						if (ol > d->insert_size || paired_reads->len
+								>= MIN_VALID_PAIRS || abs(ol - eg_i->len)
+								<= EDGE_OL_THRE || abs(ol - eg_j->len)
+								<= EDGE_OL_THRE) {
+							g_mutex_lock(edge_mutex);
+							bwa_free_read_seq(1, eg_j->contig);
+							eg_j->contig = rev;
+							merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j,
+									ol);
+							g_mutex_unlock(edge_mutex);
+							eg_i->visited = 0;
+							some_one_merged = 1;
+							g_ptr_array_free(paired_reads, TRUE);
+							paired_reads = NULL;
+							continue; // In case the 'rev' is freed accidently.
 						}
 					}
 				} else {
-					rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len, 0);
-					ol = find_ol(eg_i->contig, rev, MAX_EDGE_NM);
-					nm = get_mismatches_on_ol(eg_i->contig, rev, ol,
+					// <------------------
+					//             -------------->
+					rev = new_mem_rev_seq(eg_i->contig, eg_i->contig->len,
+							0);
+					ol = find_ol(rev, eg_j->contig, MAX_EDGE_NM);
+					nm = get_mismatches_on_ol(rev, eg_j->contig, ol,
 							MAX_EDGE_NM);
-					if (eg_i->id == 3176 || eg_i->id == 4619) {
-						show_debug_msg(__func__,
-								"Overlap: %d; Mismatches: %d \n", ol, nm);
-					}
 					if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC > nm) {
-						if ((ol > rl) || (ol < rl && !has_reads_in_common(eg_i,
-								eg_j))) {
+						if ((ol > rl) || (ol < rl && !has_reads_in_common(
+												eg_i, eg_j))) {
 							paired_reads = find_unconditional_paired_reads(
 									eg_i, eg_j, seqs);
 							if (ol > d->insert_size || paired_reads->len
-									>= MIN_VALID_PAIRS || abs(ol - eg_i->len)
-									<= EDGE_OL_THRE || abs(ol - eg_j->len)
-									<= EDGE_OL_THRE) {
+									>= MIN_VALID_PAIRS || abs(ol
+											- eg_i->len) <= EDGE_OL_THRE || abs(ol
+											- eg_j->len) <= EDGE_OL_THRE) {
 								g_mutex_lock(edge_mutex);
-								//bwa_free_read_seq(1, eg_j->contig);
-								eg_j->contig = rev;
-								merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j,
-										ol);
+								//show_debug_msg(__func__, "Name: %s \n",
+								//		eg_i->contig->name);
+								//p_ctg_seq("Contig", eg_i->contig);
+								bwa_free_read_seq(1, eg_i->contig);
+								eg_i->contig = rev;
+								merge_two_ol_edges(d->rht, d->ht, eg_i,
+										eg_j, ol);
 								g_mutex_unlock(edge_mutex);
 								eg_i->visited = 0;
 								some_one_merged = 1;
 								g_ptr_array_free(paired_reads, TRUE);
 								paired_reads = NULL;
-								continue; // In case the 'rev' is freed accidently.
+								continue;// In case the 'rev' is freed accidently.
 							}
-						}
-					} else {
-						rev = new_mem_rev_seq(eg_i->contig, eg_i->contig->len,
-								0);
-						ol = find_ol(rev, eg_j->contig, MAX_EDGE_NM);
-						nm = get_mismatches_on_ol(rev, eg_j->contig, ol,
-								MAX_EDGE_NM);
-						if (eg_i->id == 3176 || eg_i->id == 4619) {
-							show_debug_msg(__func__,
-									"Overlap: %d; Mismatches: %d \n", ol, nm);
-						}
-						if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC > nm) {
-							if ((ol > rl) || (ol < rl && !has_reads_in_common(
-									eg_i, eg_j))) {
-								paired_reads = find_unconditional_paired_reads(
-										eg_i, eg_j, seqs);
-								if (ol > d->insert_size || paired_reads->len
-										>= MIN_VALID_PAIRS || abs(ol
-										- eg_i->len) <= EDGE_OL_THRE || abs(ol
-										- eg_j->len) <= EDGE_OL_THRE) {
-									g_mutex_lock(edge_mutex);
-									//show_debug_msg(__func__, "Name: %s \n",
-									//		eg_i->contig->name);
-									//p_ctg_seq("Contig", eg_i->contig);
-									//bwa_free_read_seq(1, eg_i->contig);
-									eg_i->contig = rev;
-									merge_two_ol_edges(d->rht, d->ht, eg_i,
-											eg_j, ol);
-									g_mutex_unlock(edge_mutex);
-									eg_i->visited = 0;
-									some_one_merged = 1;
-									g_ptr_array_free(paired_reads, TRUE);
-									paired_reads = NULL;
-									continue; // In case the 'rev' is freed accidently.
-								}
-							}
-						}
-						if (eg_i->contig != rev) {
-							bwa_free_read_seq(1, rev);
-							rev = NULL;
 						}
 					}
-					if (paired_reads != NULL)
-						g_ptr_array_free(paired_reads, TRUE);
-					if (eg_j->contig != rev) {
+					if (eg_i->contig != rev) {
 						bwa_free_read_seq(1, rev);
 						rev = NULL;
 					}
 				}
+				if (paired_reads != NULL) {
+					g_ptr_array_free(paired_reads, TRUE);
+					paired_reads = NULL;
+				}
+				if (eg_j->contig != rev) {
+					bwa_free_read_seq(1, rev);
+					rev = NULL;
+				}
 			}
+		}
 			eg_i->visited = 1;
 		}
 	}
@@ -580,9 +572,8 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		eg_i = g_ptr_array_index(single_edges, i);
 		eg_i->tid = 0;
 	}
-	data
-			= (scaffolding_paras_t*) calloc(n_threads,
-					sizeof(scaffolding_paras_t));
+	data = (scaffolding_paras_t*) calloc(n_threads,
+			sizeof(scaffolding_paras_t));
 	show_msg(__func__, "Building hash table for templates...\n");
 	rht = build_edges_ht(MATE_OVERLAP_THRE, single_edges);
 	show_msg(__func__, "Merging %d templates...\n", single_edges->len);
@@ -596,8 +587,8 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		data[i].rht = rht;
 		if (i == n_threads - 1)
 			data[i].end = single_edges->len;
-		threads[i]
-				= g_thread_create((GThreadFunc) merge_ol_edges_thread, data + i, TRUE, NULL);
+		threads[i] = g_thread_create((GThreadFunc) merge_ol_edges_thread,
+				data + i, TRUE, NULL);
 	}
 	for (i = 0; i < n_threads; ++i) {
 		g_thread_join(threads[i]);
@@ -608,7 +599,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		eg_i->visited = 0;
 		g_ptr_array_sort(eg_i->reads, (GCompareFunc) cmp_read_by_name);
 		if (!eg_i->alive) {
-			//destroy_eg(eg_i);
+			destroy_eg(eg_i);
 			g_ptr_array_remove_index_fast(single_edges, i);
 			i--;
 		}

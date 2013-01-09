@@ -174,7 +174,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
-		if (s->status == USED)
+		if (s->status == USED || s->status == DEAD)
 			continue;
 		k_count = &counter_list[i];
 		k_count->read_id = atoi(s->name);
@@ -196,7 +196,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
-		if (s->status == USED)
+		if (s->status == USED || s->status == DEAD)
 			continue;
 		k_count = &counter_list[i];
 		if (k_count->checked) {
@@ -212,7 +212,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 	// Remove repetitive reads and those reads having low frequency kmers.
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
-		if (s->status == USED)
+		if (s->status == USED || s->status == DEAD)
 			continue;
 		k_count = &counter_list[i];
 		if (k_count->checked) {
@@ -245,7 +245,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 	for (i = 1; i < n_seqs; i++) {
 		k_count = &sorted_counters[i];
 		s = &seqs[k_count->read_id];
-		if (s->status == USED)
+		if (s->status == USED || s->status == DEAD)
 			continue;
 		if (k_count->k_freq == counter_pre->k_freq && same_q(s, s_unique)) {
 			k_count->checked = 3;
@@ -274,7 +274,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 			if (k_count->checked)
 				continue;
 			s = &seqs[k_count->read_id];
-			if (s->status == USED)
+			if (s->status == USED || s->status == DEAD)
 				continue;
 			if (by_coverage) {
 				if (n_solid > n_seqs * opt->stop_thre) {
