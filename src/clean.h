@@ -33,6 +33,10 @@ typedef struct {
 
 int clean_reads(int argc, char *argv[]);
 clean_opt *init_clean_opt();
+void set_kmer_index(const bwa_seq_t *read, int k, uint16_t *kmer_list);
+int cmp_kmer(const void *a, const void *b);
+void set_k_freq(bwa_seq_t *read, counter *k_count, uint16_t *kmer_list,
+		const int k);
 GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt, const int by_coverage, const int rm_low_kmer);
 void pe_clean_core(char *fa_fn, clean_opt *opt);
 #endif

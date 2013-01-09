@@ -34,7 +34,14 @@ typedef GPtrArray seqarray;
 typedef GArray posarray;
 
 enum READ_STATUS {
-	FRESH, USED, TRIED, DEAD, HANG, HAS_N, REPETITIVE,
+	FRESH,
+	USED,
+	TRIED,
+	DEAD,
+	HANG,
+	HAS_N,
+	REPETITIVE,
+	MULTI,
 };
 
 typedef struct {

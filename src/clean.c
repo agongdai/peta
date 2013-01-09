@@ -120,14 +120,14 @@ int pick_within_range(bwa_seq_t *read, counter *counter, uint16_t *kmer_list,
  * Calculate the mean and standard deviation of the k-mer frequency
  */
 void set_k_freq(bwa_seq_t *read, counter *k_count, uint16_t *kmer_list,
-		clean_opt *opt) {
+		const int k) {
 	int j = 0, key = 0;
 //	int i = 0;
 //	double counted_len = read->len - 2 * opt->kmer;
 //	double *base_counter = (double*) calloc(read->len + 1, sizeof(double));
 //	double *part_base = (double*) calloc(counted_len + 1, sizeof(double));
-	for (j = 0; j <= read->len - opt->kmer; j++) {
-		key = get_key(read, j, j + opt->kmer);
+	for (j = 0; j <= read->len - k; j++) {
+		key = get_key(read, j, j + k);
 		k_count->k_freq += kmer_list[key];
 	}
 //	for (i = 0; i <= read->len - opt->kmer; i++) {
@@ -202,7 +202,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 		if (k_count->checked) {
 			continue;
 		}
-		set_k_freq(s, k_count, kmer_list, opt);
+		set_k_freq(s, k_count, kmer_list, opt->kmer);
 	}
 
 	show_debug_msg(__func__,
