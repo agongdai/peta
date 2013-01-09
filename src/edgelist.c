@@ -658,7 +658,7 @@ void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 		bwa_free_read_seq(1, rev_read);
 		if (index == NOT_FOUND) {
 			if (g_ptr_array_remove_index_fast(eg->reads, i)) {
-				read->status = FRESH;
+				read->status = TRIED;
 				read->contig_id = UNUSED_CONTIG_ID;
 				read->shift = 0;
 				i--;

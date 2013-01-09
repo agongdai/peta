@@ -962,6 +962,8 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	seqs = &ht->seqs[0];
 	show_msg(__func__, "Removing repetitive reads... \n");
 	n_rep = rm_repetitive_reads(seqs, ht->n_seqs);
+	erase_reads_on_ht(ht);
+	shrink_ht(ht);
 	n_used_reads = n_rep;
 	n_paired_reads = n_rep;
 	show_msg(__func__, "# of repetitive reads are marked DEAD: %d\n", n_rep);
