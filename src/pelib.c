@@ -704,8 +704,9 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 }
 
 void clean_edges(const hash_table *ht, edgearray *all_edges) {
-	int i = 0;
+	int i = 0, n_ori = 0;
 	edge *eg = NULL;
+	n_ori = all_edges->len;
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
 		if (eg->alive == 0) {
@@ -715,6 +716,7 @@ void clean_edges(const hash_table *ht, edgearray *all_edges) {
 				i--;
 		}
 	}
+	show_msg(__func__, "Removed not alive edges %d to %d \n", n_ori, all_edges->len);
 }
 
 typedef struct {
@@ -866,6 +868,11 @@ void post_process_edges(const hash_table *ht, edgearray *all_edges) {
 	reset_edge_ids(all_edges);
 	show_msg(__func__, "========================================== \n\n");
 	show_msg(__func__, "Merging edges by overlapping... \n");
+	// Only the sequences are used during merging and scaffolding
+	free(ht->k_mers_occ_acc);
+	free(ht->pos);
+	ht->k_mers_occ_acc = NULL;
+	ht->pos = NULL;
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
 	merge_ol_edges(all_edges, insert_size, ht, n_threads);
 	name = get_output_file("merged_pair_contigs.fa");
