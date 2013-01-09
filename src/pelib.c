@@ -31,7 +31,6 @@ int insert_size = 0;
 int sd_insert_size = 0;
 char *out_root = NULL;
 int n_threads = 1;
-int stage = 1;
 GMutex *id_mutex;
 GMutex *sum_mutex;
 
@@ -277,15 +276,9 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 				== eg->id))
 			continue;
 
-		// Stage 3 only use single reads, so TRIED reads are not used any more
-		if (stage == 3) {
-			if (s->status != FRESH)
+		if (mate->status == TRIED && mate->contig_id == eg->id) {
+			if (is_paired(mate, ori))
 				continue;
-		} else {
-			if (mate->status == TRIED && mate->contig_id == eg->id) {
-				if (is_paired(mate, ori))
-					continue;
-			}
 		}
 		s->rev_com = a->rev_comp;
 		mate->rev_com = s->rev_com;
@@ -308,7 +301,7 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	rm_partial(eg, cur_pool, ori, seqs, query, MISMATCHES);
 	//p_pool("AFTER REMOVING PARTIAL", cur_pool, NULL);
 	// Keep only the reads whose mate is used previously.
-	if (stage != 3 && eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
+	if (eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
 		keep_mates_in_pool(eg, cur_pool, ht, ori, 0);
 		//p_pool("AFTER KEEPING MATES", cur_pool, NULL);
 	}
@@ -349,8 +342,7 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
 		s = &seqs[a->r_id];
 		mate = get_mate(s, seqs);
 		// If the read's mate is used, but the orientation is not the same, not add to pool
-		if (stage != 3 && mate->status == USED
-				&& (mate->rev_com != a->rev_comp)) {
+		if (mate->status == USED && (mate->rev_com != a->rev_comp)) {
 			n_counter_pairs++;
 			continue;
 		}
@@ -480,8 +472,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		// p_align(aligns);
 		maintain_pool(aligns, ht, cur_pool, eg, query, next, ori);
 		// If no read in current pool, try less stringent overlapped length and zero mismatches
-		if (stage != 3 && eg->len > insert_size - sd_insert_size
-				&& cur_pool->reads->len == 0) {
+		if (eg->len > insert_size - sd_insert_size && cur_pool->reads->len == 0) {
 			add_mates_by_ol(ht, eg, cur_pool, RELAX_MATE_OL_THRE,
 					SHORT_MISMATCH, query, ori);
 			reset_c(next, NULL); // Reset the counter
@@ -553,7 +544,7 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 	pair_extension(eg, ht, query, 1, tid);
 	show_debug_msg(__func__, "Edge after left extension: [%d, %d]\n", eg->id,
 			eg->len);
-	upd_reads(ht, eg, MISMATCHES, stage);
+	upd_reads(ht, eg, MISMATCHES);
 
 	show_debug_msg(__func__, "Second round: extending to the right... \n");
 	second_round_q = new_seq(eg->contig, query->len, eg->len - query->len);
@@ -566,7 +557,7 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 	second_round_q = new_seq(eg->contig, query->len, 0);
 	pair_extension(eg, ht, second_round_q, 1, tid);
 	if (eg->len - round_3_len > 2) {
-		upd_reads(ht, eg, MISMATCHES, stage);
+		upd_reads(ht, eg, MISMATCHES);
 	} else {
 		rev_reads_pos(eg);
 	}
@@ -809,14 +800,8 @@ static void *pe_lib_thread(void *data) {
 			query->status = USED;
 			continue;
 		}
-		if (stage == 3) {
-			if (query->status == USED) {
-				continue;
-			}
-		} else {
-			if (query->status != FRESH) {
-				continue;
-			}
+		if (query->status != FRESH) {
+			continue;
 		}
 		query->status = TRIED;
 		if (*n_used_reads > d->ht->n_seqs * d->stop_thre)
@@ -959,8 +944,8 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	hash_table *ht = NULL;
 	bwa_seq_t *seqs = NULL;
 	FILE *solid = NULL, *raw = NULL;
-	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_used_reads = 0,
-			n_unit = 10, n_rep = 0;
+	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_used_reads = 0, n_unit =
+			10, n_rep = 0;
 	double unit_perc = 0.1, max_perc = 0.95, perc_thre = 0;
 	GPtrArray *all_edges = NULL;
 	readarray *solid_reads = NULL;
@@ -995,9 +980,8 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		max_perc = i * unit_perc;
 		if (i * unit_perc > max_perc)
 			perc_thre = max_perc;
-		run_threads(all_edges, solid_reads, ht, &n_paired_reads,
-				&n_used_reads, 0, solid_reads->len / 2, n_per_threads,
-				unit_perc * i);
+		run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_used_reads,
+				0, solid_reads->len / 2, n_per_threads, unit_perc * i);
 		show_msg(__func__, "Shrinking the hash table... \n");
 		erase_reads_on_ht(ht);
 		shrink_ht(ht);
@@ -1027,7 +1011,6 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	free(name);
 	fclose(raw);
 
-	stage = 3;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 2/2: Trying to assembly unpaired reads... \n");
 	c_opt = init_clean_opt();
@@ -1062,7 +1045,6 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	free(name);
 	fclose(raw);
 
-	stage = 3;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 2/2: Trying to assembly unpaired reads... \n");
 	c_opt = init_clean_opt();

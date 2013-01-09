@@ -687,8 +687,7 @@ void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 	}
 }
 
-void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches,
-		const int stage) {
+void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
 	int i = 0, index = 0, j = 0;
 	bwa_seq_t *read = NULL, *query = NULL, *seqs = NULL, *mate = NULL;
 	alignarray *aligns = NULL;
@@ -712,11 +711,6 @@ void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches,
 	while (eg->pairs->len > 0) {
 		g_ptr_array_remove_index_fast(eg->pairs, 0);
 	}
-	if (stage == 3) {
-		while (eg->reads->len > 0) {
-			g_ptr_array_remove_index_fast(eg->reads, 0);
-		}
-	}
 	//show_debug_msg(__func__, "Aligning ... \n");
 	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
 	//p_ctg_seq("CONTIG", eg->contig);
@@ -733,12 +727,9 @@ void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches,
 			if (index >= ht->n_seqs)
 				continue;
 			read = &seqs[index];
-			if (read->contig_id == eg->id || stage == 3) {
+			if (read->contig_id == eg->id) {
 				read->status = TRIED;
 				read->shift = i;
-			}
-			if (stage == 3) {
-				g_ptr_array_add(eg->reads, read);
 			}
 		}
 		bwa_free_read_seq(1, query);
@@ -766,9 +757,9 @@ void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches,
 	//show_debug_msg("AFTER", "There are %d => %d reads \n", eg->reads->len, eg->pairs->len);
 }
 
-void upd_reads(const hash_table *ht, edge *eg, const int mismatches, const int stage) {
+void upd_reads(const hash_table *ht, edge *eg, const int mismatches) {
 	if (eg->reads->len >= UPD_READS_THRE) {
-		upd_reads_by_ht(ht, eg, mismatches, stage);
+		upd_reads_by_ht(ht, eg, mismatches);
 	} else {
 		upd_reads_by_ol(ht->seqs, eg, mismatches);
 	}
