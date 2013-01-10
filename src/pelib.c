@@ -96,8 +96,8 @@ void keep_mates_in_pool(edge *eg, pool *cur_pool, const hash_table *ht,
 					|| eg->id != mate->contig_id) {
 				to_remove = 1;
 			} else { // If the distance is not within range, remove 'read'
-				if (abs(eg->len - mate->shift)
-						> (insert_size + sd_insert_size * SD_TIMES)) {
+				if (abs(eg->len - mate->shift) > (insert_size + sd_insert_size
+						* SD_TIMES)) {
 					to_remove = 1;
 				}
 			}
@@ -133,8 +133,7 @@ pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori) {
 		if (is_paired(s, ori))
 			continue;
 		// If the insert size is not in the range
-		if (abs(eg->len - s->shift)
-				> (insert_size + sd_insert_size * SD_TIMES)) {
+		if (abs(eg->len - s->shift) > (insert_size + sd_insert_size * SD_TIMES)) {
 			continue;
 		}
 		// If the mate is already in use, either by current or another thread
@@ -142,8 +141,8 @@ pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori) {
 			continue;
 		// If the used read is used by another thread;
 		//	or the mate has been used by this template before.
-		if (!(s->status == TRIED && s->contig_id == eg->id)
-				|| (mate->status == TRIED && mate->contig_id == eg->id))
+		if (!(s->status == TRIED && s->contig_id == eg->id) || (mate->status
+				== TRIED && mate->contig_id == eg->id))
 			continue;
 		mate->rev_com = s->rev_com;
 		mate_pool_add(mate_pool, mate, eg->tid);
@@ -190,8 +189,8 @@ void add_mates_by_ol(const hash_table *ht, edge *eg, pool *cur_pool,
 		tmp = mate;
 		if (mate->rev_com)
 			tmp = new_mem_rev_seq(mate, mate->len, 0);
-		overlapped = find_ol_within_k(tmp, template, nm, ol - 1, query->len - 1,
-				ori);
+		overlapped = find_ol_within_k(tmp, template, nm, ol - 1,
+				query->len - 1, ori);
 		/*if (strcmp(mate->name, "2460877") == 0) {
 		 show_debug_msg("ORI", "ORI: %d \n", ori);
 		 p_ctg_seq("QUERY", query);
@@ -234,18 +233,16 @@ void check_next_char(pool *cur_pool, edge *eg, int *next, const int ori) {
 		// Only if read's last character is some as the contig's character, count it.
 		if (s->rev_com) {
 			if (check_pre) {
-				if (pre_pos >= 0 && pre_pos < s->len
-						&& s->rseq[pre_pos]
-								== eg->contig->seq[eg->contig->len - 1])
+				if (pre_pos >= 0 && pre_pos < s->len && s->rseq[pre_pos]
+						== eg->contig->seq[eg->contig->len - 1])
 					check_c(next, s->rseq[s->cursor]);
 			} else {
 				check_c(next, s->rseq[s->cursor]);
 			}
 		} else {
 			if (check_pre) {
-				if (pre_pos >= 0 && pre_pos < s->len
-						&& s->seq[pre_pos]
-								== eg->contig->seq[eg->contig->len - 1])
+				if (pre_pos >= 0 && pre_pos < s->len && s->seq[pre_pos]
+						== eg->contig->seq[eg->contig->len - 1])
 					check_c(next, s->seq[s->cursor]);
 			} else {
 				check_c(next, s->seq[s->cursor]);
@@ -274,8 +271,8 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		pre_cursor = s->cursor;
 
 		if (s->is_in_c_pool || (s->is_in_m_pool && s->is_in_m_pool != eg->tid)
-				|| s->status == USED
-				|| (s->status == TRIED && s->contig_id == eg->id))
+				|| s->status == USED || (s->status == TRIED && s->contig_id
+				== eg->id))
 			continue;
 
 		if (mate->status == TRIED && mate->contig_id == eg->id) {
@@ -285,8 +282,8 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		s->rev_com = a->rev_comp;
 		mate->rev_com = s->rev_com;
 		if (s->rev_com)
-			s->cursor =
-					ori ? (s->len - query->len - 1 - a->pos) : (s->len - a->pos);
+			s->cursor = ori ? (s->len - query->len - 1 - a->pos) : (s->len
+					- a->pos);
 		else
 			s->cursor = ori ? (a->pos - 1) : (a->pos + query->len);
 
@@ -358,8 +355,8 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
 		else
 			s->cursor = ori ? (a->pos - 1) : (a->pos + s->len);
 		// p_query(__func__, s);
-		if (s->contig_id == INVALID_CONTIG_ID || s->status == USED
-				|| s->cursor < -1 || s->cursor > s->len || s->is_in_c_pool
+		if (s->contig_id == INVALID_CONTIG_ID || s->status == USED || s->cursor
+				< -1 || s->cursor > s->len || s->is_in_c_pool
 				|| s->is_in_m_pool) {
 			s->cursor = 0;
 			continue;
@@ -474,8 +471,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		// p_align(aligns);
 		maintain_pool(aligns, ht, cur_pool, eg, query, next, ori);
 		// If no read in current pool, try less stringent overlapped length and zero mismatches
-		if (eg->len > insert_size - sd_insert_size
-				&& cur_pool->reads->len == 0) {
+		if (eg->len > insert_size - sd_insert_size && cur_pool->reads->len == 0) {
 			add_mates_by_ol(ht, eg, cur_pool, RELAX_MATE_OL_THRE,
 					SHORT_MISMATCH, query, ori);
 			reset_c(next, NULL); // Reset the counter
@@ -527,8 +523,8 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 	ubyte_t *rev = NULL;
 
 	init_pool = get_start_pool(ht, query, 0, 0);
-	if (!init_pool || init_pool->n == 0
-			|| bases_sup_branches(init_pool, 0, STRICT_BASES_SUP_THRE)) {
+	if (!init_pool || init_pool->n == 0 || bases_sup_branches(init_pool, 0,
+			STRICT_BASES_SUP_THRE)) {
 		show_msg(__func__, "Read %s may be in junction area, skip. \n",
 				query->name);
 		query->status = TRIED;
@@ -667,13 +663,15 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 		int *n_paired_reads, int *n_used_reads) {
 	if (eg) {
 		// keep_pairs_only(eg, ht->seqs);
-		if (eg->len < insert_size
-				&& eg->reads->len * ht->seqs->len < eg->len * 10) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
-			show_msg(__func__,
+		if (eg->len < insert_size && eg->reads->len * ht->seqs->len < eg->len
+				* 10) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
+			show_msg(
+					__func__,
 					"ABANDONED [%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
-			show_debug_msg(__func__,
+			show_debug_msg(
+					__func__,
 					"ABANDONED [%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
@@ -689,11 +687,13 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 			*n_used_reads += eg->reads->len;
 			g_ptr_array_add(all_edges, eg);
 			g_mutex_unlock(sum_mutex);
-			show_msg(__func__,
+			show_msg(
+					__func__,
 					"[%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
-			show_debug_msg(__func__,
+			show_debug_msg(
+					__func__,
 					"[%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
@@ -716,7 +716,8 @@ void clean_edges(const hash_table *ht, edgearray *all_edges) {
 				i--;
 		}
 	}
-	show_msg(__func__, "Removed not alive edges %d to %d \n", n_ori, all_edges->len);
+	show_msg(__func__, "Removed not alive edges %d to %d \n", n_ori,
+			all_edges->len);
 }
 
 typedef struct {
@@ -767,8 +768,9 @@ static void *pe_lib_thread(void *data) {
 	pre_n_single = *n_used_reads;
 	for (i = d->start; i < d->end; i++) {
 		if (i % 1000 == 0) {
-			show_msg(__func__, "Progress [start, now, end]: [%d, %d, %d]... \n",
-					d->start, i, d->end);
+			show_msg(__func__,
+					"Progress [start, now, end]: [%d, %d, %d]... \n", d->start,
+					i, d->end);
 		}
 		if (*n_used_reads > pre_n_single + 10000) {
 			show_msg(__func__,
@@ -843,7 +845,7 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	free(data);
 }
 
-void post_process_edges(const hash_table *ht, edgearray *all_edges) {
+void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	edgearray *final_paths = NULL;
 	FILE *pair_contigs = NULL;
 	FILE *merged_pair_contigs = NULL;
@@ -909,15 +911,15 @@ void post_process_edges(const hash_table *ht, edgearray *all_edges) {
 	name = get_output_file("peta.fa");
 	save_paths(final_paths, name, 100);
 
-	show_msg(__func__, "Saving finished: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	show_msg(__func__, "Saving finished: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
 
 	free(name);
 	fclose(pair_contigs);
 	fclose(merged_pair_contigs);
 	g_ptr_array_free(all_edges, TRUE);
-	show_msg(__func__, "Post processing finished: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	show_msg(__func__, "Post processing finished: %.2f sec\n", (float) (clock()
+			- t) / CLOCKS_PER_SEC);
 }
 
 readarray *load_solid_reads(const char *solid_fn, bwa_seq_t *seqs,
@@ -945,7 +947,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	FILE *raw = NULL;
 	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_used_reads = 0, n_unit =
 			10, n_rep = 0;
-	double unit_perc = 0.1, max_perc = 0.95;
+	double unit_perc = 0.1, max_perc = 0;
 	GPtrArray *all_edges = NULL;
 	readarray *solid_reads = NULL;
 	char *name = NULL;
@@ -969,16 +971,18 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	//save_unpaired_seqs("../SRR027876_out/clean2.fa", ht->seqs, ht->n_seqs);
 
 	solid_reads = load_solid_reads(solid_file, seqs, ht->n_seqs);
-	show_msg(__func__, "Solid reads loaded: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	show_msg(__func__, "Solid reads loaded: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
 
-	n_per_threads = solid_reads->len / n_threads / 2;
+	n_per_threads = solid_reads->len / n_threads;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 1/2: Trying to use up the paired reads... \n");
 	for (i = 1; i <= n_unit; i++) {
 		max_perc = i * unit_perc;
+		if (max_perc >= STOP_THRE_STAGE_1)
+			max_perc = STOP_THRE_STAGE_1;
 		run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_used_reads,
-				0, solid_reads->len / 2, n_per_threads, unit_perc * i);
+				0, solid_reads->len, n_per_threads, max_perc);
 		show_msg(__func__, "Shrinking the hash table... \n");
 		erase_reads_on_ht(ht);
 		shrink_ht(ht);
@@ -987,21 +991,20 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 		if (i * unit_perc > max_perc)
 			break;
 	}
-	show_msg(__func__, "Stage 1 finished: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	show_msg(__func__, "Stage 1 finished: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
 
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 2/2: Trying to assembly unpaired reads... \n");
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
-	c_opt->stop_thre = 0.4;
 	g_ptr_array_free(solid_reads, TRUE);
-	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
-			1, 0);
+	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt, (ht->n_seqs
+			- n_used_reads) / 10, 1, 0);
 	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_used_reads, 0,
-			solid_reads->len, n_per_threads, 1);
-	show_msg(__func__, "Stage 2 finished: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+			solid_reads->len, n_per_threads, STOP_THRE_STAGE_2);
+	show_msg(__func__, "Stage 2 finished: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
 	free(c_opt);
 
 	name = get_output_file("raw.fa");
@@ -1066,7 +1069,7 @@ int pe_lib(int argc, char *argv[]) {
 	} else {
 		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
 	}
-	show_msg(__func__, "Done: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	show_msg(__func__, "Done: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
 	return 0;
 }
