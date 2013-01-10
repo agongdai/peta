@@ -121,33 +121,28 @@ int pick_within_range(bwa_seq_t *read, counter *counter, uint16_t *kmer_list,
  */
 void set_k_freq(bwa_seq_t *read, counter *k_count, uint16_t *kmer_list,
 		const int k) {
-	int j = 0, key = 0;
-	//	int i = 0;
-	//	double counted_len = read->len - 2 * opt->kmer;
-	//	double *base_counter = (double*) calloc(read->len + 1, sizeof(double));
-	//	double *part_base = (double*) calloc(counted_len + 1, sizeof(double));
-	for (j = 0; j <= read->len - k; j++) {
-		key = get_key(read, j, j + k);
+	hash_key key = 0;
+	int i = 0;
+	double counted_len = read->len - k;
+	double *base_counter = (double*) calloc(read->len - k + 1, sizeof(double));
+	for (i = 0; i <= read->len - k; i++) {
+		key = get_key(read, i, i + k);
 		k_count->k_freq += kmer_list[key];
 	}
-	//	for (i = 0; i <= read->len - opt->kmer; i++) {
-	//		key = get_key(read, i, i + opt->kmer);
-	//		for (j = i; j < opt->kmer + i; j++) {
-	//			base_counter[j] += kmer_list[key];
-	//		}
-	//	}
-	//	memcpy(part_base, &base_counter[opt->kmer], counted_len * sizeof(double));
-	//	k_count->k_mean = mean(part_base, counted_len);
-	//	k_count->k_sd = std_dev(part_base, counted_len);
-	//	free(part_base);
-	//	free(base_counter);
+	for (i = 0; i <= read->len - k; i++) {
+		key = get_key(read, i, i + k);
+		base_counter[i] = kmer_list[key];
+	}
+	k_count->k_mean = mean(base_counter, counted_len);
+	k_count->k_sd = std_dev(base_counter, counted_len);
+	free(base_counter);
 }
 
 GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 		const int n_needed, const int by_coverage, const int rm_low_kmer) {
 	int i = 0, j = 0;
-	int n_dup = 0, n_bad = 0, n_solid = 0, n_rep = 0, n_has_n = 0, try_times =
-			0;
+	int n_dup = 0, n_bad = 0, n_solid = 0, n_rep = 0, n_has_n = 0,
+			try_times = 0;
 	uint32_t n_kmers = 0;
 	uint16_t *kmer_list;
 	counter *k_count = NULL, *counter_pre = NULL, *counter_list = NULL,
@@ -229,7 +224,8 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 		}
 	}
 	show_debug_msg(__func__,
-			"Removed %d repetitive reads, %d low k-mer reads. \n", n_rep, n_bad);
+			"Removed %d repetitive reads, %d low k-mer reads. \n", n_rep,
+			n_bad);
 
 	// Sort the counters
 	show_debug_msg(__func__, "Sorting reads by k_freq: %.2f sec...\n",
@@ -284,18 +280,20 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 					k_count->checked = 4;
 					g_ptr_array_add(solid_reads, s);
 				}
-			} else { // @Desperated
-				if (pick_within_range(s, k_count, kmer_list, opt, UNEVEN_THRE
-						* j)) {
+			} else {
+				if (pick_within_range(s, k_count, kmer_list, opt,
+						UNEVEN_THRE * j)) {
 					n_solid++;
 					k_count->checked = 4;
 					g_ptr_array_add(solid_reads, s);
+					if (n_solid >= n_needed)
+						break;
 				}
 			}
 		}
 	}
-	show_debug_msg(__func__, "Cleaning done: %.2f.\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
+	show_debug_msg(__func__, "Cleaning done: %.2f.\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	show_debug_msg(__func__, "%d solid reads remained.\n", n_solid);
 	free(kmer_list);
 	free(counter_list);
@@ -318,7 +316,7 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 	sprintf(solid, "%s.solid", opt->lib_name);
 	solid_file = xopen(solid, "w");
 	solid_reads = calc_solid_reads(seqs, n_seqs, opt, n_seqs * opt->stop_thre,
-			1, 1);
+			0, 1);
 	for (i = 0; i < solid_reads->len; i++) {
 		s = g_ptr_array_index(solid_reads, i);
 		sprintf(item, "%s\n", s->name);
@@ -360,7 +358,7 @@ int clean_reads(int argc, char *argv[]) {
 
 	pe_clean_core(argv[optind], opt);
 	free(opt);
-	fprintf(stderr, "[clean_reads] Cleaning done: %.2f sec\n", (float) (clock()
-			- t) / CLOCKS_PER_SEC);
+	fprintf(stderr, "[clean_reads] Cleaning done: %.2f sec\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return 0;
 }
