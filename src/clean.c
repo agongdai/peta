@@ -292,9 +292,9 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 			}
 		}
 	}
+	show_debug_msg(__func__, "%d solid reads remained.\n", n_solid);
 	show_debug_msg(__func__, "Cleaning done: %.2f.\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
-	show_debug_msg(__func__, "%d solid reads remained.\n", n_solid);
 	free(kmer_list);
 	free(counter_list);
 	return solid_reads;
