@@ -169,8 +169,9 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
-		if (s->status != FRESH)
+		if (s->status != FRESH) {
 			continue;
+		}
 		k_count = &counter_list[i];
 		k_count->read_id = atoi(s->name);
 		k_count->checked = 0;
@@ -182,6 +183,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 		set_kmer_index(s, opt->kmer, kmer_list);
 	}
 
+	show_debug_msg(__func__, "At most %d reads are being targeted. \n", n_needed);
 	show_debug_msg(__func__, "%d reads with 'N' removed: %.2f sec...\n",
 			n_has_n, (float) (clock() - t) / CLOCKS_PER_SEC);
 
@@ -259,7 +261,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 	solid_reads = g_ptr_array_sized_new(16384);
 	j = 0;
 	try_times = by_coverage ? 1 : MAX_TIME;
-	while (++j <= try_times && n_needed > n_solid) {
+	while (++j <= try_times && n_needed >= n_solid) {
 		// For low sd range, there are only few reads are solid
 		// Here is to avoid unnecessary loops on the reads.
 		show_debug_msg(__func__,

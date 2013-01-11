@@ -6,9 +6,9 @@
 
 #define MAX_N16			4294967295
 #define LOW_KMER		2
-#define UNEVEN_THRE		2
+#define UNEVEN_THRE		1
 #define LOW_RANGE		1.2
-#define MAX_TIME		32
+#define MAX_TIME		64
 #define SOLID_PERCERN	0.15
 
 typedef struct {

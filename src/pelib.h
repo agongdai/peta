@@ -10,8 +10,8 @@
 #define SINGLE_EDGE_THRE		150
 #define N_BIG_MATE_POOL			1000
 #define CORRECT_COUNTERS_THRE	10000
-#define STOP_THRE_STAGE_1		0.98
-#define STOP_THRE_STAGE_2		0.999
+#define STOP_THRE_STAGE_1		0.95
+#define STOP_THRE_STAGE_2		0.98
 
 int pe_lib(int argc, char *argv[]);
 
