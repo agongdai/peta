@@ -801,7 +801,7 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	thread_aux_t *data = NULL;
 	bwa_seq_t *query = NULL;
 	GThreadPool *thread_pool = NULL;
-	int i = 0;
+	int i = 0, j = 0, block_start = 0;
 	data = (thread_aux_t*) calloc(1, sizeof(thread_aux_t));
 	data->all_edges = all_edges;
 	data->ht = ht;
@@ -815,7 +815,16 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 		err_fatal(__func__, "Failed to start the thread pool. \n");
 	}
 	// solid_reads->len
-	for (i = 0; i < solid_reads->len; i++) {
+	while (block_start + JUMP_UNIT * n_threads < solid_reads->len) {
+		for (i = 0; i < JUMP_UNIT; i++) {
+			for (j = 0; j < n_threads; j++) {
+				query = g_ptr_array_index(solid_reads, block_start + i + JUMP_UNIT * j);
+				g_thread_pool_push(thread_pool, (gpointer) query, NULL);
+			}
+		}
+		block_start += JUMP_UNIT * n_threads;
+	}
+	for (i = block_start; i < solid_reads->len; i++) {
 		query = g_ptr_array_index(solid_reads, i);
 		g_thread_pool_push(thread_pool, (gpointer) query, NULL);
 	}
@@ -853,6 +862,11 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	free(ht->pos);
 	ht->k_mers_occ_acc = NULL;
 	ht->pos = NULL;
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		set_rev_com(eg->contig);
+		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_read_by_name);
+	}
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
 	merge_ol_edges(all_edges, insert_size, ht, n_threads);
 	name = get_output_file("merged_pair_contigs.fa");
@@ -863,11 +877,6 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	show_msg(__func__, "Template merging finished: %.2f sec\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 
-	for (i = 0; i < all_edges->len; i++) {
-		eg = g_ptr_array_index(all_edges, i);
-		set_rev_com(eg->contig);
-		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_read_by_name);
-	}
 	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
 	name = get_output_file("roadmap.graph");
@@ -924,7 +933,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	bwa_seq_t *seqs = NULL;
 	FILE *raw = NULL;
 	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_used_reads = 0, n_unit =
-			10, n_rep = 0;
+			20, n_rep = 0;
 	double unit_perc = 0.05, max_perc = 0;
 	GPtrArray *all_edges = NULL;
 	readarray *solid_reads = NULL;
@@ -986,7 +995,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	c_opt->stop_thre = 0.1;
 	g_ptr_array_free(solid_reads, TRUE);
 	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
-			(ht->n_seqs - n_used_reads) / 10, 1, 0);
+			(ht->n_seqs - n_paired_reads) / 10, 1, 0);
 	n_per_threads = (ht->n_seqs - n_used_reads) / 10;
 	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_used_reads,
 			n_per_threads, STOP_THRE_STAGE_2);
@@ -1001,7 +1010,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	free(name);
 	fclose(raw);
 
-	//post_process_edges(ht, all_edges);
+	post_process_edges(ht, all_edges);
 	g_ptr_array_free(solid_reads, TRUE);
 	destroy_ht(ht);
 }

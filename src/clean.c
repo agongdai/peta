@@ -169,7 +169,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
-		if (s->status != FRESH) {
+		if (s->status != FRESH && s->status != TRIED) {
 			continue;
 		}
 		k_count = &counter_list[i];
@@ -193,7 +193,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
-		if (s->status != FRESH)
+		if (s->status != FRESH && s->status != TRIED)
 			continue;
 		k_count = &counter_list[i];
 		if (k_count->checked) {
@@ -209,7 +209,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 	// Remove repetitive reads and those reads having low frequency kmers.
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
-		if (s->status != FRESH)
+		if (s->status != FRESH && s->status != TRIED)
 			continue;
 		k_count = &counter_list[i];
 		if (k_count->checked) {
@@ -243,7 +243,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 	for (i = 1; i < n_seqs; i++) {
 		k_count = &sorted_counters[i];
 		s = &seqs[k_count->read_id];
-		if (s->status != FRESH)
+		if (s->status != FRESH && s->status != TRIED)
 			continue;
 		if (k_count->k_freq == counter_pre->k_freq && same_q(s, s_unique)) {
 			k_count->checked = 3;
@@ -272,7 +272,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 			if (k_count->checked)
 				continue;
 			s = &seqs[k_count->read_id];
-			if (s->status != FRESH)
+			if (s->status != FRESH && s->status != TRIED)
 				continue;
 			if (by_coverage) {
 				if (n_solid > n_seqs * opt->stop_thre) {
@@ -288,10 +288,10 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 					n_solid++;
 					k_count->checked = 4;
 					g_ptr_array_add(solid_reads, s);
-					if (n_solid >= n_needed)
-						break;
 				}
 			}
+			if (n_solid >= n_needed)
+				break;
 		}
 	}
 	show_debug_msg(__func__, "%d solid reads remained.\n", n_solid);
