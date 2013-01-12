@@ -992,10 +992,10 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "Stage 2/2: Trying to assembly unpaired reads... \n");
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
-	c_opt->stop_thre = 0.1;
+	c_opt->stop_thre = 0.25;
 	g_ptr_array_free(solid_reads, TRUE);
 	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
-			(ht->n_seqs - n_paired_reads) / 10, 1, 0);
+			(ht->n_seqs - n_paired_reads) / 10, 0, 0);
 	n_per_threads = (ht->n_seqs - n_used_reads) / 10;
 	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_used_reads,
 			n_per_threads, STOP_THRE_STAGE_2);
