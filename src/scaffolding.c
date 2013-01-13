@@ -401,7 +401,7 @@ GPtrArray *short_ol_edges(GPtrArray *all_edges, edge *eg,
  *
  * In next round, edge 1 and 2 maybe exchanged
  */
-static void *merge_ol_edges_thread(void *data) {
+void *merge_ol_edges_thread(void *data) {
 	edge *eg_i = NULL, *eg_j = NULL;
 	int i = 0, j = 0, some_one_merged = 1, ol = 0, has_common_read = -1, nm = 0;
 	bwa_seq_t *seqs = NULL, *rev = NULL;
@@ -428,6 +428,7 @@ static void *merge_ol_edges_thread(void *data) {
 			edge_candidates = find_edges_ol(d->rht, eg_i->contig,
 					d->single_edges);
 			for (j = 0; j < edge_candidates->len; j++) {
+				bwa_free_read_seq(1, rev);
 				eg_j = g_ptr_array_index(edge_candidates, j);
 				if (paired_reads != NULL) {
 					g_ptr_array_free(paired_reads, TRUE);
@@ -457,15 +458,14 @@ static void *merge_ol_edges_thread(void *data) {
 						if (ol > d->insert_size|| paired_reads->len
 						>= MIN_VALID_PAIRS || abs(ol - eg_i->len)
 						<= EDGE_OL_THRE || abs(ol - eg_j->len)
-						<= EDGE_OL_THRE) {
-							g_mutex_lock(edge_mutex);
-							merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j, ol);
-							g_mutex_unlock(edge_mutex);
-							eg_i->visited = 0;
-							some_one_merged = 1;
-							g_ptr_array_free(paired_reads, TRUE);
-							paired_reads = NULL;
-							continue;
+						<= EDGE_OL_THRE) {g_mutex_lock(edge_mutex);
+						merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j, ol);
+						g_mutex_unlock(edge_mutex);
+						eg_i->visited = 0;
+						some_one_merged = 1;
+						g_ptr_array_free(paired_reads, TRUE);
+						paired_reads = NULL;
+						continue;
 					}
 				}
 			} else {
@@ -485,8 +485,8 @@ static void *merge_ol_edges_thread(void *data) {
 								<= EDGE_OL_THRE || abs(ol - eg_j->len)
 								<= EDGE_OL_THRE) {
 							g_mutex_lock(edge_mutex);
-							bwa_free_read_seq(1, eg_j->contig);
-							eg_j->contig = rev;
+							//bwa_free_read_seq(1, eg_j->contig);
+							eg_j->contig = new_seq(rev, rev->len, 0);
 							merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j,
 									ol);
 							g_mutex_unlock(edge_mutex);
@@ -494,12 +494,13 @@ static void *merge_ol_edges_thread(void *data) {
 							some_one_merged = 1;
 							g_ptr_array_free(paired_reads, TRUE);
 							paired_reads = NULL;
-							continue; // In case the 'rev' is freed accidently.
+							continue;// In case the 'rev' is freed accidently.
 						}
 					}
 				} else {
 					// <------------------
 					//             -------------->
+					bwa_free_read_seq(1, rev);
 					rev = new_mem_rev_seq(eg_i->contig, eg_i->contig->len,
 							0);
 					ol = find_ol(rev, eg_j->contig, MAX_EDGE_NM);
@@ -518,8 +519,8 @@ static void *merge_ol_edges_thread(void *data) {
 								//show_debug_msg(__func__, "Name: %s \n",
 								//		eg_i->contig->name);
 								//p_ctg_seq("Contig", eg_i->contig);
-								bwa_free_read_seq(1, eg_i->contig);
-								eg_i->contig = rev;
+								//bwa_free_read_seq(1, eg_i->contig);
+								eg_i->contig = new_seq(rev, rev->len, 0);
 								merge_two_ol_edges(d->rht, d->ht, eg_i,
 										eg_j, ol);
 								g_mutex_unlock(edge_mutex);
@@ -531,19 +532,13 @@ static void *merge_ol_edges_thread(void *data) {
 							}
 						}
 					}
-					if (eg_i->contig != rev) {
-						bwa_free_read_seq(1, rev);
-						rev = NULL;
-					}
 				}
 				if (paired_reads != NULL) {
 					g_ptr_array_free(paired_reads, TRUE);
 					paired_reads = NULL;
 				}
-				if (eg_j->contig != rev) {
-					bwa_free_read_seq(1, rev);
-					rev = NULL;
-				}
+				bwa_free_read_seq(1, rev);
+				rev = NULL;
 			}
 		}
 			eg_i->visited = 1;

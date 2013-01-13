@@ -781,17 +781,6 @@ void *pe_lib_thread(gpointer solid_read, gpointer data) {
 	query->status = TRIED;
 	eg = pe_ext(d->ht, query, tid);
 	validate_edge(d->all_edges, eg, d->ht, d->n_paired_reads, d->n_used_reads);
-//	if (*n_used_reads > pre_n_single + CORRECT_COUNTERS_THRE) {
-//		show_msg(__func__,
-//				"Correcting counters: [single: %d], [paired: %d]... \n",
-//				*n_used_reads, *n_paired_reads);
-//		g_mutex_unlock(sum_mutex);
-//		correct_used_numbers(ht, n_used_reads, n_paired_reads);
-//		g_mutex_unlock(sum_mutex);
-//		show_msg(__func__,
-//				"Corrected counters: [single: %d], [paired: %d]... \n",
-//				*n_used_reads, *n_paired_reads);
-//	}
 	return NULL;
 }
 
@@ -818,7 +807,8 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	while (block_start + JUMP_UNIT * n_threads < solid_reads->len) {
 		for (i = 0; i < JUMP_UNIT; i++) {
 			for (j = 0; j < n_threads; j++) {
-				query = g_ptr_array_index(solid_reads, block_start + i + JUMP_UNIT * j);
+				query = g_ptr_array_index(solid_reads,
+						block_start + i + JUMP_UNIT * j);
 				g_thread_pool_push(thread_pool, (gpointer) query, NULL);
 			}
 		}
@@ -927,16 +917,46 @@ readarray *load_solid_reads(const char *solid_fn, bwa_seq_t *seqs,
 	return solid_reads;
 }
 
+void consume_solid_reads(hash_table *ht, const double stop_thre, edgearray *all_edges,
+		const readarray *solid_reads, int *n_used_reads, int *n_paired_reads) {
+	double n_unit = N_SPLIT_UNIT, unit_perc = 0, max_perc = 0;
+	int i = 0, n_per_threads = 0;
+	clock_t t = clock();
+
+	n_per_threads = solid_reads->len / n_threads;
+	unit_perc = 1 / n_unit;
+	for (i = 1; i <= n_unit; i++) {
+		max_perc = i * unit_perc;
+		if (max_perc >= stop_thre)
+			max_perc = stop_thre;
+		run_threads(all_edges, solid_reads, ht, n_paired_reads, n_used_reads,
+				n_per_threads, max_perc);
+		show_msg(__func__, "Shrinking the hash table... \n");
+		erase_reads_on_ht(ht);
+		shrink_ht(ht);
+		show_msg(__func__, "Stage %d/%d finished %.2f: %.2f sec\n", i, n_unit,
+				i * unit_perc, (float) (clock() - t) / stop_thre);
+		show_msg(__func__,
+				"Correcting counters: [single: %d], [paired: %d]... \n",
+				*n_used_reads, *n_paired_reads);
+		correct_used_numbers(ht, n_used_reads, n_paired_reads);
+		show_msg(__func__,
+				"Corrected counters: [single: %d], [paired: %d]... \n",
+				*n_used_reads, *n_paired_reads);
+		if (*n_used_reads >= stop_thre * ht->n_seqs)
+			break;
+	}
+}
+
 void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	clock_t t = clock();
 	hash_table *ht = NULL;
 	bwa_seq_t *seqs = NULL;
 	FILE *raw = NULL;
-	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_used_reads = 0, n_rep = 0;
-	double n_unit = 0, unit_perc = 0.05, max_perc = 0;
+	int i = 0, n_paired_reads = 0, n_used_reads = 0, n_rep = 0;
+	double n_unit = 0, unit_perc = 0.1, max_perc = 0;
 	GPtrArray *all_edges = NULL;
 	readarray *solid_reads = NULL;
-	char *name = NULL;
 	clean_opt *c_opt = NULL;
 
 	show_msg(__func__, "Library: %s \n", lib_file);
@@ -960,31 +980,10 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "Solid reads loaded: %.2f sec\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 
-	n_per_threads = solid_reads->len / n_threads;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 1/2: Trying to use up the paired reads... \n");
-	n_unit = 1 / unit_perc;
-	for (i = 1; i <= n_unit; i++) {
-		max_perc = i * unit_perc;
-		if (max_perc >= STOP_THRE_STAGE_1)
-			max_perc = STOP_THRE_STAGE_1;
-		run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_used_reads,
-				n_per_threads, max_perc);
-		show_msg(__func__, "Shrinking the hash table... \n");
-		erase_reads_on_ht(ht);
-		shrink_ht(ht);
-		show_msg(__func__, "Stage 1 finished %.2f: %.2f sec\n", i * unit_perc,
-				(float) (clock() - t) / CLOCKS_PER_SEC);
-		show_msg(__func__,
-				"Correcting counters: [single: %d], [paired: %d]... \n",
-				n_used_reads, n_paired_reads);
-		correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
-		show_msg(__func__,
-				"Corrected counters: [single: %d], [paired: %d]... \n",
-				n_used_reads, n_paired_reads);
-		if (n_used_reads >= STOP_THRE_STAGE_1 * ht->n_seqs)
-			break;
-	}
+	consume_solid_reads(ht, STOP_THRE_STAGE_1, all_edges, solid_reads, &n_used_reads,
+			&n_paired_reads);
 	show_msg(__func__, "Stage 1 finished: %.2f sec\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 
@@ -996,20 +995,11 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	g_ptr_array_free(solid_reads, TRUE);
 	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
 			(ht->n_seqs - n_paired_reads) / 10, 0, 0);
-	n_per_threads = (ht->n_seqs - n_used_reads) / 10;
-	
-	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_used_reads,
-			n_per_threads, STOP_THRE_STAGE_2);
+	consume_solid_reads(ht, STOP_THRE_STAGE_2, all_edges, solid_reads, &n_used_reads,
+			&n_paired_reads);
+	free(c_opt);
 	show_msg(__func__, "Stage 2 finished: %.2f sec\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
-	free(c_opt);
-
-	name = get_output_file("raw.fa");
-	raw = xopen(name, "w");
-	save_edges(all_edges, raw, 0, 0, 100);
-	fflush(raw);
-	free(name);
-	fclose(raw);
 
 	post_process_edges(ht, all_edges);
 	g_ptr_array_free(solid_reads, TRUE);

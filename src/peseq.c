@@ -442,8 +442,10 @@ bwa_seq_t *blank_seq() {
 
 bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol,
 		const int shift) {
-	bwa_seq_t *p = new_seq(query, ol, shift);
-	ubyte_t *tmp = p->seq;
+	bwa_seq_t *p = NULL;
+	ubyte_t *tmp = NULL;
+	p = new_seq(query, ol, shift);
+	tmp = p->seq;
 	p->seq = p->rseq;
 	p->rseq = tmp;
 	return p;
