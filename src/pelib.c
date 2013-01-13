@@ -932,9 +932,8 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	hash_table *ht = NULL;
 	bwa_seq_t *seqs = NULL;
 	FILE *raw = NULL;
-	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_used_reads = 0, n_unit =
-			20, n_rep = 0;
-	double unit_perc = 0.05, max_perc = 0;
+	int i = 0, n_paired_reads = 0, n_per_threads = 0, n_used_reads = 0, n_rep = 0;
+	double n_unit = 0, unit_perc = 0.05, max_perc = 0;
 	GPtrArray *all_edges = NULL;
 	readarray *solid_reads = NULL;
 	char *name = NULL;
@@ -964,6 +963,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	n_per_threads = solid_reads->len / n_threads;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 1/2: Trying to use up the paired reads... \n");
+	n_unit = 1 / unit_perc;
 	for (i = 1; i <= n_unit; i++) {
 		max_perc = i * unit_perc;
 		if (max_perc >= STOP_THRE_STAGE_1)
@@ -997,6 +997,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
 			(ht->n_seqs - n_paired_reads) / 10, 0, 0);
 	n_per_threads = (ht->n_seqs - n_used_reads) / 10;
+	
 	run_threads(all_edges, solid_reads, ht, &n_paired_reads, &n_used_reads,
 			n_per_threads, STOP_THRE_STAGE_2);
 	show_msg(__func__, "Stage 2 finished: %.2f sec\n",
