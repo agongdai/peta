@@ -298,8 +298,8 @@ void *iterate_seqs(void *data) {
 		s = &seqs[k_count->read_id];
 		if (s->status != FRESH && s->status != TRIED)
 			continue;
-		if (pick_within_range(s, k_count, d->kmer_list, d->opt,
-				UNEVEN_THRE * d->n_iterate)) {
+		if (pick_within_range(s, k_count, d->kmer_list, d->opt, UNEVEN_THRE
+				* d->n_iterate)) {
 			k_count->checked = 4;
 			g_mutex_lock(counter_mutex);
 			*n_solid += 1;
@@ -443,8 +443,8 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 	}
 	clock_gettime(CLOCK_MONOTONIC, &finish);
 	show_debug_msg(__func__, "%d solid reads remained.\n", n_solid);
-	show_debug_msg(__func__, "Cleaning done: %.2f.\n",
-			(float) (finish.tv_sec - start.tv_sec));
+	show_debug_msg(__func__, "Cleaning done: %.2f.\n", (float) (finish.tv_sec
+			- start.tv_sec));
 	free(kmer_list);
 	free(counter_list);
 	return solid_reads;

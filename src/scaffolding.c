@@ -335,7 +335,7 @@ static void *scaffolding_thread(void *data) {
 }
 
 void scaffolding(edgearray *single_edges, const int insert_size,
-		const hash_table *ht, const int n_threads) {
+		hash_table *ht, const int n_threads) {
 	int n_per_threads = 0, i = 0;
 	scaffolding_paras_t *data;
 	GThread *threads[n_threads];
@@ -403,12 +403,11 @@ GPtrArray *short_ol_edges(GPtrArray *all_edges, edge *eg,
  */
 void *merge_ol_edges_thread(void *data) {
 	edge *eg_i = NULL, *eg_j = NULL;
-	int i = 0, j = 0, some_one_merged = 1, ol = 0, has_common_read = -1, nm = 0;
+	int i = 0, j = 0, some_one_merged = 1, ol = 0, nm = 0;
 	bwa_seq_t *seqs = NULL, *rev = NULL;
 	readarray *paired_reads = NULL;
 	GPtrArray *edge_candidates = NULL;
 	int rl = 0;
-	clock_t t = clock();
 	scaffolding_paras_t *d = (scaffolding_paras_t*) data;
 
 	seqs = d->ht->seqs;
@@ -558,7 +557,6 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 	GThread *threads[n_threads];
 	edge *eg_i = NULL;
 	reads_ht *rht = NULL;
-	clock_t t = clock();
 
 	n_per_threads = single_edges->len / n_threads;
 	if (!edge_mutex)
@@ -599,8 +597,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 			i--;
 		}
 	}
-	show_msg(__func__, "Merged to %d templates: %.2f sec\n", single_edges->len,
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	show_msg(__func__, "Merged to %d templates.\n", single_edges->len);
 	destroy_reads_ht(rht);
 	free(data);
 }
