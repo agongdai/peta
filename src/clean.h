@@ -16,6 +16,7 @@ typedef struct {
 	int mode;
 	double stop_thre;
 	char *lib_name;
+	int n_threads;
 } clean_opt;
 
 typedef struct {
@@ -30,6 +31,31 @@ typedef struct {
 	double k_mean;
 	uint8_t checked;
 } counter;
+
+typedef struct {
+	uint32_t start;
+	uint32_t end;
+	int rm_low_kmer;
+	bwa_seq_t *seqs;
+	int n_seqs;
+	counter *counter_list;
+	uint16_t *kmer_list;
+	clean_opt *opt;
+} clean_thread_aux;
+
+typedef struct {
+	uint32_t start;
+	uint32_t end;
+	bwa_seq_t *seqs;
+	int n_seqs;
+	counter	*sorted_counters;
+	uint16_t *kmer_list;
+	int *n_solid;
+	int n_needed;
+	int n_iterate;
+	GPtrArray *solid_reads;
+	clean_opt *opt;
+} iterate_thread_aux;
 
 int clean_reads(int argc, char *argv[]);
 clean_opt *init_clean_opt();

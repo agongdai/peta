@@ -12,6 +12,8 @@
 #include "clean.h"
 #include "rnaseq.h"
 
+GMutex *counter_mutex;
+
 int clean_usage() {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Usage:   peta clean [options] \n");
@@ -33,6 +35,7 @@ clean_opt *init_clean_opt() {
 	o->kmer = 0;
 	o->lib_name = NULL;
 	o->mode = (BWA_MODE_GAPE | BWA_MODE_COMPREAD);
+	o->n_threads = 1;
 	return o;
 }
 
@@ -138,21 +141,228 @@ void set_k_freq(bwa_seq_t *read, counter *k_count, uint16_t *kmer_list,
 	free(base_counter);
 }
 
+void *set_k_freq_t(void *data) {
+	clean_thread_aux *d = (clean_thread_aux*) data;
+	bwa_seq_t *seqs = d->seqs, *s = NULL;
+	int i = 0;
+	counter *k_count = NULL, *counter_list = d->counter_list;
+
+	for (i = d->start; i < d->end; i++) {
+		s = &seqs[i];
+		if (s->status != FRESH && s->status != TRIED)
+			continue;
+		k_count = &counter_list[i];
+		if (k_count->checked) {
+			continue;
+		}
+		set_k_freq(s, k_count, d->kmer_list, d->opt->kmer);
+	}
+	return NULL;
+}
+
+void set_k_freq_threads(bwa_seq_t *seqs, const int n_seqs,
+		counter *counter_list, uint16_t *kmer_list, clean_opt *opt) {
+	int i = 0, n_per_threads = 0;
+	GThread *threads[opt->n_threads];
+	clean_thread_aux *data;
+
+	data = (clean_thread_aux*) calloc(opt->n_threads, sizeof(clean_thread_aux));
+	n_per_threads = n_seqs / opt->n_threads;
+	for (i = 0; i < opt->n_threads; ++i) {
+		data[i].seqs = seqs;
+		data[i].n_seqs = n_seqs;
+		data[i].counter_list = counter_list;
+		data[i].kmer_list = kmer_list;
+		data[i].opt = opt;
+		data[i].start = n_per_threads * i;
+		data[i].end = n_per_threads * (i + 1);
+		if (i == opt->n_threads - 1)
+			data[i].end = n_seqs;
+		threads[i] = g_thread_create((GThreadFunc) set_k_freq_t, data + i,
+				TRUE, NULL);
+	}
+	for (i = 0; i < opt->n_threads; ++i) {
+		g_thread_join(threads[i]);
+	}
+	free(data);
+}
+
+void *rm_rep_low(void *data) {
+	clean_thread_aux *d = (clean_thread_aux*) data;
+	bwa_seq_t *seqs = d->seqs, *s = NULL;
+	int i = 0;
+	counter *k_count, *counter_list = d->counter_list;
+	for (i = d->start; i < d->end; i++) {
+		s = &seqs[i];
+		if (s->status != FRESH && s->status != TRIED)
+			continue;
+		k_count = &counter_list[i];
+		if (k_count->checked) {
+			continue;
+		}
+		if (is_biased_q(s) || has_rep_pattern(s) || is_repetitive_q(s)) {
+			k_count->checked = 1;
+		} else {
+			if (d->rm_low_kmer && has_low_kmer(s, d->kmer_list, d->opt)) {
+				k_count->checked = 2;
+			}
+		}
+	}
+	return NULL;
+}
+
+void rm_rep_low_threads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
+		uint16_t *kmer_list, counter *counter_list, const int rm_low_kmer) {
+	int i = 0, n_per_threads = 0;
+	GThread *threads[opt->n_threads];
+	clean_thread_aux *data;
+
+	data = (clean_thread_aux*) calloc(opt->n_threads, sizeof(clean_thread_aux));
+	n_per_threads = n_seqs / opt->n_threads;
+	for (i = 0; i < opt->n_threads; ++i) {
+		data[i].seqs = seqs;
+		data[i].n_seqs = n_seqs;
+		data[i].rm_low_kmer = rm_low_kmer;
+		data[i].counter_list = counter_list;
+		data[i].kmer_list = kmer_list;
+		data[i].opt = opt;
+		data[i].start = n_per_threads * i;
+		data[i].end = n_per_threads * (i + 1);
+		if (i == opt->n_threads - 1)
+			data[i].end = n_seqs;
+		threads[i] = g_thread_create((GThreadFunc) rm_rep_low, data + i, TRUE,
+				NULL);
+	}
+	for (i = 0; i < opt->n_threads; ++i) {
+		g_thread_join(threads[i]);
+	}
+	free(data);
+}
+
+void *rm_dup(void *data) {
+	int i = 0;
+	iterate_thread_aux *d = (iterate_thread_aux*) data;
+	bwa_seq_t *seqs = d->seqs, *s = NULL, *s_unique = NULL;
+	counter *sorted_counters = d->sorted_counters, *k_count = NULL,
+			*counter_pre = sorted_counters;
+	s_unique = &seqs[d->start];
+	for (i = d->start; i < d->end; i++) {
+		k_count = &sorted_counters[i];
+		s = &seqs[k_count->read_id];
+		if (s->status != FRESH && s->status != TRIED)
+			continue;
+		if (k_count->k_freq == counter_pre->k_freq && same_q(s, s_unique)) {
+			k_count->checked = 3;
+		} else {
+			s_unique = s;
+		}
+		counter_pre = k_count;
+	}
+}
+
+void rm_dup_threads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
+		counter *sorted_counters) {
+	int i = 0, n_per_threads = 0;
+	GThread *threads[opt->n_threads];
+	iterate_thread_aux *data;
+
+	data = (iterate_thread_aux*) calloc(opt->n_threads,
+			sizeof(iterate_thread_aux));
+	n_per_threads = n_seqs / opt->n_threads;
+	for (i = 0; i < opt->n_threads; ++i) {
+		data[i].seqs = seqs;
+		data[i].n_seqs = n_seqs;
+		data[i].sorted_counters = sorted_counters;
+		data[i].start = n_per_threads * i;
+		data[i].end = n_per_threads * (i + 1);
+		if (i == opt->n_threads - 1)
+			data[i].end = n_seqs;
+		threads[i]
+				= g_thread_create((GThreadFunc) rm_dup, data + i, TRUE, NULL);
+	}
+	for (i = 0; i < opt->n_threads; ++i) {
+		g_thread_join(threads[i]);
+	}
+	free(data);
+}
+
+void *iterate_seqs(void *data) {
+	iterate_thread_aux *d = (iterate_thread_aux*) data;
+	int i = 0, *n_solid = d->n_solid;
+	counter *sorted_counters = d->sorted_counters, *k_count = NULL;
+	bwa_seq_t *seqs = d->seqs, *s = NULL;
+	for (i = d->start; i < d->end; i++) {
+		k_count = &sorted_counters[i];
+		if (k_count->checked)
+			continue;
+		s = &seqs[k_count->read_id];
+		if (s->status != FRESH && s->status != TRIED)
+			continue;
+		if (pick_within_range(s, k_count, d->kmer_list, d->opt,
+				UNEVEN_THRE * d->n_iterate)) {
+			k_count->checked = 4;
+			g_mutex_lock(counter_mutex);
+			*n_solid += 1;
+			g_ptr_array_add(d->solid_reads, s);
+			g_mutex_unlock(counter_mutex);
+		}
+		if (*n_solid >= d->n_needed)
+			break;
+	}
+}
+
+void iterate_seqs_threads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
+		counter *sorted_counters, uint16_t *kmer_list, int *n_solid,
+		int n_needed, GPtrArray *solid_reads, const int n_iterate) {
+	int i = 0, n_per_threads = 0;
+	GThread *threads[opt->n_threads];
+	iterate_thread_aux *data;
+
+	data = (iterate_thread_aux*) calloc(opt->n_threads,
+			sizeof(iterate_thread_aux));
+	n_per_threads = n_seqs / opt->n_threads;
+	for (i = 0; i < opt->n_threads; ++i) {
+		data[i].seqs = seqs;
+		data[i].n_seqs = n_seqs;
+		data[i].n_solid = n_solid;
+		data[i].n_needed = n_needed;
+		data[i].sorted_counters = sorted_counters;
+		data[i].kmer_list = kmer_list;
+		data[i].opt = opt;
+		data[i].start = n_per_threads * i;
+		data[i].end = n_per_threads * (i + 1);
+		data[i].n_iterate = n_iterate;
+		data[i].solid_reads = solid_reads;
+		if (i == opt->n_threads - 1)
+			data[i].end = n_seqs;
+		threads[i] = g_thread_create((GThreadFunc) iterate_seqs, data + i,
+				TRUE, NULL);
+	}
+	for (i = 0; i < opt->n_threads; ++i) {
+		g_thread_join(threads[i]);
+	}
+	free(data);
+}
+
 GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 		const int n_needed, const int by_coverage, const int rm_low_kmer) {
 	int i = 0, j = 0;
-	int n_dup = 0, n_bad = 0, n_solid = 0, n_rep = 0, n_has_n = 0,
-			try_times = 0;
+	int n_solid = 0, n_has_n = 0, try_times = 0;
 	uint32_t n_kmers = 0;
 	uint16_t *kmer_list;
-	counter *k_count = NULL, *counter_pre = NULL, *counter_list = NULL,
-			*sorted_counters = NULL;
+	counter *k_count = NULL, *counter_list = NULL, *sorted_counters = NULL;
 	GPtrArray *solid_reads = NULL;
-	bwa_seq_t *s = NULL, *s_unique = NULL;
-	clock_t t = clock();
+	bwa_seq_t *s = NULL;
+	struct timespec start, finish;
 	// Each counter corresponds to a read.
 	// It contains the kmer frequencies.
 	counter_list = (counter*) calloc(n_seqs, sizeof(counter));
+
+	if (!g_thread_supported())
+		g_thread_init(NULL);
+	if (!counter_mutex)
+		counter_mutex = g_mutex_new();
+	clock_gettime(CLOCK_MONOTONIC, &start);
 
 	n_kmers = (1 << (opt->kmer * 2)) + 1;
 	if (opt->kmer >= 16)
@@ -165,8 +375,9 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 	}
 
 	// For every kmer in the read, count it and store it in kmer_list
+	clock_gettime(CLOCK_MONOTONIC, &finish);
 	show_debug_msg(__func__, "Calculating k-mer frequency: %.2f sec...\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+			(float) (finish.tv_sec - start.tv_sec));
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
 		if (s->status != FRESH && s->status != TRIED) {
@@ -183,120 +394,57 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 		set_kmer_index(s, opt->kmer, kmer_list);
 	}
 
-	show_debug_msg(__func__, "At most %d reads are being targeted. \n", n_needed);
+	show_debug_msg(__func__, "At most %d reads are being targeted. \n",
+			n_needed);
+	clock_gettime(CLOCK_MONOTONIC, &finish);
 	show_debug_msg(__func__, "%d reads with 'N' removed: %.2f sec...\n",
-			n_has_n, (float) (clock() - t) / CLOCKS_PER_SEC);
+			n_has_n, (float) (finish.tv_sec - start.tv_sec));
 
 	// Calculate the mean and standard deviation of k_freq
 	show_debug_msg(__func__,
 			"Counting the k-mer frequencies of reads: %.2f sec...\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
-	for (i = 0; i < n_seqs; i++) {
-		s = &seqs[i];
-		if (s->status != FRESH && s->status != TRIED)
-			continue;
-		k_count = &counter_list[i];
-		if (k_count->checked) {
-			continue;
-		}
-		set_k_freq(s, k_count, kmer_list, opt->kmer);
-	}
+			(float) (finish.tv_sec - start.tv_sec));
+	set_k_freq_threads(seqs, n_seqs, counter_list, kmer_list, opt);
 
+	clock_gettime(CLOCK_MONOTONIC, &finish);
 	show_debug_msg(__func__,
 			"Removing repetitive and low k-mer frequency reads: %.2f sec...\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
-
+			(float) (finish.tv_sec - start.tv_sec));
 	// Remove repetitive reads and those reads having low frequency kmers.
-	for (i = 0; i < n_seqs; i++) {
-		s = &seqs[i];
-		if (s->status != FRESH && s->status != TRIED)
-			continue;
-		k_count = &counter_list[i];
-		if (k_count->checked) {
-			continue;
-		}
-		if (is_biased_q(s) || has_rep_pattern(s) || is_repetitive_q(s)) {
-			n_rep++;
-			k_count->checked = 1;
-		} else {
-			if (rm_low_kmer && has_low_kmer(s, kmer_list, opt)) {
-				k_count->checked = 2;
-				n_bad++;
-			}
-		}
-	}
-	show_debug_msg(__func__,
-			"Removed %d repetitive reads, %d low k-mer reads. \n", n_rep,
-			n_bad);
+	rm_rep_low_threads(seqs, n_seqs, opt, kmer_list, counter_list, rm_low_kmer);
 
 	// Sort the counters
+	clock_gettime(CLOCK_MONOTONIC, &finish);
 	show_debug_msg(__func__, "Sorting reads by k_freq: %.2f sec...\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+			(float) (finish.tv_sec - start.tv_sec));
 	qsort(counter_list, n_seqs, sizeof(counter), cmp_kmer);
 	sorted_counters = counter_list;
 
+	clock_gettime(CLOCK_MONOTONIC, &finish);
 	show_debug_msg(__func__, "Removing duplicates: %.2f sec...\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+			(float) (finish.tv_sec - start.tv_sec));
+	rm_dup_threads(seqs, n_seqs, opt, sorted_counters);
+	clock_gettime(CLOCK_MONOTONIC, &finish);
 
-	s_unique = seqs;
-	counter_pre = sorted_counters;
-	for (i = 1; i < n_seqs; i++) {
-		k_count = &sorted_counters[i];
-		s = &seqs[k_count->read_id];
-		if (s->status != FRESH && s->status != TRIED)
-			continue;
-		if (k_count->k_freq == counter_pre->k_freq && same_q(s, s_unique)) {
-			k_count->checked = 3;
-			n_dup++;
-		} else {
-			s_unique = s;
-		}
-		counter_pre = k_count;
-	}
-	show_debug_msg(__func__, "%d duplicates removed: %.2f sec...\n", n_dup,
-			(float) (clock() - t) / CLOCKS_PER_SEC);
-	show_debug_msg(__func__, "Getting solid reads: %.2f sec...\n", n_dup,
-			(float) (clock() - t) / CLOCKS_PER_SEC);
-
+	show_debug_msg(__func__, "Getting solid reads: %.2f sec...\n",
+			(float) (finish.tv_sec - start.tv_sec));
 	solid_reads = g_ptr_array_sized_new(16384);
 	j = 0;
 	try_times = by_coverage ? 1 : MAX_TIME;
 	while (++j <= try_times && n_needed >= n_solid) {
 		// For low sd range, there are only few reads are solid
 		// Here is to avoid unnecessary loops on the reads.
+		clock_gettime(CLOCK_MONOTONIC, &finish);
 		show_debug_msg(__func__,
 				"Round %d out of max %d. %d solid reads: %.2f sec...\n", j,
-				try_times, n_solid, (float) (clock() - t) / CLOCKS_PER_SEC);
-		for (i = 0; i < n_seqs; i++) {
-			k_count = &sorted_counters[i];
-			if (k_count->checked)
-				continue;
-			s = &seqs[k_count->read_id];
-			if (s->status != FRESH && s->status != TRIED)
-				continue;
-			if (by_coverage) {
-				if (n_solid > n_seqs * opt->stop_thre) {
-					break;
-				} else {
-					n_solid++;
-					k_count->checked = 4;
-					g_ptr_array_add(solid_reads, s);
-				}
-			} else {
-				if (pick_within_range(s, k_count, kmer_list, opt,
-						UNEVEN_THRE * j)) {
-					n_solid++;
-					k_count->checked = 4;
-					g_ptr_array_add(solid_reads, s);
-				}
-			}
-			if (n_solid >= n_needed)
-				break;
-		}
+				try_times, n_solid, (float) (finish.tv_sec - start.tv_sec));
+		iterate_seqs_threads(seqs, n_seqs, opt, sorted_counters, kmer_list,
+				&n_solid, n_needed, solid_reads, j);
 	}
+	clock_gettime(CLOCK_MONOTONIC, &finish);
 	show_debug_msg(__func__, "%d solid reads remained.\n", n_solid);
 	show_debug_msg(__func__, "Cleaning done: %.2f.\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+			(float) (finish.tv_sec - start.tv_sec));
 	free(kmer_list);
 	free(counter_list);
 	return solid_reads;
@@ -334,11 +482,11 @@ void pe_clean_core(char *fa_fn, clean_opt *opt) {
 
 int clean_reads(int argc, char *argv[]) {
 	int c;
-	clock_t t;
-	t = clock();
+	struct timespec start, finish;
 	clean_opt *opt = init_clean_opt();
 
-	while ((c = getopt(argc, argv, "k:l:s:")) >= 0) {
+	clock_gettime(CLOCK_MONOTONIC, &start);
+	while ((c = getopt(argc, argv, "k:l:s:t:")) >= 0) {
 		switch (c) {
 		case 'k':
 			opt->kmer = atoi(optarg);
@@ -349,18 +497,24 @@ int clean_reads(int argc, char *argv[]) {
 		case 's':
 			opt->stop_thre = atof(optarg);
 			break;
+		case 't':
+			opt->n_threads = atoi(optarg);
+			break;
 		default:
 			return 1;
 		}
 	}
+	if (!g_thread_supported())
+		g_thread_init(NULL);
 
 	if (optind + 1 > argc) {
 		return clean_usage();
 	}
-
+	//test_threads();
 	pe_clean_core(argv[optind], opt);
 	free(opt);
+	clock_gettime(CLOCK_MONOTONIC, &finish);
 	fprintf(stderr, "[clean_reads] Cleaning done: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+			(float) (finish.tv_sec - start.tv_sec));
 	return 0;
 }

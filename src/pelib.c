@@ -536,27 +536,27 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 		return NULL;
 	}
 	free_pool(init_pool);
-	p_query(__func__, query);
-	show_debug_msg(__func__, "Extending to the right... \n");
+	//p_query(__func__, query);
+	//show_debug_msg(__func__, "Extending to the right... \n");
 	eg = pair_extension(NULL, ht, query, 0, tid);
 	rev_reads_pos(eg);
-	show_debug_msg(__func__, "Edge after right extension: [%d, %d]\n", eg->id,
-			eg->len);
-	show_debug_msg(__func__, "Got edge [%d, %d]. Extending to the left... \n",
-			eg->id, eg->len);
+	//show_debug_msg(__func__, "Edge after right extension: [%d, %d]\n", eg->id,
+	//		eg->len);
+	//show_debug_msg(__func__, "Got edge [%d, %d]. Extending to the left... \n",
+	//		eg->id, eg->len);
 	pair_extension(eg, ht, query, 1, tid);
-	show_debug_msg(__func__, "Edge after left extension: [%d, %d]\n", eg->id,
-			eg->len);
+	//show_debug_msg(__func__, "Edge after left extension: [%d, %d]\n", eg->id,
+	//		eg->len);
 	upd_reads(ht, eg, MISMATCHES);
 
-	show_debug_msg(__func__, "Second round: extending to the right... \n");
+	//show_debug_msg(__func__, "Second round: extending to the right... \n");
 	second_round_q = new_seq(eg->contig, query->len, eg->len - query->len);
 	pair_extension(eg, ht, second_round_q, 0, tid);
 	round_3_len = eg->len;
 	rev_reads_pos(eg);
 	bwa_free_read_seq(1, second_round_q);
 
-	show_debug_msg(__func__, "Second round: extending to the left... \n");
+	//show_debug_msg(__func__, "Second round: extending to the left... \n");
 	second_round_q = new_seq(eg->contig, query->len, 0);
 	pair_extension(eg, ht, second_round_q, 1, tid);
 	if (eg->len - round_3_len > 2) {
@@ -803,7 +803,7 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	if (thread_pool == NULL) {
 		err_fatal(__func__, "Failed to start the thread pool. \n");
 	}
-	// solid_reads->len
+	solid_reads->len = 1000;
 	while (block_start + JUMP_UNIT * n_threads < solid_reads->len) {
 		for (i = 0; i < JUMP_UNIT; i++) {
 			for (j = 0; j < n_threads; j++) {
@@ -925,6 +925,8 @@ void consume_solid_reads(hash_table *ht, const double stop_thre,
 
 	n_per_threads = solid_reads->len / n_threads;
 	unit_perc = 1 / n_unit;
+	n_unit = 1;
+	unit_perc = 0.5;
 	for (i = 1; i <= n_unit; i++) {
 		max_perc = i * unit_perc;
 		if (max_perc >= stop_thre)
@@ -992,20 +994,20 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "Stage 1 finished: %.2f sec\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);
 
-	show_msg(__func__, "========================================== \n");
-	show_msg(__func__, "Stage 2/2: Trying to assembly unpaired reads... \n");
-	c_opt = init_clean_opt();
-	c_opt->kmer = 15;
-	c_opt->stop_thre = 0.25;
-	g_ptr_array_free(solid_reads, TRUE);
-	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
-			(ht->n_seqs - n_paired_reads) / 10, 0, 0);
-	consume_solid_reads(ht, STOP_THRE_STAGE_2, all_edges, solid_reads,
-			&n_used_reads, &n_paired_reads);
-	free(c_opt);
-	show_msg(__func__, "Stage 2 finished: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
-
+//	show_msg(__func__, "========================================== \n");
+//	show_msg(__func__, "Stage 2/2: Trying to assembly unpaired reads... \n");
+//	c_opt = init_clean_opt();
+//	c_opt->kmer = 15;
+//	c_opt->stop_thre = 0.25;
+//	g_ptr_array_free(solid_reads, TRUE);
+//	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
+//			(ht->n_seqs - n_paired_reads) / 10, 0, 0);
+//	consume_solid_reads(ht, STOP_THRE_STAGE_2, all_edges, solid_reads,
+//			&n_used_reads, &n_paired_reads);
+//	free(c_opt);
+//	show_msg(__func__, "Stage 2 finished: %.2f sec\n",
+//			(float) (clock() - t) / CLOCKS_PER_SEC);
+//
 	post_process_edges(ht, all_edges);
 	g_ptr_array_free(solid_reads, TRUE);
 	destroy_ht(ht);
