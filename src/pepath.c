@@ -1083,7 +1083,7 @@ int pe_path(int argc, char *argv[]) {
 	reset_edge_ids(edges);
 	merge_ol_edges(edges, 197, ht, 1);
 	merged_pair_contigs
-			= xopen("../SRR097897_out/merged_pair_contigs.1.fa", "w");
+			= xopen("../SRR027876_out/pair_contigs.1.fa", "w");
 	save_edges(edges, merged_pair_contigs, 0, 0, 100);
 	fclose(merged_pair_contigs);
 	//scaffolding(edges, 197, ht, 4);

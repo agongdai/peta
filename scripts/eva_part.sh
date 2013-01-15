@@ -4,7 +4,7 @@ query="peta"
 db_dir="../rnaseq/Spombe/genome/"
 db="spombe.broad.tx.fasta"
 blastdb="../../ncbi-blast-2.2.26+/db/"
-similarity=90
+similarity=97
 query_dir=../SRR097897_part/
 
 if [ $1 = "new" ]; 

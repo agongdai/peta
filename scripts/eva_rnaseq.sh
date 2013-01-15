@@ -1,10 +1,10 @@
 #!/bin/bash
 
-query="merged_pair_contigs"
+query="Trinity"
 db_dir="../rnaseq/Spombe/genome/"
 db="spombe.broad.tx.fasta"
 blastdb="../../ncbi-blast-2.2.26+/db/"
-similarity=90
+similarity=99
 query_dir=../SRR097897_out/
 
 if [ $1 = "new" ]; 
