@@ -356,7 +356,7 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
 		else
 			s->cursor = ori ? (a->pos - 1) : (a->pos + s->len);
 		// p_query(__func__, s);
-		if (s->contig_id == INVALID_CONTIG_ID || s->status == USED || s->cursor
+		if (s->contig_id == INVALID_CONTIG_ID || s->status != FRESH || s->cursor
 				< -1 || s->cursor > s->len || s->is_in_c_pool
 				|| s->is_in_m_pool) {
 			s->cursor = 0;
@@ -1007,7 +1007,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	c_opt->kmer = 15;
 	c_opt->stop_thre = 0.1;
 	c_opt->n_threads = n_threads;
-	g_ptr_array_free(solid_reads, TRUE);
+	//g_ptr_array_free(solid_reads, TRUE);
 	show_msg(__func__, "Stage 2/2: Calculating solid reads from unpaired reads... \n");
 	//solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt, (ht->n_seqs
 	//		- n_paired_reads) / 10, 0, 0);

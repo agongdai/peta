@@ -133,47 +133,68 @@ class FastaFile(object):
 class BlastHit(object):
 	def __init__(self, qname = None, rname = None, alen = 0, pos = 0, astart = 0, aend = 0, tid = 0):
 		self.qname = qname
+		self.n_mismatch = 0
+		self.n_match = 0
+		self.n_rep_match = 0
+		self.n_count = 0
+		self.n_query_gap = 0
+		self.n_query_gap_bases = 0
+		self.n_ref_gap = 0
+		self.n_ref_gap_bases = 0
+		self.strand = '+'
+		self.qlen = 0
 		self.rname = rname
 		self.alen = alen
-		self.pos = pos
-		self.astart = astart
-		self.aend = aend
-		self.tid = 0
+		self.qstart = 0
+		self.qend = 0
+		self.rlen = 0
+		self.rstart = 0
+		self.rend = 0
+		self.n_block = 0
+		self.block_sizes = []
+		self.q_block_starts = []
+		self.r_block_starts = []
+		self.similarity = 0.0
+	
+	def set_similarity(self):
+		if not self.block_sizes == 0:
+			self.similarity = self.n_match / self.block_sizes
 
-def eva_hits(args, ref, contigs, aligns, summary, hits, aligned_lengths):
+def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	file_full_length = open(os.path.join(args.out_dir, 'full_length.txt'), 'w')
 	file_one_on_one = open(os.path.join(args.out_dir, 'one_on_one.txt'), 'w')
 	file_covered_70 = open(os.path.join(args.out_dir, 'covered_70.txt'), 'w')
 	file_one_covered = open(os.path.join(args.out_dir, 'one_covered.txt'), 'w')
+	similarity = float(args.similarity)
 
 	for tx_name, tx_seq in ref.seqs.iteritems():
-		if not tx_name in hits:
+		if not tx_name in r_hits:
 			summary.n_not_reached += 1
 			summary.n_bases_not_reached += len(tx_seq)
 		else:
-			hits[tx_name].sort(key=lambda x: x.pos, reverse=True)
+			r_hits[tx_name].sort(key=lambda x: x.rstart, reverse=False)
 
 	n_obtained_bases = 0
 	for tx_name, tx_seq in ref.seqs.iteritems():
 		is_set = False
 		if tx_name in hits:
 			#print tx_name
-			for a in hits[tx_name]:
-				if a.alen >= len(tx_seq) * 0.9 and a.alen >= contigs.get_seq_len(a.qname) * 0.9:
+			for a in r_hits[tx_name]:
+				if a.similarity >= similarity and a.block_size >= len(tx_seq) * 0.9 and a.alen >= contigs.get_seq_len(a.qname) * 0.9:
 					summary.n_tx_one_on_one += 1
 					file_one_on_one.write(tx_name + '\n')
 					is_set = True
 					break
 			if not is_set:
 				for a in hits[tx_name]:
-					if a.alen >= len(tx_seq) * 0.9:
+					if a.similarity >= similarity and a.block_size >= len(tx_seq) * 0.9:
 						summary.n_tx_full_length += 1
 						is_set = True
 						file_full_length.write(tx_name + '\n')
 						break
 			if not is_set:
 				for a in hits[tx_name]:
-					if a.alen >= len(tx_seq) * 0.7:
+					if a.similarity >= similarity and a.block_size >= len(tx_seq) * 0.7:
 						summary.n_tx_covered_70 += 1
 						is_set = True
 						file_covered_70.write(tx_name + '\n')
@@ -292,6 +313,49 @@ def read_blastn_hits(blastn_fn):
 	blastn.close()
 	return hits
 
+def read_blat_hits(blat_fn):
+	blat = open(blat_fn, 'r')
+	hits = {}
+	qname = ''
+	reading_hits = False
+	for line in blat:
+		line = line.strip()
+		try:
+			if '-----' in line:
+				reading_hits = True 
+				continue
+			if not reading_hits:
+				continue
+			f = line.split('\t')
+			hit = BlastHit(f[9])
+			hit.n_match = int(f[0])
+			hit.n_mismatch = int(f[1])
+			hit.n_rep_match = int(f[2])
+			hit.n_count = int(f[3])
+			hit.n_query_gap = int(f[4])
+			hit.n_query_gap_bases = int(f[5])
+			hit.n_ref_gap = int(f[6])
+			hit.n_ref_gap_bases = int(f[7])
+			hit.strand = f[8]
+			hit.qlen = int(f[10])
+			hit.qstart = int(f[11])
+			hit.qend = int(f[12])
+			hit.rname = f[13]
+			hit.rlen = int(f[14])
+			hit.rstart = int(f[15])
+			hit.rend = int(f[16])
+			hit.n_block = int(f[17])
+			hit.block_sizes = f[18].split(',')
+			hit.q_block_starts = f[19].split(',')
+			hit.r_block_starts = f[20].split(',')
+			hit.set_similarity()
+			hits[hit.qname] = hit
+		except:
+			print 'Something wrong: ' + line
+			pass
+	blat.close()
+	return hits
+
 def eva_blastn(args):
 	ref = FastaFile(args.ref)
 	contigs = FastaFile(args.contigs)
@@ -379,41 +443,38 @@ def summarize_fa(fa_file):
 	fa.set_n50(get_n50(fa.lengths, fa.n_bases))
 	fa.print_summary()	
 
-def eva_bwa(args):
+def eva_blat(args):
 	ref = FastaFile(args.ref)
 	contigs = FastaFile(args.contigs)
-	sam = pysam.Samfile(args.sam, "r")
+	psl = pysam.Samfile(args.psl, "r")
 	summarize_fa(args.ref)
 	summarize_fa(args.contigs)
 	ref.set_n50(get_n50(ref.lengths, ref.n_bases))
 	contigs.set_n50(get_n50(contigs.lengths, contigs.n_bases))
 
 	summary = ResultSummary(args.contigs)
-	aligns = sam.fetch()
-	hits = {}
-	aligned_lengths = []
-	# Set all hits
-	for a in aligns:
-		if a.tid == -1:
-			summary.n_not_aligned += 1
-			summary.n_bases_not_aligned += contigs.get_seq_len(a.qname)
-		else:
-			rid = sam.getrname(a.tid)
-			if not rid in hits:
-				hits[rid] = []
-			hits[rid].append(a)
-			summary.n_aligned_bases += a.alen
-			# print a.qname, rid, a.pos, a.aend
-	for rid, a_list in hits.iteritems():
+	hits = read_blat_hits(psl)
+	r_hits = {}
+	aligned_lengths = {}	
+	# r_hits: ref_name->all hits on this reference
+	# aligned_lengths: ref_name->longest hit length
+	for qname, hit in hits.iteritems():
 		longest = 0
-		a_longest = None
-		for a in a_list:
-			if a.alen > longest:
-				longest = a.alen
-				a_longest = a
-		if longest > 0:
-			aligned_lengths.append(longest)
-	eva_hits(args, ref, contigs, aligns, summary, hits, aligned_lengths)
+		rname = hit.rname
+		for l in hit.block_sizes:
+			if int(l) > longest:
+				longest = int(l)
+		if rname in aligned_lengths:
+			if aligned_lengths[rname] < longest:
+				aligned_lengths[rname] = longest
+		else:
+			r_hits[rname] = lonest
+			
+		if not rname in r_hits:
+			r_hits[rname] = []
+		r_hits[rname].append(hit)
+	
+	eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths.itervalues())
 
 def check_dup(args):
 	ids = open(args.input, 'r')
@@ -437,12 +498,13 @@ def main():
     parser_differ.add_argument('-i', required=True, help='the files to compare, seperated by a ","', dest='inputs')
     parser_differ.add_argument('-o', required=True, help='result file', dest='output')
 
-    parser_bwa = subparsers.add_parser('bwa', help='evaluate the performance by aligning in BWA')
-    parser_bwa.set_defaults(func=eva_bwa)
+    parser_bwa = subparsers.add_parser('blat', help='evaluate the performance by aligning in blat')
+    parser_bwa.set_defaults(func=eva_blat)
     parser_bwa.add_argument('-t', required=True, help='reference transcript file', dest='ref')
     parser_bwa.add_argument('-c', required=True, help='transcripts reported to be evaluated', dest='contigs')
-    parser_bwa.add_argument('-s', required=True, help='sam file', dest='sam')
+    parser_bwa.add_argument('-p', required=True, help='psl file', dest='psl')
     parser_bwa.add_argument('-o', required=True, help='output folder', dest='out_dir')
+    parser_bwa.add_argument('-s', required=True, help='similarity', dest='similarity')
 
     parser_bla = subparsers.add_parser('blast', help='evaluate the performance by alinging by Blastn')
     parser_bla.set_defaults(func=eva_blastn)
