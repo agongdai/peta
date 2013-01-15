@@ -428,6 +428,7 @@ void *merge_ol_edges_thread(void *data) {
 					d->single_edges);
 			for (j = 0; j < edge_candidates->len; j++) {
 				bwa_free_read_seq(1, rev);
+				rev = NULL;
 				eg_j = g_ptr_array_index(edge_candidates, j);
 				if (paired_reads != NULL) {
 					g_ptr_array_free(paired_reads, TRUE);
@@ -484,7 +485,7 @@ void *merge_ol_edges_thread(void *data) {
 								<= EDGE_OL_THRE || abs(ol - eg_j->len)
 								<= EDGE_OL_THRE) {
 							g_mutex_lock(edge_mutex);
-							//bwa_free_read_seq(1, eg_j->contig);
+							bwa_free_read_seq(1, eg_j->contig);
 							eg_j->contig = new_seq(rev, rev->len, 0);
 							merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j,
 									ol);
@@ -518,7 +519,7 @@ void *merge_ol_edges_thread(void *data) {
 								//show_debug_msg(__func__, "Name: %s \n",
 								//		eg_i->contig->name);
 								//p_ctg_seq("Contig", eg_i->contig);
-								//bwa_free_read_seq(1, eg_i->contig);
+								bwa_free_read_seq(1, eg_i->contig);
 								eg_i->contig = new_seq(rev, rev->len, 0);
 								merge_two_ol_edges(d->rht, d->ht, eg_i,
 										eg_j, ol);
