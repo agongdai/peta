@@ -37,7 +37,7 @@ class ResultSummary(object):
 		print '\t# of one-on-one:              ' + str(self.n_tx_one_on_one)
 		print '\t# of 70% covered:             ' + str(self.n_tx_covered_70)
 		print '\tCovered by one contig:        ' + str(self.n_tx_one_covered)
-		print '\t# of fragmented:              ' + str(self.n_fragmented)
+#		print '\t# of fragmented:              ' + str(self.n_fragmented)
 		print '\t# of Ctgs not aligned:        ' + str(self.n_not_aligned)
 		print '\tBases not aligned:            ' + str(self.n_bases_not_aligned)
 		print '\t# of Ctgs not reached:        ' + str(self.n_not_reached)
@@ -150,15 +150,23 @@ class BlastHit(object):
 		self.rlen = 0
 		self.rstart = 0
 		self.rend = 0
-		self.n_block = 0
+		self.n_blocks = 0
 		self.block_sizes = []
 		self.q_block_starts = []
 		self.r_block_starts = []
 		self.similarity = 0.0
+		self.identity = 0.0
+		self.n_bad_bases = 0
 	
 	def set_similarity(self):
-		if not self.block_sizes == 0:
-			self.similarity = self.n_match / self.block_sizes
+		self.alen = 0
+		for l in self.block_sizes:
+			self.alen += int(l)
+		if not self.alen == 0:
+			self.identity = self.n_match / self.alen
+		if not (self.rend - self.rstart == 0):
+			self.similarity = self.n_match / (self.rend - self.rstart)
+		self.n_bad_bases = self.n_mismatch + self.n_ref_gap_bases
 
 def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	file_full_length = open(os.path.join(args.out_dir, 'full_length.txt'), 'w')
@@ -172,65 +180,53 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 			summary.n_not_reached += 1
 			summary.n_bases_not_reached += len(tx_seq)
 		else:
-			r_hits[tx_name].sort(key=lambda x: x.rstart, reverse=False)
+			r_hits[tx_name].sort(key=lambda x: x.alen, reverse=True)
 
 	n_obtained_bases = 0
 	for tx_name, tx_seq in ref.seqs.iteritems():
 		is_set = False
-		if tx_name in hits:
+		if tx_name in r_hits:
 			#print tx_name
 			for a in r_hits[tx_name]:
-				if a.similarity >= similarity and a.block_size >= len(tx_seq) * 0.9 and a.alen >= contigs.get_seq_len(a.qname) * 0.9:
+				if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * 0.9 and a.alen >= contigs.get_seq_len(a.qname) * 0.9 and a.n_bad_bases <= 10:
 					summary.n_tx_one_on_one += 1
-					file_one_on_one.write(tx_name + '\n')
+					file_one_on_one.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 					is_set = True
 					break
 			if not is_set:
-				for a in hits[tx_name]:
-					if a.similarity >= similarity and a.block_size >= len(tx_seq) * 0.9:
+				for a in r_hits[tx_name]:
+					if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * 0.9 and a.n_bad_bases <= 10:
 						summary.n_tx_full_length += 1
 						is_set = True
-						file_full_length.write(tx_name + '\n')
+						file_full_length.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 						break
 			if not is_set:
-				for a in hits[tx_name]:
-					if a.similarity >= similarity and a.block_size >= len(tx_seq) * 0.7:
+				for a in r_hits[tx_name]:
+					if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * 0.7 and a.n_bad_bases <= 10:
 						summary.n_tx_covered_70 += 1
 						is_set = True
-						file_covered_70.write(tx_name + '\n')
+						file_covered_70.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 						break
-			seq_len = len(tx_seq)
-			binary_covered = [0 for x in range(seq_len)]
-			group_hits = {}
-			for a in hits[tx_name]:
-				if not a.qname in group_hits:
-					group_hits[a.qname] = []
-				group_hits[a.qname].append(a)
-				end = a.pos + a.alen
-				if end > len(tx_seq):
-					end = len(tx_seq)
-				for i in range(a.pos, end):
-					binary_covered[i] = 1
-			for i in binary_covered:
-				n_obtained_bases += i
 
 			if not is_set:
-				for qname, algs in group_hits.iteritems():
-					binary_covered = [0 for x in range(seq_len)]
-					n_base_one_contig = 0
-					for a in algs:
-						end = a.aend
-						if a.aend > len(tx_seq):
-							end = len(tx_seq)
-						for i in range(a.pos, end):
-							binary_covered[i] = 1
-					for i in binary_covered:
-						n_base_one_contig += i
-					if n_base_one_contig >= seq_len * 0.9:
+				for a in r_hits[tx_name]:
+					if (a.rend - a.rstart) >= len(tx_seq) * 0.9:
 						summary.n_tx_one_covered += 1
-						file_one_covered.write(tx_name + '\n')
-						break
-	
+						file_one_covered.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
+						
+			seq_len = len(tx_seq)
+			binary_covered = [0 for x in range(seq_len)]
+			for a in r_hits[tx_name]:
+				for i in range(a.n_blocks):
+					start = a.r_block_starts[i]
+					end = a.r_block_starts[i] + a.block_sizes[i]
+					if end > len(tx_seq):
+						end = len(tx_seq)
+					for i in range(start, end):
+						binary_covered[i] = 1
+			for i in binary_covered:
+				n_obtained_bases += i
+				
 	summary.n_bases = contigs.n_bases
 	summary.n_contigs = contigs.n_seqs
 	summary.n_fragmented = summary.n_contigs - summary.n_tx_full_length - summary.n_tx_one_on_one - summary.n_tx_covered_70 - summary.n_not_aligned
@@ -318,9 +314,11 @@ def read_blat_hits(blat_fn):
 	hits = {}
 	qname = ''
 	reading_hits = False
+	line_no = 0
 	for line in blat:
 		line = line.strip()
-		try:
+		line_no += 1
+		if True:
 			if '-----' in line:
 				reading_hits = True 
 				continue
@@ -344,15 +342,21 @@ def read_blat_hits(blat_fn):
 			hit.rlen = int(f[14])
 			hit.rstart = int(f[15])
 			hit.rend = int(f[16])
-			hit.n_block = int(f[17])
+			hit.n_blocks = int(f[17])
+			f[18] = f[18][0:-1]
 			hit.block_sizes = f[18].split(',')
+			hit.block_sizes = [int(s) for s in hit.block_sizes]
+			f[19] = f[19][0:-1]
 			hit.q_block_starts = f[19].split(',')
+			hit.q_block_starts = [int(s) for s in hit.q_block_starts]
+			f[20] = f[20][0:-1]
 			hit.r_block_starts = f[20].split(',')
+			hit.r_block_starts = [int(s) for s in hit.r_block_starts]
 			hit.set_similarity()
-			hits[hit.qname] = hit
-		except:
-			print 'Something wrong: ' + line
-			pass
+			if not hit.qname in hits:
+				hits[hit.qname] = []
+			hits[hit.qname].append(hit)
+		
 	blat.close()
 	return hits
 
@@ -446,35 +450,44 @@ def summarize_fa(fa_file):
 def eva_blat(args):
 	ref = FastaFile(args.ref)
 	contigs = FastaFile(args.contigs)
-	psl = pysam.Samfile(args.psl, "r")
 	summarize_fa(args.ref)
 	summarize_fa(args.contigs)
 	ref.set_n50(get_n50(ref.lengths, ref.n_bases))
 	contigs.set_n50(get_n50(contigs.lengths, contigs.n_bases))
 
 	summary = ResultSummary(args.contigs)
-	hits = read_blat_hits(psl)
+	hits = read_blat_hits(args.psl)
 	r_hits = {}
 	aligned_lengths = {}	
 	# r_hits: ref_name->all hits on this reference
 	# aligned_lengths: ref_name->longest hit length
-	for qname, hit in hits.iteritems():
+	for qname in contigs.get_seqs():
+		if not qname in hits:
+			summary.n_not_aligned += 1
+			summary.n_bases_not_aligned += contigs.get_seq_len(qname)
+	for qname, qhits in hits.iteritems():
 		longest = 0
-		rname = hit.rname
-		for l in hit.block_sizes:
-			if int(l) > longest:
-				longest = int(l)
-		if rname in aligned_lengths:
-			if aligned_lengths[rname] < longest:
+		for hit in qhits:
+			rname = hit.rname
+			for l in hit.block_sizes:
+				summary.n_aligned_bases += l
+				if int(l) > longest:
+					longest = int(l)
+			if rname in aligned_lengths:
+				if aligned_lengths[rname] < longest:
+					aligned_lengths[rname] = longest
+			else:
 				aligned_lengths[rname] = longest
-		else:
-			r_hits[rname] = lonest
-			
-		if not rname in r_hits:
-			r_hits[rname] = []
-		r_hits[rname].append(hit)
+				
+			if not rname in r_hits:
+				r_hits[rname] = []
+			r_hits[rname].append(hit)
+
+	lengths = []
+	for rname, length in aligned_lengths.iteritems():
+		lengths.append(length)
 	
-	eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths.itervalues())
+	eva_hits(args, ref, contigs, summary, hits, r_hits, lengths)
 
 def check_dup(args):
 	ids = open(args.input, 'r')
