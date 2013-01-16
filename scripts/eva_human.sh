@@ -1,12 +1,12 @@
 #!/bin/bash
 
+query="oases"
 eva_exe="eva.py"
-query="peta"
-db_dir="../rnaseq/Spombe/genome/"
-db="spombe.broad.tx.fasta"
+db_dir="../rnaseq/hg19/genome/"
+db="human.ensembl.cdna.fa"
 blastdb="../../ncbi-blast-2.2.26+/db/"
 similarity="99"
-query_dir="../SRR097897_out/"
+query_dir="../SRX011545_out/"
 
 blastn_exe="blastn"
 blat_exe="../../blat/blat"

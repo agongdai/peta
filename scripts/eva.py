@@ -208,7 +208,7 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 						file_covered_70.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 						break
 
-			if not is_set:
+			if not is_set: 
 				for a in r_hits[tx_name]:
 					if (a.rend - a.rstart) >= len(tx_seq) * 0.9:
 						summary.n_tx_one_covered += 1
