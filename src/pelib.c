@@ -1005,14 +1005,14 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "Stage 2/2: Trying to assembly unpaired reads... \n");
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
-	c_opt->stop_thre = 0.1;
+	c_opt->stop_thre = 0.2;
 	c_opt->n_threads = n_threads;
-	//g_ptr_array_free(solid_reads, TRUE);
+	g_ptr_array_free(solid_reads, TRUE);
 	show_msg(__func__, "Stage 2/2: Calculating solid reads from unpaired reads... \n");
-	//solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt, (ht->n_seqs
-	//		- n_paired_reads) / 10, 0, 0);
-	//consume_solid_reads(ht, STOP_THRE_STAGE_2, all_edges, solid_reads,
-	//		&n_used_reads, &n_paired_reads);
+	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt, (ht->n_seqs
+			- n_paired_reads) * c_opt->stop_thre, 0, 0);
+	consume_solid_reads(ht, STOP_THRE_STAGE_2, all_edges, solid_reads,
+			&n_used_reads, &n_paired_reads);
 	free(c_opt);
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Stage 2 finished: %.2f sec\n",
