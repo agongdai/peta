@@ -401,8 +401,8 @@ int bases_sup_branches(pool *cur_pool, const int ori, double threshold) {
 		reset_c(sta, NULL);
 	}
 	free(sta);
-	show_debug_msg(__func__, "good_count/bad_count: %.0f/%.0f \n", good_count,
-			bad_count);
+	//show_debug_msg(__func__, "good_count/bad_count: %.0f/%.0f \n", good_count,
+	//		bad_count);
 	if (good_count > 0 && bad_count > 0) {
 		if (good_count < (good_count + bad_count) * threshold)
 			return 1;

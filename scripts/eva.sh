@@ -1,6 +1,6 @@
 #!/bin/bash
 
-eva_exe="eva.py"
+eva_exe="../scripts/eva.py"
 query="peta"
 db_dir="../rnaseq/Spombe/genome/"
 db="spombe.broad.tx.fasta"
@@ -52,7 +52,6 @@ if [ $1 = "blat" ];
 	echo "Evaluating..." 1>&2
 	echo "python $eva_exe blat -t $db_dir$db -c $query_dir$query.fa -p $query_dir$query.psl -o $query_dir -s 0.$similarity"
 	python $eva_exe blat -t $db_dir$db -c $query_dir$query.fa -p $query_dir$query.psl -o $query_dir -s 0.$similarity
-		
 fi
 
 if [ $1 = "bwa" ];

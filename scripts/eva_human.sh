@@ -1,6 +1,6 @@
 #!/bin/bash
 
-query="oases"
+query="cufflinks"
 eva_exe="eva.py"
 db_dir="../rnaseq/hg19/genome/"
 db="human.ensembl.cdna.fa"

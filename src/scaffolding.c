@@ -486,7 +486,8 @@ void *merge_ol_edges_thread(void *data) {
 								<= EDGE_OL_THRE) {
 							g_mutex_lock(edge_mutex);
 							bwa_free_read_seq(1, eg_j->contig);
-							eg_j->contig = new_seq(rev, rev->len, 0);
+							eg_j->contig = rev;
+							rev = NULL;
 							merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j,
 									ol);
 							g_mutex_unlock(edge_mutex);
@@ -520,7 +521,8 @@ void *merge_ol_edges_thread(void *data) {
 								//		eg_i->contig->name);
 								//p_ctg_seq("Contig", eg_i->contig);
 								bwa_free_read_seq(1, eg_i->contig);
-								eg_i->contig = new_seq(rev, rev->len, 0);
+								eg_i->contig = rev;
+								rev = NULL;
 								merge_two_ol_edges(d->rht, d->ht, eg_i,
 										eg_j, ol);
 								g_mutex_unlock(edge_mutex);

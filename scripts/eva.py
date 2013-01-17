@@ -1,6 +1,7 @@
 from __future__ import division
 import sys, os, pysam
 from argparse import ArgumentParser
+from subprocess import Popen, PIPE
 import collections
 
 class ResultSummary(object):
@@ -167,6 +168,11 @@ class BlastHit(object):
 		if not (self.rend - self.rstart == 0):
 			self.similarity = self.n_match / (self.rend - self.rstart)
 		self.n_bad_bases = self.n_mismatch + self.n_ref_gap_bases
+		
+def runInShell(cmd):
+    print 'running', cmd
+    p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
+    return p.communicate()[0]
 
 def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	file_full_length = open(os.path.join(args.out_dir, 'full_length.txt'), 'w')
@@ -286,29 +292,6 @@ def analyze(args, ref, contigs, aligns, hits):
 		report.write('\n')
 	report.close()
 
-def read_blastn_hits(blastn_fn):
-	blastn = open(blastn_fn, 'r')
-	hits = []
-	qname = ''
-	for line in blastn:
-		line = line.strip()
-		if line.startswith('#'):
-			if 'Query' in line:
-				f = line.split()
-				qname = f[2]
-			if '0 hits found' in line:
-				hit = BlastHit(qname)
-				hits.append(hit)
-			continue
-		f = line.split('\t')
-		pos = f[7]
-		if int(f[6]) < int(f[7]):
-			pos = f[6]
-		hit = BlastHit(f[0], f[1], int(f[3]), int(pos), int(f[9]), int(f[10]))
-		hits.append(hit)
-	blastn.close()
-	return hits
-
 def read_blat_hits(blat_fn):
 	blat = open(blat_fn, 'r')
 	hits = {}
@@ -359,48 +342,6 @@ def read_blat_hits(blat_fn):
 		
 	blat.close()
 	return hits
-
-def eva_blastn(args):
-	ref = FastaFile(args.ref)
-	contigs = FastaFile(args.contigs)
-	aligns = read_blastn_hits(args.blastn)
-
-	summarize_fa(args.ref)
-	summarize_fa(args.contigs)
-	ref.set_n50(get_n50(ref.lengths, ref.n_bases))
-	contigs.set_n50(get_n50(contigs.lengths, contigs.n_bases))
-
-	summary = ResultSummary(args.contigs)
-
-	hits = {}
-	aligned_lengths = []
-	# Set all hits
-	for a in aligns: 
-		if a.alen == 0:
-			summary.n_not_aligned += 1
-			summary.n_bases_not_aligned += contigs.get_seq_len(a.qname)
-		else:
-			rid = a.rname
-			if not rid in hits:
-				hits[rid] = []
-			hits[rid].append(a)
-			summary.n_aligned_bases += a.alen
-			# print a.qname, rid, a.pos, a.alen, a.astart, a.aend
-	# For the hits on the same transcript, get the longest alignment length
-	for rid, a_list in hits.iteritems():
-		longest = 0
-		a_longest = None
-		for a in a_list:
-			if a.alen > longest:
-				longest = a.alen
-				a_longest = a
-		if longest > 0:
-			aligned_lengths.append(longest)
-			# print a_longest.qname, a_longest.rname, a_longest.pos, a_longest.alen, a_longest.astart, a_longest.aend
-	eva_hits(args, ref, contigs, aligns, summary, hits, aligned_lengths)
-	analyze(args, ref, contigs, aligns, hits)
-	if not args.sam is None:
-		ref.cal_coverage(args.sam)
 
 def get_n50(arr, total_length=0):
 	arr.sort()
@@ -488,6 +429,28 @@ def eva_blat(args):
 		lengths.append(length)
 	
 	eva_hits(args, ref, contigs, summary, hits, r_hits, lengths)
+	
+def save_a_tx(seq, tx_name):
+	f = open(tx_name + '.fa', 'w')
+	line_len = 60
+	f.write('>' + tx_name + '\n')
+	for i in range(0, len(seq)):
+		f.write(seq[i])
+		if i % 60 == 0:
+			f.write('\n')
+	f.close()
+	
+def zoom_a_tx(args):
+	tx = FastaFile(args.ref)
+	seq = tx.seqs[args.tx_name]
+	save_a_tx(seq, args.tx_name)
+	tx_fn = os.path.join(args.out_dir, tx_name + '.fa')
+	sam_fn = os.path.join(args.out_dir, tx_name + '.sam')
+	cmd = 'bowtie2-build ' + tx_fn + ' ' + tx_fn
+	runInShell(cmd)
+	cmd = 'bowtie2 -a -x ' + tx_fn + ' -1 /home/carl/Projects/peta/rnaseq/hg19/SRX011545/left.fastq -2 /home/carl/Projects/peta/rnaseq/hg19/SRX011545/right.fastq -S ' + sam_fn 
+	runInShell(cmd)
+	print 'Done.\n'
 
 def check_dup(args):
 	ids = open(args.input, 'r')
@@ -500,7 +463,7 @@ def check_dup(args):
 			print 'Line ' + str(counter) + ': Duplicated: ' + line
 		else:
 			unique.append(line)
-	print '\nDone.'
+	print 'Done.\n'
 	ids.close()
 
 def main():
@@ -511,21 +474,13 @@ def main():
     parser_differ.add_argument('-i', required=True, help='the files to compare, seperated by a ","', dest='inputs')
     parser_differ.add_argument('-o', required=True, help='result file', dest='output')
 
-    parser_bwa = subparsers.add_parser('blat', help='evaluate the performance by aligning in blat')
-    parser_bwa.set_defaults(func=eva_blat)
-    parser_bwa.add_argument('-t', required=True, help='reference transcript file', dest='ref')
-    parser_bwa.add_argument('-c', required=True, help='transcripts reported to be evaluated', dest='contigs')
-    parser_bwa.add_argument('-p', required=True, help='psl file', dest='psl')
-    parser_bwa.add_argument('-o', required=True, help='output folder', dest='out_dir')
-    parser_bwa.add_argument('-s', required=True, help='similarity', dest='similarity')
-
-    parser_bla = subparsers.add_parser('blast', help='evaluate the performance by alinging by Blastn')
-    parser_bla.set_defaults(func=eva_blastn)
-    parser_bla.add_argument('-t', required=True, help='reference transcript file', dest='ref')
-    parser_bla.add_argument('-c', required=True, help='transcripts reported to be evaluated', dest='contigs')
-    parser_bla.add_argument('-b', required=True, help='blastn file', dest='blastn')
-    parser_bla.add_argument('-o', required=True, help='output folder', dest='out_dir')
-    parser_bla.add_argument('-s', required=False, help='reads sam file', dest='sam')
+    parser_blat = subparsers.add_parser('blat', help='evaluate the performance by aligning in blat')
+    parser_blat.set_defaults(func=eva_blat)
+    parser_blat.add_argument('-t', required=True, help='reference transcript file', dest='ref')
+    parser_blat.add_argument('-c', required=True, help='transcripts reported to be evaluated', dest='contigs')
+    parser_blat.add_argument('-p', required=True, help='psl file', dest='psl')
+    parser_blat.add_argument('-o', required=True, help='output folder', dest='out_dir')
+    parser_blat.add_argument('-s', required=True, help='similarity', dest='similarity')
 
     parser_ana = subparsers.add_parser('report', help='evaluate the performance by alinging by Blastn')
     parser_ana.set_defaults(func=analyze)
@@ -533,6 +488,12 @@ def main():
     parser_ana.add_argument('-c', required=True, help='transcripts reported to be evaluated', dest='contigs')
     parser_ana.add_argument('-b', required=True, help='blastn file', dest='blastn')
     parser_ana.add_argument('-o', required=True, help='output folder', dest='out_dir')
+    
+    parser_zoom = subparsers.add_parser('zoom', help='align reads to a single transcript by bowtie2')
+    parser_zoom.set_defaults(func=zoom_a_tx)
+    parser_zoom.add_argument('-t', required=False, metavar='FILE', default='/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa', help='reference transcript file', dest='ref')
+    parser_zoom.add_argument('-z', required=True, help='transcript name to be aligned to', dest='tx_name')
+    parser_zoom.add_argument('-o', required=False, default='/home/carl/Projects/peta/rnaseq/hg19/SRX011545/single/', help='output folder', dest='out_dir')
 
     parser_cmp = subparsers.add_parser('hasdup', help='evaluate the performance by alinging by Blastn')
     parser_cmp.set_defaults(func=check_dup)

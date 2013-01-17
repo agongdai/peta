@@ -526,8 +526,8 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 	init_pool = get_start_pool(ht, query, 0, 0);
 	if (!init_pool || init_pool->n == 0 || bases_sup_branches(init_pool, 0,
 			STRICT_BASES_SUP_THRE)) {
-		show_msg(__func__, "Read %s may be in junction area, skip. \n",
-				query->name);
+		//show_msg(__func__, "Read %s may be in junction area, skip. \n",
+		//		query->name);
 		query->status = TRIED;
 		free_pool(init_pool);
 		return NULL;
@@ -1010,7 +1010,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	g_ptr_array_free(solid_reads, TRUE);
 	show_msg(__func__, "Stage 2/2: Calculating solid reads from unpaired reads... \n");
 	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt, (ht->n_seqs
-			- n_paired_reads) * c_opt->stop_thre, 0, 0);
+		- n_paired_reads) * c_opt->stop_thre, 0, 1);
 	consume_solid_reads(ht, STOP_THRE_STAGE_2, all_edges, solid_reads,
 			&n_used_reads, &n_paired_reads);
 	free(c_opt);
