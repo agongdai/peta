@@ -11,7 +11,7 @@ OBJS=		rand.o utils.o roadmap.o bwt.o edge.o clean.o rnaseq.o correct.o \
 			bwase.o kstring.o cs2nt.o ass.o readrm.o scaffolding.o
 PROG=		peta
 INCLUDES=	
-LIBS=		-lm -lz -lpthread -Lbwt_gen -lbwtgen -pg $(shell pkg-config --libs glib-2.0)
+LIBS=		-lm -lrt -lz -lpthread -Lbwt_gen -lbwtgen -pg $(shell pkg-config --libs glib-2.0)
 SUBDIRS=	. bwt_gen
 
 export G_SLICE=always-malloc
