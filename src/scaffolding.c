@@ -67,8 +67,8 @@ int get_edges_ori(edge *eg_left, edge *eg_right, bwa_seq_t *seqs) {
  * 	1: eg_1 is left
  *  -1: eg_1 is right
  */
-int est_pair_gap(edge *eg_1, edge *eg_2, const int order, const int insert_size,
-		bwa_seq_t *seqs) {
+int est_pair_gap(edge *eg_1, edge *eg_2, const int order,
+		const int insert_size, bwa_seq_t *seqs) {
 	GPtrArray *paired_reads = NULL;
 	int i = 0;
 	bwa_seq_t *read = NULL, *mate = NULL;
@@ -190,8 +190,8 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 		if (read->status == USED)
 			continue;
 		mate = get_mate(read, seqs);
-		if (mate->status == FRESH || mate->contig_id < 0
-				|| read->contig_id == mate->contig_id)
+		if (mate->status == FRESH || mate->contig_id < 0 || read->contig_id
+				== mate->contig_id)
 			continue;
 		//show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id,
 		//		all_edges->len);
@@ -208,9 +208,9 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 		//		in_out->id, in_out->len);
 		// p_ctg_seq("Contig", eg->contig);
 		if (!share_subseq_byte(eg->contig->seq, eg->len, in_out->contig,
-				MISMATCHES, 100)
-				&& !share_subseq_byte(eg->contig->rseq, eg->len, in_out->contig,
-						MISMATCHES, 100) && !has_reads_in_common(eg, in_out)) {
+				MISMATCHES, 100) && !share_subseq_byte(eg->contig->rseq,
+				eg->len, in_out->contig, MISMATCHES, 100)
+				&& !has_reads_in_common(eg, in_out)) {
 			in_out->tid = eg->tid;
 			g_ptr_array_add(probable_in_out, in_out);
 		}
@@ -278,6 +278,7 @@ typedef struct {
 	edgearray *single_edges;
 	hash_table *ht;
 	int insert_size;
+	int sd_insert_size;
 	int start;
 	int end;
 	int tid;
@@ -335,8 +336,8 @@ static void *scaffolding_thread(void *data) {
 	return NULL;
 }
 
-void scaffolding(edgearray *single_edges, const int insert_size, hash_table *ht,
-		const int n_threads) {
+void scaffolding(edgearray *single_edges, const int insert_size,
+		hash_table *ht, const int n_threads) {
 	int n_per_threads = 0, i = 0;
 	scaffolding_paras_t *data;
 	GThread *threads[n_threads];
@@ -346,8 +347,9 @@ void scaffolding(edgearray *single_edges, const int insert_size, hash_table *ht,
 	if (!edge_mutex)
 		edge_mutex = g_mutex_new();
 
-	data = (scaffolding_paras_t*) calloc(n_threads,
-			sizeof(scaffolding_paras_t));
+	data
+			= (scaffolding_paras_t*) calloc(n_threads,
+					sizeof(scaffolding_paras_t));
 
 	for (i = 0; i < n_threads; ++i) {
 		data[i].single_edges = single_edges;
@@ -358,8 +360,9 @@ void scaffolding(edgearray *single_edges, const int insert_size, hash_table *ht,
 		data[i].tid = i + 1;
 		if (i == n_threads - 1)
 			data[i].end = single_edges->len;
-		threads[i] = g_thread_create((GThreadFunc) scaffolding_thread, data + i,
-				TRUE, NULL);
+		threads[i]
+				= g_thread_create((GThreadFunc) scaffolding_thread, data + i,
+						TRUE, NULL);
 	}
 	for (i = 0; i < n_threads; ++i) {
 		g_thread_join(threads[i]);
@@ -387,6 +390,38 @@ GPtrArray *short_ol_edges(GPtrArray *all_edges, edge *eg,
 		ol = find_ol_within_k(eg->contig, eg_i->contig, MISMATCHES, 6,
 				EDGE_OL_THRE, 0);
 	}
+}
+
+int check_insert_size(edge *eg_left, edge *eg_right, readarray *paired_reads,
+		const int insert_size, const int sd_insert_size, const int ol,
+		const int type) {
+	int i = 0, dis = 0;
+	bwa_seq_t *read_left = NULL, *read_right = NULL, *tmp = NULL;
+	for (i = 0; i < paired_reads->len - 1; i += 2) {
+		read_left = g_ptr_array_index(paired_reads, i);
+		read_right = g_ptr_array_index(paired_reads, i + 1);
+		if (read_left->contig_id != eg_left->id) {
+			tmp = read_left;
+			read_left = read_right;
+			read_right = tmp;
+		}
+		// Tail-Head
+		if (type == TAIL_HEAD) {
+			dis = (eg_left->len - read_left->shift) + (read_right->shift) - ol;
+		}
+		// Tail-Tail
+		if (type == TAIL_TAIL) {
+			dis = (eg_left->len - read_left->shift) + (read_right->len
+					- read_right->shift) - ol;
+		}
+		// Head-Head
+		if (type == HEAD_HEAD) {
+			dis = (read_left->shift) + (read_right->shift) - ol;
+		}
+		if (dis > insert_size + SD_TIMES * sd_insert_size)
+			return 0;
+	}
+	return 1;
 }
 
 /**
@@ -431,12 +466,8 @@ void *merge_ol_edges_thread(void *data) {
 				rev = NULL;
 				to_merge = 0;
 				eg_j = g_ptr_array_index(edge_candidates, j);
-				if (paired_reads != NULL) {
-					g_ptr_array_free(paired_reads, TRUE);
-					paired_reads = NULL;
-				}
-				if (!eg_j->alive || eg_i == eg_j
-						|| (eg_i->len < 100 && eg_j->len < 100))
+				if (!eg_j->alive || eg_i == eg_j || (eg_i->len < 100
+						&& eg_j->len < 100))
 					continue;
 				if (eg_i->visited && eg_j->visited)
 					continue;
@@ -458,17 +489,21 @@ void *merge_ol_edges_thread(void *data) {
 				// --------------->
 				//           -------------->
 				if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC > nm) {
-					if (ol > hash_o->k|| abs(ol - eg_i->len)
-					<= EDGE_OL_THRE || abs(ol - eg_j->len)
-					<= EDGE_OL_THRE) {
+					if (ol > hash_o->k || abs(ol - eg_i->len) <= EDGE_OL_THRE
+							|| abs(ol - eg_j->len) <= EDGE_OL_THRE) {
 						to_merge = 1;
 					} else { // Must not share any reads, and there are paired reads
 						if (!has_reads_in_common(eg_i, eg_j)) {
-							paired_reads = find_unconditional_paired_reads(eg_i,
-									eg_j, seqs);
-							if (paired_reads->len >= MIN_VALID_PAIRS) {
+							paired_reads = find_unconditional_paired_reads(
+									eg_i, eg_j, seqs);
+							if (paired_reads->len >= MIN_VALID_PAIRS
+									&& check_insert_size(eg_i, eg_j,
+											paired_reads, d->insert_size,
+											d->sd_insert_size, ol, TAIL_HEAD)) {
 								to_merge = 1;
 							}
+							g_ptr_array_free(paired_reads, TRUE);
+							paired_reads = NULL;
 						}
 					}
 					if (to_merge) {
@@ -477,84 +512,92 @@ void *merge_ol_edges_thread(void *data) {
 						g_mutex_unlock(edge_mutex);
 						eg_i->visited = 0;
 						some_one_merged = 1;
-						g_ptr_array_free(paired_reads, TRUE);
-						paired_reads = NULL;
 						continue;
-					}
-				} else {
-					// ------------->
-					//         <--------------
-					rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len, 0);
-					ol = find_ol(eg_i->contig, rev, MAX_EDGE_NM);
-					nm = get_mismatches_on_ol(eg_i->contig, rev, ol,
-							MAX_EDGE_NM);
-					if (ol > hash_o->k|| abs(ol - eg_i->len) <= EDGE_OL_THRE
-					|| abs(ol - eg_j->len) <= EDGE_OL_THRE) {
-						to_merge = 1;
-					} else { // Must not share any reads, and there are paired reads
-						if (!has_reads_in_common(eg_i, eg_j)) {
-							paired_reads = find_unconditional_paired_reads(eg_i,
-									eg_j, seqs);
-							if (paired_reads->len >= MIN_VALID_PAIRS) {
-								to_merge = 1;
-							}
-						}
-					}
-					if (to_merge) {
-						g_mutex_lock(edge_mutex);
-						bwa_free_read_seq(1, eg_j->contig);
-						eg_j->contig = rev;
-						rev = NULL;
-						merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j, ol);
-						g_mutex_unlock(edge_mutex);
-						eg_i->visited = 0;
-						some_one_merged = 1;
-						g_ptr_array_free(paired_reads, TRUE);
-						paired_reads = NULL;
-						continue; // In case the 'rev' is freed accidently.
 					} else {
-						// <------------------
-						//             -------------->
-						bwa_free_read_seq(1, rev);
-						rev = new_mem_rev_seq(eg_i->contig, eg_i->contig->len,
+						// ------------->
+						//         <--------------
+						rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len,
 								0);
-						ol = find_ol(rev, eg_j->contig, MAX_EDGE_NM);
-						nm = get_mismatches_on_ol(rev, eg_j->contig, ol,
+						ol = find_ol(eg_i->contig, rev, MAX_EDGE_NM);
+						nm = get_mismatches_on_ol(eg_i->contig, rev, ol,
 								MAX_EDGE_NM);
-						if (ol > hash_o->k|| abs(ol - eg_i->len) <= EDGE_OL_THRE
-						|| abs(ol - eg_j->len) <= EDGE_OL_THRE) {
+						if (ol > hash_o->k || abs(ol - eg_i->len)
+								<= EDGE_OL_THRE || abs(ol - eg_j->len)
+								<= EDGE_OL_THRE) {
 							to_merge = 1;
 						} else { // Must not share any reads, and there are paired reads
 							if (!has_reads_in_common(eg_i, eg_j)) {
 								paired_reads = find_unconditional_paired_reads(
 										eg_i, eg_j, seqs);
-								if (paired_reads->len >= MIN_VALID_PAIRS) {
+								if (paired_reads->len >= MIN_VALID_PAIRS
+										&& check_insert_size(eg_i, eg_j,
+												paired_reads, d->insert_size,
+												d->sd_insert_size, ol,
+												TAIL_TAIL)) {
 									to_merge = 1;
 								}
+								g_ptr_array_free(paired_reads, TRUE);
+								paired_reads = NULL;
 							}
 						}
 						if (to_merge) {
 							g_mutex_lock(edge_mutex);
-							bwa_free_read_seq(1, eg_i->contig);
-							eg_i->contig = rev;
+							bwa_free_read_seq(1, eg_j->contig);
+							eg_j->contig = rev;
 							rev = NULL;
 							merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j, ol);
 							g_mutex_unlock(edge_mutex);
 							eg_i->visited = 0;
 							some_one_merged = 1;
-							g_ptr_array_free(paired_reads, TRUE);
-							paired_reads = NULL;
 							continue; // In case the 'rev' is freed accidently.
-						}
-					}
-					if (paired_reads != NULL) {
-						g_ptr_array_free(paired_reads, TRUE);
-						paired_reads = NULL;
-					}
-					bwa_free_read_seq(1, rev);
-					rev = NULL;
-				}
-			}
+						} else {
+							// <------------------
+							//             -------------->
+							bwa_free_read_seq(1, rev);
+							rev = new_mem_rev_seq(eg_i->contig,
+									eg_i->contig->len, 0);
+							ol = find_ol(rev, eg_j->contig, MAX_EDGE_NM);
+							nm = get_mismatches_on_ol(rev, eg_j->contig, ol,
+									MAX_EDGE_NM);
+							if (ol > hash_o->k || abs(ol - eg_i->len)
+									<= EDGE_OL_THRE || abs(ol - eg_j->len)
+									<= EDGE_OL_THRE) {
+								to_merge = 1;
+							} else { // Must not share any reads, and there are paired reads
+								if (!has_reads_in_common(eg_i, eg_j)) {
+									paired_reads
+											= find_unconditional_paired_reads(
+													eg_i, eg_j, seqs);
+									if (paired_reads->len >= MIN_VALID_PAIRS
+											&& check_insert_size(eg_i, eg_j,
+													paired_reads,
+													d->insert_size,
+													d->sd_insert_size, ol,
+													HEAD_HEAD)) {
+										to_merge = 1;
+									}
+									g_ptr_array_free(paired_reads, TRUE);
+									paired_reads = NULL;
+								}
+							}
+							if (to_merge) {
+								g_mutex_lock(edge_mutex);
+								bwa_free_read_seq(1, eg_i->contig);
+								eg_i->contig = rev;
+								rev = NULL;
+								merge_two_ol_edges(d->rht, d->ht, eg_i, eg_j,
+										ol);
+								g_mutex_unlock(edge_mutex);
+								eg_i->visited = 0;
+								some_one_merged = 1;
+								continue; // In case the 'rev' is freed accidently.
+							}
+						} // End of Head-head
+						bwa_free_read_seq(1, rev);
+						rev = NULL;
+					} // End of Tail-tail
+				} // End of Tail-head
+			} // End of edge candidates
 			eg_i->visited = 1;
 		}
 	}
@@ -566,7 +609,7 @@ void *merge_ol_edges_thread(void *data) {
 }
 
 void merge_ol_edges(edgearray *single_edges, const int insert_size,
-		const hash_table *ht, const int n_threads) {
+		const int sd_insert_size, const hash_table *ht, const int n_threads) {
 	int n_per_threads = 0, i = 0;
 	scaffolding_paras_t *data;
 	GThread *threads[n_threads];
@@ -580,8 +623,9 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		eg_i = g_ptr_array_index(single_edges, i);
 		eg_i->tid = 0;
 	}
-	data = (scaffolding_paras_t*) calloc(n_threads,
-			sizeof(scaffolding_paras_t));
+	data
+			= (scaffolding_paras_t*) calloc(n_threads,
+					sizeof(scaffolding_paras_t));
 	show_msg(__func__, "Building hash table for templates...\n");
 	rht = build_edges_ht(MATE_OVERLAP_THRE, single_edges);
 	show_msg(__func__, "Merging %d templates...\n", single_edges->len);
@@ -593,6 +637,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		data[i].end = (i + 1) * n_per_threads;
 		data[i].tid = i + 1;
 		data[i].rht = rht;
+		data[i].sd_insert_size = sd_insert_size;
 		if (i == n_threads - 1)
 			data[i].end = single_edges->len;
 		threads[i] = g_thread_create((GThreadFunc) merge_ol_edges_thread,

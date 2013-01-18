@@ -688,6 +688,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 			upd_ctg_id(eg, -1, TRIED);
 			eg->alive = 0;
 			g_mutex_lock(sum_mutex);
+			*n_used_reads += eg->reads->len;
 			g_ptr_array_add(all_edges, eg);
 			g_mutex_unlock(sum_mutex);
 			return 0;
@@ -871,7 +872,7 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_read_by_name);
 	}
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
-	merge_ol_edges(all_edges, insert_size, ht, n_threads);
+	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
 	name = get_output_file("merged_pair_contigs.fa");
 	merged_pair_contigs = xopen(name, "w");
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 100);
@@ -975,6 +976,22 @@ void consume_solid_reads(hash_table *ht, const double stop_thre,
 	}
 }
 
+void rescue_reads(edgearray *edges) {
+	edge *eg = NULL;
+	int i = 0, j = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < edges->len; i++) {
+		eg = g_ptr_array_index(edges, i);
+		for (j = 0; j < eg->reads->len; j++) {
+			r = g_ptr_array_index(eg->reads, j);
+			if (!eg->alive || (eg->alive && r->status != USED)) {
+				r->status = FRESH;
+				r->contig_id = -1;
+			}
+		}
+	}
+}
+
 void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	hash_table *ht = NULL;
 	bwa_seq_t *seqs = NULL;
@@ -1017,6 +1034,8 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	stage = 2;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 2/3: Trying to assembly more unpaired reads... \n");
+	rescue_reads(all_edges);
+	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
 	c_opt->stop_thre = 0.2;
@@ -1036,6 +1055,8 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	stage = 3;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 3/3: Trying to assembly unpaired reads... \n");
+	rescue_reads(all_edges);
+	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
 	c_opt->stop_thre = 0.2;

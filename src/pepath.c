@@ -1081,7 +1081,7 @@ int pe_path(int argc, char *argv[]) {
 	ht = pe_load_hash(argv[2]);
 	edges = load_rm(ht, argv[3], argv[4], argv[5]);
 	reset_edge_ids(edges);
-	merge_ol_edges(edges, 197, ht, 1);
+	merge_ol_edges(edges, 197, 50, ht, 1);
 	merged_pair_contigs
 			= xopen("../SRR097897_out/pair_contigs.1.fa", "w");
 	save_edges(edges, merged_pair_contigs, 0, 0, 100);
