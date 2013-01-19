@@ -1,0 +1,39 @@
+===================================================================
+Summary of ../rnaseq/Spombe/genome/spombe.broad.tx.fasta
+	Total base: 		7213050
+	# of transcripts: 	5163
+	Longest length: 	14775
+	Shortest length: 	75
+	Average length: 	1397.07
+	N50 value: 		1770
+===================================================================
+===================================================================
+Summary of ../SRR097897_out/peta.fa
+	Total base: 		10510033
+	# of transcripts: 	7175
+	Longest length: 	12344
+	Shortest length: 	100
+	Average length: 	1464.81
+	N50 value: 		2166
+===================================================================
+===================================================================
+Evaluation result of ../SRR097897_out/peta.fa
+[similarity threshold: 0.99; n_mismatches + n_indels < 10]
+	Assembled base:               10510033
+	Bases aligned:                8507297
+	# of contigs:                 7175
+	# of Full length:             3460
+	# of one-on-one:              491
+	# of 70% covered:             232
+	Covered by one contig:        211
+	# of Ctgs not aligned:        424
+	Bases not aligned:            230034
+	# of Ctgs not reached:        261
+	Bases not reached:            224359
+	Optimal N50:                  1770
+	Raw N50:                      2166
+	Aligned N50:                  1566
+	Aligned N50 based on all:     834
+	Base coverage:                89.22%
+===================================================================
+
