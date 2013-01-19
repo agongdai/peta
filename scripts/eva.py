@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from subprocess import Popen, PIPE
 import collections
 
-bad_bases_thre = 10
+bad_bases_thre = 20
 
 class ResultSummary(object):
 	def __init__(self, contig_fn):
@@ -198,21 +198,21 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 		if tx_name in r_hits:
 			#print tx_name
 			for a in r_hits[tx_name]:
-				if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * 0.9 and a.alen >= contigs.get_seq_len(a.qname) * 0.9 and a.n_bad_bases <= bad_bases_thre:
+				if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * 0.9 and a.alen >= contigs.get_seq_len(a.qname) * 0.9 and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 					summary.n_tx_one_on_one += 1
 					file_one_on_one.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 					is_set = True
 					break
 			if not is_set:
 				for a in r_hits[tx_name]:
-					if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * 0.9 and a.n_bad_bases <= bad_bases_thre:
+					if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * 0.9 and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 						summary.n_tx_full_length += 1
 						is_set = True
 						file_full_length.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 						break
 			if not is_set:
 				for a in r_hits[tx_name]:
-					if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * 0.7 and a.n_bad_bases <= bad_bases_thre:
+					if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * 0.7 and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 						summary.n_tx_covered_70 += 1
 						is_set = True
 						file_covered_70.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
