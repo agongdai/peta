@@ -140,7 +140,8 @@ pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori) {
 			continue;
 		}
 		// If the mate is already in use, either by current or another thread
-		if (mate->is_in_c_pool || mate->is_in_m_pool || mate->status == USED || mate->status == DEAD)
+		if (mate->is_in_c_pool || mate->is_in_m_pool || mate->status == USED
+				|| mate->status == DEAD)
 			continue;
 		// If the used read is used by another thread;
 		//	or the mate has been used by this template before.
@@ -470,7 +471,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			p_query("Repetitive pattern", query);
 			break;
 		}
-		//p_query(__func__, query);
+		p_query(__func__, query);
 		pe_aln_query(query, query->seq, ht, MISMATCHES, query->len, 0, aligns);
 		pe_aln_query(query, query->rseq, ht, MISMATCHES, query->len, 1, aligns);
 		// p_align(aligns);
@@ -485,9 +486,9 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			//p_pool("After adding mates", cur_pool, next);
 		}
 		reset_alg(aligns);
-		//show_debug_msg(__func__, "Edge %d, length %d \n", eg->id, eg->len);
-		//p_ctg_seq("Contig", eg->contig);
-		//p_pool("Current Pool", cur_pool, next);
+		show_debug_msg(__func__, "Edge %d, length %d \n", eg->id, eg->len);
+		p_ctg_seq("Contig", eg->contig);
+		p_pool("Current Pool", cur_pool, next);
 		c = get_pure_most(next);
 		//show_debug_msg(__func__, "Ori: %d, Next char: %d \n", ori, c);
 		if (cur_pool->n <= 0) {
@@ -676,7 +677,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 		// keep_pairs_only(eg, ht->seqs);
 		if ((eg->len < insert_size
 				&& eg->reads->len * ht->seqs->len < eg->len * 10)
-				|| eg->pairs->len <= eg->reads->len * pair_by_reads_perc
+				|| eg->pairs->len < eg->reads->len * pair_by_reads_perc
 				|| eg->reads->len == 0) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
 			show_msg(__func__,
 					"ABANDONED [%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
@@ -707,6 +708,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 					"[%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
+			log_edge(eg);
 			return 1;
 		}
 	}
@@ -780,7 +782,7 @@ void *pe_lib_thread(gpointer solid_read, gpointer data) {
 	}
 
 //	if (pair_ctg_id == 0)
-//		query = &seqs[4594451];
+//		query = &seqs[178838];
 //	if (pair_ctg_id == 1)
 //		query = &seqs[578669];
 
@@ -796,7 +798,14 @@ void *pe_lib_thread(gpointer solid_read, gpointer data) {
 	}
 	query->status = TRIED;
 	eg = pe_ext(d->ht, query, tid);
-	validate_edge(d->all_edges, eg, d->ht, d->n_paired_reads, d->n_used_reads);
+	if (!eg) {
+		g_mutex_lock(sum_mutex);
+		*n_used_reads += 1;
+		g_mutex_unlock(sum_mutex);
+	} else {
+		validate_edge(d->all_edges, eg, d->ht, d->n_paired_reads,
+				d->n_used_reads);
+	}
 	return NULL;
 }
 
@@ -819,7 +828,7 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	if (thread_pool == NULL) {
 		err_fatal(__func__, "Failed to start the thread pool. \n");
 	}
-//	solid_reads->len = 2;
+	//solid_reads->len = 1;
 	while (block_start + JUMP_UNIT * n_threads < solid_reads->len) {
 		for (i = 0; i < JUMP_UNIT; i++) {
 			for (j = 0; j < n_threads; j++) {
@@ -1033,7 +1042,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
-	c_opt->stop_thre = 0.25;
+	c_opt->stop_thre = 0.5;
 	c_opt->n_threads = n_threads;
 	g_ptr_array_free(solid_reads, TRUE);
 	show_msg(__func__,
@@ -1054,7 +1063,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
-	c_opt->stop_thre = 0.8;
+	c_opt->stop_thre = 1;
 	c_opt->n_threads = n_threads;
 	g_ptr_array_free(solid_reads, TRUE);
 	show_msg(__func__,
