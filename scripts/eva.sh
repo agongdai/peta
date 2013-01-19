@@ -1,7 +1,7 @@
 #!/bin/bash
 
 eva_exe="../scripts/eva.py"
-query="merged_pair_contigs"
+query="peta"
 db_dir="../rnaseq/Spombe/genome/"
 db="spombe.broad.tx.fasta"
 blastdb="../../ncbi-blast-2.2.26+/db/"

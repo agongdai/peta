@@ -676,7 +676,8 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 		// keep_pairs_only(eg, ht->seqs);
 		if ((eg->len < insert_size
 				&& eg->reads->len * ht->seqs->len < eg->len * 10)
-				|| eg->pairs->len < eg->reads->len * pair_by_reads_perc) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
+				|| eg->pairs->len <= eg->reads->len * pair_by_reads_perc
+				|| eg->reads->len == 0) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
 			show_msg(__func__,
 					"ABANDONED [%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
@@ -976,19 +977,13 @@ void consume_solid_reads(hash_table *ht, const double stop_thre,
 	}
 }
 
-void rescue_reads(edgearray *edges) {
-	edge *eg = NULL;
+void rescue_reads(bwa_seq_t *seqs, const int n_seqs) {
 	int i = 0, j = 0;
 	bwa_seq_t *r = NULL;
-	for (i = 0; i < edges->len; i++) {
-		eg = g_ptr_array_index(edges, i);
-		for (j = 0; j < eg->reads->len; j++) {
-			r = g_ptr_array_index(eg->reads, j);
-			if (!eg->alive || (eg->alive && r->status != USED && r->status != DEAD)) {
-				r->status = FRESH;
-				r->contig_id = -1;
-			}
-		}
+	for (i = 0; i < n_seqs; i++) {
+		r = &seqs[i];
+		if (r->status == TRIED)
+			r->status = FRESH;
 	}
 }
 
@@ -1034,11 +1029,11 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	stage = 2;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 2/3: Trying to assembly more unpaired reads... \n");
-	rescue_reads(all_edges);
+	rescue_reads(seqs, ht->n_seqs);
 	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
-	c_opt->stop_thre = 0.2;
+	c_opt->stop_thre = 0.25;
 	c_opt->n_threads = n_threads;
 	g_ptr_array_free(solid_reads, TRUE);
 	show_msg(__func__,
@@ -1055,11 +1050,11 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	stage = 3;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 3/3: Trying to assembly unpaired reads... \n");
-	rescue_reads(all_edges);
+	rescue_reads(seqs, ht->n_seqs);
 	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
-	c_opt->stop_thre = 0.2;
+	c_opt->stop_thre = 0.8;
 	c_opt->n_threads = n_threads;
 	g_ptr_array_free(solid_reads, TRUE);
 	show_msg(__func__,

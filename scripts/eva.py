@@ -24,13 +24,14 @@ class ResultSummary(object):
 		self.n50_raw = 0
 		self.n50_optimal = 0
 		self.base_coverage = 0.0
+		self.similarity_thre = 0
 
 	def set_n_bases(self, n):
 		self.n_bases = n
 
 	def report(self):
 		print '==================================================================='
-		print 'Evaluation result of ' + self.contig_fn
+		print 'Evaluation result of ' + self.contig_fn + ' [similarity threshold: ' + str(self.similarity_thre) + ']'
 		print '\tAssembled base:               ' + str(self.n_bases)
 		print '\tBases aligned:                ' + str(self.n_aligned_bases)
 		print '\t# of contigs:                 ' + str(self.n_contigs)
@@ -397,6 +398,7 @@ def eva_blat(args):
 	contigs.set_n50(get_n50(contigs.lengths, contigs.n_bases))
 
 	summary = ResultSummary(args.contigs)
+	summary.similarity_thre = args.similarity
 	hits = read_blat_hits(args.psl)
 	r_hits = {}
 	aligned_lengths = {}	
