@@ -429,17 +429,32 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 	show_debug_msg(__func__, "Getting solid reads: %.2f sec...\n",
 			(float) (finish.tv_sec - start.tv_sec));
 	solid_reads = g_ptr_array_sized_new(16384);
-	j = 0;
-	try_times = by_coverage ? 1 : MAX_TIME;
-	while (++j <= try_times && n_needed >= n_solid) {
-		// For low sd range, there are only few reads are solid
-		// Here is to avoid unnecessary loops on the reads.
-		clock_gettime(CLOCK_MONOTONIC, &finish);
-		show_debug_msg(__func__,
-				"Round %d out of max %d. %d solid reads: %.2f sec...\n", j,
-				try_times, n_solid, (float) (finish.tv_sec - start.tv_sec));
-		iterate_seqs_threads(seqs, n_seqs, opt, sorted_counters, kmer_list,
-				&n_solid, n_needed, solid_reads, j);
+	if (by_coverage) {
+		for (i = 0; i < n_seqs; i++) {
+			k_count = &sorted_counters[i];
+			if (k_count->checked)
+				continue;
+			s = &seqs[k_count->read_id];
+			if (s->status != FRESH && s->status != TRIED)
+				continue;
+			n_solid += 1;
+			g_ptr_array_add(solid_reads, s);
+			if (n_solid >= n_needed)
+				break;
+		}
+	} else {
+		j = 0;
+		try_times = MAX_TIME;
+		while (++j <= try_times && n_needed >= n_solid) {
+			// For low sd range, there are only few reads are solid
+			// Here is to avoid unnecessary loops on the reads.
+			clock_gettime(CLOCK_MONOTONIC, &finish);
+			show_debug_msg(__func__,
+					"Round %d out of max %d. %d solid reads: %.2f sec...\n", j,
+					try_times, n_solid, (float) (finish.tv_sec - start.tv_sec));
+			iterate_seqs_threads(seqs, n_seqs, opt, sorted_counters, kmer_list,
+					&n_solid, n_needed, solid_reads, j);
+		}
 	}
 	clock_gettime(CLOCK_MONOTONIC, &finish);
 	show_debug_msg(__func__, "%d solid reads remained.\n", n_solid);

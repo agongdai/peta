@@ -140,7 +140,7 @@ pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori) {
 			continue;
 		}
 		// If the mate is already in use, either by current or another thread
-		if (mate->is_in_c_pool || mate->is_in_m_pool || mate->status == USED)
+		if (mate->is_in_c_pool || mate->is_in_m_pool || mate->status == USED || mate->status == DEAD)
 			continue;
 		// If the used read is used by another thread;
 		//	or the mate has been used by this template before.
@@ -276,7 +276,7 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		pre_cursor = s->cursor;
 
 		if (s->is_in_c_pool || (s->is_in_m_pool && s->is_in_m_pool != eg->tid)
-				|| s->status == USED
+				|| s->status == USED || s->status == DEAD
 				|| (s->status == TRIED && s->contig_id == eg->id))
 			continue;
 
@@ -984,7 +984,7 @@ void rescue_reads(edgearray *edges) {
 		eg = g_ptr_array_index(edges, i);
 		for (j = 0; j < eg->reads->len; j++) {
 			r = g_ptr_array_index(eg->reads, j);
-			if (!eg->alive || (eg->alive && r->status != USED)) {
+			if (!eg->alive || (eg->alive && r->status != USED && r->status != DEAD)) {
 				r->status = FRESH;
 				r->contig_id = -1;
 			}
@@ -1044,7 +1044,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__,
 			"Stage 2/3: Calculating solid reads from unpaired reads... \n");
 	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
-			(ht->n_seqs - n_paired_reads) * c_opt->stop_thre, 0, 1);
+			(ht->n_seqs - n_paired_reads) * c_opt->stop_thre, 1, 1);
 	consume_solid_reads(ht, STOP_THRE_STAGE_2, all_edges, solid_reads,
 			&n_used_reads, &n_paired_reads);
 	free(c_opt);
@@ -1065,7 +1065,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__,
 			"Stage 3/3: Calculating solid reads from unpaired reads... \n");
 	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
-			(ht->n_seqs - n_paired_reads) * c_opt->stop_thre, 0, 1);
+			(ht->n_seqs - n_paired_reads) * c_opt->stop_thre, 1, 1);
 	consume_solid_reads(ht, STOP_THRE_STAGE_3, all_edges, solid_reads,
 			&n_used_reads, &n_paired_reads);
 	free(c_opt);
