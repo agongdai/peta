@@ -223,6 +223,7 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 					if (a.rend - a.rstart) >= len(tx_seq) * 0.9:
 						summary.n_tx_one_covered += 1
 						file_one_covered.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
+						break
 						
 			seq_len = len(tx_seq)
 			binary_covered = [0 for x in range(seq_len)]
@@ -370,7 +371,7 @@ def differ(args):
 	for f in files:
 		fp = open(f, 'r')
 		for line in fp:
-			line = line.strip()
+			line = line.strip().split('\t')[0]
 			if line in genes:
 				genes[line] += ',' + f
 			else:

@@ -1,12 +1,12 @@
 #!/bin/bash
 
-query="cufflinks"
-eva_exe="eva.py"
+query="Trinity"
+eva_exe="../scripts/eva.py"
 db_dir="../rnaseq/hg19/genome/"
 db="human.ensembl.cdna.fa"
 blastdb="../../ncbi-blast-2.2.26+/db/"
 similarity="99"
-query_dir="../SRX011545_out/"
+query_dir="../SRR027876_out/"
 
 blastn_exe="blastn"
 blat_exe="../../blat/blat"

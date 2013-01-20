@@ -421,9 +421,9 @@ void correct_start(edge *eg, pool *cur_pool) {
  */
 edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		const int ori, const int tid) {
-	bwa_seq_t *query = NULL;
+	bwa_seq_t *query = NULL, *r = NULL;
 	pool *cur_pool = NULL;
-	int c = 0;
+	int c = 0, i = 0;
 	int *next = NULL;
 	alignarray *aligns = NULL;
 	edge *eg = NULL;
@@ -469,6 +469,10 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			show_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n", eg->id,
 					eg->len);
 			p_query("Repetitive pattern", query);
+			for (i = 0; i < cur_pool->reads->len; i++) {
+				r = g_ptr_array_index(cur_pool->reads, i);
+				r->status = TRIED;
+			}
 			break;
 		}
 		//p_query(__func__, query);
@@ -708,7 +712,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 					"[%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
-			log_edge(eg);
+			// log_edge(eg);
 			return 1;
 		}
 	}
@@ -967,7 +971,7 @@ void consume_solid_reads(hash_table *ht, const double stop_thre,
 				(float) (finish_time.tv_sec - start_time.tv_sec));
 		erase_reads_on_ht(ht);
 		shrink_ht(ht);
-		show_msg(__func__, "Stage %d/%.0f finished %.2f \n", i, n_unit,
+		show_msg(__func__, "Stage %d, percentage %d/%.0f finished %.2f \n", stage, i, n_unit,
 				i * unit_perc);
 		show_msg(__func__,
 				"Correcting counters: [single: %d], [paired: %d]... \n",
