@@ -5,6 +5,8 @@ from subprocess import Popen, PIPE
 import collections
 
 bad_bases_thre = 20
+full_length_perc = 0.99
+near_full_length = 0.9
 
 class ResultSummary(object):
 	def __init__(self, contig_fn):
@@ -13,6 +15,7 @@ class ResultSummary(object):
 		self.n_aligned_bases = 0
 		self.n_contigs = 0
 		self.n_tx_full_length = 0
+		self.n_tx_near_full_length = 0
 		self.n_tx_one_on_one = 0
 		self.n_tx_one_covered = 0
 		self.n_tx_covered_70 = 0
@@ -34,12 +37,15 @@ class ResultSummary(object):
 	def report(self):
 		print '==================================================================='
 		print 'Evaluation result of ' + self.contig_fn
-		print '[similarity threshold: ' + str(self.similarity_thre) + '; n_mismatches + n_indels < ' + str(bad_bases_thre) + ']'
+		print '[similarity threshold: ' + str(self.similarity_thre) + ']'
+		print '[full length threshold: ' + str(full_length_perc) + ']'
+		print '[n_mismatches + n_indels < ' + str(bad_bases_thre) + ']'
 		print '\tAssembled base:               ' + str(self.n_bases)
 		print '\tBases aligned:                ' + str(self.n_aligned_bases)
 		print '\t# of contigs:                 ' + str(self.n_contigs)
 		print '\t# of Full length:             ' + str(self.n_tx_full_length)
 		print '\t# of one-on-one:              ' + str(self.n_tx_one_on_one)
+		print '\t# of near full length %.0f%%:   ' % (near_full_length * 100) + ' ' + str(self.n_tx_near_full_length)
 		print '\t# of 70% covered:             ' + str(self.n_tx_covered_70)
 		print '\tCovered by one contig:        ' + str(self.n_tx_one_covered)
 #		print '\t# of fragmented:              ' + str(self.n_fragmented)
@@ -181,6 +187,7 @@ def runInShell(cmd):
 def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	file_full_length = open(os.path.join(args.out_dir, 'full_length.txt'), 'w')
 	file_one_on_one = open(os.path.join(args.out_dir, 'one_on_one.txt'), 'w')
+	file_near_full_length = open(os.path.join(args.out_dir, 'near_full_length.txt'), 'w')
 	file_covered_70 = open(os.path.join(args.out_dir, 'covered_70.txt'), 'w')
 	file_one_covered = open(os.path.join(args.out_dir, 'one_covered.txt'), 'w')
 	similarity = float(args.similarity)
@@ -198,17 +205,24 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 		if tx_name in r_hits:
 			#print tx_name
 			for a in r_hits[tx_name]:
-				if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * 0.9 and a.alen >= contigs.get_seq_len(a.qname) * 0.9 and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
+				if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * full_length_perc and a.alen >= contigs.get_seq_len(a.qname) * 0.9 and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 					summary.n_tx_one_on_one += 1
 					file_one_on_one.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 					is_set = True
 					break
 			if not is_set:
 				for a in r_hits[tx_name]:
-					if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * 0.9 and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
+					if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * full_length_perc and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 						summary.n_tx_full_length += 1
 						is_set = True
 						file_full_length.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
+						break
+			if not is_set:
+				for a in r_hits[tx_name]:
+					if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * near_full_length and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
+						summary.n_tx_near_full_length += 1
+						is_set = True
+						file_near_full_length.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 						break
 			if not is_set:
 				for a in r_hits[tx_name]:
@@ -220,10 +234,9 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 
 			if not is_set: 
 				for a in r_hits[tx_name]:
-					if (a.rend - a.rstart) >= len(tx_seq) * 0.9:
+					if (a.rend - a.rstart) >= len(tx_seq) * full_length_perc:
 						summary.n_tx_one_covered += 1
 						file_one_covered.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
-						break
 						
 			seq_len = len(tx_seq)
 			binary_covered = [0 for x in range(seq_len)]
@@ -248,13 +261,15 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	summary.n50_optimal = ref.n50
 	summary.report()
 
-	print 'Check %s.'%os.path.join(args.out_dir, 'full_length.txt')
-	print 'Check %s.'%os.path.join(args.out_dir, 'one_on_one.txt')
-	print 'Check %s.'%os.path.join(args.out_dir, 'covered_70.txt')
-	print 'Check %s.'%os.path.join(args.out_dir, 'one_covered.txt')
+	print 'Check %s'%os.path.join(args.out_dir, 'full_length.txt')
+	print 'Check %s'%os.path.join(args.out_dir, 'one_on_one.txt')
+	print 'Check %s'%os.path.join(args.out_dir, 'near_full_length.txt')
+	print 'Check %s'%os.path.join(args.out_dir, 'covered_70.txt')
+	print 'Check %s'%os.path.join(args.out_dir, 'one_covered.txt')
 
 	file_one_covered.close()
 	file_full_length.close()
+	file_near_full_length.close()
 	file_covered_70.close()
 	file_one_on_one.close()
 
@@ -371,7 +386,7 @@ def differ(args):
 	for f in files:
 		fp = open(f, 'r')
 		for line in fp:
-			line = line.strip().split('\t')[0]
+			line = line.strip()
 			if line in genes:
 				genes[line] += ',' + f
 			else:

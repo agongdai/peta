@@ -1,16 +1,17 @@
 #!/bin/bash
 
-eva_exe="../scripts/eva.py"
 query="peta"
-db_dir="../rnaseq/Spombe/genome/"
+root_dir="/home/carl/Projects/"
+eva_exe="$root_dir/peta/scripts/eva.py"
+db_dir="$root_dir/peta/rnaseq/Spombe/genome/"
 db="spombe.broad.tx.fasta"
-blastdb="../../ncbi-blast-2.2.26+/db/"
+blastdb="$root_dir/ncbi-blast-2.2.26+/db/"
 similarity="99"
-query_dir="../SRR097897_out/"
+query_dir="$root_dir/peta/SRR097897_out/"
 
 blastn_exe="blastn"
-blat_exe="../../blat/blat"
-occ="../../blat/11.ooc"
+blat_exe="$root_dir/blat/blat"
+occ="$root_dir/blat/11.ooc"
 bwa_exe="bwa"
 
 die () {
