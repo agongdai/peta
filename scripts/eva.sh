@@ -6,7 +6,7 @@ eva_exe="$root_dir/peta/scripts/eva.py"
 db_dir="$root_dir/peta/rnaseq/Spombe/genome/"
 db="spombe.broad.tx.fasta"
 blastdb="$root_dir/ncbi-blast-2.2.26+/db/"
-similarity="99"
+similarity="98"
 query_dir="$root_dir/peta/SRR097897_out/"
 
 blastn_exe="blastn"

@@ -1,11 +1,10 @@
 from __future__ import division
 import sys, os, pysam
 from argparse import ArgumentParser
-from subprocess import Popen, PIPE
 import collections
 
-bad_bases_thre = 20
-full_length_perc = 0.99
+bad_bases_thre = 50
+full_length_perc = 0.98
 near_full_length = 0.9
 
 class ResultSummary(object):
@@ -142,7 +141,7 @@ class FastaFile(object):
 		coverage_file.close()
 
 class BlastHit(object):
-	def __init__(self, qname = None, rname = None, alen = 0, pos = 0, astart = 0, aend = 0, tid = 0):
+	def __init__(self, qname = None, hit_line = '', rname = None, alen = 0, pos = 0, astart = 0, aend = 0, tid = 0):
 		self.qname = qname
 		self.n_mismatch = 0
 		self.n_match = 0
@@ -168,6 +167,8 @@ class BlastHit(object):
 		self.similarity = 0.0
 		self.identity = 0.0
 		self.n_bad_bases = 0
+		self.mate = None
+		self.hit_line = hit_line
 	
 	def set_similarity(self):
 		self.alen = 0
@@ -176,20 +177,32 @@ class BlastHit(object):
 		if not self.alen == 0:
 			self.identity = self.n_match / self.alen
 		if not (self.rend - self.rstart == 0):
-			self.similarity = self.n_match / (self.rend - self.rstart)
+			self.similarity = self.n_match / abs(self.rend - self.rstart)
 		self.n_bad_bases = self.n_mismatch + self.n_ref_gap_bases
 		
-def runInShell(cmd):
-    print 'running', cmd
-    p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
-    return p.communicate()[0]
-
+	def set_mate(self, mate):
+		self.mate = mate
+		
+	def __repr__(self):
+		repr = 'Query %s:\t [' % self.qname
+		for s in self.block_sizes:
+			repr += str(s) + ','
+		repr += '] ['
+		for s in self.q_block_starts:
+			repr += str(s) + ','
+		repr += ']\t Ref %s:\t [' % self.rname
+		for s in self.r_block_starts:
+			repr += str(s) + ','
+		repr += ']\t'
+		repr += 'Match: %d; Mismatch: %d; Indels: %d/%d' % (self.n_match, self.n_mismatch, self.n_query_gap_bases, self.n_ref_gap_bases)
+		return repr
+		
 def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
-	file_full_length = open(os.path.join(args.out_dir, 'full_length.txt'), 'w')
-	file_one_on_one = open(os.path.join(args.out_dir, 'one_on_one.txt'), 'w')
-	file_near_full_length = open(os.path.join(args.out_dir, 'near_full_length.txt'), 'w')
-	file_covered_70 = open(os.path.join(args.out_dir, 'covered_70.txt'), 'w')
-	file_one_covered = open(os.path.join(args.out_dir, 'one_covered.txt'), 'w')
+	file_full_length = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_full_length.txt'), 'w')
+	file_one_on_one = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_one_on_one.txt'), 'w')
+	file_near_full_length = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_near_full_length.txt'), 'w')
+	file_covered_70 = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_covered_70.txt'), 'w')
+	file_one_covered = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_one_covered.txt'), 'w')
 	similarity = float(args.similarity)
 
 	for tx_name, tx_seq in ref.seqs.iteritems():
@@ -203,30 +216,30 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	for tx_name, tx_seq in ref.seqs.iteritems():
 		is_set = False
 		if tx_name in r_hits:
-			#print tx_name
 			for a in r_hits[tx_name]:
-				if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * full_length_perc and a.alen >= contigs.get_seq_len(a.qname) * 0.9 and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
+				if a.similarity >= similarity and abs(a.rend - a.rstart) >= len(tx_seq) * full_length_perc and a.alen >= contigs.get_seq_len(a.qname) * 0.9 and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 					summary.n_tx_one_on_one += 1
 					file_one_on_one.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 					is_set = True
 					break
 			if not is_set:
 				for a in r_hits[tx_name]:
-					if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * full_length_perc and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
+					print a.qname, a.rname, a.similarity, abs(a.rend - a.rstart), len(tx_seq), (a.n_query_gap_bases + a.n_bad_bases)
+					if a.similarity >= similarity and abs(a.rend - a.rstart) >= len(tx_seq) * full_length_perc and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 						summary.n_tx_full_length += 1
 						is_set = True
 						file_full_length.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 						break
 			if not is_set:
 				for a in r_hits[tx_name]:
-					if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * near_full_length and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
+					if a.similarity >= similarity and abs(a.rend - a.rstart) >= len(tx_seq) * near_full_length and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 						summary.n_tx_near_full_length += 1
 						is_set = True
 						file_near_full_length.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 						break
 			if not is_set:
 				for a in r_hits[tx_name]:
-					if a.similarity >= similarity and (a.rend - a.rstart) >= len(tx_seq) * 0.7 and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
+					if a.similarity >= similarity and abs(a.rend - a.rstart) >= len(tx_seq) * 0.7 and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 						summary.n_tx_covered_70 += 1
 						is_set = True
 						file_covered_70.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
@@ -234,9 +247,11 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 
 			if not is_set: 
 				for a in r_hits[tx_name]:
-					if (a.rend - a.rstart) >= len(tx_seq) * full_length_perc:
+					if abs(a.rend - a.rstart) >= len(tx_seq) * full_length_perc:
 						summary.n_tx_one_covered += 1
 						file_one_covered.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
+						is_set = True
+						break
 						
 			seq_len = len(tx_seq)
 			binary_covered = [0 for x in range(seq_len)]
@@ -261,11 +276,11 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	summary.n50_optimal = ref.n50
 	summary.report()
 
-	print 'Check %s'%os.path.join(args.out_dir, 'full_length.txt')
-	print 'Check %s'%os.path.join(args.out_dir, 'one_on_one.txt')
-	print 'Check %s'%os.path.join(args.out_dir, 'near_full_length.txt')
-	print 'Check %s'%os.path.join(args.out_dir, 'covered_70.txt')
-	print 'Check %s'%os.path.join(args.out_dir, 'one_covered.txt')
+	print 'Check %s'%os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_full_length.txt')
+	print 'Check %s'%os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_one_on_one.txt')
+	print 'Check %s'%os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_near_full_length.txt')
+	print 'Check %s'%os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_covered_70.txt')
+	print 'Check %s'%os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_one_covered.txt')
 
 	file_one_covered.close()
 	file_full_length.close()
@@ -312,23 +327,31 @@ def analyze(args, ref, contigs, aligns, hits):
 		report.write('\n')
 	report.close()
 
-def read_blat_hits(blat_fn):
-	blat = open(blat_fn, 'r')
+def read_psl_hits(hit_lines):
 	hits = {}
 	qname = ''
 	reading_hits = False
 	line_no = 0
-	for line in blat:
+	for line in hit_lines:
 		line = line.strip()
 		line_no += 1
+		if len(line) < 4:
+			continue
 		if True:
-			if '-----' in line:
-				reading_hits = True 
-				continue
+			if not reading_hits:
+				if '-----' in line:
+					reading_hits = True
+					continue 
+				f = line.split('\t')
+				try:
+					n_match = int(f[0])
+					reading_hits = True
+				except:
+					continue
 			if not reading_hits:
 				continue
 			f = line.split('\t')
-			hit = BlastHit(f[9])
+			hit = BlastHit(f[9], line)
 			hit.n_match = int(f[0])
 			hit.n_mismatch = int(f[1])
 			hit.n_rep_match = int(f[2])
@@ -359,7 +382,14 @@ def read_blat_hits(blat_fn):
 			if not hit.qname in hits:
 				hits[hit.qname] = []
 			hits[hit.qname].append(hit)
-		
+	return hits
+
+def read_blat_hits(blat_fn):
+	blat = open(blat_fn, 'r')
+	hit_lines = []
+	for line in blat:
+		hit_lines.append(line)
+	hits = read_psl_hits(hit_lines)
 	blat.close()
 	return hits
 
@@ -386,7 +416,7 @@ def differ(args):
 	for f in files:
 		fp = open(f, 'r')
 		for line in fp:
-			line = line.strip()
+			line = line.strip().split('\t')[0]
 			if line in genes:
 				genes[line] += ',' + f
 			else:
@@ -451,28 +481,6 @@ def eva_blat(args):
 	
 	eva_hits(args, ref, contigs, summary, hits, r_hits, lengths)
 	
-def save_a_tx(seq, tx_name):
-	f = open(tx_name + '.fa', 'w')
-	line_len = 60
-	f.write('>' + tx_name + '\n')
-	for i in range(0, len(seq)):
-		f.write(seq[i])
-		if i % 60 == 0:
-			f.write('\n')
-	f.close()
-	
-def zoom_a_tx(args):
-	tx = FastaFile(args.ref)
-	seq = tx.seqs[args.tx_name]
-	save_a_tx(seq, args.tx_name)
-	tx_fn = os.path.join(args.out_dir, tx_name + '.fa')
-	sam_fn = os.path.join(args.out_dir, tx_name + '.sam')
-	cmd = 'bowtie2-build ' + tx_fn + ' ' + tx_fn
-	runInShell(cmd)
-	cmd = 'bowtie2 -a -x ' + tx_fn + ' -1 /home/carl/Projects/peta/rnaseq/hg19/SRX011545/left.fastq -2 /home/carl/Projects/peta/rnaseq/hg19/SRX011545/right.fastq -S ' + sam_fn 
-	runInShell(cmd)
-	print 'Done.\n'
-
 def check_dup(args):
 	ids = open(args.input, 'r')
 	unique = []
@@ -510,12 +518,6 @@ def main():
     parser_ana.add_argument('-b', required=True, help='blastn file', dest='blastn')
     parser_ana.add_argument('-o', required=True, help='output folder', dest='out_dir')
     
-    parser_zoom = subparsers.add_parser('zoom', help='align reads to a single transcript by bowtie2')
-    parser_zoom.set_defaults(func=zoom_a_tx)
-    parser_zoom.add_argument('-t', required=False, metavar='FILE', default='/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa', help='reference transcript file', dest='ref')
-    parser_zoom.add_argument('-z', required=True, help='transcript name to be aligned to', dest='tx_name')
-    parser_zoom.add_argument('-o', required=False, default='/home/carl/Projects/peta/rnaseq/hg19/SRX011545/single/', help='output folder', dest='out_dir')
-
     parser_cmp = subparsers.add_parser('hasdup', help='evaluate the performance by alinging by Blastn')
     parser_cmp.set_defaults(func=check_dup)
     parser_cmp.add_argument('-f', required=True, help='file', dest='input')

@@ -679,7 +679,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 		pair_by_reads_perc = VALID_PAIR_PERC_STAGE_2;
 	if (eg) {
 		// keep_pairs_only(eg, ht->seqs);
-		if ((eg->len < insert_size
+		if ((eg->len < 100 
 				&& eg->reads->len * ht->seqs->len < eg->len * 10)
 				|| eg->pairs->len < eg->reads->len * pair_by_reads_perc
 				|| eg->reads->len == 0) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
@@ -691,11 +691,12 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 					"ABANDONED [%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
-			upd_ctg_id(eg, -1, TRIED);
+			// upd_ctg_id(eg, -1, TRIED);
 			eg->alive = 0;
 			g_mutex_lock(sum_mutex);
 			*n_used_reads += eg->reads->len;
-			g_ptr_array_add(all_edges, eg);
+			destroy_eg(eg);
+			//g_ptr_array_add(all_edges, eg);
 			g_mutex_unlock(sum_mutex);
 			return 0;
 		} else {
@@ -712,7 +713,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 					"[%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
 					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
 					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
-			// log_edge(eg);
+			log_edge(eg);
 			return 1;
 		}
 	}
@@ -832,7 +833,7 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	if (thread_pool == NULL) {
 		err_fatal(__func__, "Failed to start the thread pool. \n");
 	}
-	//solid_reads->len = 1;
+	solid_reads->len = 20;
 	while (block_start + JUMP_UNIT * n_threads < solid_reads->len) {
 		for (i = 0; i < JUMP_UNIT; i++) {
 			for (j = 0; j < n_threads; j++) {
@@ -845,6 +846,7 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	}
 	for (i = block_start; i < solid_reads->len; i++) {
 		query = g_ptr_array_index(solid_reads, i);
+		p_query(__func__, query);
 		g_thread_pool_push(thread_pool, (gpointer) query, NULL);
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
@@ -957,7 +959,8 @@ void consume_solid_reads(hash_table *ht, const double stop_thre,
 
 	n_per_threads = solid_reads->len / n_threads;
 	unit_perc = 1 / n_unit;
-	for (i = 1; i <= n_unit; i++) {
+	show_msg(__func__, "n_per_threads: %d \n", n_per_threads);
+	for (i = 1; i <= 1; i++) {
 		max_perc = i * unit_perc;
 		if (max_perc >= stop_thre)
 			max_perc = stop_thre;
@@ -1018,8 +1021,8 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	n_rep = rm_repetitive_reads(seqs, ht->n_seqs);
 	erase_reads_on_ht(ht);
 	shrink_ht(ht);
-	n_used_reads = n_rep;
-	n_paired_reads = n_rep;
+	//n_used_reads = n_rep;
+	//n_paired_reads = n_rep;
 	show_msg(__func__, "# of repetitive reads are marked DEAD: %d\n", n_rep);
 	//show_msg(__func__, "Correcting reads... \n");
 	//correct_reads(ht, 6);
@@ -1039,6 +1042,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "Stage 1 finished: %.2f sec\n",
 			(float) (finish_time.tv_sec - start_time.tv_sec));
 
+    /*
 	stage = 2;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 2/3: Trying to assembly more unpaired reads... \n");
@@ -1046,7 +1050,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
 	c_opt = init_clean_opt();
 	c_opt->kmer = 15;
-	c_opt->stop_thre = 0.5;
+	c_opt->stop_thre = 0.8;
 	c_opt->n_threads = n_threads;
 	g_ptr_array_free(solid_reads, TRUE);
 	show_msg(__func__,
@@ -1080,7 +1084,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Stage 3 finished: %.2f sec\n",
 			(float) (finish_time.tv_sec - start_time.tv_sec));
-
+*/
 	post_process_edges(ht, all_edges);
 	g_ptr_array_free(solid_reads, TRUE);
 	destroy_ht(ht);

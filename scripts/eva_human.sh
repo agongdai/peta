@@ -1,12 +1,12 @@
 #!/bin/bash
 
-query="merged_pair_contigs"
+query="pair_contigs"
 root_dir="/home/carl/Projects/"
 eva_exe="$root_dir/peta/scripts/eva.py"
 db_dir="$root_dir/peta/rnaseq/hg19/genome/"
 db="human.ensembl.cdna.fa"
 blastdb="$root_dir/ncbi-blast-2.2.26+/db/"
-similarity="99"
+similarity="98"
 query_dir="$root_dir/peta/SRR027876_out/"
 
 blastn_exe="blastn"
