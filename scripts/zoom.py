@@ -13,6 +13,10 @@ REF = '/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa'
 READ = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa'
 CONTIG = '/home/carl/Projects/peta/SRR027876_out/pair_contigs.fa'
 
+READ_REF_PSL_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.psl'
+REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta'
+READ_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa'
+
 def runInShell(cmd):
     p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
     return p.communicate()[0]
@@ -26,7 +30,10 @@ def ctg_to_ref(args):
     ref = args.tx
     print 'Aligning %s to %s ' % (contig, ref)
     ctg_ref_psl = contig + '.psl'
-    hits_file_name = contig + '.hits'
+    if args.transcript:
+        hits_file_name = args.transcript + '.hits'
+    else:
+        hits_file_name = contig + '.hits'
     hits_file = open(hits_file_name, 'w')
     cmd = '%s %s %s -ooc=%s %s' % (BLAT, ref, contig, BLAT_OCC_11, ctg_ref_psl)
     runInShell(cmd)
@@ -43,6 +50,8 @@ def ctg_to_ref(args):
     open_psl.close()
     print 'Printing the text alignments to %s...' % hits_file_name
     for tx_name, tx_seq in hit_tx.iteritems():
+        if args.transcript and not args.transcript == tx_name:
+            continue
         no += 1
         summary, hits = zoom_tx(tx_name, ref, ctg_ref_psl, 'ctg')
         if len(hits) <= 0:
@@ -56,8 +65,13 @@ def read_to_ref(args):
     tx_name = args.transcript
     ref = args.tx
     ctg_or_read = 'read'
-    summary, tx_hits = zoom_tx(tx_name, ref, READ_REF_PSL, 'read')
+    summary, tx_hits = zoom_tx(tx_name, ref, args.psl, 'read')
+    align_str = get_align_str(ref, args.reads, tx_hits)
+    hits_f = open(tx_name + '.reads.hits', 'w')
+    hits_f.write(align_str)
+    hits_f.close()
     print summary
+    print 'Check text alignment at file %s.reads.hits' % tx_name
 
 def zoom_tx(tx_name, ref, blat_psl, ctg_or_read):
     lines = runInShell('grep ' + tx_name + ' ' + blat_psl)
@@ -158,7 +172,7 @@ def get_align_str(ref, fasta, hits):
             else:
                 hit_str += rev_read_seq[h.q_block_starts[i]:h.q_block_starts[i] + h.block_sizes[i]] 
             pre_end = h.r_block_starts[i] + h.block_sizes[i]
-        hit_str += '    ' + h.qname + ':' + str(len(read_seq)) + ' [' + str(h.rstart) + 'M' + str(h.n_match) + ',' + str(h.strand) + str(h.n_mismatch) + ']\n'
+        hit_str += '    ' + h.qname + ':' + str(len(read_seq)) + ' [' + str(h.rstart) + 'M' + str(h.n_match) + ',III' + str(h.n_ref_gap_bases) + str(h.strand) + str(h.n_mismatch) + ']\n'
         algin_str += hit_str
         read_no += 1
     return algin_str
@@ -183,6 +197,19 @@ def get_color(transcript, tx, b):
     else:
         return 'white'
 
+def nice_name(name):
+    return name.replace('.', '_')
+
+def check_covered(tx, hits, start, end):
+    for h in hits:
+        if h.qname == tx and not h.qname == h.rname:
+            for i in range(h.n_blocks):
+                b_start = h.q_block_starts[i]
+                b_end = h.q_block_starts[i] + h.block_sizes[i]
+                if b_start <= start and b_end >= end:
+                    return True
+    return False
+
 def draw_dot(args):
     tx = FastaFile(args.tx)
     dot = open(args.transcript + '.dot', 'w')
@@ -197,14 +224,16 @@ def draw_dot(args):
     
     # Every starting/ending point on the query transcript is a 'milestone'
     m = []
+    print hits
+    print '-----------------------------' 
     for h in hits:
         if h.qname == args.transcript and not h.qname == h.rname:
             for i in range(h.n_blocks):
                 if not h.q_block_starts[i] in m:
-                    milestones.append((h.q_block_starts[i], 'start', i))
+                    milestones.append((h.q_block_starts[i], 'start', h.rname, i))
                     m.append(h.q_block_starts[i])
                 if not (h.q_block_starts[i] + h.block_sizes[i]) in m:
-                    milestones.append((h.q_block_starts[i] + h.block_sizes[i], 'end', i))
+                    milestones.append((h.q_block_starts[i] + h.block_sizes[i], 'end', h.rname, i))
                     m.append(h.q_block_starts[i] + h.block_sizes[i])
                      
     blocks = {}
@@ -217,15 +246,15 @@ def draw_dot(args):
     dot.write('digraph g { \n\trankdir = LR \n')
     n_solid_blocks = 0
     # Determine all blocks of the query transcript
+    print milestones
     for i in range(len(milestones) - 1):
-        (next_m, next_start_or_end, next_index) = milestones[i + 1]
-        (m, start_or_end, index) = milestones[i]
+        (next_m, next_start_or_end, next_rname, next_index) = milestones[i + 1]
+        (m, start_or_end, rname, index) = milestones[i]
         is_covered = True
         if i == 0 and m > 0:
             b = Block(args.transcript, -1, 0, m, False)
             blocks[args.transcript].append(b)
-        if start_or_end == 'end' and next_start_or_end == 'start' and index < next_index:
-            is_covered = False
+        is_covered = check_covered(args.transcript, hits, m, next_m)
         if is_covered:
             b = Block(args.transcript, n_solid_blocks, m, next_m, is_covered)
             b.matched_block = b
@@ -238,6 +267,10 @@ def draw_dot(args):
         if i == len(milestones) - 2 and next_m < tx.get_seq_len(args.transcript):
             b = Block(args.transcript, -1, next_m, h.qlen, False)
             blocks[args.transcript].append(b)
+            
+    print '-----------------------------'
+    print blocks[args.transcript]
+    print '-----------------------------'
 
     # Determine the blocks of 'reference' transcripts
     for h in hits:
@@ -274,7 +307,7 @@ def draw_dot(args):
     for t, tx_blocks in blocks.iteritems():
         print t, tx_blocks
         if len(blocks[t]) > 0:
-            dot.write('\t%s_0 [fixedsize=true, width=3, style=filled, fillcolor=%s, shape=box, label="%s:%d"] \n' % (t, 'orange', t, tx.get_seq_len(t)))
+            dot.write('\t%s_0 [fixedsize=true, width=3, style=filled, fillcolor=%s, shape=box, label="%s:%d"] \n' % (nice_name(t), 'orange', t, tx.get_seq_len(t)))
     
     print 'n_solid_blocks ', n_solid_blocks
     
@@ -306,37 +339,37 @@ def draw_dot(args):
             if has_dummy:
                 if b.is_covered:
                     if not all_covered:
-                        dot.write('\t%s_%d [fixedsize=true, width=2, style="filled,dashed", fillcolor=%s, shape=box, label=""] \n' % (t, tx_node_ids[t] + 1, get_color(args.transcript, t, b)))
-                        dot.write('\t%s_%d -> %s_%d \n' % (t, tx_node_ids[t], t, tx_node_ids[t] + 1))
+                        dot.write('\t%s_%d [fixedsize=true, width=2, style="filled,dashed", fillcolor=%s, shape=box, label=""] \n' % (nice_name(t), tx_node_ids[t] + 1, get_color(args.transcript, t, b)))
+                        dot.write('\t%s_%d -> %s_%d \n' % (nice_name(t), tx_node_ids[t], nice_name(t), tx_node_ids[t] + 1))
                         tx_node_ids[t] += 1
                     if b.id == i:
-                        dot.write('\t%s_%d [fixedsize=true, width=2, style="filled", fillcolor=%s, shape=box, label="%d: %d~%d"] \n' % (t, tx_node_ids[t] + 1, get_color(args.transcript, t, b), b.end - b.start, b.start, b.end))
-                        dot.write('\t%s_%d -> %s_%d \n' % (t, tx_node_ids[t], t, tx_node_ids[t] + 1))
+                        dot.write('\t%s_%d [fixedsize=true, width=2, style="filled", fillcolor=%s, shape=box, label="%d: %d~%d"] \n' % (nice_name(t), tx_node_ids[t] + 1, get_color(args.transcript, t, b), b.end - b.start, b.start, b.end))
+                        dot.write('\t%s_%d -> %s_%d \n' % (nice_name(t), tx_node_ids[t], nice_name(t), tx_node_ids[t] + 1))
                         tx_cursors[t] += 1
                         tx_node_ids[t] += 1
                     else:
-                        dot.write('\t%s_%d [fixedsize=true, width=2, style="filled,dashed", fillcolor=%s, shape=box, label=""] \n' % (t, tx_node_ids[t] + 1, get_color(args.transcript, t, b)))
-                        dot.write('\t%s_%d -> %s_%d \n' % (t, tx_node_ids[t], t, tx_node_ids[t] + 1))
+                        dot.write('\t%s_%d [fixedsize=true, width=2, style="filled,dashed", fillcolor=%s, shape=box, label=""] \n' % (nice_name(t), tx_node_ids[t] + 1, get_color(args.transcript, t, b)))
+                        dot.write('\t%s_%d -> %s_%d \n' % (nice_name(t), tx_node_ids[t], nice_name(t), tx_node_ids[t] + 1))
                         tx_node_ids[t] += 1
                 else:
-                    dot.write('\t%s_%d [fixedsize=true, width=2, style="filled", fillcolor=%s, shape=box, label="%d: %d~%d"] \n' % (t, tx_node_ids[t] + 1, get_color(args.transcript, t, b), b.end - b.start, b.start, b.end))
-                    dot.write('\t%s_%d -> %s_%d \n' % (t, tx_node_ids[t], t, tx_node_ids[t] + 1))
+                    dot.write('\t%s_%d [fixedsize=true, width=2, style="filled", fillcolor=%s, shape=box, label="%d: %d~%d"] \n' % (nice_name(t), tx_node_ids[t] + 1, get_color(args.transcript, t, b), b.end - b.start, b.start, b.end))
+                    dot.write('\t%s_%d -> %s_%d \n' % (nice_name(t), tx_node_ids[t], nice_name(t), tx_node_ids[t] + 1))
                     tx_cursors[t] += 1
                     tx_node_ids[t] += 1
                     if tx_cursors[t] < len(tx_blocks):
                         b = tx_blocks[tx_cursors[t]]
                         if b.is_covered and b.id == i:
-                            dot.write('\t%s_%d [fixedsize=true, width=2, style="filled", fillcolor=%s, shape=box, label="%d: %d~%d"] \n' % (t, tx_node_ids[t] + 1, get_color(args.transcript, t, b), b.end - b.start, b.start, b.end))
-                            dot.write('\t%s_%d -> %s_%d \n' % (t, tx_node_ids[t], t, tx_node_ids[t] + 1))
+                            dot.write('\t%s_%d [fixedsize=true, width=2, style="filled", fillcolor=%s, shape=box, label="%d: %d~%d"] \n' % (nice_name(t), tx_node_ids[t] + 1, get_color(args.transcript, t, b), b.end - b.start, b.start, b.end))
+                            dot.write('\t%s_%d -> %s_%d \n' % (nice_name(t), tx_node_ids[t], nice_name(t), tx_node_ids[t] + 1))
                             tx_cursors[t] += 1
                             tx_node_ids[t] += 1
                         else:
-                            dot.write('\t%s_%d [fixedsize=true, width=2, style="filled,dashed", fillcolor=%s, shape=box, label=""] \n' % (t, tx_node_ids[t] + 1, get_color(args.transcript, t, b)))
-                            dot.write('\t%s_%d -> %s_%d \n' % (t, tx_node_ids[t], t, tx_node_ids[t] + 1))
+                            dot.write('\t%s_%d [fixedsize=true, width=2, style="filled,dashed", fillcolor=%s, shape=box, label=""] \n' % (nice_name(t), tx_node_ids[t] + 1, get_color(args.transcript, t, b)))
+                            dot.write('\t%s_%d -> %s_%d \n' % (nice_name(t), tx_node_ids[t], nice_name(t), tx_node_ids[t] + 1))
                             tx_node_ids[t] += 1
             else:
-                dot.write('\t%s_%d [fixedsize=true, width=2, style="filled", fillcolor=%s, shape=box, label="%d: %d~%d"] \n' % (t, tx_node_ids[t] + 1, get_color(args.transcript, t, b), b.end - b.start, b.start, b.end))
-                dot.write('\t%s_%d -> %s_%d \n' % (t, tx_node_ids[t], t, tx_node_ids[t] + 1))
+                dot.write('\t%s_%d [fixedsize=true, width=2, style="filled", fillcolor=%s, shape=box, label="%d: %d~%d"] \n' % (nice_name(t), tx_node_ids[t] + 1, get_color(args.transcript, t, b), b.end - b.start, b.start, b.end))
+                dot.write('\t%s_%d -> %s_%d \n' % (nice_name(t), tx_node_ids[t], nice_name(t), tx_node_ids[t] + 1))
                 tx_cursors[t] += 1
                 tx_node_ids[t] += 1
         
@@ -349,8 +382,9 @@ def main():
     parser_read_to_ref = subparsers.add_parser('rtx', help='align all reads to a transcript and visualize text alignments')
     parser_read_to_ref.set_defaults(func=read_to_ref)
     parser_read_to_ref.add_argument('transcript', help='annotated transcripts ensembl ID')
-    parser_read_to_ref.add_argument('-r', '--reads', required=False, default=READ, metavar='FILE', help='reads file', dest='reads')
-    parser_read_to_ref.add_argument('-f', '--tx', required=False, default=REF, metavar='FILE', help='annotated transcripts file', dest='tx')
+    parser_read_to_ref.add_argument('-r', '--reads', required=False, default=READ_SRR097897, metavar='FILE', help='reads file', dest='reads')
+    parser_read_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR097897, metavar='FILE', help='annotated transcripts file', dest='tx')
+    parser_read_to_ref.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR097897, metavar='FILE', help='reads to annotated transcripts', dest='psl')
     
     parser_one_read_to_ref = subparsers.add_parser('draw', help='draw transcripts splicing patterns')
     parser_one_read_to_ref.set_defaults(func=draw_dot)
@@ -358,10 +392,11 @@ def main():
     parser_one_read_to_ref.add_argument('-f', '--tx', required=False, default=REF, help='annotated transcripts file', metavar='FILE', dest='tx')
     parser_one_read_to_ref.add_argument('-p', '--psl', required=False, default=REF_TO_REF, help='ref-to-ref psl file', metavar='FILE', dest='psl')
     
-    parser_ctg_to_ref = subparsers.add_parser('ctr', help='align all contigs to a transcript and visualize text alignments')
+    parser_ctg_to_ref = subparsers.add_parser('ctx', help='align all contigs to a transcript and visualize text alignments')
     parser_ctg_to_ref.set_defaults(func=ctg_to_ref)
     parser_ctg_to_ref.add_argument('contigs', help='contigs file')
-    parser_ctg_to_ref.add_argument('-f', '--tx', required=False, default=REF, metavar='FILE', help='annotated transcripts file', dest='tx')
+    parser_ctg_to_ref.add_argument('-t', '--transcript', required=False, default=None, help='check hits only for one transcript', dest='transcript')
+    parser_ctg_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR097897, metavar='FILE', help='annotated transcripts file', dest='tx')
 
     args = parser.parse_args()
     args.func(args)

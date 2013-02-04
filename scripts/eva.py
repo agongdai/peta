@@ -224,7 +224,7 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 					break
 			if not is_set:
 				for a in r_hits[tx_name]:
-					print a.qname, a.rname, a.similarity, abs(a.rend - a.rstart), len(tx_seq), (a.n_query_gap_bases + a.n_bad_bases)
+					# print a.qname, a.rname, a.similarity, abs(a.rend - a.rstart), len(tx_seq), (a.n_query_gap_bases + a.n_bad_bases)
 					if a.similarity >= similarity and abs(a.rend - a.rstart) >= len(tx_seq) * full_length_perc and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 						summary.n_tx_full_length += 1
 						is_set = True

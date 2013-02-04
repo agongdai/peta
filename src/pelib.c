@@ -377,7 +377,7 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
 		free_pool(init_pool);
 		return NULL;
 	} else {
-		//p_pool("INITIAL", init_pool, NULL);
+		p_pool("INITIAL", init_pool, NULL);
 		return init_pool;
 	}
 }
@@ -463,7 +463,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
 	while (1) {
-		//p_query(__func__, query);
+		p_query(__func__, query);
 		reset_c(next, NULL); // Reset the counter
 		if (!cur_pool || is_repetitive_q(query) || has_rep_pattern(query)) {
 			show_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n", eg->id,
@@ -490,9 +490,9 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			//p_pool("After adding mates", cur_pool, next);
 		}
 		reset_alg(aligns);
-		//show_debug_msg(__func__, "Edge %d, length %d \n", eg->id, eg->len);
-		//p_ctg_seq("Contig", eg->contig);
-		//p_pool("Current Pool", cur_pool, next);
+		show_debug_msg(__func__, "Edge %d, length %d \n", eg->id, eg->len);
+		p_ctg_seq("Contig", eg->contig);
+		p_pool("Current Pool", cur_pool, next);
 		c = get_pure_most(next);
 		//show_debug_msg(__func__, "Ori: %d, Next char: %d \n", ori, c);
 		if (cur_pool->n <= 0) {
@@ -536,8 +536,8 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 	init_pool = get_start_pool(ht, query, 0, 0);
 	if (!init_pool || init_pool->n == 0
 			|| bases_sup_branches(init_pool, 0, STRICT_BASES_SUP_THRE)) {
-		//show_msg(__func__, "Read %s may be in junction area, skip. \n",
-		//		query->name);
+		show_msg(__func__, "Read %s may be in junction area, skip. \n",
+				query->name);
 		query->status = TRIED;
 		free_pool(init_pool);
 		return NULL;
@@ -679,27 +679,27 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 		pair_by_reads_perc = VALID_PAIR_PERC_STAGE_2;
 	if (eg) {
 		// keep_pairs_only(eg, ht->seqs);
-		if ((eg->len < 100 
-				&& eg->reads->len * ht->seqs->len < eg->len * 10)
-				|| eg->pairs->len < eg->reads->len * pair_by_reads_perc
-				|| eg->reads->len == 0) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
-			show_msg(__func__,
-					"ABANDONED [%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
-					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
-					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
-			show_debug_msg(__func__,
-					"ABANDONED [%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
-					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
-					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
-			// upd_ctg_id(eg, -1, TRIED);
-			eg->alive = 0;
-			g_mutex_lock(sum_mutex);
-			*n_used_reads += eg->reads->len;
-			destroy_eg(eg);
-			//g_ptr_array_add(all_edges, eg);
-			g_mutex_unlock(sum_mutex);
-			return 0;
-		} else {
+//		if ((eg->len < 100
+//				&& eg->reads->len * ht->seqs->len < eg->len * 10)
+//				|| eg->pairs->len < eg->reads->len * pair_by_reads_perc
+//				|| eg->reads->len == 0) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
+//			show_msg(__func__,
+//					"ABANDONED [%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
+//					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
+//					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
+//			show_debug_msg(__func__,
+//					"ABANDONED [%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
+//					eg->id, eg->name, eg->len, eg->reads->len, eg->pairs->len,
+//					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
+//			// upd_ctg_id(eg, -1, TRIED);
+//			eg->alive = 0;
+//			g_mutex_lock(sum_mutex);
+//			*n_used_reads += eg->reads->len;
+//			destroy_eg(eg);
+//			//g_ptr_array_add(all_edges, eg);
+//			g_mutex_unlock(sum_mutex);
+//			return 0;
+//		} else {
 			g_mutex_lock(sum_mutex);
 			*n_paired_reads += eg->pairs->len;
 			*n_used_reads += eg->reads->len;
@@ -715,7 +715,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 					*n_used_reads, ht->n_seqs, *n_paired_reads, ht->n_seqs);
 			log_edge(eg);
 			return 1;
-		}
+//		}
 	}
 	return 0;
 }
@@ -753,12 +753,24 @@ void correct_used_numbers(hash_table *ht, int *n_used_reads,
 	*n_paired_reads = 0;
 	for (i = 0; i < ht->n_seqs; i++) {
 		s = &ht->seqs[i];
+		s->rev_com = 0;
 		if (s->status == USED || s->status == DEAD) {
 			*n_paired_reads += 1;
 		}
 		if (s->status == USED || s->status == TRIED || s->status == DEAD) {
 			*n_used_reads += 1;
 		}
+	}
+}
+
+void rescue_reads(bwa_seq_t *seqs, const int n_seqs) {
+	int i = 0, j = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < n_seqs; i++) {
+		r = &seqs[i];
+		r->rev_com = 0;
+		if (r->status == TRIED)
+			r->status = FRESH;
 	}
 }
 
@@ -782,14 +794,15 @@ void *pe_lib_thread(gpointer solid_read, gpointer data) {
 		return NULL;
 	query = (bwa_seq_t*) solid_read;
 	tid = atoi(query->name);
-	if (query->status != FRESH) {
-		return NULL;
-	}
+//	if (query->status != FRESH) {
+//		return NULL;
+//	}
 
-//	if (pair_ctg_id == 0)
-//		query = &seqs[178838];
-//	if (pair_ctg_id == 1)
-//		query = &seqs[578669];
+	if (pair_ctg_id == 0)
+		query = &seqs[2322618];
+	if (pair_ctg_id == 1)
+		query = &seqs[1162914];
+	p_query(__func__, query);
 
 	// If this read is currently used by another thread
 	if (query->is_in_c_pool > 0 && query->is_in_c_pool != tid)
@@ -801,8 +814,10 @@ void *pe_lib_thread(gpointer solid_read, gpointer data) {
 		query->status = TRIED;
 		return NULL;
 	}
+	p_query(__func__, query);
 	query->status = TRIED;
 	eg = pe_ext(d->ht, query, tid);
+	p_query(__func__, query);
 	if (!eg) {
 		g_mutex_lock(sum_mutex);
 		*n_used_reads += 1;
@@ -811,6 +826,7 @@ void *pe_lib_thread(gpointer solid_read, gpointer data) {
 		validate_edge(d->all_edges, eg, d->ht, d->n_paired_reads,
 				d->n_used_reads);
 	}
+	rescue_reads(seqs, ht->n_seqs);
 	return NULL;
 }
 
@@ -833,7 +849,7 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	if (thread_pool == NULL) {
 		err_fatal(__func__, "Failed to start the thread pool. \n");
 	}
-	solid_reads->len = 20;
+	solid_reads->len = 2;
 	while (block_start + JUMP_UNIT * n_threads < solid_reads->len) {
 		for (i = 0; i < JUMP_UNIT; i++) {
 			for (j = 0; j < n_threads; j++) {
@@ -846,7 +862,7 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	}
 	for (i = block_start; i < solid_reads->len; i++) {
 		query = g_ptr_array_index(solid_reads, i);
-		p_query(__func__, query);
+		//p_query(__func__, query);
 		g_thread_pool_push(thread_pool, (gpointer) query, NULL);
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
@@ -987,19 +1003,9 @@ void consume_solid_reads(hash_table *ht, const double stop_thre,
 				(float) (finish_time.tv_sec - start_time.tv_sec));
 		// Some extreme cases, the acutual used reads are not increased so much.
 		i = *n_used_reads / (ht->n_seqs * max_perc);
-		if (*n_used_reads >= stop_thre * ht->n_seqs
-				|| *n_used_reads == n_used_reads_pre)
+//		if (*n_used_reads >= stop_thre * ht->n_seqs
+//				|| *n_used_reads == n_used_reads_pre)
 			break;
-	}
-}
-
-void rescue_reads(bwa_seq_t *seqs, const int n_seqs) {
-	int i = 0, j = 0;
-	bwa_seq_t *r = NULL;
-	for (i = 0; i < n_seqs; i++) {
-		r = &seqs[i];
-		if (r->status == TRIED)
-			r->status = FRESH;
 	}
 }
 
@@ -1042,49 +1048,48 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "Stage 1 finished: %.2f sec\n",
 			(float) (finish_time.tv_sec - start_time.tv_sec));
 
-    /*
-	stage = 2;
-	show_msg(__func__, "========================================== \n");
-	show_msg(__func__, "Stage 2/3: Trying to assembly more unpaired reads... \n");
-	rescue_reads(seqs, ht->n_seqs);
-	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
-	c_opt = init_clean_opt();
-	c_opt->kmer = 15;
-	c_opt->stop_thre = 0.8;
-	c_opt->n_threads = n_threads;
-	g_ptr_array_free(solid_reads, TRUE);
-	show_msg(__func__,
-			"Stage 2/3: Calculating solid reads from unpaired reads... \n");
-	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
-			(ht->n_seqs - n_paired_reads) * c_opt->stop_thre, 1, 1);
-	consume_solid_reads(ht, STOP_THRE_STAGE_2, all_edges, solid_reads,
-			&n_used_reads, &n_paired_reads);
-	free(c_opt);
-	clock_gettime(CLOCK_MONOTONIC, &finish_time);
-	show_msg(__func__, "Stage 2 finished: %.2f sec\n",
-			(float) (finish_time.tv_sec - start_time.tv_sec));
+//	stage = 2;
+//	show_msg(__func__, "========================================== \n");
+//	show_msg(__func__, "Stage 2/3: Trying to assembly more unpaired reads... \n");
+//	rescue_reads(seqs, ht->n_seqs);
+//	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
+//	c_opt = init_clean_opt();
+//	c_opt->kmer = 15;
+//	c_opt->stop_thre = 1;
+//	c_opt->n_threads = n_threads;
+//	g_ptr_array_free(solid_reads, TRUE);
+//	show_msg(__func__,
+//			"Stage 2/3: Calculating solid reads from unpaired reads... \n");
+//	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
+//			(ht->n_seqs - n_paired_reads) * c_opt->stop_thre, 1, 1);
+//	consume_solid_reads(ht, STOP_THRE_STAGE_2, all_edges, solid_reads,
+//			&n_used_reads, &n_paired_reads);
+//	free(c_opt);
+//	clock_gettime(CLOCK_MONOTONIC, &finish_time);
+//	show_msg(__func__, "Stage 2 finished: %.2f sec\n",
+//			(float) (finish_time.tv_sec - start_time.tv_sec));
+//
+//	stage = 3;
+//	show_msg(__func__, "========================================== \n");
+//	show_msg(__func__, "Stage 3/3: Trying to assembly unpaired reads... \n");
+//	rescue_reads(seqs, ht->n_seqs);
+//	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
+//	c_opt = init_clean_opt();
+//	c_opt->kmer = 15;
+//	c_opt->stop_thre = 1;
+//	c_opt->n_threads = n_threads;
+//	g_ptr_array_free(solid_reads, TRUE);
+//	show_msg(__func__,
+//			"Stage 3/3: Calculating solid reads from unpaired reads... \n");
+//	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
+//			(ht->n_seqs - n_paired_reads) * c_opt->stop_thre, 1, 1);
+//	consume_solid_reads(ht, STOP_THRE_STAGE_3, all_edges, solid_reads,
+//			&n_used_reads, &n_paired_reads);
+//	free(c_opt);
+//	clock_gettime(CLOCK_MONOTONIC, &finish_time);
+//	show_msg(__func__, "Stage 3 finished: %.2f sec\n",
+//			(float) (finish_time.tv_sec - start_time.tv_sec));
 
-	stage = 3;
-	show_msg(__func__, "========================================== \n");
-	show_msg(__func__, "Stage 3/3: Trying to assembly unpaired reads... \n");
-	rescue_reads(seqs, ht->n_seqs);
-	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
-	c_opt = init_clean_opt();
-	c_opt->kmer = 15;
-	c_opt->stop_thre = 1;
-	c_opt->n_threads = n_threads;
-	g_ptr_array_free(solid_reads, TRUE);
-	show_msg(__func__,
-			"Stage 3/3: Calculating solid reads from unpaired reads... \n");
-	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt,
-			(ht->n_seqs - n_paired_reads) * c_opt->stop_thre, 1, 1);
-	consume_solid_reads(ht, STOP_THRE_STAGE_3, all_edges, solid_reads,
-			&n_used_reads, &n_paired_reads);
-	free(c_opt);
-	clock_gettime(CLOCK_MONOTONIC, &finish_time);
-	show_msg(__func__, "Stage 3 finished: %.2f sec\n",
-			(float) (finish_time.tv_sec - start_time.tv_sec));
-*/
 	post_process_edges(ht, all_edges);
 	g_ptr_array_free(solid_reads, TRUE);
 	destroy_ht(ht);
