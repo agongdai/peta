@@ -169,15 +169,20 @@ class BlastHit(object):
 		self.n_bad_bases = 0
 		self.mate = None
 		self.hit_line = hit_line
+		
+	def print_ori(self):
+		line = ''
+		line += str(self.qname)
+		return line
 	
 	def set_similarity(self):
 		self.alen = 0
 		for l in self.block_sizes:
 			self.alen += int(l)
 		if not self.alen == 0:
-			self.identity = self.n_match / self.alen
+			self.similarity = self.n_match / self.alen
 		if not (self.rend - self.rstart == 0):
-			self.similarity = self.n_match / abs(self.rend - self.rstart)
+			self.identity = self.n_match / abs(self.rend - self.rstart)
 		self.n_bad_bases = self.n_mismatch + self.n_ref_gap_bases
 		
 	def set_mate(self, mate):
@@ -287,47 +292,93 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	file_near_full_length.close()
 	file_covered_70.close()
 	file_one_on_one.close()
+	
+def rm_self(hits):
+	for key, h in hits.iteritems():
+		clean_hits = []
+		for one_hit in h:
+			if not one_hit.qname == one_hit.rname:
+				clean_hits.append(one_hit)
+			else:
+				if one_hit.n_blocks > 1:
+					clean_hits.append(one_hit)
+				else:
+					if not one_hit.block_sizes[0] == one_hit.qlen or not one_hit.q_block_starts[0] == 0:
+						clean_hits.append(one_hit)
+					if not one_hit.block_sizes[0] == one_hit.rlen or not one_hit.r_block_starts[0] == 0:
+						clean_hits.append(one_hit)	
+		hits[key] = clean_hits
+	return hits
 
-def analyze(args, ref, contigs, aligns, hits):
+def stat(args):
 	report = open(os.path.join(args.out_dir, 'report.txt'), 'w')
+	hits = read_blat_hits(args.ctg2ref, 'ref')
+	ref = FastaFile(args.ref)
 	sorted_rnames = sorted(ref.seqs.iterkeys())
-	report.write('Transcript\tLength\tContigs\tHits\tCovered\tLargest Covered\t# of reads\tCoverage\n')
+	ref2ref_hits = read_blat_hits(args.ref2ref)
+	ref2ref_hits = rm_self(ref2ref_hits)
+	
+	singleton_bin = {}
+	n_singleton = 0
+	n_cross = 0
+	for tx, h in ref2ref_hits.iteritems():
+		if len(h) == 0:
+			singleton_bin[tx] = True
+			n_singleton += 1
+		else:
+			singleton_bin[tx] = False
+			n_cross += 1
+			
+#	read2ref_hits = read_blat_hits(args.read2ref, 'ref')
+	report.write('Transcript\tCross\tLength\tContigs\tHits\tCovered\tLargest Covered\t# of reads\tCoverage\n')
 	for rname in sorted_rnames:
 		ref_len = len(ref.seqs[rname])
-		report.write(rname + '\t' + str(ref_len) + '\t')
+		report.write(rname + '\t')
+		if len(ref2ref_hits[rname]) == 0:
+			report.write('None\t')
+		else:
+			for h in ref2ref_hits[rname]:
+				report.write(h.rname + ',')
+			report.write('\t')
+		report.write(str(ref_len) + '\t')
 		if rname in hits:
 			hit = hits[rname]
 			report.write(str(len(hit)) + '\t') # Number of contigs
-			hit.sort(key=lambda x: x.pos)
-			longest_hit = None
-			covered = 0
+			hit.sort(key=lambda x: x.rstart)
+			longest_hit = 0
+			covered = [0 for x in range(ref_len)]
 			most_end = 0
 			for h in hit:
-				report.write('[' + h.qname + ':' + str(h.pos) + ',' + str(h.pos + h.alen) + ']; ')
-				if longest_hit is None:
-					longest_hit = h
-					covered = h.alen
-					most_end = h.pos + h.alen - 1
-				else:
-					if longest_hit.alen < h.alen:
-						longest_hit = h
-					if h.pos + h.alen > most_end:
-						if h.pos > most_end:
-							covered += h.alen
-						else:
-							covered += h.pos + h.alen - most_end - 1
-						most_end = h.pos + h.alen
+				for i in range(h.n_blocks):
+					report.write('[' + h.qname + ':' + str(h.r_block_starts[i]) + ',' + str(h.r_block_starts[i] + h.block_sizes[i]) + ']; ')
+					if longest_hit == 0:
+						longest_hit = h.block_sizes[i]
+						most_end = h.r_block_starts[i] + h.block_sizes[i] - 1
+					else:
+						if longest_hit < h.block_sizes[i]:
+							longest_hit = h.block_sizes[i]
+					for j in range(h.r_block_starts[i], h.r_block_starts[i] + h.block_sizes[i]):
+						covered[j] = 1
+			covered_len = 0
+			for i in range(ref_len):
+				covered_len += covered[i]
 			report.write('\t')
-			covered_perc = covered / ref_len
+			covered_perc = covered_len / ref_len
 			report.write('%.2f\t' % (covered_perc))
-			largest_cover_perc = longest_hit.alen / ref_len
+			largest_cover_perc = longest_hit / ref_len
 			report.write('%.2f\t' % (largest_cover_perc))
+#			if rname in read2ref_hits:
+#				report.write('%d\t' % len(read2ref_hits[rname]))
+#				report.write('%.2f\t' % (len(read2ref_hits[rname]) / ref_len))
+#			else:
+#				report.write('0\t')
+#				report.write('0\t')
 		else:
-			report.write('0\tNONE\t0\t0\t')
+			report.write('0\tNone\t0\t0\t')
 		report.write('\n')
 	report.close()
 
-def read_psl_hits(hit_lines):
+def read_psl_hits(hit_lines, key):
 	hits = {}
 	qname = ''
 	reading_hits = False
@@ -379,17 +430,22 @@ def read_psl_hits(hit_lines):
 			hit.r_block_starts = f[20].split(',')
 			hit.r_block_starts = [int(s) for s in hit.r_block_starts]
 			hit.set_similarity()
-			if not hit.qname in hits:
-				hits[hit.qname] = []
-			hits[hit.qname].append(hit)
+			if key == 'query':
+				if not hit.qname in hits:
+					hits[hit.qname] = []
+				hits[hit.qname].append(hit)
+			else:
+				if not hit.rname in hits:
+					hits[hit.rname] = []
+				hits[hit.rname].append(hit)
 	return hits
 
-def read_blat_hits(blat_fn):
+def read_blat_hits(blat_fn, key='query'):
 	blat = open(blat_fn, 'r')
 	hit_lines = []
 	for line in blat:
 		hit_lines.append(line)
-	hits = read_psl_hits(hit_lines)
+	hits = read_psl_hits(hit_lines, key)
 	blat.close()
 	return hits
 
@@ -424,11 +480,11 @@ def differ(args):
 		fp.close()
 	categories = {}
 	for key, value in sorted(genes.iteritems(), key=lambda (k,v): (v,k)):
-		out_file.write(key + ': ' + value  + '\n')
+		out_file.write(key + '\t' + value  + '\n')
 		if value in categories:
 			categories[value] += 1
 		else:
-			categories[value] = 0
+			categories[value] = 1
 	for key, value in categories.iteritems():
 		print key, value
 	out_file.close()
@@ -511,16 +567,18 @@ def main():
     parser_blat.add_argument('-o', required=True, help='output folder', dest='out_dir')
     parser_blat.add_argument('-s', required=True, help='similarity', dest='similarity')
 
-    parser_ana = subparsers.add_parser('report', help='evaluate the performance by alinging by Blastn')
-    parser_ana.set_defaults(func=analyze)
-    parser_ana.add_argument('-t', required=True, help='reference transcript file', dest='ref')
-    parser_ana.add_argument('-c', required=True, help='transcripts reported to be evaluated', dest='contigs')
-    parser_ana.add_argument('-b', required=True, help='blastn file', dest='blastn')
-    parser_ana.add_argument('-o', required=True, help='output folder', dest='out_dir')
-    
     parser_cmp = subparsers.add_parser('hasdup', help='evaluate the performance by alinging by Blastn')
     parser_cmp.set_defaults(func=check_dup)
     parser_cmp.add_argument('-f', required=True, help='file', dest='input')
+    
+    parser_sta = subparsers.add_parser('sta', help='Report statistics about the contigs')
+    parser_sta.set_defaults(func=stat)
+    parser_sta.add_argument('ref', help='annotated transcripts')
+    parser_sta.add_argument('out_dir', help='output directory')
+    parser_sta.add_argument('-c', '--ctg2ref', required=True, metavar='FILE', help='PSL file: contigs aligned to annotated transcripts', dest='ctg2ref')
+    parser_sta.add_argument('-t', '--ref2ref', required=True, metavar='FILE', help='PSL file: annotated transcripts aligned to itself', dest='ref2ref')
+    parser_sta.add_argument('-r', '--read2ref', required=False, metavar='FILE', help='PSL file: raw reads aligned to annotated transcripts', dest='read2ref')
+    parser_sta.add_argument('-s', required=True, help='similarity', dest='similarity')
 
     args = parser.parse_args()
     args.func(args)

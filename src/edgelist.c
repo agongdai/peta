@@ -838,12 +838,13 @@ void log_reads(edgearray *ea) {
 	fclose(reads_fp);
 }
 
-void log_edge(const edge *eg) {
+void log_edge(const edge *eg, bwa_seq_t *seqs) {
 	FILE *log;
 	char buf[BUFSIZ];
-	int i = 0, j = 0;
-	readarray *reads;
-	bwa_seq_t *r;
+	int i = 0, j = 0, *counter = NULL;
+	int read_start, read_end = 0;
+	readarray *reads = NULL;
+	bwa_seq_t *r = NULL, *mate = NULL;
 
 	if (!eg || eg->id < 0)
 		return;
@@ -866,9 +867,23 @@ void log_edge(const edge *eg) {
 			"\n================================================================\n",
 			log);
 	g_ptr_array_sort(reads, (GCompareFunc) cmp_seqs_by_shift);
+	counter = (int*) calloc(eg->len, sizeof(int));
 
 	for (j = 0; j < reads->len; j++) {
 		r = g_ptr_array_index(reads, j);
+		mate = get_mate(r, seqs);
+		if (mate && mate->contig_id == eg->id) {
+			if (r->shift > mate->shift) {
+				read_start = mate->shift;
+				read_end = r->shift + r->len;
+			} else {
+				read_start = r->shift;
+				read_end = mate->shift + mate->len;
+			}
+			for (i = read_start; i < read_end; i++) {
+				counter[i]++;
+			}
+		}
 		if ((j + 1) % 30 == 0) {
 			for (i = 0; i < 30; i++)
 				fputs(" ", log);
@@ -883,8 +898,13 @@ void log_edge(const edge *eg) {
 		}
 		p_edge_read(r, log);
 	}
+	for (i = 0; i < eg->len; i++) {
+		sprintf(buf, "%d\n", counter[i]);
+		fputs(buf, log);
+	}
 
 	setbuf(log, NULL);
+	free(counter);
 	fclose(log);
 }
 

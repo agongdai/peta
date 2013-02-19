@@ -27,6 +27,7 @@ extern "C" {
 	double std_dev(double a[], double n);
 	double mean(double a[], double n);
 	int abs(int a);
+	void trim(char *str);
 
 #ifdef __cplusplus
 }

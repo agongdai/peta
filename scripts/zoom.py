@@ -79,7 +79,7 @@ def zoom_tx(tx_name, ref, blat_psl, ctg_or_read):
     tx_hits = []
     if len(hit_lines) <= 0:
         return tx_hits
-    hits = eva.read_psl_hits(hit_lines)
+    hits = eva.read_psl_hits(hit_lines, 'query')
     tx = FastaFile(ref)
     tx_seq = tx.seqs[tx_name]
     for qname, h in hits.iteritems():
@@ -219,7 +219,7 @@ def draw_dot(args):
     
     lines = runInShell('grep ' + args.transcript + ' ' + args.psl)
     hit_lines = lines.split('\n')
-    raw_hits = eva.read_psl_hits(hit_lines)
+    raw_hits = eva.read_psl_hits(hit_lines, 'query')
     hits = raw_hits[args.transcript]
     
     # Every starting/ending point on the query transcript is a 'milestone'

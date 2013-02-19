@@ -50,7 +50,7 @@ void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches);
 void upd_reads(const hash_table *ht, edge *eg, const int mismatches);
 int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs);
 void log_reads(edgearray *ea);
-void log_edge(const edge *eg);
+void log_edge(const edge *eg, bwa_seq_t *seqs);
 void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift, const int gap,
 		const int ori);
 void concat_readarray(readarray *left_reads, readarray *right_reads);

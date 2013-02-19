@@ -93,3 +93,13 @@ double std_dev(double a[], double n) {
 int abs(int a) {
 	return (a > 0) ? a : (0 - a);
 }
+
+void trim(char *str) {
+	int i = 0;
+	for (i = 0; i < strlen(str); i++) {
+		if (str[i] == '\n') {
+			str[i] = '\0';
+			return;
+		}
+	}
+}

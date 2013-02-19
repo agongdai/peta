@@ -46,13 +46,13 @@ if [ $1 = "blat" ];
 	if [ $2 = "new" ];
 		then
 		echo "=======================================" 1>&2
-		echo "$blat_exe $db_dir$db $query_dir$query.fa -ooc=$occ $query_dir$query.psl"
-		$blat_exe $db_dir$db $query_dir$query.fa -ooc=$occ $query_dir$query.psl
+		echo "$blat_exe $db_dir$db $query_dir$query.fa -ooc=$occ $query_dir$query.fa.psl"
+		$blat_exe $db_dir$db $query_dir$query.fa -ooc=$occ $query_dir$query.fa.psl
 		echo "=======================================" 1>&2
 	fi
 	echo "Evaluating..." 1>&2
 	echo "python $eva_exe blat -t $db_dir$db -c $query_dir$query.fa -p $query_dir$query.psl -o $query_dir -s 0.$similarity"
-	python $eva_exe blat -t $db_dir$db -c $query_dir$query.fa -p $query_dir$query.psl -o $query_dir -s 0.$similarity
+	python $eva_exe blat -t $db_dir$db -c $query_dir$query.fa -p $query_dir$query.fa.psl -o $query_dir -s 0.$similarity
 fi
 
 if [ $1 = "bwa" ];
