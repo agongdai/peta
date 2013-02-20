@@ -474,13 +474,12 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			}
 			break;
 		}
-		//p_query(__func__, query);
 		pe_aln_query(query, query->seq, ht, MISMATCHES, query->len, 0, aligns);
 		pe_aln_query(query, query->rseq, ht, MISMATCHES, query->len, 1, aligns);
 		// p_align(aligns);
 		maintain_pool(aligns, ht, cur_pool, eg, query, next, ori);
 		// If no read in current pool, try less stringent overlapped length and zero mismatches
-		if (eg->len > insert_size - sd_insert_size && cur_pool->reads->len == 0) {
+		if (eg->len > insert_size - sd_insert_size && cur_pool->reads->len <= 2) {
 			add_mates_by_ol(ht, eg, cur_pool, RELAX_MATE_OL_THRE,
 					SHORT_MISMATCH, query, ori);
 			reset_c(next, NULL); // Reset the counter
@@ -488,6 +487,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			//p_pool("After adding mates", cur_pool, next);
 		}
 		reset_alg(aligns);
+		//p_query(__func__, query);
 		//show_debug_msg(__func__, "Edge %d, length %d \n", eg->id, eg->len);
 		//p_ctg_seq("Contig", eg->contig);
 		//p_pool("Current Pool", cur_pool, next);
@@ -679,8 +679,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 		//keep_pairs_only(eg, ht->seqs);
 		if ((eg->len < 100 && eg->reads->len * ht->seqs->len < eg->len * 10)
 				|| eg->pairs->len < eg->reads->len * pair_by_reads_perc
-				|| eg->pairs->len > eg->reads->len
-				|| eg->reads->len == 0) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
+				|| eg->pairs->len > eg->reads->len || eg->reads->len == 0) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
 			show_msg(
 					__func__,
 					"ABANDONED [%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
@@ -796,15 +795,9 @@ void *pe_lib_thread(gpointer solid_read, gpointer data) {
 		return NULL;
 	query = (bwa_seq_t*) solid_read;
 	tid = atoi(query->name);
-	//	if (query->status != FRESH) {
-	//		return NULL;
-	//	}
-
-	//	if (pair_ctg_id == 0)
-	//		query = &seqs[2746981];
-	//	if (pair_ctg_id == 1)
-	//		query = &seqs[5589147];
-	//	p_query(__func__, query);
+	if (query->status != FRESH) {
+		return NULL;
+	}
 
 	// If this read is currently used by another thread
 	if (query->is_in_c_pool > 0 && query->is_in_c_pool != tid)
@@ -849,7 +842,6 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	if (thread_pool == NULL) {
 		err_fatal(__func__, "Failed to start the thread pool. \n");
 	}
-	//solid_reads->len = 2;
 	while (block_start + JUMP_UNIT * n_threads < solid_reads->len) {
 		for (i = 0; i < JUMP_UNIT; i++) {
 			for (j = 0; j < n_threads; j++) {
@@ -1014,9 +1006,9 @@ void consume_solid_reads(hash_table *ht, const double stop_thre,
 						- start_time.tv_sec));
 		// Some extreme cases, the acutual used reads are not increased so much.
 		i = *n_used_reads / (ht->n_seqs * max_perc);
-		//		if (*n_used_reads >= stop_thre * ht->n_seqs
-		//				|| *n_used_reads == n_used_reads_pre)
-		//break;
+		if (*n_used_reads >= stop_thre * ht->n_seqs || *n_used_reads
+				== n_used_reads_pre)
+			break;
 	}
 }
 
@@ -1033,6 +1025,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 
 	all_edges = g_ptr_array_sized_new(BUFSIZ);
 	ht = pe_load_hash(lib_file);
+	//test_run(ht);
 	seqs = &ht->seqs[0];
 	show_msg(__func__, "Removing repetitive reads... \n");
 	n_rep = rm_repetitive_reads(seqs, ht->n_seqs);
@@ -1111,6 +1104,36 @@ int pe_lib_usage() {
 	show_msg(__func__,
 			"Command: ./peta pair -p MAX_PAIRS read_file starting_reads \n");
 	return 1;
+}
+
+void test_run(hash_table *ht) {
+	bwa_seq_t *seqs = ht->seqs, *query = NULL;
+	edge *eg = NULL;
+	edgearray *edges = g_ptr_array_sized_new(32);
+
+	query = &seqs[5991308];
+	p_query(__func__, query);
+	eg = pe_ext(ht, query, 1);
+	if (eg) {
+		show_msg(__func__, "[%d] %s: length %d, reads %d=>%d. \n", eg->id,
+				eg->name, eg->len, eg->reads->len, eg->pairs->len);
+		g_ptr_array_add(edges, eg);
+	} else {
+		show_msg(__func__, "Hey, not extended. \n");
+	}
+	query = &seqs[2497644];
+	p_query(__func__, query);
+	eg = pe_ext(ht, query, 2);
+	if (eg) {
+		show_msg(__func__, "[%d] %s: length %d, reads %d=>%d. \n", eg->id,
+				eg->name, eg->len, eg->reads->len, eg->pairs->len);
+		g_ptr_array_add(edges, eg);
+	} else {
+		show_msg(__func__, "Hey, not extended. \n");
+	}
+
+	post_process_edges(ht, edges);
+	exit(1);
 }
 
 int pe_lib(int argc, char *argv[]) {

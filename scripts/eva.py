@@ -237,14 +237,14 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 						break
 			if not is_set:
 				for a in r_hits[tx_name]:
-					if a.similarity >= similarity and abs(a.rend - a.rstart) >= len(tx_seq) * near_full_length and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
+					if a.similarity >= similarity and abs(a.rend - a.rstart) >= len(tx_seq) * near_full_length and (a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 						summary.n_tx_near_full_length += 1
 						is_set = True
 						file_near_full_length.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 						break
 			if not is_set:
 				for a in r_hits[tx_name]:
-					if a.similarity >= similarity and abs(a.rend - a.rstart) >= len(tx_seq) * 0.7 and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
+					if a.similarity >= similarity and abs(a.rend - a.rstart) >= len(tx_seq) * 0.7 and (a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 						summary.n_tx_covered_70 += 1
 						is_set = True
 						file_covered_70.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
@@ -467,16 +467,22 @@ def get_n50(arr, total_length=0):
 
 def differ(args):
 	files = args.inputs.split(',')
+	names = args.names.split(',')
 	out_file = open(args.output, 'w')
+	tx = FastaFile(args.ref)
 	genes = {}
-	for f in files:
+	if not len(files) == len(names):
+		print 'Number of files and names are not the same. Abort.'
+		return
+	for i in range(len(files)):
+		f = files[i]
 		fp = open(f, 'r')
 		for line in fp:
 			line = line.strip().split('\t')[0]
 			if line in genes:
-				genes[line] += ',' + f
+				genes[line] += ',' + names[i]
 			else:
-				genes[line] = f
+				genes[line] = names[i]
 		fp.close()
 	categories = {}
 	for key, value in sorted(genes.iteritems(), key=lambda (k,v): (v,k)):
@@ -485,6 +491,9 @@ def differ(args):
 			categories[value] += 1
 		else:
 			categories[value] = 1
+	for tx_name, seq in tx.seqs.iteritems():
+		if not tx_name in genes:
+			out_file.write(tx_name + '\tNone\n')
 	for key, value in categories.iteritems():
 		print key, value
 	out_file.close()
@@ -556,7 +565,9 @@ def main():
     subparsers = parser.add_subparsers(help='sub command help')
     parser_differ = subparsers.add_parser('diff', help='differ multiple files')
     parser_differ.set_defaults(func=differ)
+    parser_differ.add_argument('ref', help='annotated transcripts')
     parser_differ.add_argument('-i', required=True, help='the files to compare, seperated by a ","', dest='inputs')
+    parser_differ.add_argument('-n', required=True, help='name of the compared assemblers, seperated by a ","', dest='names')
     parser_differ.add_argument('-o', required=True, help='result file', dest='output')
 
     parser_blat = subparsers.add_parser('blat', help='evaluate the performance by aligning in blat')

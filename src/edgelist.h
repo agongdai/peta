@@ -22,7 +22,7 @@ extern "C" {
 #define INVALID					-1
 #define STOP_PAIRING			400
 #define MIN_VALID_PAIRS			4
-#define MISMATCHES			    2	
+#define MISMATCHES			    2
 #define SHORT_MISMATCH			1
 #define UPD_READS_THRE			10000
 
