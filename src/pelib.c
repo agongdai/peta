@@ -87,6 +87,7 @@ void keep_mates_in_pool(edge *eg, pool *cur_pool, const hash_table *ht,
 		//		if (read->is_in_m_pool == eg->tid)
 		//			continue;
 		to_remove = 0;
+		//p_query(__func__, mate);
 		// The mate of 'read' should be used already
 		//if (strcmp(read->name, "5896388") == 0) {
 		//	show_debug_msg(__func__, "ORI: %d \n", ori);
@@ -113,8 +114,10 @@ void keep_mates_in_pool(edge *eg, pool *cur_pool, const hash_table *ht,
 		if (to_remove || read->is_in_c_pool != eg->tid) {
 			read->status = TRIED;
 			read->contig_id = eg->id;
-			if (pool_rm_index(cur_pool, i))
+			if (pool_rm_index(cur_pool, i)) {
+				read->shift = eg->len - read->cursor + 1;
 				i--;
+			}
 		}
 	}
 }
@@ -302,10 +305,12 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 	}
 	//show_debug_msg(__func__, "Removing partial... \n");
 	// In current pool, if a read does not overlap with the tail properly, remove it
+	//p_pool("BEFORE REMOVING PARTIAL", cur_pool, NULL);
 	rm_partial(eg, cur_pool, ori, seqs, query, MISMATCHES);
 	//p_pool("AFTER REMOVING PARTIAL", cur_pool, NULL);
 	// Keep only the reads whose mate is used previously.
 	if (eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
+		//p_pool("BEFORE KEEPING MATES", cur_pool, NULL);
 		keep_mates_in_pool(eg, cur_pool, ht, ori, 0);
 		//p_pool("AFTER KEEPING MATES", cur_pool, NULL);
 	}
@@ -479,7 +484,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		// p_align(aligns);
 		maintain_pool(aligns, ht, cur_pool, eg, query, next, ori);
 		// If no read in current pool, try less stringent overlapped length and zero mismatches
-		if (eg->len > insert_size - sd_insert_size && cur_pool->reads->len <= 2) {
+		if (eg->len > insert_size - sd_insert_size && cur_pool->reads->len <= 0) {
 			add_mates_by_ol(ht, eg, cur_pool, RELAX_MATE_OL_THRE,
 					SHORT_MISMATCH, query, ori);
 			reset_c(next, NULL); // Reset the counter
@@ -1111,7 +1116,8 @@ void test_run(hash_table *ht) {
 	edge *eg = NULL;
 	edgearray *edges = g_ptr_array_sized_new(32);
 
-	query = &seqs[5991308];
+	pair_ctg_id = 1000;
+	query = &seqs[451724];
 	p_query(__func__, query);
 	eg = pe_ext(ht, query, 1);
 	if (eg) {
@@ -1121,16 +1127,16 @@ void test_run(hash_table *ht) {
 	} else {
 		show_msg(__func__, "Hey, not extended. \n");
 	}
-	query = &seqs[2497644];
-	p_query(__func__, query);
-	eg = pe_ext(ht, query, 2);
-	if (eg) {
-		show_msg(__func__, "[%d] %s: length %d, reads %d=>%d. \n", eg->id,
-				eg->name, eg->len, eg->reads->len, eg->pairs->len);
-		g_ptr_array_add(edges, eg);
-	} else {
-		show_msg(__func__, "Hey, not extended. \n");
-	}
+//	query = &seqs[2497644];
+//	p_query(__func__, query);
+//	eg = pe_ext(ht, query, 2);
+//	if (eg) {
+//		show_msg(__func__, "[%d] %s: length %d, reads %d=>%d. \n", eg->id,
+//				eg->name, eg->len, eg->reads->len, eg->pairs->len);
+//		g_ptr_array_add(edges, eg);
+//	} else {
+//		show_msg(__func__, "Hey, not extended. \n");
+//	}
 
 	post_process_edges(ht, edges);
 	exit(1);

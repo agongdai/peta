@@ -17,6 +17,9 @@ READ_REF_PSL_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR09
 REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta'
 READ_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa'
 
+READ_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa'
+READ_REF_PSL_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.psl'
+
 def runInShell(cmd):
     p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
     return p.communicate()[0]
@@ -375,6 +378,21 @@ def draw_dot(args):
         
     dot.write('} \n')
     dot.close()
+    
+def gen_cov(args):
+    tx = eva.FastaFile(args.transcript)
+    hits = eva.read_blat_hits(args.psl, 'ref')
+    cov = open(args.transcript + '.cov', 'w')
+    for tx_name, seq in tx.seqs.iteritems():
+        n_reads = 0
+        coverage = 0.0
+        ref_len = len(seq)
+        if tx_name in hits:
+            n_reads = len(hits[tx_name])
+            coverage = n_reads / ref_len
+        cov.write('%s\t%d%.2f' % (tx_name, n_reads, coverage))
+    print 'Done. Check file %s.cov' % args.transcript 
+    cov.close()
 
 def main():
     parser = ArgumentParser()
@@ -398,6 +416,11 @@ def main():
     parser_ctg_to_ref.add_argument('-t', '--transcript', required=False, default=None, help='check hits only for one transcript', dest='transcript')
     parser_ctg_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR097897, metavar='FILE', help='annotated transcripts file', dest='tx')
 
+    parset_cov = subparsers.add_parser('cov', help='calculate the coverage information of some rna-seq library against annotated transcripts')
+    parset_cov.set_defaults(func=gen_cov)
+    parset_cov.add_argument('transcript', help='annotated transcripts')
+    parset_cov.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR027876, metavar='FILE', help='psl file', dest='psl')
+    
     args = parser.parse_args()
     args.func(args)
 

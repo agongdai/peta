@@ -322,6 +322,7 @@ void rm_partial(edge *eg, pool *cur_pool, int ori, bwa_seq_t *seqs,
 				s->contig_id = eg->id;
 				s->status = TRIED;
 				if (removed) {
+					s->shift = eg->len - s->cursor + 1;
 					i--;
 				}
 			}

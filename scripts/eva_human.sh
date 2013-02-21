@@ -1,12 +1,12 @@
 #!/bin/bash
 
-query="pair_contigs"
+query="merged_pair_contigs"
 root_dir="/home/carl/Projects/"
 eva_exe="$root_dir/peta/scripts/eva.py"
 db_dir="$root_dir/peta/rnaseq/hg19/genome/"
 db="human.ensembl.cdna.fa"
 blastdb="$root_dir/ncbi-blast-2.2.26+/db/"
-similarity="98"
+similarity="99"
 query_dir="$root_dir/peta/SRR027876_out/"
 
 blastn_exe="blastn"
@@ -46,13 +46,13 @@ if [ $1 = "blat" ];
 	if [ $2 = "new" ];
 		then
 		echo "=======================================" 1>&2
-		echo "$blat_exe $db_dir$db $query_dir$query.fa -ooc=$occ $query_dir$query.psl"
-		$blat_exe $db_dir$db $query_dir$query.fa -ooc=$occ $query_dir$query.psl
+		echo "$blat_exe $db_dir$db $query_dir$query.fa -ooc=$occ $query_dir$query.fa.psl"
+		$blat_exe $db_dir$db $query_dir$query.fa -ooc=$occ $query_dir$query.fa.psl
 		echo "=======================================" 1>&2
 	fi
 	echo "Evaluating..." 1>&2
-	echo "python $eva_exe blat -t $db_dir$db -c $query_dir$query.fa -p $query_dir$query.psl -o $query_dir -s 0.$similarity"
-	python $eva_exe blat -t $db_dir$db -c $query_dir$query.fa -p $query_dir$query.psl -o $query_dir -s 0.$similarity
+	echo "python $eva_exe blat -t $db_dir$db -c $query_dir$query.fa -p $query_dir$query.fa.psl -o $query_dir -s 0.$similarity"
+	python $eva_exe blat -t $db_dir$db -c $query_dir$query.fa -p $query_dir$query.fa.psl -o $query_dir -s 0.$similarity
 		
 fi
 
