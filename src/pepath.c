@@ -624,7 +624,7 @@ GPtrArray *report_paths(edgearray *all_edges, bwa_seq_t *seqs) {
 			}
 			if (get_level_n(block) >= MAX_ROADMAP_LEVEL) {
 				show_debug_msg(__func__,
-						"Too many level in this block (>=6) \n");
+						"Too many level in this block (>=8) \n");
 				block_paths = get_single_block_paths(block);
 			} else {
 				block_paths = iterate_block(block);

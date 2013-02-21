@@ -1046,6 +1046,7 @@ void reset_edge_ids(edgearray *all_edges) {
 			set_rev_com(eg->contig);
 			sprintf(ctg_name, "%d", eg->id);
 			eg->contig->name = strdup(ctg_name);
+			eg->visited = 0;
 		} else {
 			if (g_ptr_array_remove_index_fast(all_edges, i))
 				i--;

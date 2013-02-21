@@ -377,6 +377,7 @@ def stat(args):
 			report.write('0\tNone\t0\t0\t')
 		report.write('\n')
 	report.close()
+	print 'Done. Check report file %s/result.txt' % args.out_dir
 
 def read_psl_hits(hit_lines, key):
 	hits = {}

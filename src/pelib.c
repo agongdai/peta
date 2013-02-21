@@ -914,24 +914,27 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
 	show_msg(__func__, "Blatting merged contigs to find overlapping...\n");
 	psl_name = get_output_file("merged.merged.psl");
+	reset_edge_ids(all_edges);
 	show_msg(__func__, "%s %s %s %s ... \n", blat_exe, name, name, psl_name);
 	sprintf(blat_cmd, "%s %s %s %s", blat_exe, name, name, psl_name);
-	//execl(blat_exe, blat_exe, name, name, psl_name, (char *)0);
-	system(blat_cmd);
+	if(system(blat_cmd) != 0) {
+		err_fatal(__func__, "Failed to call 'system' to execute %s \n", blat_cmd);
+	}
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Blat finished: %.2f sec\n", (float) (finish_time.tv_sec
 			- start_time.tv_sec));
-	free(psl_name);
 	free(name);
 	name = get_output_file("roadmap.graph");
 	reads_name = get_output_file("roadmap.reads");
 	dump_rm(all_edges, name, reads_name);
 	free(reads_name);
 	free(name);
-	scaffolding(all_edges, insert_size, sd_insert_size, ht, n_threads);
+	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
+	scaffolding(all_edges, insert_size, sd_insert_size, ht, n_threads, psl_name);
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Scaffolding finished: %.2f sec\n",
 			(float) (finish_time.tv_sec - start_time.tv_sec));
+	free(psl_name);
 
 	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Drawing the roadmap... \n");

@@ -103,6 +103,11 @@ GPtrArray *read_blat_hits(const char *psl_file) {
 		for (j = 0; j < h->block_count; j++) {
 			h->t_starts[j] = atoi(index[j]);
 		}
+		if (strcmp(h->qname, h->tname) == 0 && h->block_count == 1
+				&& h->block_sizes[0] == h->t_size) {
+			free(h);
+			continue;
+		}
 		g_ptr_array_add(hits, h);
 	}
 	fclose(psl);
