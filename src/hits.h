@@ -30,8 +30,10 @@ typedef struct {
 	int *block_sizes;
 	int *q_starts;
 	int *t_starts;
+	int visited;
 } blat_hit;
 
 GPtrArray *read_blat_hits(const char *psl_file);
+void p_hit(blat_hit *h);
 
 #endif /* HITS_H_ */

@@ -36,7 +36,42 @@ blat_hit *new_hit() {
 	h->block_sizes = NULL;
 	h->q_starts = NULL;
 	h->t_starts = NULL;
+	h->visited = 0;
 	return h;
+}
+
+void p_hit(blat_hit *h) {
+	int i = 0;
+	printf("%d\t", h->matches);
+	printf("%d\t", h->mismatches);
+	printf("%d\t", h->n_rep_matches);
+	printf("%d\t", h->n_ns);
+	printf("%d\t", h->q_gap_count);
+	printf("%d\t", h->q_gap_bases);
+	printf("%d\t", h->t_gap_count);
+	printf("%d\t", h->t_gap_bases);
+	printf("%c\t", h->strand);
+	printf("%s\t", h->qname);
+	printf("%d\t", h->q_size);
+	printf("%d\t", h->q_start);
+	printf("%d\t", h->q_end);
+	printf("%s\t", h->tname);
+	printf("%d\t", h->t_size);
+	printf("%d\t", h->t_start);
+	printf("%d\t", h->t_end);
+	printf("%d\t", h->block_count);
+	for (i = 0; i < h->block_count; i++) {
+		printf("%d,", h->block_sizes[i]);
+	}
+	printf("\t");
+	for (i = 0; i < h->block_count; i++) {
+		printf("%d,", h->q_starts[i]);
+	}
+	printf("\t");
+	for (i = 0; i < h->block_count; i++) {
+		printf("%d,", h->t_starts[i]);
+	}
+	printf("\t\n");
 }
 
 GPtrArray *read_blat_hits(const char *psl_file) {
@@ -50,12 +85,12 @@ GPtrArray *read_blat_hits(const char *psl_file) {
 	psl = xopen(psl_file, "r");
 	while (fgets(buf, sizeof(buf), psl)) {
 		line_no += 1;
-		if (line_no <= 5)
+		if (line_no <= 4)
 			continue;
 		i = 0;
-		attr[0] = strtok(buf, " ");
+		attr[0] = strtok(buf, "\t");
 		while (attr[i] != NULL) { //ensure a pointer was found
-			attr[++i] = strtok(NULL, " "); //continue to tokenize the string
+			attr[++i] = strtok(NULL, "\t"); //continue to tokenize the string
 		}
 		h = new_hit();
 		h->matches = atoi(attr[0]);
@@ -78,26 +113,26 @@ GPtrArray *read_blat_hits(const char *psl_file) {
 		h->block_count = atoi(attr[17]);
 		h->block_sizes = (int*) calloc(h->block_count, sizeof(int));
 		j = 0;
-		index[0] = strtok(attr[18], " ");
+		index[0] = strtok(attr[18], ",");
 		while (index[j] != NULL) { //ensure a pointer was found
-			index[++j] = strtok(NULL, " "); //continue to tokenize the string
+			index[++j] = strtok(NULL, ","); //continue to tokenize the string
 		}
 		for (j = 0; j < h->block_count; j++) {
 			h->block_sizes[j] = atoi(index[j]);
 		}
 		j = 0;
-		index[0] = strtok(attr[19], " ");
+		index[0] = strtok(attr[19], ",");
 		while (index[j] != NULL) { //ensure a pointer was found
-			index[++j] = strtok(NULL, " "); //continue to tokenize the string
-		}
-		j = 0;
-		index[0] = strtok(attr[20], " ");
-		while (index[j] != NULL) { //ensure a pointer was found
-			index[++j] = strtok(NULL, " "); //continue to tokenize the string
+			index[++j] = strtok(NULL, ","); //continue to tokenize the string
 		}
 		h->q_starts = (int*) calloc(h->block_count, sizeof(int));
 		for (j = 0; j < h->block_count; j++) {
 			h->q_starts[j] = atoi(index[j]);
+		}
+		j = 0;
+		index[0] = strtok(attr[20], ",");
+		while (index[j] != NULL) { //ensure a pointer was found
+			index[++j] = strtok(NULL, ","); //continue to tokenize the string
 		}
 		h->t_starts = (int*) calloc(h->block_count, sizeof(int));
 		for (j = 0; j < h->block_count; j++) {
@@ -109,6 +144,8 @@ GPtrArray *read_blat_hits(const char *psl_file) {
 			continue;
 		}
 		g_ptr_array_add(hits, h);
+		p_hit(h);
+		break;
 	}
 	fclose(psl);
 	return hits;

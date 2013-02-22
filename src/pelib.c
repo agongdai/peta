@@ -682,7 +682,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 		pair_by_reads_perc = VALID_PAIR_PERC_STAGE_2;
 	if (eg) {
 		//keep_pairs_only(eg, ht->seqs);
-		if ((eg->len < 100 && eg->reads->len * ht->seqs->len < eg->len * 10)
+		if ((eg->len < 100 && eg->reads->len * ht->seqs->len < eg->len * 8)
 				|| eg->pairs->len < eg->reads->len * pair_by_reads_perc
 				|| eg->pairs->len > eg->reads->len || eg->reads->len == 0) { // || eg->pairs->len <= MIN_VALID_PAIRS) {
 			show_msg(
@@ -904,7 +904,7 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
 	name = get_output_file("merged_pair_contigs.fa");
 	merged_pair_contigs = xopen(name, "w");
-	save_edges(all_edges, merged_pair_contigs, 0, 0, 100);
+	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 	fflush(merged_pair_contigs);
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Template merging finished: %.2f sec\n",
@@ -917,8 +917,9 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	reset_edge_ids(all_edges);
 	show_msg(__func__, "%s %s %s %s ... \n", blat_exe, name, name, psl_name);
 	sprintf(blat_cmd, "%s %s %s %s", blat_exe, name, name, psl_name);
-	if(system(blat_cmd) != 0) {
-		err_fatal(__func__, "Failed to call 'system' to execute %s \n", blat_cmd);
+	if (system(blat_cmd) != 0) {
+		err_fatal(__func__, "Failed to call 'system' to execute %s \n",
+				blat_cmd);
 	}
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Blat finished: %.2f sec\n", (float) (finish_time.tv_sec
@@ -1034,6 +1035,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	all_edges = g_ptr_array_sized_new(BUFSIZ);
 	ht = pe_load_hash(lib_file);
 	//test_run(ht);
+	//test_scaffolding(ht);
 	seqs = &ht->seqs[0];
 	show_msg(__func__, "Removing repetitive reads... \n");
 	n_rep = rm_repetitive_reads(seqs, ht->n_seqs);
@@ -1130,18 +1132,28 @@ void test_run(hash_table *ht) {
 	} else {
 		show_msg(__func__, "Hey, not extended. \n");
 	}
-//	query = &seqs[2497644];
-//	p_query(__func__, query);
-//	eg = pe_ext(ht, query, 2);
-//	if (eg) {
-//		show_msg(__func__, "[%d] %s: length %d, reads %d=>%d. \n", eg->id,
-//				eg->name, eg->len, eg->reads->len, eg->pairs->len);
-//		g_ptr_array_add(edges, eg);
-//	} else {
-//		show_msg(__func__, "Hey, not extended. \n");
-//	}
+	//	query = &seqs[2497644];
+	//	p_query(__func__, query);
+	//	eg = pe_ext(ht, query, 2);
+	//	if (eg) {
+	//		show_msg(__func__, "[%d] %s: length %d, reads %d=>%d. \n", eg->id,
+	//				eg->name, eg->len, eg->reads->len, eg->pairs->len);
+	//		g_ptr_array_add(edges, eg);
+	//	} else {
+	//		show_msg(__func__, "Hey, not extended. \n");
+	//	}
 
 	post_process_edges(ht, edges);
+	exit(1);
+}
+
+void test_scaffolding(hash_table *ht) {
+	edgearray *all_edges = load_rm(ht, "../SRR097897_out/roadmap.graph",
+			"../SRR097897_out/roadmap.reads",
+			"../SRR097897_out/merged_pair_contigs.fa");
+	show_msg(__func__, "Scaffolding... \n");
+	scaffolding(all_edges, insert_size, sd_insert_size, ht, n_threads,
+			"../SRR097897_out/merged.merged.psl");
 	exit(1);
 }
 
