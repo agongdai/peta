@@ -322,6 +322,7 @@ edge *new_eg() {
 	eg->ori = 0;
 	eg->gaps = g_ptr_array_sized_new(INIT_N_GAPS);
 	eg->level = -1;
+	eg->comp_id = -1;
 	return eg;
 }
 
@@ -638,7 +639,7 @@ void dump_rm(edgearray *all_edges, const char *rm_dump_file,
 		const char *rm_reads_file) {
 	FILE *dump_fp = NULL, *rm_reads = NULL;
 	char edge_str[BUFSIZ];
-	int i = 71, j = 0, tmp = 0;
+	int i = 0, j = 0, tmp = 0;
 	edge *eg = NULL, *in_out_eg = NULL;
 	bwa_seq_t *r = NULL;
 	char item[BUFSIZ];
@@ -691,7 +692,7 @@ void dump_rm(edgearray *all_edges, const char *rm_dump_file,
 		// The reads to another file
 		for (j = 0; j < eg->reads->len; j++) {
 			r = g_ptr_array_index(eg->reads, j);
-			sprintf(item, "%s,", r->name);
+			sprintf(item, "%s_%d,", r->name, r->shift);
 			fputs(item, rm_reads);
 		}
 

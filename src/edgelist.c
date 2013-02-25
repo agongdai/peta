@@ -218,8 +218,6 @@ readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs) {
 			if (readarray_find(ra_2, read_1) != NOT_FOUND || readarray_find(
 					ra_1, read_2) != NOT_FOUND)
 				continue;
-			//			p_query("PAIR", read_1);
-			//			p_query("PAIR", read_2);
 			g_ptr_array_add(paired, read_1);
 		}
 	}
@@ -687,6 +685,56 @@ void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 	}
 }
 
+void realign_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
+	int i = 0, index = 0, j = 0;
+	bwa_seq_t *read = NULL, *query = NULL, *seqs = NULL, *mate = NULL;
+	alignarray *aligns = NULL;
+	alg *a = NULL;
+	seqs = ht->seqs;
+	while (eg->pairs->len > 0) {
+		g_ptr_array_remove_index_fast(eg->pairs, 0);
+	}
+	while (eg->reads->len > 0) {
+		g_ptr_array_remove_index_fast(eg->reads, 0);
+	}
+	//show_debug_msg(__func__, "Aligning ... \n");
+	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
+	//p_ctg_seq("CONTIG", eg->contig);
+	for (i = 0; i < eg->len - seqs->len + 1; i++) {
+		query = new_seq(eg->contig, seqs->len, i);
+		//p_query(__func__, query);
+		pe_aln_query(query, query->seq, ht, mismatches, query->len, 0, aligns);
+		pe_aln_query(query, query->rseq, ht, mismatches, query->len, 1, aligns);
+		//p_align(aligns);
+		//show_debug_msg(__func__, "%d alignments ... \n", aligns->len);
+		for (j = 0; j < aligns->len; j++) {
+			a = g_ptr_array_index(aligns, j);
+			index = a->r_id;
+			if (index >= ht->n_seqs)
+				continue;
+			read = &seqs[index];
+			read->status = TRIED;
+			read->shift = i;
+			read->contig_id = eg->id;
+			g_ptr_array_add(eg->reads, read);
+		}
+		bwa_free_read_seq(1, query);
+		reset_alg(aligns);
+	}
+	free_alg(aligns);
+	for (i = 0; i < eg->reads->len; i++) {
+		read = g_ptr_array_index(eg->reads, i);
+		mate = get_mate(read, seqs);
+		if (mate->contig_id == read->contig_id && mate->status != USED
+				&& read->status != USED) {
+			g_ptr_array_add(eg->pairs, read);
+			g_ptr_array_add(eg->pairs, mate);
+			read->status = USED;
+			mate->status = USED;
+		}
+	}
+}
+
 void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
 	int i = 0, index = 0, j = 0;
 	bwa_seq_t *read = NULL, *query = NULL, *seqs = NULL, *mate = NULL;
@@ -1034,7 +1082,7 @@ void rev_reads_pos(edge *eg) {
 void reset_edge_ids(edgearray *all_edges) {
 	int i = 0;
 	edge *eg = NULL;
-	char *ctg_name = (char*)calloc(16, sizeof(char));
+	char *ctg_name = (char*) calloc(16, sizeof(char));
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
 		if (eg->alive) {

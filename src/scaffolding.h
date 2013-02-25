@@ -16,9 +16,12 @@ extern "C" {
 #endif
 
 typedef struct {
+	int id;
+	int comp_start;
 	GPtrArray *edges; 		// Original edges after merging
 	GPtrArray *hits;		// Blat hits of all edges
 	GPtrArray *contigs;		// Contigs after breaking, ordering
+	int alive;
 } comp;
 
 void scaffolding(edgearray *all_edges, const int insert_size,

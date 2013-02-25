@@ -22,7 +22,7 @@
 #include "readrm.h"
 #include "edge.h"
 #include "edgelist.h"
-#include "scaffolding.h"
+#include "merge.h"
 
 int path_id = 0;
 
@@ -667,7 +667,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 	edge *eg = NULL, *in_out_eg = NULL, *eg_i = NULL;
 	bwa_seq_t *r = NULL, *contigs = NULL, *ctg = NULL;
 	char *read_str = (char*) calloc(char_space, sizeof(char)); // allocate buffer.
-	char *attr[16], *shifts[3], ch = 0;
+	char *attr[16], *shifts[16], ch = 0;
 
 	dump_fp = xopen(rm_dump_file, "r");
 	reads_fp = xopen(rm_reads_file, "r");
@@ -692,7 +692,8 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 			}
 			eg = new_eg();
 			eg->id = atoi(attr[0]);
-			// show_debug_msg(__func__, "Initiating edge %s ...\n", attr[0]);
+			//show_debug_msg(__func__, "Initiating edge %s ...\n", attr[0]);
+			//show_debug_msg(__func__, "%d: %s \n", eg->id, attr[1]);
 
 			if (attr[1] != NULL && strcmp(attr[1], "") != 0) {
 				len = count_comma(attr[1], strlen(attr[1]));
@@ -701,14 +702,22 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 				i = 0;
 				while (read_ids[i] != NULL) { //ensure a pointer was found
 					read_ids[++i] = strtok(NULL, ","); //continue to tokenize the string
-					//show_debug_msg(__func__, "%d: %s\n", i, read_ids[i]);
 					if (read_ids[i] == NULL || strcmp(read_ids[i], "") == 0
 							|| strcmp(read_ids[i], "\n") == 0) {
+						i--;
 						break;
 					}
-					r = &ht->seqs[atoi(read_ids[i])];
+				}
+				for (j = 0; j < i; j++) {
+					shifts[0] = strtok(read_ids[j], "_");
+					shifts[1] = strtok(NULL, "_");
+					if (shifts[1] == NULL || strcmp(shifts[1], "") == 0)
+						break;
+					//show_debug_msg(__func__, "%d: %s_%s \n", eg->id, shifts[0], shifts[1]);
+					r = &ht->seqs[atoi(shifts[0])];
+					r->shift = atoi(shifts[1]);
+					r->contig_id = eg->id;
 					g_ptr_array_add(eg->reads, r);
-					//p_query(__func__, r);
 				}
 			}
 			g_ptr_array_add(edges, eg);
@@ -812,6 +821,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 	show_msg(__func__, "Loading the edge sequences... \n");
 	// Assign the contig sequences
 	contigs = load_reads(contig_file, &n_ctgs);
+	show_msg(__func__, "Assigning contig sequences and updating read shift values... \n");
 	for (i = 0; i < edges->len; i++) {
 		no_right_connect_edge = 1;
 		eg = g_ptr_array_index(edges, i);
@@ -823,11 +833,11 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 				break;
 			}
 		}
-		if (eg->len <= 100) {
+		/**if (eg->len <= 100) {
 			g_ptr_array_remove_index_fast(edges, i);
 			i--;
 			continue;
-		}
+		}**/
 		// Set the root edges
 		// If an edge right connects to some other edge, go to the edge
 		while (eg->right_ctg) {

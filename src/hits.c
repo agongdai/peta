@@ -12,6 +12,7 @@
 #include <glib.h>
 #include "hits.h"
 #include "utils.h"
+#include "edgelist.h"
 
 blat_hit *new_hit() {
 	blat_hit *h = (blat_hit*) malloc(sizeof(blat_hit));
@@ -37,6 +38,7 @@ blat_hit *new_hit() {
 	h->q_starts = NULL;
 	h->t_starts = NULL;
 	h->visited = 0;
+	h->alen = 0;
 	return h;
 }
 
@@ -74,6 +76,12 @@ void p_hit(blat_hit *h) {
 	printf("\t\n");
 }
 
+gint cmp_hit_by_qname(gpointer a, gpointer b) {
+	blat_hit *hit_a = *((blat_hit**) a);
+	blat_hit *hit_b = *((blat_hit**) b);
+	return (atoi(hit_a->qname) - atoi(hit_b->qname));
+}
+
 GPtrArray *read_blat_hits(const char *psl_file) {
 	char buf[BUFSIZ];
 	char *attr[64], *index[16];
@@ -85,8 +93,9 @@ GPtrArray *read_blat_hits(const char *psl_file) {
 	psl = xopen(psl_file, "r");
 	while (fgets(buf, sizeof(buf), psl)) {
 		line_no += 1;
-		if (line_no <= 4)
+		if (line_no <= 5)
 			continue;
+		//show_debug_msg(__func__, "%s", buf);
 		i = 0;
 		attr[0] = strtok(buf, "\t");
 		while (attr[i] != NULL) { //ensure a pointer was found
@@ -101,12 +110,12 @@ GPtrArray *read_blat_hits(const char *psl_file) {
 		h->q_gap_bases = atoi(attr[5]);
 		h->t_gap_count = atoi(attr[6]);
 		h->t_gap_bases = atoi(attr[7]);
-		h->strand = attr[8][0];
-		h->qname = attr[9];
+		h->strand = strdup(attr[8])[0];
+		h->qname = strdup(attr[9]);
 		h->q_size = atoi(attr[10]);
 		h->q_start = atoi(attr[11]);
 		h->q_end = atoi(attr[12]);
-		h->tname = attr[13];
+		h->tname = strdup(attr[13]);
 		h->t_size = atoi(attr[14]);
 		h->t_start = atoi(attr[15]);
 		h->t_end = atoi(attr[16]);
@@ -119,6 +128,7 @@ GPtrArray *read_blat_hits(const char *psl_file) {
 		}
 		for (j = 0; j < h->block_count; j++) {
 			h->block_sizes[j] = atoi(index[j]);
+			h->alen += h->block_sizes[j];
 		}
 		j = 0;
 		index[0] = strtok(attr[19], ",");
@@ -144,9 +154,30 @@ GPtrArray *read_blat_hits(const char *psl_file) {
 			continue;
 		}
 		g_ptr_array_add(hits, h);
-		p_hit(h);
-		break;
+		//p_hit(h);
+		//break;
 	}
 	fclose(psl);
 	return hits;
+}
+
+int realign_thread(gpointer e, gpointer data) {
+	edge *eg = (edge*) e;
+	hash_table *ht = (hash_table*) data;
+	realign_reads_by_ht(ht, eg, MISMATCHES);
+	return 0;
+}
+
+void realign_by_blat(edgearray *all_edges, hash_table *ht, const int n_threads) {
+	GThreadPool *thread_pool = NULL;
+	int i = 0;
+	edge *eg = NULL;
+	thread_pool = g_thread_pool_new((GFunc) realign_thread, ht,
+			n_threads, TRUE, NULL);
+	show_msg(__func__, "Realigning all reads to %d edges... \n", all_edges->len);
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		g_thread_pool_push(thread_pool, (gpointer) eg, NULL);
+	}
+	g_thread_pool_free(thread_pool, 0, 1);
 }

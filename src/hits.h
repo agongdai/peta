@@ -8,6 +8,10 @@
 #ifndef HITS_H_
 #define HITS_H_
 
+#include "glib.h"
+#include "pehash.h"
+#include "edgelist.h"
+
 typedef struct {
 	int matches;
 	int mismatches;
@@ -31,9 +35,12 @@ typedef struct {
 	int *q_starts;
 	int *t_starts;
 	int visited;
+	int alen;
 } blat_hit;
 
 GPtrArray *read_blat_hits(const char *psl_file);
 void p_hit(blat_hit *h);
+gint cmp_hit_by_qname(gpointer a, gpointer b);
+void realign_by_blat(edgearray *all_edges, hash_table *ht, const int n_threads);
 
 #endif /* HITS_H_ */

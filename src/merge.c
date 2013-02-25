@@ -136,15 +136,16 @@ int has_reads_in_common(edge *eg_1, edge *eg_2) {
 	return 0;
 }
 
+/**
+ * Assumption: the all_edges are with ids: 0, 1, 2, 3...
+ */
 GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) {
 	edgearray *probable_in_out = NULL, *raw_in_outs = NULL;
+	readarray *reads = NULL;
 	int i = 0;
 	edge *in_out = NULL;
 	bwa_seq_t *read = NULL, *mate = NULL;
 	raw_in_outs = g_ptr_array_sized_new(all_edges->len + 1);
-	//show_debug_msg(__func__,
-	//		"Checking probable in_out edges of edge [%d, %d]...\n", eg->id,
-	//		eg->len);
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		if (read->status == USED)
@@ -155,7 +156,7 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 			continue;
 		//show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id,
 		//		all_edges->len);
-		in_out = edgearray_find_id(all_edges, mate->contig_id);
+		in_out = g_ptr_array_index(all_edges, mate->contig_id);
 		if (in_out) {
 			g_ptr_array_uni_add(raw_in_outs, in_out);
 		}
@@ -164,9 +165,15 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) 
 	//show_debug_msg(__func__, "Checking shared subseq... \n");
 	for (i = 0; i < raw_in_outs->len; i++) {
 		in_out = g_ptr_array_index(raw_in_outs, i);
+		reads = find_unconditional_paired_reads(eg, in_out, seqs);
 		//show_debug_msg(__func__, "[%d] Probable in_out: [%d, %d] \n", i,
 		//		in_out->id, in_out->len);
 		// p_ctg_seq("Contig", eg->contig);
+		if (reads->len < MIN_VALID_PAIRS) {
+			g_ptr_array_free(reads, TRUE);
+			continue;
+		}
+		g_ptr_array_free(reads, TRUE);
 		if (!share_subseq_byte(eg->contig->seq, eg->len, in_out->contig,
 				MISMATCHES, 100) && !share_subseq_byte(eg->contig->rseq,
 				eg->len, in_out->contig, MISMATCHES, 100)
@@ -511,4 +518,26 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 	show_msg(__func__, "Merged to %d templates.\n", single_edges->len);
 	destroy_reads_ht(rht);
 	free(data);
+}
+
+/**
+ * If an edge is a subsequence of another, mark it as not alive
+ */
+void mark_sub_edge(edgearray *all_edges, GPtrArray *hits) {
+	int i = 0;
+	blat_hit *h = NULL;
+	edge *eg = NULL;
+	for (i = 0; i < hits->len; i++) {
+		h = g_ptr_array_index(hits, i);
+		if (h->q_size < h->t_size) {
+			if (h->alen > h->q_size - MAX_EDGE_NM && h->mismatches
+					<= MAX_EDGE_NM) {
+				eg = g_ptr_array_index(all_edges, atoi(h->qname));
+				eg->alive = 0;
+				show_debug_msg(__func__,
+						"Edge [%d, %d] is marked as not alive \n", eg->id,
+						eg->len);
+			}
+		}
+	}
 }
