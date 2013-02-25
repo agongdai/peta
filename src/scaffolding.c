@@ -33,25 +33,65 @@ void free_comp(comp *c) {
 	g_ptr_array_free(c->contigs, TRUE);
 	g_ptr_array_free(c->edges, TRUE);
 	g_ptr_array_free(c->hits, TRUE);
+	free(c);
+}
+
+comp *merge_comps(comp *c, comp *to_merge) {
+	int i = 0;
+	edge *eg = NULL;
+	if (c == to_merge)
+		return c;
+	show_debug_msg(__func__, "Merging component %d to %d \n",
+			to_merge->comp_start, c->comp_start);
+	for (i = 0; i < to_merge->edges->len; i++) {
+		eg = g_ptr_array_index(to_merge->edges, i);
+		eg->comp_id = c->id;
+	}
+	g_ptr_array_concat(c->edges, to_merge->edges);
+	g_ptr_array_concat(c->hits, to_merge->hits);
+	g_ptr_array_concat(c->contigs, to_merge->contigs);
+	to_merge->alive = 0;
+	return c;
 }
 
 /**
  * Assumption: the components are with ids: 0, 1, 2, 3, ...
  */
-GPtrArray *get_connected_comps(const edgearray *all_edges, GPtrArray *comps,
-		edge *eg, bwa_seq_t *seqs) {
+void concat_connected_comps(edgearray *all_edges, const int insert_size, GPtrArray *comps, edge *eg,
+		bwa_seq_t *seqs) {
 	int i = 0;
-	bwa_seq_t *r = NULL, *mate = NULL;
 	edge *in_out = NULL;
 	edgearray *probable_in_out = NULL;
-	comp *c = NULL;
+	comp *this_c = NULL, *c = NULL;
 
-	probable_in_out = get_probable_in_out(all_edges, eg, seqs);
+	this_c = g_ptr_array_index(comps, eg->comp_id);
+	if (!this_c->alive)
+		return;
+	probable_in_out = get_probable_in_out(all_edges, insert_size, eg, seqs);
+	//show_debug_msg(__func__, "Probable in out: %d \n", probable_in_out->len);
 	for (i = 0; i < probable_in_out->len; i++) {
 		in_out = g_ptr_array_index(probable_in_out, i);
 		c = g_ptr_array_index(comps, in_out->comp_id);
+		if (c->alive && this_c != c) {
+			merge_comps(this_c, c);
+		}
 	}
 	g_ptr_array_free(probable_in_out, TRUE);
+}
+
+void merge_roadmap_comps(edgearray *all_edges, const int insert_size, GPtrArray *comps,
+		bwa_seq_t *seqs) {
+	comp *c = NULL;
+	int i = 0, j = 0;
+	edge *eg = NULL;
+
+	for (i = 0; i < comps->len; i++) {
+		c = g_ptr_array_index(comps, i);
+		for (j = 0; j < c->edges->len; j++) {
+			eg = g_ptr_array_index(c->edges, j);
+			concat_connected_comps(all_edges, insert_size, comps, eg, seqs);
+		}
+	}
 }
 
 GPtrArray *get_components(edgearray *all_edges, char *psl_name) {
@@ -75,6 +115,7 @@ GPtrArray *get_components(edgearray *all_edges, char *psl_name) {
 		new_c = new_comp();
 		new_c->id = comp_id++;
 		new_c->comp_start = eg->id;
+		eg->comp_id = new_c->id;
 		g_ptr_array_add(new_c->edges, eg);
 		has_more = 1;
 		eg->visited = 1;
@@ -198,11 +239,19 @@ void scaffolding(edgearray *all_edges, const int insert_size,
 	edge *eg = NULL;
 
 	all_comps = get_components(all_edges, psl_name);
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_read_by_name);
+	}
+	merge_roadmap_comps(all_edges, insert_size, all_comps, ht->seqs);
 	for (i = 0; i < all_comps->len; i++) {
 		c = g_ptr_array_index(all_comps, i);
-		show_debug_msg(__func__,
-				"======== %d: Hits for component %d =========\n", c->id,
-				c->comp_start);
+//		if (!c->alive)
+//			continue;
+		show_debug_msg(
+				__func__,
+				"======== %d: Hits for component %d ========= Alive: %d =========\n",
+				c->id, c->comp_start, c->alive);
 		printf("Edges: ");
 		for (j = 0; j < c->edges->len; j++) {
 			eg = g_ptr_array_index(c->edges, j);

@@ -28,7 +28,9 @@ extern "C" {
 
 gint cmp_read_by_name(gpointer a, gpointer b);
 void g_ptr_array_add_index(GPtrArray *array, gpointer data, const int index);
-void g_ptr_array_replace_index(GPtrArray *array, gpointer data, const int index);
+void
+		g_ptr_array_replace_index(GPtrArray *array, gpointer data,
+				const int index);
 void g_ptr_array_replace_ptr(GPtrArray *array, gpointer data, gpointer olddata);
 void g_ptr_array_iterator(gpointer value, gpointer user_data);
 void g_ptr_array_uni_add(GPtrArray *array, gpointer data);
@@ -40,7 +42,10 @@ int readarray_find(readarray *array, bwa_seq_t *r);
 int edgearray_find_similar(edgearray *array, edge *eg);
 void adj_shift(edge *eg, const int trun_len);
 readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs);
-readarray *find_unconditional_paired_reads(edge *eg_1, edge *eg_2, bwa_seq_t *seqs);
+readarray *find_unconditional_paired_reads(edge *eg_1, edge *eg_2,
+		bwa_seq_t *seqs);
+readarray *find_in_order_unconditional_pairs(edge *eg_1, edge *eg_2,
+		bwa_seq_t *seqs);
 void merge_eg_to_left(edge *left_eg, edge *right_eg, const int gap);
 void merge_eg_to_right(edge *left_eg, edge *right_eg, const int gap);
 int get_mid_pos(readarray *ra, const int ori, const int lib_mean);
@@ -52,11 +57,12 @@ void upd_reads(const hash_table *ht, edge *eg, const int mismatches);
 int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs);
 void log_reads(edgearray *ea);
 void log_edge(const edge *eg, bwa_seq_t *seqs);
-void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift, const int gap,
-		const int ori);
+void combine_reads(edge *left_eg, edge *right_eg, const int upd_shift,
+		const int gap, const int ori);
 void concat_readarray(readarray *left_reads, readarray *right_reads);
 void clear_used_reads(edge *eg, const int reset_ctg_id);
-void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap, const int nm, const int rl);
+void fill_in_hole(edge *ass_eg, edge *m_eg, const int ori, eg_gap *gap,
+		const int nm, const int rl);
 eg_gap *find_hole(edge *ass_eg, edge *m_eg, const int ori);
 double *get_pair_dis_on_edge(edge *eg, int *n_pairs);
 void readarray_add(edge *eg, bwa_seq_t *read);

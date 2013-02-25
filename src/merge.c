@@ -139,47 +139,92 @@ int has_reads_in_common(edge *eg_1, edge *eg_2) {
 /**
  * Assumption: the all_edges are with ids: 0, 1, 2, 3...
  */
-GPtrArray *get_probable_in_out(GPtrArray *all_edges, edge *eg, bwa_seq_t *seqs) {
+GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
+		edge *eg, bwa_seq_t *seqs) {
 	edgearray *probable_in_out = NULL, *raw_in_outs = NULL;
-	readarray *reads = NULL;
+	readarray *pair_reads = NULL;
 	int i = 0;
 	edge *in_out = NULL;
 	bwa_seq_t *read = NULL, *mate = NULL;
+	double cov_1 = 0.0, cov_2 = 0.0, target_cov = 0.0;
 	raw_in_outs = g_ptr_array_sized_new(all_edges->len + 1);
+	if (eg->reads->len == 0)
+		return raw_in_outs;
+	//	if (eg->id == 3779 || eg->id == 4) {
+	//		p_readarray(eg->reads, 1);
+	//	}
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
-		if (read->status == USED)
-			continue;
 		mate = get_mate(read, seqs);
-		if (mate->status == FRESH || mate->contig_id < 0 || read->contig_id
-				== mate->contig_id)
+		if (mate->status == FRESH || binary_exists(eg->reads, mate)) {
 			continue;
-		//show_debug_msg(__func__, "mate contig id: %d/%d \n", mate->contig_id,
-		//		all_edges->len);
+		}
+		if (eg->id == 3779 || eg->id == 4) {
+			p_query(__func__, read);
+			p_query(__func__, mate);
+		}
 		in_out = g_ptr_array_index(all_edges, mate->contig_id);
 		if (in_out) {
 			g_ptr_array_uni_add(raw_in_outs, in_out);
 		}
 	}
+
+	if (eg->id == 3779 || eg->id == 4) {
+		show_debug_msg(__func__, "------------------------- \n");
+		show_debug_msg(__func__, "Edge: [%d, %d] Reads: %d\n", eg->id, eg->len,
+				eg->reads->len);
+		for (i = 0; i < raw_in_outs->len; i++) {
+			in_out = g_ptr_array_index(raw_in_outs, i);
+			show_debug_msg(__func__,
+					"Raw in-out of edge %d: [%d, %d] Reads: %d\n", eg->id,
+					in_out->id, in_out->len, in_out->reads->len);
+		}
+	}
+
 	probable_in_out = g_ptr_array_sized_new(raw_in_outs->len + 1);
 	//show_debug_msg(__func__, "Checking shared subseq... \n");
 	for (i = 0; i < raw_in_outs->len; i++) {
 		in_out = g_ptr_array_index(raw_in_outs, i);
-		reads = find_unconditional_paired_reads(eg, in_out, seqs);
+		pair_reads = find_in_order_unconditional_pairs(eg, in_out, seqs);
 		//show_debug_msg(__func__, "[%d] Probable in_out: [%d, %d] \n", i,
 		//		in_out->id, in_out->len);
 		// p_ctg_seq("Contig", eg->contig);
-		if (reads->len < MIN_VALID_PAIRS) {
-			g_ptr_array_free(reads, TRUE);
+		if (pair_reads->len < MIN_VALID_PAIRS) {
+			g_ptr_array_free(pair_reads, TRUE);
 			continue;
 		}
-		g_ptr_array_free(reads, TRUE);
 		if (!share_subseq_byte(eg->contig->seq, eg->len, in_out->contig,
-				MISMATCHES, 100) && !share_subseq_byte(eg->contig->rseq,
-				eg->len, in_out->contig, MISMATCHES, 100)
+				MISMATCHES, 50) && !share_subseq_byte(eg->contig->rseq,
+				eg->len, in_out->contig, MISMATCHES, 50)
 				&& !has_reads_in_common(eg, in_out)) {
-			in_out->tid = eg->tid;
-			g_ptr_array_add(probable_in_out, in_out);
+			if (in_out->reads->len > 0) {
+				cov_1 = (double) eg->reads->len / (double) eg->len;
+				cov_2 = (double) in_out->reads->len / (double) in_out->len;
+				// Get the smaller coverage value
+				target_cov = (cov_1 > cov_2) ? cov_2 : cov_1;
+				// Only if the paired reads have enough coverage
+				show_debug_msg(
+						__func__,
+						"Edge [%d: %d] [%d: %d] Paired reads: %d; Target cov %.2f \n",
+						eg->id, eg->len, in_out->id, in_out->len,
+						pair_reads->len, target_cov);
+				if (pair_reads->len >= (insert_size / 2) * target_cov) {
+					in_out->tid = eg->tid;
+					g_ptr_array_add(probable_in_out, in_out);
+				}
+			}
+		}
+		g_ptr_array_free(pair_reads, TRUE);
+	}
+	if (eg->id == 3779 || eg->id == 4) {
+		show_debug_msg(__func__, "------------------------- \n");
+		show_debug_msg(__func__, "Edge: [%d, %d] Reads: %d\n", eg->id, eg->len,
+				eg->reads->len);
+		for (i = 0; i < probable_in_out->len; i++) {
+			in_out = g_ptr_array_index(probable_in_out, i);
+			show_debug_msg(__func__,
+					"Raw in-out of edge %d: [%d, %d] Reads: %d\n", eg->id,
+					in_out->id, in_out->len, in_out->reads->len);
 		}
 	}
 	g_ptr_array_free(raw_in_outs, TRUE);

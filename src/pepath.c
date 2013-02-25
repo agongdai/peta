@@ -717,6 +717,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 					r = &ht->seqs[atoi(shifts[0])];
 					r->shift = atoi(shifts[1]);
 					r->contig_id = eg->id;
+					r->status = TRIED;
 					g_ptr_array_add(eg->reads, r);
 				}
 			}

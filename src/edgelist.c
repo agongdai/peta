@@ -224,6 +224,33 @@ readarray *get_paired_reads(readarray *ra_1, readarray *ra_2, bwa_seq_t *seqs) {
 	return paired;
 }
 
+/**
+ * Assumption: the reads in eg_1 and eg_2 order reads increasingly by read id
+ */
+readarray *find_in_order_unconditional_pairs(edge *eg_1, edge *eg_2,
+		bwa_seq_t *seqs) {
+	readarray *paired = g_ptr_array_sized_new(INIT_N_READ_PAIRED);
+	edge *eg_more = NULL, *eg_fewer = NULL;
+	int i = 0;
+	bwa_seq_t *read_1, *mate = NULL;
+	//clock_t t = clock();
+	if (!eg_1 || !eg_2 || eg_1->len == 0 || eg_2->len == 0)
+		return paired;
+	eg_fewer = eg_1->reads->len > eg_2->reads->len ? eg_2 : eg_1;
+	eg_more = eg_1->reads->len > eg_2->reads->len ? eg_1 : eg_2;
+	for (i = 0; i < eg_fewer->reads->len; i++) {
+		read_1 = g_ptr_array_index(eg_fewer->reads, i);
+		mate = get_mate(read_1, seqs);
+		if (mate->status == FRESH)
+			continue;
+		if (binary_exists(eg_more->reads, mate)) {
+			g_ptr_array_add(paired, read_1);
+			g_ptr_array_add(paired, mate);
+		}
+	}
+	return paired;
+}
+
 readarray *find_unconditional_paired_reads(edge *eg_1, edge *eg_2,
 		bwa_seq_t *seqs) {
 	readarray *paired = g_ptr_array_sized_new(INIT_N_READ_PAIRED);
