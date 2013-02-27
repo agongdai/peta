@@ -75,6 +75,7 @@ int binary_exists(const readarray *reads, const bwa_seq_t *read);
 int has_most_fresh_reads(readarray *ra, const int max);
 void rev_reads_pos(edge *eg);
 void reset_edge_ids(edgearray *all_edges);
+int reads_has_overlap(readarray *reads, const int edge_id, const int insert_size);
 
 #ifdef __cplusplus
 }

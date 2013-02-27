@@ -15,6 +15,8 @@
 extern "C" {
 #endif
 
+#define MIN_OL_TO_SCA		100
+
 typedef struct {
 	int id;
 	int comp_start;

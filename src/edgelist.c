@@ -1129,3 +1129,23 @@ void reset_edge_ids(edgearray *all_edges) {
 	}
 	free(ctg_name);
 }
+
+int reads_has_overlap(readarray *reads, const int edge_id, const int insert_size) {
+	int i = 0, j = 0, dis = 0, max_dis = 0;
+	bwa_seq_t *r = NULL, *r2;
+	for (i = 0; i < reads->len; i++) {
+		r = g_ptr_array_index(reads, i);
+		if (r->contig_id != edge_id)
+			continue;
+		for (j = i + 1; j < reads->len; j++) {
+			r2 = g_ptr_array_index(reads, j);
+			if (r2->contig_id != edge_id)
+				continue;
+			dis = abs(r->shift - r2->shift);
+			max_dis = (max_dis > dis) ? max_dis : dis;
+		}
+	}
+	if (max_dis > 20 && max_dis < insert_size + 100)
+		return 1;
+	return 0;
+}

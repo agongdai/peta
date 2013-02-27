@@ -36,7 +36,7 @@ void free_comp(comp *c) {
 	free(c);
 }
 
-comp *merge_comps(comp *c, comp *to_merge) {
+comp *merge_two_comps(comp *c, comp *to_merge) {
 	int i = 0;
 	edge *eg = NULL;
 	if (c == to_merge)
@@ -52,6 +52,22 @@ comp *merge_comps(comp *c, comp *to_merge) {
 	g_ptr_array_concat(c->contigs, to_merge->contigs);
 	to_merge->alive = 0;
 	return c;
+}
+
+void merge_ol_edges_in_comps(GPtrArray *comps, edgearray *all_edges) {
+	int i = 0, j = 0;
+	comp *c = NULL;
+	edge *eg_1 = NULL, *eg_2 = NULL;
+	blat_hit *h = NULL;
+	for (i = 0; i < comps->len; i++) {
+		c = g_ptr_array_index(comps, i);
+		if (c->edges->len > 10)
+			continue;
+		for (j = 0; j < c->hits->len; j++) {
+			h = g_ptr_array_index(c->hits, j);
+
+		}
+	}
 }
 
 /**
@@ -73,7 +89,7 @@ void concat_connected_comps(edgearray *all_edges, const int insert_size, GPtrArr
 		in_out = g_ptr_array_index(probable_in_out, i);
 		c = g_ptr_array_index(comps, in_out->comp_id);
 		if (c->alive && this_c != c) {
-			merge_comps(this_c, c);
+			merge_two_comps(this_c, c);
 		}
 	}
 	g_ptr_array_free(probable_in_out, TRUE);
@@ -125,6 +141,9 @@ GPtrArray *get_components(edgearray *all_edges, char *psl_name) {
 			for (j = hit_start; j < hits->len; j++) {
 				h = g_ptr_array_index(hits, j);
 				if (h->visited)
+					continue;
+				// If the overlapped length is too short, ignore this hit
+				if (h->matches < MIN_OL_TO_SCA)
 					continue;
 				eg_id = atoi(h->qname);
 				if (eg_id == eg->id) {
@@ -243,7 +262,7 @@ void scaffolding(edgearray *all_edges, const int insert_size,
 		eg = g_ptr_array_index(all_edges, i);
 		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_read_by_name);
 	}
-	merge_roadmap_comps(all_edges, insert_size, all_comps, ht->seqs);
+	// merge_roadmap_comps(all_edges, insert_size, all_comps, ht->seqs);
 	for (i = 0; i < all_comps->len; i++) {
 		c = g_ptr_array_index(all_comps, i);
 //		if (!c->alive)

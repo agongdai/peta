@@ -26,6 +26,7 @@
 #include "correct.h"
 #include "merge.h"
 #include "hits.h"
+#include "rnaseq.h"
 
 int pair_ctg_id = 0;
 int overlap_len = 0;
@@ -1025,12 +1026,53 @@ void test_run(hash_table *ht) {
 
 void test_scaffolding(hash_table *ht) {
 	edgearray *all_edges =
-			load_rm(ht, "../SRR097897_out/roadmap.2.graph",
-					"../SRR097897_out/roadmap.2.reads",
-					"../SRR097897_out/validated.fa");
+			load_rm(ht, "../SRR097897_out/roadmap.3.graph",
+					"../SRR097897_out/roadmap.3.reads",
+					"../SRR097897_out/validated.2.fa");
 	show_msg(__func__, "Scaffolding %d threads... \n", n_threads);
 	scaffolding(all_edges, insert_size, sd_insert_size, ht, n_threads,
-			"../SRR097897_out/validated.validated.psl");
+			"../SRR097897_out/validated.validated.2.psl");
+	exit(1);
+}
+
+void test_merge(hash_table *ht) {
+	/**
+	FILE *merged_pair_contigs = NULL;
+	edgearray *all_edges = g_ptr_array_sized_new(1023);
+	edge *eg = NULL;
+	bwa_seq_t *contigs = NULL;
+	uint32_t n_ctgs = 0, i = 0;
+	contigs = load_reads("../SRR027876_out/validated.1.fa", &n_ctgs);
+	GPtrArray *hits = read_blat_hits("../SRR027876_out/validated.validated.psl");
+
+	for (i = 0; i < n_ctgs; i++) {
+		eg = new_eg();
+		eg->id = i;
+		eg->contig = &contigs[i];
+		p_ctg_seq(__func__, eg->contig);
+		eg->len = eg->contig->len;
+		g_ptr_array_add(all_edges, eg);
+	}
+
+	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
+	mark_sub_edge(all_edges, hits);
+	reset_edge_ids(all_edges);
+	merged_pair_contigs = xopen("../SRR027876_out/validated.2.fa", "w");
+	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
+	**/
+	FILE *merged_pair_contigs = NULL;
+	GPtrArray *hits = read_blat_hits("../SRR097897_out/validated.validated.psl");
+	edgearray *all_edges =
+				load_rm(ht, "../SRR097897_out/roadmap.2.graph",
+						"../SRR097897_out/roadmap.2.reads",
+						"../SRR097897_out/validated.fa");
+	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
+	mark_sub_edge(all_edges, hits);
+	reset_edge_ids(all_edges);
+	merged_pair_contigs = xopen("../SRR097897_out/validated.2.fa", "w");
+	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
+	realign_by_blat(all_edges, ht, n_threads);
+	dump_rm(all_edges, "../SRR097897_out/roadmap.3.graph", "../SRR097897_out/roadmap.3.reads");
 	exit(1);
 }
 
@@ -1110,6 +1152,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	ht = pe_load_hash(lib_file);
 	//test_run(ht);
 	test_scaffolding(ht);
+	//test_merge(ht);
 	seqs = &ht->seqs[0];
 	show_msg(__func__, "Removing repetitive reads... \n");
 	n_rep = rm_repetitive_reads(seqs, ht->n_seqs);

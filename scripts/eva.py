@@ -199,8 +199,14 @@ class BlastHit(object):
 		for s in self.r_block_starts:
 			repr += str(s) + ','
 		repr += ']\t'
-		repr += 'Match: %d; Mismatch: %d; Indels: %d/%d' % (self.n_match, self.n_mismatch, self.n_query_gap_bases, self.n_ref_gap_bases)
+		repr += 'Match: %d; Mismatch: %d; Indels: %d/%d \n' % (self.n_match, self.n_mismatch, self.n_query_gap_bases, self.n_ref_gap_bases)
 		return repr
+	
+def find_hit(hits, query, tx):
+	for h in hits[tx]:
+		if h.qname == query:
+			return h
+	return None
 		
 def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	file_full_length = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_full_length.txt'), 'w')

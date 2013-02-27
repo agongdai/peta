@@ -14,6 +14,7 @@ READ = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa'
 CONTIG = '/home/carl/Projects/peta/SRR027876_out/pair_contigs.fa'
 
 READ_REF_PSL_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.psl'
+REF_TO_REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/ref.ref.psl'
 REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta'
 READ_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa'
 
@@ -222,6 +223,7 @@ def draw_dot(args):
     
     lines = runInShell('grep ' + args.transcript + ' ' + args.psl)
     hit_lines = lines.split('\n')
+    print 'grep ' + args.transcript + ' ' + args.psl
     raw_hits = eva.read_psl_hits(hit_lines, 'query')
     hits = raw_hits[args.transcript]
     
@@ -393,7 +395,60 @@ def gen_cov(args):
         cov.write('%s\t%d%.2f' % (tx_name, n_reads, coverage))
     print 'Done. Check file %s.cov' % args.transcript 
     cov.close()
-
+    
+def zoom_region(args):
+    region_s = args.start
+    region_e = args.end
+    tx = args.transcript
+    
+    cmd = 'grep %s %s' % (tx, args.psl)
+    print cmd
+    lines = runInShell(cmd)
+    hit_lines = lines.split('\n')
+    hits = eva.read_psl_hits(hit_lines, 'ref')
+    
+    n_reads = 0
+    n_single = 0
+    n_in = 0
+    n_pairs = 0
+    n_pairs_in_out = 0
+    n_junction = 0
+    n_junction_pairs = 0
+    for h in hits[tx]:
+        check_mate = False
+        n_reads += 1
+        if h.rstart >= region_s and h.rend <= region_e:
+            n_in += 1
+            check_mate = True
+        if h.rstart <= region_s and h.rend >= region_s:
+            n_junction += 1
+        if h.rstart <= region_e and h.rend >= region_e:
+            n_junction += 1 
+        if check_mate:
+            if int(h.qname) % 2 == 0:
+                mate_id = str(int(h.qname) + 1)
+            else:
+                mate_id = str(int(h.qname) - 1)
+            mate_hit = eva.find_hit(hits, mate_id, tx)
+            if mate_hit is None:
+                n_single += 1
+            else:
+                if mate_hit.rend < region_s or mate_hit.rstart > region_e:
+                    n_pairs_in_out += 1
+                if mate_hit.rstart >= region_s and mate_hit.rend <= region_e:
+                    n_pairs += 1
+                if mate_hit.rstart <= region_s and mate_hit.rend >= region_s:
+                    n_junction_pairs += 1
+                if mate_hit.rstart <= region_e and mate_hit.rend >= region_e:
+                    n_junction_pairs += 1
+    print 'All hit reads:            %d ' % n_reads
+    print 'All ingle reads:          %d ' % n_single
+    print 'Reads in the region:      %d ' % n_in
+    print 'Reads in the junction:    %d ' % n_junction
+    print 'Pairs in the region:      %d ' % n_pairs
+    print 'Pairs in the junction:    %d ' % n_junction_pairs
+    print 'One in region, one out:   %d ' % n_pairs_in_out
+            
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -407,8 +462,8 @@ def main():
     parser_one_read_to_ref = subparsers.add_parser('draw', help='draw transcripts splicing patterns')
     parser_one_read_to_ref.set_defaults(func=draw_dot)
     parser_one_read_to_ref.add_argument('transcript', help='annotated transcripts ensembl ID')
-    parser_one_read_to_ref.add_argument('-f', '--tx', required=False, default=REF, help='annotated transcripts file', metavar='FILE', dest='tx')
-    parser_one_read_to_ref.add_argument('-p', '--psl', required=False, default=REF_TO_REF, help='ref-to-ref psl file', metavar='FILE', dest='psl')
+    parser_one_read_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR097897, help='annotated transcripts file', metavar='FILE', dest='tx')
+    parser_one_read_to_ref.add_argument('-p', '--psl', required=False, default=REF_TO_REF_SRR097897, help='ref-to-ref psl file', metavar='FILE', dest='psl')
     
     parser_ctg_to_ref = subparsers.add_parser('ctx', help='align all contigs to a transcript and visualize text alignments')
     parser_ctg_to_ref.set_defaults(func=ctg_to_ref)
@@ -420,6 +475,13 @@ def main():
     parset_cov.set_defaults(func=gen_cov)
     parset_cov.add_argument('transcript', help='annotated transcripts')
     parset_cov.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR027876, metavar='FILE', help='psl file', dest='psl')
+    
+    parset_zoom = subparsers.add_parser('zoom', help='Check the hits within some region of a transcript')
+    parset_zoom.set_defaults(func=zoom_region)
+    parset_zoom.add_argument('transcript', help='the transcript to zoom in')
+    parset_zoom.add_argument('-p', '--psl', required=True, metavar='FILE', help='psl file', dest='psl')
+    parset_zoom.add_argument('-s', '--start', required=True, type=int, help='starting point of the region', dest='start')
+    parset_zoom.add_argument('-e', '--end', required=True, type=int, help='ending point of the region', dest='end')
     
     args = parser.parse_args()
     args.func(args)

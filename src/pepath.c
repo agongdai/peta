@@ -747,13 +747,11 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 				read_str = realloc(read_str, char_space); // re allocate memory.
 			}
 			if (ch == '\n') {
-
 				j = 0;
 				attr[0] = strtok(read_str, "\t");
 				while (attr[j] != NULL) { //ensure a pointer was found
 					attr[++j] = strtok(NULL, "\t"); //continue to tokenize the string
 				}
-
 				// Outgoing edges
 				if (attr[1] != NULL && strcmp(attr[1], "-1") != 0) {
 					len = count_comma(attr[1], strlen(attr[1]));
