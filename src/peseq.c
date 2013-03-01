@@ -522,11 +522,11 @@ int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs,
 	solid = xopen(part_solid_fn, "w");
 	for (i = 0; i < n_seqs; i++) {
 		s = &seqs[i];
-//		if (s->status != USED && s->status != DEAD) {
-			sprintf(h, ">%d\n", n_unpaired);
-			save_read(h, s, solid);
-			n_unpaired++;
-//		}
+		//		if (s->status != USED && s->status != DEAD) {
+		sprintf(h, ">%d\n", n_unpaired);
+		save_read(h, s, solid);
+		n_unpaired++;
+		//		}
 	}
 	free(h);
 	fclose(solid);
@@ -811,7 +811,13 @@ int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,
 		return 0;
 	min_len = left_seq->len;
 	min_len = (left_seq->len < right_seq->len) ? min_len : right_seq->len;
-	for (i = min_len; i > 0; i--) {
+	for (i = mismatches; i < mismatches * 2; i++) {
+		olpped = seq_ol(left_seq, right_seq, i, 1);
+		if (olpped > 0) {
+			return i;
+		}
+	}
+	for (i = min_len; i >= mismatches * 2; i--) {
 		olpped = seq_ol(left_seq, right_seq, i, mismatches);
 		if (olpped > 0) {
 			olpped = i;

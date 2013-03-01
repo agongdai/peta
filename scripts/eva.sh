@@ -1,6 +1,6 @@
 #!/bin/bash
 
-query="validated.2"
+query="validated.3"
 root_dir="/home/carl/Projects/"
 eva_exe="$root_dir/peta/scripts/eva.py"
 db_dir="$root_dir/peta/rnaseq/Spombe/genome/"

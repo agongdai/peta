@@ -35,6 +35,8 @@ int has_reads_in_common(edge *eg_1, edge *eg_2);
 edge *merge_edges(edge *eg_1, edge *eg_2, hash_table *ht);
 void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		const int sd_insert_size, hash_table *ht, const int n_threads);
+void merge_ol_comp_edges(edgearray *comp_edges, hash_table *ht,
+		int insert_size, int sd_insert_size);
 void mark_sub_edge(edgearray *all_edges, GPtrArray *hits);
 GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size, edge *eg, bwa_seq_t *seqs);
 

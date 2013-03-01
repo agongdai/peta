@@ -141,7 +141,8 @@ int has_reads_in_common(edge *eg_1, edge *eg_2) {
  */
 GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 		edge *eg, bwa_seq_t *seqs) {
-	edgearray *probable_in_out = NULL, *raw_in_outs = NULL;
+	edgearray *probable_in_out = NULL, *raw_in_outs = NULL, *extra_in_out =
+			NULL, *tmp = NULL;
 	readarray *pair_reads = NULL;
 	int i = 0;
 	edge *in_out = NULL;
@@ -150,18 +151,12 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 	raw_in_outs = g_ptr_array_sized_new(all_edges->len + 1);
 	if (eg->reads->len == 0)
 		return raw_in_outs;
-	//	if (eg->id == 3779 || eg->id == 4) {
-	//		p_readarray(eg->reads, 1);
-	//	}
 	for (i = 0; i < eg->reads->len; i++) {
 		read = g_ptr_array_index(eg->reads, i);
 		mate = get_mate(read, seqs);
-		if (mate->status == FRESH || binary_exists(eg->reads, mate)) {
+		if (mate->status == FRESH || mate->contig_id == eg->id
+				|| binary_exists(eg->reads, mate)) {
 			continue;
-		}
-		if (eg->id == 3779 || eg->id == 4) {
-			p_query(__func__, read);
-			p_query(__func__, mate);
 		}
 		in_out = g_ptr_array_index(all_edges, mate->contig_id);
 		if (in_out) {
@@ -169,17 +164,17 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 		}
 	}
 
-	if (eg->id == 3779 || eg->id == 4) {
-		show_debug_msg(__func__, "------------------------- \n");
-		show_debug_msg(__func__, "Edge: [%d, %d] Reads: %d\n", eg->id, eg->len,
-				eg->reads->len);
-		for (i = 0; i < raw_in_outs->len; i++) {
-			in_out = g_ptr_array_index(raw_in_outs, i);
-			show_debug_msg(__func__,
-					"Raw in-out of edge %d: [%d, %d] Reads: %d\n", eg->id,
-					in_out->id, in_out->len, in_out->reads->len);
-		}
-	}
+	/**if (eg->id == 3779 || eg->id == 4) {
+	 show_debug_msg(__func__, "------------------------- \n");
+	 show_debug_msg(__func__, "Edge: [%d, %d] Reads: %d\n", eg->id, eg->len,
+	 eg->reads->len);
+	 for (i = 0; i < raw_in_outs->len; i++) {
+	 in_out = g_ptr_array_index(raw_in_outs, i);
+	 show_debug_msg(__func__,
+	 "Raw in-out of edge %d: [%d, %d] Reads: %d\n", eg->id,
+	 in_out->id, in_out->len, in_out->reads->len);
+	 }
+	 }**/
 
 	probable_in_out = g_ptr_array_sized_new(raw_in_outs->len + 1);
 	//show_debug_msg(__func__, "Checking shared subseq... \n");
@@ -208,27 +203,43 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 						"Edge [%d: %d] [%d: %d] Paired reads: %d; Target cov %.2f \n",
 						eg->id, eg->len, in_out->id, in_out->len,
 						pair_reads->len, target_cov);
-				if (pair_reads->len >= insert_size * target_cov * 2
+				if (pair_reads->len >= insert_size * target_cov
 						&& reads_has_overlap(pair_reads, in_out->id,
 								insert_size)) {
-					in_out->tid = eg->tid;
-					g_ptr_array_add(probable_in_out, in_out);
+					// Only if the level value is different, add it.
+					// The level value is initially the component id
+					if (in_out->level != eg->level) {
+						in_out->tid = eg->tid;
+						in_out->level = eg->level;
+						g_ptr_array_add(probable_in_out, in_out);
+					}
 				}
 			}
 		}
 		g_ptr_array_free(pair_reads, TRUE);
 	}
-	if (eg->id == 3779 || eg->id == 4) {
-		show_debug_msg(__func__, "------------------------- \n");
-		show_debug_msg(__func__, "Edge: [%d, %d] Reads: %d\n", eg->id, eg->len,
-				eg->reads->len);
-		for (i = 0; i < probable_in_out->len; i++) {
-			in_out = g_ptr_array_index(probable_in_out, i);
-			show_debug_msg(__func__,
-					"Raw in-out of edge %d: [%d, %d] Reads: %d\n", eg->id,
-					in_out->id, in_out->len, in_out->reads->len);
-		}
+	extra_in_out = g_ptr_array_sized_new(0);
+	for (i = 0; i < probable_in_out->len; i++) {
+		in_out = g_ptr_array_index(probable_in_out, i);
+		tmp = get_probable_in_out(all_edges, insert_size, in_out, seqs);
+		g_ptr_array_concat(extra_in_out, tmp);
+		g_ptr_array_free(tmp, TRUE);
 	}
+	g_ptr_array_concat(probable_in_out, extra_in_out);
+	g_ptr_array_free(extra_in_out, TRUE);
+	/**
+	 if (eg->id == 3779 || eg->id == 4) {
+	 show_debug_msg(__func__, "------------------------- \n");
+	 show_debug_msg(__func__, "Edge: [%d, %d] Reads: %d\n", eg->id, eg->len,
+	 eg->reads->len);
+	 for (i = 0; i < probable_in_out->len; i++) {
+	 in_out = g_ptr_array_index(probable_in_out, i);
+	 show_debug_msg(__func__,
+	 "Raw in-out of edge %d: [%d, %d] Reads: %d\n", eg->id,
+	 in_out->id, in_out->len, in_out->reads->len);
+	 }
+	 }
+	 **/
 	g_ptr_array_free(raw_in_outs, TRUE);
 	return probable_in_out;
 }
@@ -336,7 +347,7 @@ int check_insert_size(edge *eg_left, edge *eg_right, readarray *paired_reads,
 }
 
 int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
-		bwa_seq_t *seqs, int insert_size, int sd_insert_size) {
+		int insert_size, int sd_insert_size) {
 	bwa_seq_t *rev = NULL;
 	readarray *paired_reads = NULL;
 	int ol = 0, nm = 0;
@@ -349,12 +360,14 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 
 	ol = find_ol(eg_i->contig, eg_j->contig, MAX_EDGE_NM);
 	nm = get_mismatches_on_ol(eg_i->contig, eg_j->contig, ol, MAX_EDGE_NM);
-	/**
-	 p_ctg_seq(__func__, eg_i->contig);
-	 p_ctg_seq(__func__, eg_j->contig);
-	 show_debug_msg(__func__, "Overlapped: %d \n", ol);
-	 show_debug_msg(__func__, "Mismatches: %d \n", nm);
-	 **/
+	//p_ctg_seq(__func__, eg_i->contig);
+	//p_ctg_seq(__func__, eg_j->contig);
+	//show_debug_msg(__func__,
+	//		"-----------Edge [%d, %d], Edge [%d, %d]----------\n", eg_i->id,
+	//		eg_i->len, eg_j->id, eg_j->len);
+	//show_debug_msg(__func__, "Overlapped: %d \n", ol);
+	//show_debug_msg(__func__, "Mismatches: %d \n", nm);
+
 	// 1. If the overlapping length is shorter than read length,
 	// 		We expect that no common reads
 	// 2. If the overlapping length is longer than read length,
@@ -409,7 +422,7 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 			}
 			if (to_merge) {
 				g_mutex_lock(edge_mutex);
-				bwa_free_read_seq(1, eg_j->contig);
+				//bwa_free_read_seq(1, eg_j->contig);
 				eg_j->contig = rev;
 				rev = NULL;
 				merge_two_ol_edges(NULL, ht, eg_i, eg_j, ol);
@@ -496,7 +509,7 @@ void *merge_ol_edges_thread(void *data) {
 			for (j = 0; j < edge_candidates->len; j++) {
 				eg_j = g_ptr_array_index(edge_candidates, j);
 				some_one_merged = try_merging_two_edges(eg_i, eg_j, d->ht,
-						seqs, d->insert_size, d->sd_insert_size);
+						d->insert_size, d->sd_insert_size);
 			} // End of edge candidates
 			eg_i->visited = 1;
 		}
@@ -506,6 +519,33 @@ void *merge_ol_edges_thread(void *data) {
 		edge_candidates = NULL;
 	}
 	return NULL;
+}
+
+void merge_ol_comp_edges(edgearray *comp_edges, hash_table *ht,
+		int insert_size, int sd_insert_size) {
+	int i = 0, j = 0, some_merged = 1;
+	edge *eg = NULL, *eg_i = 0, *eg_j = NULL;
+	if (!edge_mutex)
+		edge_mutex = g_mutex_new();
+	for (i = 0; i < comp_edges->len; i++) {
+		eg = g_ptr_array_index(comp_edges, i);
+		eg->visited = 0;
+	}
+	while (some_merged) {
+		some_merged = 0;
+		for (i = 0; i < comp_edges->len; i++) {
+			eg_i = g_ptr_array_index(comp_edges, i);
+			if (eg_i->visited)
+				continue;
+			for (j = i; j < comp_edges->len; j++) {
+				eg_j = g_ptr_array_index(comp_edges, j);
+				if (eg_j->visited)
+					continue;
+				some_merged = try_merging_two_edges(eg_i, eg_j, ht,
+						insert_size, sd_insert_size);
+			}
+		}
+	}
 }
 
 void merge_ol_edges(edgearray *single_edges, const int insert_size,

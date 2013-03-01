@@ -4,6 +4,8 @@ import eva, merge
 from eva import FastaFile
 from argparse import ArgumentParser
 
+SEP = '    '
+
 BLAT = '/home/carl/Projects/blat/blat'
 BLAT_OCC_11 = '/home/carl/Projects/blat/11.ooc'
 
@@ -19,6 +21,8 @@ REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.f
 READ_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa'
 
 READ_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa'
+REF_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa'
+REF_TO_REF_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/genome/ref.ref.psl'
 READ_REF_PSL_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.psl'
 
 def runInShell(cmd):
@@ -76,6 +80,17 @@ def read_to_ref(args):
     hits_f.close()
     print summary
     print 'Check text alignment at file %s.reads.hits' % tx_name
+    
+def pair_to_ref(args):
+    tx_name = args.transcript
+    ref = args.tx
+    summary, tx_hits = zoom_tx(tx_name, ref, args.psl, 'read')
+    align_str = get_pair_str(ref, args.reads, tx_hits)
+    hits_f = open(tx_name + '.pairs.hits', 'w')
+    hits_f.write(align_str)
+    hits_f.close()
+    print summary
+    print 'Check text alignment at file %s.pairs.hits' % tx_name
 
 def zoom_tx(tx_name, ref, blat_psl, ctg_or_read):
     lines = runInShell('grep ' + tx_name + ' ' + blat_psl)
@@ -135,7 +150,7 @@ def zoom_tx(tx_name, ref, blat_psl, ctg_or_read):
             summary += 'transcript:       %s\n' % tx_name
             summary += 'tx length:        %s\n' % len(tx_seq)
             summary += '# of reads:       %d\n' % n_reads
-            summary += '# of pairs:       %d\n' % n_pairs
+            summary += '# of pairs:       2 * %d\n' % n_pairs
             summary += 'Full match:       %d\n' % n_match
             summary += '1 mismatch:       %d\n' % n_match_minus_1
             summary += '2 mismatch:       %d\n' % n_match_minus_2
@@ -149,6 +164,101 @@ def zoom_tx(tx_name, ref, blat_psl, ctg_or_read):
     tx_hits.sort(key=lambda x: x.rstart, reverse=False)
     return summary, tx_hits
 
+'''
+To get a string representing the hit
+    hit: a BlastHit instance
+    reads: a FastaFile instance with the read sequence
+'''
+def get_hit_str(hit, reads):
+    hit_str = ''
+    pre_end = 0
+    read_seq = reads.seqs[hit.qname].upper()
+    rev_read_seq = merge.rev_comp(read_seq).upper()
+    for i in range(0, hit.n_blocks):
+        if pre_end > 0:
+            hit_str += '-' * (hit.r_block_starts[i] - pre_end)
+        if hit.strand == '+':
+            hit_str += read_seq[hit.q_block_starts[i]:hit.q_block_starts[i] + hit.block_sizes[i]] 
+        else:
+            hit_str += rev_read_seq[hit.q_block_starts[i]:hit.q_block_starts[i] + hit.block_sizes[i]] 
+        pre_end = hit.r_block_starts[i] + hit.block_sizes[i]
+    hit_str += SEP + hit.qname + ':' + str(len(read_seq)) + ' [' + str(hit.rstart) + 'M' + str(hit.n_match) + ',Ins' + str(hit.n_ref_gap_bases) + str(hit.strand) + str(hit.n_mismatch) + ']'
+    return hit_str
+
+def get_pair_hit_str(mate_h_1, mate_h_2, reads):
+    if mate_h_1.rstart < mate_h_2.rstart:
+        left_mate = mate_h_1
+        right_mate = mate_h_2
+    else:
+        left_mate = mate_h_2
+        right_mate = mate_h_1
+    left_str = get_hit_str(left_mate, reads)
+    right_str = get_hit_str(right_mate, reads)
+    dis = right_mate.rstart - left_mate.rstart
+    left_split = left_str.split('    ')
+    right_split = right_str.split('    ')
+    
+    if left_mate.strand == '+':
+        left_ori = '>'
+    else:
+        left_ori = '<'
+    if right_mate.strand == '+':
+        right_ori = '>'
+    else:
+        right_ori = '<'
+    
+    if dis < left_mate.qlen:
+        align_str = ' ' * left_mate.rstart + left_str + SEP + 'OL Pair\n'
+        align_str += ' ' * right_mate.rstart + right_str + SEP + 'OL Pair\n'
+    elif dis > len(left_str) + 10:
+        align_str = ' ' * left_mate.rstart + left_str + SEP + left_ori
+        align_str += '=' * (right_mate.rstart - len(align_str) - 1 - len(SEP)) + right_ori + SEP
+        align_str += right_str + '\n'
+    else:
+        align_str = ' ' * left_mate.rstart + left_split[0] + SEP + left_ori
+        align_str += '=' * (right_mate.rstart - len(align_str) - 1 - len(SEP)) + right_ori + SEP
+        align_str += right_split[0]
+        align_str += SEP + left_split[1] + SEP + right_split[1] + '\n'
+    return align_str
+
+def get_mate_id(id):
+    if int(id) % 2 == 0:
+        return str(int(id) + 1)
+    else:
+        return str(int(id) - 1)
+
+'''
+Align the reads to the transcript/contig
+Pairs are connected and displayed together
+    ref:    transcript/contig file name
+    fasta:  reads file name
+    hits:   BlastHit instances, hits to display
+'''
+def get_pair_str(ref, fasta, hits):
+    if len(hits) <= 0:
+        return ''
+    tx_name = hits[0].rname
+    algin_str = tx_name + '\n'
+    tx = FastaFile(ref)
+    reads = FastaFile(fasta)
+    seq = tx.seqs[tx_name].upper()
+    read_no = 0
+    for h in hits:
+        if read_no % 30 == 0:
+            algin_str += seq + '\n'
+        mate_id = get_mate_id(h.qname)
+        mate_hit = None
+        for m in hits:
+            if m.qname == mate_id:
+                mate_hit = m
+                break
+        if mate_hit is None:
+            hit_str = ' ' * h.rstart + get_hit_str(h, reads) + '\n'
+        else:
+            hit_str = get_pair_hit_str(h, mate_hit, reads)
+        algin_str += hit_str
+        read_no += 1
+    return algin_str
 
 # For a list of hits, get the text alignments
 def get_align_str(ref, fasta, hits):
@@ -158,26 +268,13 @@ def get_align_str(ref, fasta, hits):
     algin_str = tx_name + '\n'
     tx = FastaFile(ref)
     reads = FastaFile(fasta)
-    seq = tx.seqs[tx_name]
+    seq = tx.seqs[tx_name].upper()
     read_no = 0
     for h in hits:
         if read_no % 30 == 0:
             algin_str += seq + '\n'
-        read_seq = reads.seqs[h.qname].upper()
-        rev_read_seq = merge.rev_comp(read_seq).upper()
-        pre_end = 0
-        for i in range(0, h.n_blocks):
-            if pre_end > 0:
-                hit_str += '-' * (h.r_block_starts[i] - pre_end)
-            else:
-                hit_str = ' ' * h.r_block_starts[i]
-            if h.strand == '+':
-                hit_str += read_seq[h.q_block_starts[i]:h.q_block_starts[i] + h.block_sizes[i]] 
-            else:
-                hit_str += rev_read_seq[h.q_block_starts[i]:h.q_block_starts[i] + h.block_sizes[i]] 
-            pre_end = h.r_block_starts[i] + h.block_sizes[i]
-        hit_str += '    ' + h.qname + ':' + str(len(read_seq)) + ' [' + str(h.rstart) + 'M' + str(h.n_match) + ',III' + str(h.n_ref_gap_bases) + str(h.strand) + str(h.n_mismatch) + ']\n'
-        algin_str += hit_str
+        hit_str = get_hit_str(h, reads)
+        algin_str += ' ' * h.rstart + hit_str + '\n'
         read_no += 1
     return algin_str
 
@@ -425,10 +522,7 @@ def zoom_region(args):
         if h.rstart <= region_e and h.rend >= region_e:
             n_junction += 1 
         if check_mate:
-            if int(h.qname) % 2 == 0:
-                mate_id = str(int(h.qname) + 1)
-            else:
-                mate_id = str(int(h.qname) - 1)
+            mate_id = get_mate_id(h.qname)
             mate_hit = eva.find_hit(hits, mate_id, tx)
             if mate_hit is None:
                 n_single += 1
@@ -448,6 +542,42 @@ def zoom_region(args):
     print 'Pairs in the region:      %d ' % n_pairs
     print 'Pairs in the junction:    %d ' % n_junction_pairs
     print 'One in region, one out:   %d ' % n_pairs_in_out
+    
+def pair_regions(args):
+    tx_name = args.transcript
+    summary, tx_hits = zoom_tx(tx_name, args.tx, args.psl, 'read')
+    region_hits = []
+    n_pairs = 0
+    n_reads_1 = 0
+    n_reads_2 = 0
+    for h in tx_hits:
+        if h.rstart > args.start_1 and h.rstart < args.end_1:
+            n_reads_1 += 1
+        if h.rstart > args.start_2 and h.rstart < args.end_2:
+            n_reads_2 += 1
+        
+        mate_h = None
+        mate_id = get_mate_id(h.qname)
+        for m in tx_hits:
+            if m.qname == mate_id:
+                mate_h = m
+                break
+        if not mate_h is None:
+            if h.rstart > args.start_1 and h.rstart < args.end_1:
+                if mate_h.rstart > args.start_2 and mate_h.rstart < args.end_2:
+                    region_hits.append(h)
+                    region_hits.append(mate_h)
+                    n_pairs += 1
+    align_str = get_pair_str(args.tx, args.reads, region_hits)
+    fn = '%s.%d_%d.%d_%d.pairs.hits' % (tx_name, args.start_1, args.end_1, args.start_2, args.end_2)
+    hits_f = open(fn, 'w')
+    hits_f.write(align_str)
+    hits_f.close()
+    
+    print 'Hits in region [%d, %d]: %d' % (args.start_1, args.end_1, n_reads_1)
+    print 'Hits in region [%d, %d]: %d' % (args.start_2, args.end_2, n_reads_2)
+    print 'Pairs:   %d' % n_pairs
+    print 'Check file %s' % fn
             
 def main():
     parser = ArgumentParser()
@@ -458,12 +588,30 @@ def main():
     parser_read_to_ref.add_argument('-r', '--reads', required=False, default=READ_SRR097897, metavar='FILE', help='reads file', dest='reads')
     parser_read_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR097897, metavar='FILE', help='annotated transcripts file', dest='tx')
     parser_read_to_ref.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR097897, metavar='FILE', help='reads to annotated transcripts', dest='psl')
+
+    parser_pair_regions = subparsers.add_parser('pr', help='display paired reads of two regions')
+    parser_pair_regions.set_defaults(func=pair_regions)
+    parser_pair_regions.add_argument('transcript', help='annotated transcripts ensembl ID')
+    parser_pair_regions.add_argument('-r', '--reads', required=False, default=READ_SRR097897, metavar='FILE', help='reads file', dest='reads')
+    parser_pair_regions.add_argument('-f', '--tx', required=False, default=REF_SRR097897, metavar='FILE', help='annotated transcripts file', dest='tx')
+    parser_pair_regions.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR097897, metavar='FILE', help='reads to annotated transcripts', dest='psl')
+    parser_pair_regions.add_argument('-s1', '--start_1', required=True, type=int, help='starting point of the region 1', dest='start_1')
+    parser_pair_regions.add_argument('-e1', '--end_1', required=True, type=int, help='ending point of the region 1', dest='end_1')
+    parser_pair_regions.add_argument('-s2', '--start_2', required=True, type=int, help='starting point of the region 2', dest='start_2')
+    parser_pair_regions.add_argument('-e2', '--end_2', required=True, type=int, help='ending point of the region 2', dest='end_2')
+    
+    parser_pair_to_ref = subparsers.add_parser('ptx', help='align all reads to a transcript and visualize text alignments in pairs')
+    parser_pair_to_ref.set_defaults(func=pair_to_ref)
+    parser_pair_to_ref.add_argument('transcript', help='annotated transcripts ensembl ID')
+    parser_pair_to_ref.add_argument('-r', '--reads', required=False, default=READ_SRR097897, metavar='FILE', help='reads file', dest='reads')
+    parser_pair_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR097897, metavar='FILE', help='annotated transcripts file', dest='tx')
+    parser_pair_to_ref.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR097897, metavar='FILE', help='reads to annotated transcripts', dest='psl')
     
     parser_one_read_to_ref = subparsers.add_parser('draw', help='draw transcripts splicing patterns')
     parser_one_read_to_ref.set_defaults(func=draw_dot)
     parser_one_read_to_ref.add_argument('transcript', help='annotated transcripts ensembl ID')
-    parser_one_read_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR097897, help='annotated transcripts file', metavar='FILE', dest='tx')
-    parser_one_read_to_ref.add_argument('-p', '--psl', required=False, default=REF_TO_REF_SRR097897, help='ref-to-ref psl file', metavar='FILE', dest='psl')
+    parser_one_read_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR027876, help='annotated transcripts file', metavar='FILE', dest='tx')
+    parser_one_read_to_ref.add_argument('-p', '--psl', required=False, default=REF_TO_REF_SRR027876, help='ref-to-ref psl file', metavar='FILE', dest='psl')
     
     parser_ctg_to_ref = subparsers.add_parser('ctx', help='align all contigs to a transcript and visualize text alignments')
     parser_ctg_to_ref.set_defaults(func=ctg_to_ref)

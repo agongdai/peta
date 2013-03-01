@@ -17,6 +17,7 @@
 #include "utils.h"
 #include "peseq.h"
 #include "merge.h"
+#include "readrm.h"
 
 comp *new_comp() {
 	comp *c = (comp*) malloc(sizeof(comp));
@@ -34,6 +35,32 @@ void free_comp(comp *c) {
 	g_ptr_array_free(c->edges, TRUE);
 	g_ptr_array_free(c->hits, TRUE);
 	free(c);
+}
+
+void p_comps(GPtrArray *all_comps) {
+	int i = 0, j = 0;
+	comp *c = NULL;
+	edge *eg = NULL;
+	blat_hit *h = NULL;
+	for (i = 0; i < all_comps->len; i++) {
+		c = g_ptr_array_index(all_comps, i);
+		//		if (!c->alive)
+		//			continue;
+		show_debug_msg(
+				__func__,
+				"======== %d: Hits for component %d ========= Alive: %d =========\n",
+				c->id, c->comp_start, c->alive);
+		printf("Edges: ");
+		for (j = 0; j < c->edges->len; j++) {
+			eg = g_ptr_array_index(c->edges, j);
+			printf("[%d, %d], ", eg->id, eg->len);
+		}
+		printf("\n");
+		for (j = 0; j < c->hits->len; j++) {
+			h = g_ptr_array_index(c->hits, j);
+			p_hit(h);
+		}
+	}
 }
 
 comp *merge_two_comps(comp *c, comp *to_merge) {
@@ -54,27 +81,11 @@ comp *merge_two_comps(comp *c, comp *to_merge) {
 	return c;
 }
 
-void merge_ol_edges_in_comps(GPtrArray *comps, edgearray *all_edges) {
-	int i = 0, j = 0;
-	comp *c = NULL;
-	edge *eg_1 = NULL, *eg_2 = NULL;
-	blat_hit *h = NULL;
-	for (i = 0; i < comps->len; i++) {
-		c = g_ptr_array_index(comps, i);
-		if (c->edges->len > 10)
-			continue;
-		for (j = 0; j < c->hits->len; j++) {
-			h = g_ptr_array_index(c->hits, j);
-
-		}
-	}
-}
-
 /**
  * Assumption: the components are with ids: 0, 1, 2, 3, ...
  */
-void concat_connected_comps(edgearray *all_edges, const int insert_size, GPtrArray *comps, edge *eg,
-		bwa_seq_t *seqs) {
+void concat_connected_comps(edgearray *all_edges, const int insert_size,
+		GPtrArray *comps, edge *eg, bwa_seq_t *seqs) {
 	int i = 0;
 	edge *in_out = NULL;
 	edgearray *probable_in_out = NULL;
@@ -84,9 +95,10 @@ void concat_connected_comps(edgearray *all_edges, const int insert_size, GPtrArr
 	if (!this_c->alive)
 		return;
 	probable_in_out = get_probable_in_out(all_edges, insert_size, eg, seqs);
-	//show_debug_msg(__func__, "Probable in out: %d \n", probable_in_out->len);
+	show_debug_msg(__func__, "Probable in out of edge %d: %d \n", eg->id, probable_in_out->len);
 	for (i = 0; i < probable_in_out->len; i++) {
 		in_out = g_ptr_array_index(probable_in_out, i);
+		show_debug_msg(__func__, "\tEdge [%d, %d]\n", in_out->id, in_out->len);
 		c = g_ptr_array_index(comps, in_out->comp_id);
 		if (c->alive && this_c != c) {
 			merge_two_comps(this_c, c);
@@ -95,19 +107,59 @@ void concat_connected_comps(edgearray *all_edges, const int insert_size, GPtrArr
 	g_ptr_array_free(probable_in_out, TRUE);
 }
 
-void merge_roadmap_comps(edgearray *all_edges, const int insert_size, GPtrArray *comps,
-		bwa_seq_t *seqs) {
+void merge_roadmap_comps(edgearray *all_edges, const int insert_size,
+		GPtrArray *comps, bwa_seq_t *seqs) {
 	comp *c = NULL;
 	int i = 0, j = 0;
 	edge *eg = NULL;
 
+	// A flag is set to avoid recursive calling of get_probable in-out edges
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		eg->level = eg->comp_id;
+	}
 	for (i = 0; i < comps->len; i++) {
 		c = g_ptr_array_index(comps, i);
+		if (!c->alive)
+			continue;
 		for (j = 0; j < c->edges->len; j++) {
 			eg = g_ptr_array_index(c->edges, j);
 			concat_connected_comps(all_edges, insert_size, comps, eg, seqs);
 		}
 	}
+}
+
+typedef struct {
+	hash_table *ht;
+	int insert_size;
+	int sd_insert_size;
+} comps_aux_t;
+
+int merge_comps_edges_thread(gpointer edges, gpointer data) {
+	edgearray *comp_edges = (edgearray*) edges;
+	comps_aux_t *d = (comps_aux_t*) data;
+	merge_ol_comp_edges(comp_edges, d->ht, d->insert_size, d->sd_insert_size);
+	return 0;
+}
+
+void merge_comps_edges(edgearray *all_edges, GPtrArray *comps, hash_table *ht,
+		const int insert_size, const int sd_insert_size, const int n_threads) {
+	comp *c = NULL;
+	int i = 0;
+	GThreadPool *thread_pool = NULL;
+	comps_aux_t *data = (comps_aux_t*) malloc(sizeof(comps_aux_t));
+	data->ht = ht;
+	data->insert_size = insert_size;
+	data->sd_insert_size = sd_insert_size;
+	thread_pool = g_thread_pool_new((GFunc) merge_comps_edges_thread, data,
+			1, TRUE, NULL);
+
+	for (i = 0; i < comps->len; i++) {
+		c = g_ptr_array_index(comps, i);
+		if (c->edges->len > 1)
+			g_thread_pool_push(thread_pool, (gpointer) c->edges, NULL);
+	}
+	g_thread_pool_free(thread_pool, 0, 1);
 }
 
 GPtrArray *get_components(edgearray *all_edges, char *psl_name) {
@@ -252,34 +304,23 @@ void scaffolding(edgearray *all_edges, const int insert_size,
 		const int sd_insert_size, hash_table *ht, const int n_threads,
 		char *psl_name) {
 	GPtrArray *all_comps = NULL;
-	int i = 0, j = 0;
-	blat_hit *h = NULL;
-	comp *c = NULL;
+	int i = 0;
 	edge *eg = NULL;
+
+	FILE *merged_pair_contigs = NULL;
 
 	all_comps = get_components(all_edges, psl_name);
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
 		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_read_by_name);
 	}
-	// merge_roadmap_comps(all_edges, insert_size, all_comps, ht->seqs);
-	for (i = 0; i < all_comps->len; i++) {
-		c = g_ptr_array_index(all_comps, i);
-//		if (!c->alive)
-//			continue;
-		show_debug_msg(
-				__func__,
-				"======== %d: Hits for component %d ========= Alive: %d =========\n",
-				c->id, c->comp_start, c->alive);
-		printf("Edges: ");
-		for (j = 0; j < c->edges->len; j++) {
-			eg = g_ptr_array_index(c->edges, j);
-			printf("[%d, %d], ", eg->id, eg->len);
-		}
-		printf("\n");
-		for (j = 0; j < c->hits->len; j++) {
-			h = g_ptr_array_index(c->hits, j);
-			p_hit(h);
-		}
-	}
+	merge_roadmap_comps(all_edges, insert_size,
+			all_comps, ht->seqs);
+	p_comps(all_comps);
+	merge_comps_edges(all_edges, all_comps, ht, insert_size, sd_insert_size,
+			n_threads);
+
+	merged_pair_contigs = xopen("../SRR097897_out/validated.3.fa", "w");
+	reset_edge_ids(all_edges);
+	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 }
