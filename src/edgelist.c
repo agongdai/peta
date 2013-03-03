@@ -1131,26 +1131,35 @@ void reset_edge_ids(edgearray *all_edges) {
 }
 
 int reads_has_overlap(readarray *reads, const int edge_id,
-		const int insert_size) {
-	int i = 0, j = 0, dis = 0, max_dis_1 = 0, max_dis_2 = 0;
-	bwa_seq_t *r = NULL, *r2;
+		const int insert_size, const int sd_insert_size) {
+	int i = 0, dis = 0, max_dis_1 = 0, max_dis_2 = 0;
+	bwa_seq_t *r = NULL, *r_target_pre = NULL, *r_pre = NULL;
 	for (i = 0; i < reads->len; i++) {
 		r = g_ptr_array_index(reads, i);
-		if (r->contig_id != edge_id)
-			continue;
-		for (j = i + 1; j < reads->len; j++) {
-			r2 = g_ptr_array_index(reads, j);
-			if (r2->contig_id != edge_id) {
-				dis = abs(r->shift - r2->shift);
-				max_dis_1 = (max_dis_1 > dis) ? max_dis_1 : dis;
-			} else {
-				dis = abs(r->shift - r2->shift);
-				max_dis_2 = (max_dis_1 > dis) ? max_dis_1 : dis;
-			}
+		if (r->contig_id == edge_id)
+			r_target_pre = r;
+		else
+			r_pre = r;
+		if (r_pre && r_target_pre)
+			break;
+	}
+	if (r_pre == NULL || r_target_pre == NULL)
+		return 0;
+	for (i = 1; i < reads->len; i++) {
+		r = g_ptr_array_index(reads, i);
+		if (r->contig_id == edge_id) {
+			dis = abs(r->shift - r_target_pre->shift);
+			max_dis_1 = (max_dis_1 > dis) ? max_dis_1 : dis;
+			r_target_pre = r;
+		} else {
+			dis = abs(r->shift - r_pre->shift);
+			max_dis_2 = (max_dis_2 > dis) ? max_dis_2 : dis;
+			r_pre = r;
 		}
 	}
-	if (max_dis_2 > 20 && max_dis_1 < insert_size && max_dis_2
-			< insert_size)
+	show_debug_msg(__func__, "Max distance: %d, %d \n", max_dis_1, max_dis_2);
+	if (max_dis_2 > 20 && max_dis_1 < insert_size + sd_insert_size && max_dis_2
+			< insert_size + sd_insert_size)
 		return 1;
 	return 0;
 }

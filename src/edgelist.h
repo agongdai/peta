@@ -29,8 +29,7 @@ extern "C" {
 gint cmp_read_by_name(gpointer a, gpointer b);
 void g_ptr_array_add_index(GPtrArray *array, gpointer data, const int index);
 void
-		g_ptr_array_replace_index(GPtrArray *array, gpointer data,
-				const int index);
+g_ptr_array_replace_index(GPtrArray *array, gpointer data, const int index);
 void g_ptr_array_replace_ptr(GPtrArray *array, gpointer data, gpointer olddata);
 void g_ptr_array_iterator(gpointer value, gpointer user_data);
 void g_ptr_array_uni_add(GPtrArray *array, gpointer data);
@@ -75,9 +74,10 @@ int binary_exists(const readarray *reads, const bwa_seq_t *read);
 int has_most_fresh_reads(readarray *ra, const int max);
 void rev_reads_pos(edge *eg);
 void reset_edge_ids(edgearray *all_edges);
-int reads_has_overlap(readarray *reads, const int edge_id, const int insert_size);
+int reads_has_overlap(readarray *reads, const int edge_id,
+		const int insert_size, const int sd_insert_size);
 
 #ifdef __cplusplus
-}
+	}
 #endif
 #endif /* EDGELIST_H_ */

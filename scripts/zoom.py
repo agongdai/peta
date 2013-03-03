@@ -571,6 +571,10 @@ def pair_regions(args):
     align_str = get_pair_str(args.tx, args.reads, region_hits)
     fn = '%s.%d_%d.%d_%d.pairs.hits' % (tx_name, args.start_1, args.end_1, args.start_2, args.end_2)
     hits_f = open(fn, 'w')
+    hits_f.write(' ' * args.start_1)
+    hits_f.write('|<' + '-' * (args.end_1 - args.start_1 - 4) + '>|')
+    hits_f.write(' ' * (args.start_2 - args.end_1))
+    hits_f.write('|<' + '-' * (args.end_2 - args.start_2 - 4) + '>|')
     hits_f.write(align_str)
     hits_f.close()
     

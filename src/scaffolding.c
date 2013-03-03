@@ -85,7 +85,7 @@ comp *merge_two_comps(comp *c, comp *to_merge) {
  * Assumption: the components are with ids: 0, 1, 2, 3, ...
  */
 void concat_connected_comps(edgearray *all_edges, const int insert_size,
-		GPtrArray *comps, edge *eg, bwa_seq_t *seqs) {
+		const int sd_insert_size, GPtrArray *comps, edge *eg, bwa_seq_t *seqs) {
 	int i = 0;
 	edge *in_out = NULL;
 	edgearray *probable_in_out = NULL;
@@ -94,8 +94,10 @@ void concat_connected_comps(edgearray *all_edges, const int insert_size,
 	this_c = g_ptr_array_index(comps, eg->comp_id);
 	if (!this_c->alive)
 		return;
-	probable_in_out = get_probable_in_out(all_edges, insert_size, eg, seqs);
-	show_debug_msg(__func__, "Probable in out of edge %d: %d \n", eg->id, probable_in_out->len);
+	probable_in_out = get_probable_in_out(all_edges, insert_size,
+			sd_insert_size, eg, seqs, 1);
+	show_debug_msg(__func__, "Probable in out of edge %d: %d \n", eg->id,
+			probable_in_out->len);
 	for (i = 0; i < probable_in_out->len; i++) {
 		in_out = g_ptr_array_index(probable_in_out, i);
 		show_debug_msg(__func__, "\tEdge [%d, %d]\n", in_out->id, in_out->len);
@@ -108,7 +110,7 @@ void concat_connected_comps(edgearray *all_edges, const int insert_size,
 }
 
 void merge_roadmap_comps(edgearray *all_edges, const int insert_size,
-		GPtrArray *comps, bwa_seq_t *seqs) {
+		const int sd_insert_size, GPtrArray *comps, bwa_seq_t *seqs) {
 	comp *c = NULL;
 	int i = 0, j = 0;
 	edge *eg = NULL;
@@ -124,8 +126,13 @@ void merge_roadmap_comps(edgearray *all_edges, const int insert_size,
 			continue;
 		for (j = 0; j < c->edges->len; j++) {
 			eg = g_ptr_array_index(c->edges, j);
-			concat_connected_comps(all_edges, insert_size, comps, eg, seqs);
+			concat_connected_comps(all_edges, insert_size, sd_insert_size,
+					comps, eg, seqs);
 		}
+	}
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		eg->level = 0;
 	}
 }
 
@@ -151,8 +158,8 @@ void merge_comps_edges(edgearray *all_edges, GPtrArray *comps, hash_table *ht,
 	data->ht = ht;
 	data->insert_size = insert_size;
 	data->sd_insert_size = sd_insert_size;
-	thread_pool = g_thread_pool_new((GFunc) merge_comps_edges_thread, data,
-			1, TRUE, NULL);
+	thread_pool = g_thread_pool_new((GFunc) merge_comps_edges_thread, data, 1,
+			TRUE, NULL);
 
 	for (i = 0; i < comps->len; i++) {
 		c = g_ptr_array_index(comps, i);
@@ -162,6 +169,9 @@ void merge_comps_edges(edgearray *all_edges, GPtrArray *comps, hash_table *ht,
 	g_thread_pool_free(thread_pool, 0, 1);
 }
 
+/**
+ * Converge overlapped edges into separated components
+ */
 GPtrArray *get_components(edgearray *all_edges, char *psl_name) {
 	GPtrArray *hits = NULL;
 	GPtrArray *all_comps = NULL;
@@ -227,6 +237,10 @@ GPtrArray *get_components(edgearray *all_edges, char *psl_name) {
 			}
 		}
 		g_ptr_array_add(all_comps, new_c);
+	}
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		eg->visited = 0;
 	}
 	return all_comps;
 }
@@ -300,12 +314,102 @@ void post_validation(edgearray *all_edges, hash_table *ht, const int n_threads) 
 			ori_len, all_edges->len);
 }
 
-void scaffolding(edgearray *all_edges, const int insert_size,
+void combinatorial_egs(edgearray *con_egs, bwa_seq_t *seqs) {
+	int i = 0, j = 0, order = 0;
+	edge *eg_i = NULL, *eg_j = 0;
+	readarray *pairs = NULL;
+
+	for (i = 0; i < con_egs->len; i++) {
+		eg_i = g_ptr_array_index(con_egs, i);
+		for (j = i + 1; j < con_egs->len; j++) {
+			eg_j = g_ptr_array_index(con_egs, j);
+			show_debug_msg(__func__, "Getting Edge %d and Edge %d order\n",
+					eg_i->id, eg_j->id);
+			order = order_two_edges(eg_i, eg_j, seqs);
+			if (order == 0)
+				continue;
+			show_debug_msg(__func__, "Edge %d and Edge %d order: %d \n",
+					eg_i->id, eg_j->id, order);
+			if (order == 1) {
+				g_ptr_array_add(eg_i->out_egs, eg_j);
+				g_ptr_array_add(eg_j->in_egs, eg_i);
+			} else {
+				g_ptr_array_add(eg_i->in_egs, eg_j);
+				g_ptr_array_add(eg_j->out_egs, eg_i);
+			}
+		}
+	}
+}
+
+int scaffold_comp_egs_thread(gpointer component, gpointer data) {
+	hash_table *ht = (edgearray*) data;
+	edgearray *con_egs = NULL, *ol_egs = NULL;
+	comp *c = (comp*) component;
+	int i = 0, j = 0, *scores = NULL;
+	blat_hit *h = NULL;
+	edge *eg = NULL, *eg_j = NULL;
+
+	ol_egs = g_ptr_array_sized_new(0);
+	for (i = 0; i < c->hits->len; i++) {
+		h = g_ptr_array_index(c->hits, i);
+		eg = edgearray_find_id(c->edges, atoi(h->qname));
+		if (!eg->alive)
+			continue;
+		if (eg)
+			g_ptr_array_uni_add(ol_egs, eg);
+		eg = edgearray_find_id(c->edges, atoi(h->tname));
+		if (eg)
+			g_ptr_array_uni_add(ol_egs, eg);
+	}
+
+	if (c->edges->len - ol_egs->len > 10) {
+		g_ptr_array_free(ol_egs, TRUE);
+		return 0;
+	}
+
+	con_egs = g_ptr_array_sized_new(0);
+	for (i = 0; i < c->edges->len; i++) {
+		eg = g_ptr_array_index(c->edges, i);
+		if (!eg->alive)
+			continue;
+		if (edgearray_find(ol_egs, eg) == NOT_FOUND)
+			g_ptr_array_uni_add(con_egs, eg);
+	}
+
+	combinatorial_egs(con_egs, ht->seqs);
+	g_ptr_array_free(ol_egs, TRUE);
+	g_ptr_array_free(con_egs, TRUE);
+	return 0;
+}
+
+void scaffold_comp_egs(GPtrArray *all_comps, edgearray *all_edges,
+		const hash_table *ht, const int n_threads) {
+	GThreadPool *thread_pool = NULL;
+	int i = 0;
+	comp *c = NULL;
+	edge *eg = NULL;
+	thread_pool = g_thread_pool_new((GFunc) scaffold_comp_egs_thread, ht,
+			n_threads, TRUE, NULL);
+	for (i = 0; i < all_comps->len; i++) {
+		c = g_ptr_array_index(all_comps, i);
+		g_thread_pool_push(thread_pool, (gpointer) c, NULL);
+	}
+	g_thread_pool_free(thread_pool, 0, 1);
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		eg->level = 0;
+		if (!eg->in_egs || eg->in_egs->len == 0)
+			eg->is_root = 1;
+	}
+}
+
+edgearray *scaffolding(edgearray *all_edges, const int insert_size,
 		const int sd_insert_size, hash_table *ht, const int n_threads,
 		char *psl_name) {
 	GPtrArray *all_comps = NULL;
 	int i = 0;
 	edge *eg = NULL;
+	comp *c = NULL;
 
 	FILE *merged_pair_contigs = NULL;
 
@@ -314,13 +418,21 @@ void scaffolding(edgearray *all_edges, const int insert_size,
 		eg = g_ptr_array_index(all_edges, i);
 		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_read_by_name);
 	}
-	merge_roadmap_comps(all_edges, insert_size,
-			all_comps, ht->seqs);
+	merge_roadmap_comps(all_edges, insert_size, sd_insert_size, all_comps,
+			ht->seqs);
 	p_comps(all_comps);
 	merge_comps_edges(all_edges, all_comps, ht, insert_size, sd_insert_size,
 			n_threads);
+	show_msg(__func__, "Scaffolding the edges in components... \n");
+	scaffold_comp_egs(all_comps, all_edges, ht, n_threads);
 
-	merged_pair_contigs = xopen("../SRR097897_out/validated.3.fa", "w");
-	reset_edge_ids(all_edges);
-	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
+	//	merged_pair_contigs = xopen("../SRR097897_out/validated.3.fa", "w");
+	//	reset_edge_ids(all_edges);
+	//	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
+
+	for (i = 0; i < all_comps->len; i++) {
+		c = g_ptr_array_index(all_comps, i);
+		free_comp(c);
+	}
+	return all_edges;
 }

@@ -76,9 +76,11 @@ int order_two_edges(edge *eg_1, edge *eg_2, bwa_seq_t *seqs) {
 
 	ori = get_edges_ori(eg_1, eg_2, seqs);
 	paired_reads = find_unconditional_paired_reads(eg_1, eg_2, seqs);
-	//show_debug_msg(__func__, "Ordering edge %d and %d: %d pairs ...\n",
-	//		eg_1->id, eg_2->id, paired_reads->len);
-	// p_readarray(paired_reads, 1);
+	if (eg_1->id == 6787 && eg_2->id == 5018) {
+		show_debug_msg(__func__, "Ordering edge %d and %d: %d pairs ...\n",
+				eg_1->id, eg_2->id, paired_reads->len);
+		p_readarray(paired_reads, 1);
+	}
 	if (paired_reads->len < MIN_VALID_PAIRS) {
 		g_ptr_array_free(paired_reads, TRUE);
 		return 0;
@@ -140,7 +142,8 @@ int has_reads_in_common(edge *eg_1, edge *eg_2) {
  * Assumption: the all_edges are with ids: 0, 1, 2, 3...
  */
 GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
-		edge *eg, bwa_seq_t *seqs) {
+		const int sd_insert_size, edge *eg, bwa_seq_t *seqs,
+		const int recursive) {
 	edgearray *probable_in_out = NULL, *raw_in_outs = NULL, *extra_in_out =
 			NULL, *tmp = NULL;
 	readarray *pair_reads = NULL;
@@ -203,9 +206,12 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 						"Edge [%d: %d] [%d: %d] Paired reads: %d; Target cov %.2f \n",
 						eg->id, eg->len, in_out->id, in_out->len,
 						pair_reads->len, target_cov);
-				if (pair_reads->len >= insert_size * target_cov
-						&& reads_has_overlap(pair_reads, in_out->id,
-								insert_size)) {
+				if (eg->id == 6787 && in_out->id == 5018) {
+					p_readarray(pair_reads, 1);
+				}
+				if (pair_reads->len >= MIN_VALID_PAIRS && pair_reads->len
+						>= insert_size / 4 * target_cov && reads_has_overlap(
+						pair_reads, in_out->id, insert_size, sd_insert_size)) {
 					// Only if the level value is different, add it.
 					// The level value is initially the component id
 					if (in_out->level != eg->level) {
@@ -218,15 +224,18 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 		}
 		g_ptr_array_free(pair_reads, TRUE);
 	}
-	extra_in_out = g_ptr_array_sized_new(0);
-	for (i = 0; i < probable_in_out->len; i++) {
-		in_out = g_ptr_array_index(probable_in_out, i);
-		tmp = get_probable_in_out(all_edges, insert_size, in_out, seqs);
-		g_ptr_array_concat(extra_in_out, tmp);
-		g_ptr_array_free(tmp, TRUE);
+	if (recursive) {
+		extra_in_out = g_ptr_array_sized_new(0);
+		for (i = 0; i < probable_in_out->len; i++) {
+			in_out = g_ptr_array_index(probable_in_out, i);
+			tmp = get_probable_in_out(all_edges, insert_size, sd_insert_size,
+					in_out, seqs, recursive);
+			g_ptr_array_concat(extra_in_out, tmp);
+			g_ptr_array_free(tmp, TRUE);
+		}
+		g_ptr_array_concat(probable_in_out, extra_in_out);
+		g_ptr_array_free(extra_in_out, TRUE);
 	}
-	g_ptr_array_concat(probable_in_out, extra_in_out);
-	g_ptr_array_free(extra_in_out, TRUE);
 	/**
 	 if (eg->id == 3779 || eg->id == 4) {
 	 show_debug_msg(__func__, "------------------------- \n");

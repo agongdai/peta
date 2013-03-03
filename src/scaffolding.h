@@ -26,7 +26,7 @@ typedef struct {
 	int alive;
 } comp;
 
-void scaffolding(edgearray *all_edges, const int insert_size,
+edgearray *scaffolding(edgearray *all_edges, const int insert_size,
 		const int sd_insert_size, hash_table *ht, const int n_threads,
 		char *psl_name);
 

@@ -1025,13 +1025,17 @@ void test_run(hash_table *ht) {
 }
 
 void test_scaffolding(hash_table *ht) {
+	GPtrArray *paths = NULL;
 	edgearray *all_edges =
 			load_rm(ht, "../SRR097897_out/roadmap.3.graph",
 					"../SRR097897_out/roadmap.3.reads",
 					"../SRR097897_out/validated.2.fa");
 	show_msg(__func__, "Scaffolding %d threads... \n", n_threads);
-	scaffolding(all_edges, insert_size, sd_insert_size, ht, n_threads,
+	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, ht, n_threads,
 			"../SRR097897_out/validated.validated.2.psl");
+
+	paths = report_paths(all_edges, ht->seqs);
+	save_paths(paths, "../SRR097897_out/peta.fa", 100);
 	exit(1);
 }
 
