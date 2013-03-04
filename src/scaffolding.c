@@ -63,7 +63,7 @@ void p_comps(GPtrArray *all_comps) {
 	}
 }
 
-comp *merge_two_comps(comp *c, comp *to_merge) {
+comp *combine_two_comps(comp *c, comp *to_merge) {
 	int i = 0;
 	edge *eg = NULL;
 	if (c == to_merge)
@@ -82,9 +82,10 @@ comp *merge_two_comps(comp *c, comp *to_merge) {
 }
 
 /**
+ * Combine two components if there are paired reads spanning them
  * Assumption: the components are with ids: 0, 1, 2, 3, ...
  */
-void concat_connected_comps(edgearray *all_edges, const int insert_size,
+void combine_connected_comps(edgearray *all_edges, const int insert_size,
 		const int sd_insert_size, GPtrArray *comps, edge *eg, bwa_seq_t *seqs) {
 	int i = 0;
 	edge *in_out = NULL;
@@ -103,13 +104,13 @@ void concat_connected_comps(edgearray *all_edges, const int insert_size,
 		show_debug_msg(__func__, "\tEdge [%d, %d]\n", in_out->id, in_out->len);
 		c = g_ptr_array_index(comps, in_out->comp_id);
 		if (c->alive && this_c != c) {
-			merge_two_comps(this_c, c);
+			combine_two_comps(this_c, c);
 		}
 	}
 	g_ptr_array_free(probable_in_out, TRUE);
 }
 
-void merge_roadmap_comps(edgearray *all_edges, const int insert_size,
+void combine_roadmap_comps(edgearray *all_edges, const int insert_size,
 		const int sd_insert_size, GPtrArray *comps, bwa_seq_t *seqs) {
 	comp *c = NULL;
 	int i = 0, j = 0;
@@ -126,7 +127,7 @@ void merge_roadmap_comps(edgearray *all_edges, const int insert_size,
 			continue;
 		for (j = 0; j < c->edges->len; j++) {
 			eg = g_ptr_array_index(c->edges, j);
-			concat_connected_comps(all_edges, insert_size, sd_insert_size,
+			combine_connected_comps(all_edges, insert_size, sd_insert_size,
 					comps, eg, seqs);
 		}
 	}
@@ -142,14 +143,14 @@ typedef struct {
 	int sd_insert_size;
 } comps_aux_t;
 
-int merge_comps_edges_thread(gpointer edges, gpointer data) {
+int merge_comps_egs_thread(gpointer edges, gpointer data) {
 	edgearray *comp_edges = (edgearray*) edges;
 	comps_aux_t *d = (comps_aux_t*) data;
 	merge_ol_comp_edges(comp_edges, d->ht, d->insert_size, d->sd_insert_size);
 	return 0;
 }
 
-void merge_comps_edges(edgearray *all_edges, GPtrArray *comps, hash_table *ht,
+void merge_comps_egs(edgearray *all_edges, GPtrArray *comps, hash_table *ht,
 		const int insert_size, const int sd_insert_size, const int n_threads) {
 	comp *c = NULL;
 	int i = 0;
@@ -158,7 +159,7 @@ void merge_comps_edges(edgearray *all_edges, GPtrArray *comps, hash_table *ht,
 	data->ht = ht;
 	data->insert_size = insert_size;
 	data->sd_insert_size = sd_insert_size;
-	thread_pool = g_thread_pool_new((GFunc) merge_comps_edges_thread, data, 1,
+	thread_pool = g_thread_pool_new((GFunc) merge_comps_egs_thread, data, 1,
 			TRUE, NULL);
 
 	for (i = 0; i < comps->len; i++) {
@@ -314,7 +315,7 @@ void post_validation(edgearray *all_edges, hash_table *ht, const int n_threads) 
 			ori_len, all_edges->len);
 }
 
-void combinatorial_egs(edgearray *con_egs, bwa_seq_t *seqs) {
+void order_comp_egs(edgearray *con_egs, bwa_seq_t *seqs) {
 	int i = 0, j = 0, order = 0;
 	edge *eg_i = NULL, *eg_j = 0;
 	readarray *pairs = NULL;
@@ -376,7 +377,7 @@ int scaffold_comp_egs_thread(gpointer component, gpointer data) {
 			g_ptr_array_uni_add(con_egs, eg);
 	}
 
-	combinatorial_egs(con_egs, ht->seqs);
+	order_comp_egs(con_egs, ht->seqs);
 	g_ptr_array_free(ol_egs, TRUE);
 	g_ptr_array_free(con_egs, TRUE);
 	return 0;
@@ -400,6 +401,9 @@ void scaffold_comp_egs(GPtrArray *all_comps, edgearray *all_edges,
 		eg->level = 0;
 		if (!eg->in_egs || eg->in_egs->len == 0)
 			eg->is_root = 1;
+		else
+			eg->is_root = 0;
+		p_flat_eg(eg);
 	}
 }
 
@@ -418,10 +422,10 @@ edgearray *scaffolding(edgearray *all_edges, const int insert_size,
 		eg = g_ptr_array_index(all_edges, i);
 		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_read_by_name);
 	}
-	merge_roadmap_comps(all_edges, insert_size, sd_insert_size, all_comps,
+	combine_roadmap_comps(all_edges, insert_size, sd_insert_size, all_comps,
 			ht->seqs);
 	p_comps(all_comps);
-	merge_comps_edges(all_edges, all_comps, ht, insert_size, sd_insert_size,
+	merge_comps_egs(all_edges, all_comps, ht, insert_size, sd_insert_size,
 			n_threads);
 	show_msg(__func__, "Scaffolding the edges in components... \n");
 	scaffold_comp_egs(all_comps, all_edges, ht, n_threads);
