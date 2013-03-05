@@ -148,7 +148,7 @@ pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori) {
 		}
 		// If the mate is already in use, either by current or another thread
 		if (mate->is_in_c_pool || mate->is_in_m_pool || mate->status == USED
-				|| mate->status == DEAD)
+				|| mate->status == DEAD || s->contig_id != eg->id)
 			continue;
 		// If the used read is used by another thread;
 		//	or the mate has been used by this template before.
@@ -495,10 +495,14 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			//p_pool("After adding mates", cur_pool, next);
 		}
 		reset_alg(aligns);
-		//p_query(__func__, query);
-		//show_debug_msg(__func__, "Edge %d, length %d \n", eg->id, eg->len);
-		//p_ctg_seq("Contig", eg->contig);
-		//p_pool("Current Pool", cur_pool, next);
+		if (eg->id > 5800) {
+			p_query(__func__, query);
+			show_debug_msg(__func__, "Edge %d, length %d \n", eg->id, eg->len);
+			//p_ctg_seq("Contig", eg->contig);
+			p_pool("Current Pool", cur_pool, next);
+		}
+		if (eg->len > 50000)
+			err_fatal(__func__, "Exit\n");
 		c = get_pure_most(next);
 		//show_debug_msg(__func__, "Ori: %d, Next char: %d \n", ori, c);
 		if (cur_pool->n <= 0) {
@@ -836,7 +840,7 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	thread_aux_t *data = NULL;
 	bwa_seq_t *query = NULL;
 	GThreadPool *thread_pool = NULL;
-	int i = 0, j = 0, block_start = 0, nt = 1;
+	int i = 0, j = 0, block_start = 0, nt = n_threads;
 	data = (thread_aux_t*) calloc(1, sizeof(thread_aux_t));
 	data->all_edges = all_edges;
 	data->ht = ht;
@@ -844,8 +848,8 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	data->n_used_reads = n_used_reads;
 	data->stop_thre = stop_thre;
 
-	thread_pool = g_thread_pool_new((GFunc) pe_lib_thread, data, nt,
-			TRUE, NULL);
+	thread_pool
+			= g_thread_pool_new((GFunc) pe_lib_thread, data, nt, TRUE, NULL);
 	if (thread_pool == NULL) {
 		err_fatal(__func__, "Failed to start the thread pool. \n");
 	}
@@ -885,9 +889,11 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 
 	name = get_output_file("pair_contigs.fa");
 	pair_contigs = xopen(name, "w");
+	reset_edge_ids(all_edges);
 	save_edges(all_edges, pair_contigs, 0, 0, 0);
 	fflush(pair_contigs);
 	free(name);
+
 	name = get_output_file("roadmap.graph");
 	reads_name = get_output_file("roadmap.reads");
 	dump_rm(all_edges, name, reads_name);
@@ -905,6 +911,13 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 	fflush(merged_pair_contigs);
 	fclose(merged_pair_contigs);
+	free(name);
+	name = get_output_file("roadmap.1.graph");
+	reads_name = get_output_file("roadmap.1.reads");
+	dump_rm(all_edges, name, reads_name);
+	free(reads_name);
+	free(name);
+
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Template merging finished: %.2f sec\n",
 			(float) (finish_time.tv_sec - start_time.tv_sec));
@@ -912,6 +925,7 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Blatting merged contigs to find overlapping...\n");
 	psl_name = get_output_file("merged.merged.psl");
+	name = get_output_file("merged_pair_contigs.fa");
 	show_msg(__func__, "%s %s %s %s ... \n", blat_exe, name, name, psl_name);
 	sprintf(blat_cmd, "%s %s %s %s", blat_exe, name, name, psl_name);
 	if (system(blat_cmd) != 0) {
@@ -928,7 +942,6 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	hits = read_blat_hits(psl_name);
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
 	mark_sub_edge(all_edges, hits);
-	realign_by_blat(all_edges, ht, n_threads);
 	// Only the sequences are used during merging and scaffolding
 	free(ht->k_mers_occ_acc);
 	free(ht->pos);
@@ -946,6 +959,7 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
+	realign_by_blat(all_edges, ht, n_threads);
 	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, ht,
 			n_threads, psl_name);
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
@@ -1032,9 +1046,10 @@ void test_merge(hash_table *ht) {
 	//			read_blat_hits("../SRR097897_out/merged.merged.psl");
 	edgearray *all_edges = load_rm(ht, "../SRR097897_out/roadmap.graph",
 			"../SRR097897_out/roadmap.reads",
-			"../SRR097897_out/merged_pair_contigs.fa");
-	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
+			"../SRR097897_out/pair_contigs.fa");
 	reset_edge_ids(all_edges);
+	//realign_by_blat(all_edges, ht, n_threads);
+	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
 	merged_pair_contigs = xopen("../SRR097897_out/merged_pair_contigs.fa", "w");
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 	//	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);

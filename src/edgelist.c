@@ -1113,8 +1113,8 @@ void reset_edge_ids(edgearray *all_edges) {
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
 		if (eg->alive) {
-			show_debug_msg(__func__, "Edge [%d, %d] set to be [%d, %d] \n",
-					eg->id, eg->len, i, eg->len);
+			//show_debug_msg(__func__, "Edge [%d, %d] set to be [%d, %d] \n",
+			//		eg->id, eg->len, i, eg->len);
 			eg->id = i;
 			// Set all 'contig_id' of reads to 'i', but not reset the status
 			upd_ctg_id(eg, i, -1);

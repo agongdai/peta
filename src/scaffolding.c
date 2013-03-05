@@ -350,11 +350,13 @@ void order_comp_egs(edgearray *con_egs, bwa_seq_t *seqs) {
 	}
 }
 
-void break_ol_egs(edgearray *con_egs, GPtrArray *hits) {
+void get_break_points(edgearray *con_egs, GPtrArray *hits) {
 	int i = 0, j = 0, k = 0, n_break_point = 0, point = 0;
 	edge *eg = NULL;
 	blat_hit *h = NULL;
 	int *starts = NULL, *sizes = NULL;
+	// For each edge, get its break points.
+	// If an edge has 3 break points, it would be broken into 4 shorter edges.
 	for (i = 0; i < con_egs->len; i++) {
 		eg = g_ptr_array_index(con_egs, i);
 		n_break_point = 0;
@@ -373,21 +375,28 @@ void break_ol_egs(edgearray *con_egs, GPtrArray *hits) {
 					g_array_append_val(eg->break_points, starts[k]);
 				}
 				if (h->q_size - h->q_end >= 10 && h->t_size - h->t_end >= 10) {
-					g_array_append_val(eg->break_points, starts[h->block_count - 1] + sizes[h->block_count - 1]);
+					point = starts[h->block_count - 1] + sizes[h->block_count
+							- 1];
+					g_array_append_val(eg->break_points, point);
 				}
 			}
 		}
 	}
+}
 
+void break_ol_egs(edgearray *con_egs, GPtrArray *hits, edgearray *all_edges) {
+
+	get_break_points(con_egs, hits);
 }
 
 int scaffold_comp_egs_thread(gpointer component, gpointer data) {
-	hash_table *ht = (hash_table*) data;
+	comps_aux_t *d = (comps_aux_t*) data;
 	edgearray *con_egs = NULL, *ol_egs = NULL;
 	comp *c = (comp*) component;
 	int i = 0;
 	blat_hit *h = NULL;
 	edge *eg = NULL;
+	hash_table *ht = d->ht;
 
 	ol_egs = g_ptr_array_sized_new(0);
 	for (i = 0; i < c->hits->len; i++) {
@@ -417,7 +426,7 @@ int scaffold_comp_egs_thread(gpointer component, gpointer data) {
 	}
 
 	order_comp_egs(con_egs, ht->seqs);
-	break_ol_egs(con_egs, c->hits);
+	break_ol_egs(con_egs, c->hits, d->all_edges);
 	g_ptr_array_free(ol_egs, TRUE);
 	g_ptr_array_free(con_egs, TRUE);
 	return 0;
@@ -429,7 +438,11 @@ void scaffold_comp_egs(GPtrArray *all_comps, edgearray *all_edges,
 	int i = 0;
 	comp *c = NULL;
 	edge *eg = NULL;
-	thread_pool = g_thread_pool_new((GFunc) scaffold_comp_egs_thread, ht,
+	comps_aux_t *data = (comps_aux_t*) malloc(sizeof(comps_aux_t));
+
+	data->all_edges = all_edges;
+	data->ht = ht;
+	thread_pool = g_thread_pool_new((GFunc) scaffold_comp_egs_thread, data,
 			n_threads, TRUE, NULL);
 	for (i = 0; i < all_comps->len; i++) {
 		c = g_ptr_array_index(all_comps, i);
@@ -444,6 +457,7 @@ void scaffold_comp_egs(GPtrArray *all_comps, edgearray *all_edges,
 		else
 			eg->is_root = 0;
 	}
+	free(data);
 }
 
 edgearray *scaffolding(edgearray *all_edges, const int insert_size,
