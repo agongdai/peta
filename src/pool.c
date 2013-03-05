@@ -17,6 +17,23 @@
 #include "pechar.h"
 #include "pehash.h"
 
+int should_start(bwa_seq_t *query) {
+	int tid = atoi(query->name);
+	if (query->status != FRESH)
+		return 0;
+	// If this read is currently used by another thread
+	if (query->is_in_c_pool > 0 && query->is_in_c_pool != tid)
+		return 0;
+	if (query->is_in_m_pool > 0 && query->is_in_m_pool != tid)
+		return 0;
+	if (has_n(query) || is_biased_q(query) || has_rep_pattern(query)
+			|| is_repetitive_q(query)) {
+		query->status = TRIED;
+		return 0;
+	}
+	return 1;
+}
+
 /**
  * Assume that the new read has been verified not existed using exists().
  */

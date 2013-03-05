@@ -168,16 +168,29 @@ int realign_thread(gpointer e, gpointer data) {
 	return 0;
 }
 
+void reset_reads_status(hash_table *ht) {
+	bwa_seq_t *r = NULL;
+	int i = 0;
+	for (i = 0; i < ht->n_seqs; i++) {
+		r = &ht->seqs[i];
+		r->status = FRESH;
+		r->shift = 0;
+		r->contig_id = -1;
+	}
+}
+
 void realign_by_blat(edgearray *all_edges, hash_table *ht, const int n_threads) {
 	GThreadPool *thread_pool = NULL;
 	int i = 0;
 	edge *eg = NULL;
+	reset_reads_status(ht);
 	thread_pool = g_thread_pool_new((GFunc) realign_thread, ht,
 			n_threads, TRUE, NULL);
 	show_msg(__func__, "Realigning all reads to %d edges... \n", all_edges->len);
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
-		g_thread_pool_push(thread_pool, (gpointer) eg, NULL);
+		if (eg->alive)
+			g_thread_pool_push(thread_pool, (gpointer) eg, NULL);
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
 }

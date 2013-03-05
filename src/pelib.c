@@ -540,8 +540,8 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 	ubyte_t *rev = NULL;
 
 	init_pool = get_start_pool(ht, query, 0, 0);
-	if (!init_pool || init_pool->n == 0 || bases_sup_branches(init_pool, 0,
-			STRICT_BASES_SUP_THRE)) {
+	if (!init_pool || init_pool->n == 0 || (stage <= 2 && bases_sup_branches(
+			init_pool, 0, STRICT_BASES_SUP_THRE))) {
 		show_msg(__func__, "Read %s may be in junction area, skip. \n",
 				query->name);
 		query->status = TRIED;
@@ -832,12 +832,11 @@ void *pe_lib_thread(gpointer solid_read, gpointer data) {
 }
 
 void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
-		int *n_paired_reads, int *n_used_reads, int n_per_threads,
-		double stop_thre) {
+		int *n_paired_reads, int *n_used_reads, double stop_thre) {
 	thread_aux_t *data = NULL;
 	bwa_seq_t *query = NULL;
 	GThreadPool *thread_pool = NULL;
-	int i = 0, j = 0, block_start = 0;
+	int i = 0, j = 0, block_start = 0, nt = 1;
 	data = (thread_aux_t*) calloc(1, sizeof(thread_aux_t));
 	data->all_edges = all_edges;
 	data->ht = ht;
@@ -845,24 +844,25 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	data->n_used_reads = n_used_reads;
 	data->stop_thre = stop_thre;
 
-	thread_pool = g_thread_pool_new((GFunc) pe_lib_thread, data, n_threads,
+	thread_pool = g_thread_pool_new((GFunc) pe_lib_thread, data, nt,
 			TRUE, NULL);
 	if (thread_pool == NULL) {
 		err_fatal(__func__, "Failed to start the thread pool. \n");
 	}
-	while (block_start + JUMP_UNIT * n_threads < solid_reads->len) {
+	while (block_start + JUMP_UNIT * nt < solid_reads->len) {
 		for (i = 0; i < JUMP_UNIT; i++) {
-			for (j = 0; j < n_threads; j++) {
+			for (j = 0; j < nt; j++) {
 				query = g_ptr_array_index(solid_reads,
 						block_start + i + JUMP_UNIT * j);
+				//if (should_start(query))
 				g_thread_pool_push(thread_pool, (gpointer) query, NULL);
 			}
 		}
-		block_start += JUMP_UNIT * n_threads;
+		block_start += JUMP_UNIT * nt;
 	}
 	for (i = block_start; i < solid_reads->len; i++) {
 		query = g_ptr_array_index(solid_reads, i);
-		//p_query(__func__, query);
+		//if (should_start(query))
 		g_thread_pool_push(thread_pool, (gpointer) query, NULL);
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
@@ -875,8 +875,6 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	FILE *merged_pair_contigs = NULL;
 	char *name = NULL, *reads_name = NULL, *psl_name = NULL, blat_cmd[BUFSIZE];
 	bwa_seq_t *seqs = NULL;
-	edge *eg = NULL;
-	int i = 0;
 	GPtrArray *hits = NULL;
 
 	seqs = ht->seqs;
@@ -890,27 +888,23 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	save_edges(all_edges, pair_contigs, 0, 0, 0);
 	fflush(pair_contigs);
 	free(name);
+	name = get_output_file("roadmap.graph");
+	reads_name = get_output_file("roadmap.reads");
+	dump_rm(all_edges, name, reads_name);
+	free(reads_name);
+	free(name);
 
-	reset_edge_ids(all_edges);
 	show_msg(__func__, "========================================== \n\n");
 	show_msg(__func__, "Merging edges by overlapping... \n");
-	// Only the sequences are used during merging and scaffolding
-	free(ht->k_mers_occ_acc);
-	free(ht->pos);
-	ht->k_mers_occ_acc = NULL;
-	ht->pos = NULL;
-	for (i = 0; i < all_edges->len; i++) {
-		eg = g_ptr_array_index(all_edges, i);
-		set_rev_com(eg->contig);
-		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_read_by_name);
-	}
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
+	reset_edge_ids(all_edges);
 	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
 	name = get_output_file("merged_pair_contigs.fa");
 	merged_pair_contigs = xopen(name, "w");
 	reset_edge_ids(all_edges);
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 	fflush(merged_pair_contigs);
+	fclose(merged_pair_contigs);
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Template merging finished: %.2f sec\n",
 			(float) (finish_time.tv_sec - start_time.tv_sec));
@@ -932,37 +926,28 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Removing sub edges... \n");
 	hits = read_blat_hits(psl_name);
-	free(psl_name);
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
 	mark_sub_edge(all_edges, hits);
-	reset_edge_ids(all_edges);
-	name = get_output_file("validated.fa");
-	merged_pair_contigs = xopen(name, "w");
-	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
-	psl_name = get_output_file("validated.validated.psl");
-	show_msg(__func__, "%s %s %s %s ... \n", blat_exe, name, name, psl_name);
-	sprintf(blat_cmd, "%s %s %s %s", blat_exe, name, name, psl_name);
-	if (system(blat_cmd) != 0) {
-		err_fatal(__func__, "Failed to call 'system' to execute %s \n",
-				blat_cmd);
-	}
-	clock_gettime(CLOCK_MONOTONIC, &finish_time);
-	show_msg(__func__, "Blat finished: %.2f sec\n", (float) (finish_time.tv_sec
-			- start_time.tv_sec));
-	free(name);
+	realign_by_blat(all_edges, ht, n_threads);
+	// Only the sequences are used during merging and scaffolding
+	free(ht->k_mers_occ_acc);
+	free(ht->pos);
+	ht->k_mers_occ_acc = NULL;
+	ht->pos = NULL;
 
-	show_msg(__func__, "========================================== \n\n ");
 	if (debug_mode) {
-		realign_by_blat(all_edges, ht, n_threads);
+		//realign_by_blat(all_edges, ht, n_threads);
 		name = get_output_file("roadmap.graph");
 		reads_name = get_output_file("roadmap.reads");
 		dump_rm(all_edges, name, reads_name);
 		free(reads_name);
 		free(name);
 	}
+	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
-	scaffolding(all_edges, insert_size, sd_insert_size, ht, n_threads, psl_name);
+	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, ht,
+			n_threads, psl_name);
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Scaffolding finished: %.2f sec\n",
 			(float) (finish_time.tv_sec - start_time.tv_sec));
@@ -986,7 +971,6 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 
 	free(name);
 	fclose(pair_contigs);
-	fclose(merged_pair_contigs);
 	g_ptr_array_free(all_edges, TRUE);
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Post processing finished: %.2f sec\n",
@@ -999,7 +983,7 @@ void test_run(hash_table *ht) {
 	edgearray *edges = g_ptr_array_sized_new(32);
 
 	pair_ctg_id = 1000;
-	query = &seqs[1154915];
+	query = &seqs[1017080];
 	p_query(__func__, query);
 	eg = pe_ext(ht, query, 1);
 	if (eg) {
@@ -1009,6 +993,7 @@ void test_run(hash_table *ht) {
 	} else {
 		show_msg(__func__, "Hey, not extended. \n");
 	}
+	realign_by_blat(edges, ht, n_threads);
 	//	query = &seqs[2497644];
 	//	p_query(__func__, query);
 	//	eg = pe_ext(ht, query, 2);
@@ -1026,57 +1011,40 @@ void test_run(hash_table *ht) {
 
 void test_scaffolding(hash_table *ht) {
 	GPtrArray *paths = NULL;
-	edgearray *all_edges =
-			load_rm(ht, "../SRR097897_out/roadmap.3.graph",
-					"../SRR097897_out/roadmap.3.reads",
-					"../SRR097897_out/validated.2.fa");
-	show_msg(__func__, "Scaffolding %d threads... \n", n_threads);
-	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, ht, n_threads,
-			"../SRR097897_out/validated.validated.2.psl");
+	GPtrArray *hits = read_blat_hits("../SRR097897_out/merged.merged.psl");
+	edgearray *all_edges = load_rm(ht, "../SRR097897_out/roadmap.graph",
+			"../SRR097897_out/roadmap.reads",
+			"../SRR097897_out/merged_pair_contigs.fa");
+	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
+	mark_sub_edge(all_edges, hits);
+	realign_by_blat(all_edges, ht, n_threads);
 
+	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, ht,
+			n_threads, "../SRR097897_out/merged.merged.psl");
 	paths = report_paths(all_edges, ht->seqs);
 	save_paths(paths, "../SRR097897_out/peta.fa", 100);
 	exit(1);
 }
 
 void test_merge(hash_table *ht) {
-	/**
 	FILE *merged_pair_contigs = NULL;
-	edgearray *all_edges = g_ptr_array_sized_new(1023);
-	edge *eg = NULL;
-	bwa_seq_t *contigs = NULL;
-	uint32_t n_ctgs = 0, i = 0;
-	contigs = load_reads("../SRR027876_out/validated.1.fa", &n_ctgs);
-	GPtrArray *hits = read_blat_hits("../SRR027876_out/validated.validated.psl");
-
-	for (i = 0; i < n_ctgs; i++) {
-		eg = new_eg();
-		eg->id = i;
-		eg->contig = &contigs[i];
-		p_ctg_seq(__func__, eg->contig);
-		eg->len = eg->contig->len;
-		g_ptr_array_add(all_edges, eg);
-	}
-
-	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
-	mark_sub_edge(all_edges, hits);
+	//	GPtrArray *hits =
+	//			read_blat_hits("../SRR097897_out/merged.merged.psl");
+	edgearray *all_edges = load_rm(ht, "../SRR097897_out/roadmap.graph",
+			"../SRR097897_out/roadmap.reads",
+			"../SRR097897_out/merged_pair_contigs.fa");
+	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
 	reset_edge_ids(all_edges);
-	merged_pair_contigs = xopen("../SRR027876_out/validated.2.fa", "w");
+	merged_pair_contigs = xopen("../SRR097897_out/merged_pair_contigs.fa", "w");
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
-	**/
-	FILE *merged_pair_contigs = NULL;
-	GPtrArray *hits = read_blat_hits("../SRR097897_out/validated.validated.psl");
-	edgearray *all_edges =
-				load_rm(ht, "../SRR097897_out/roadmap.2.graph",
-						"../SRR097897_out/roadmap.2.reads",
-						"../SRR097897_out/validated.fa");
-	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
-	mark_sub_edge(all_edges, hits);
-	reset_edge_ids(all_edges);
-	merged_pair_contigs = xopen("../SRR097897_out/validated.2.fa", "w");
-	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
-	realign_by_blat(all_edges, ht, n_threads);
-	dump_rm(all_edges, "../SRR097897_out/roadmap.3.graph", "../SRR097897_out/roadmap.3.reads");
+	//	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
+	//	mark_sub_edge(all_edges, hits);
+	//	reset_edge_ids(all_edges);
+	//	merged_pair_contigs = xopen("../SRR097897_out/validated.2.fa", "w");
+	//	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
+	//	realign_by_blat(all_edges, ht, n_threads);
+	//	dump_rm(all_edges, "../SRR097897_out/roadmap.1.graph",
+	//			"../SRR097897_out/roadmap.1.reads");
 	exit(1);
 }
 
@@ -1102,11 +1070,9 @@ void consume_solid_reads(hash_table *ht, const double stop_thre,
 		edgearray *all_edges, readarray *solid_reads, int *n_used_reads,
 		int *n_paired_reads) {
 	double n_unit = N_SPLIT_UNIT, unit_perc = 0, max_perc = 0;
-	int i = 0, n_per_threads = 0, n_used_reads_pre = 0;
+	int i = 0, n_used_reads_pre = 0;
 
-	n_per_threads = solid_reads->len / n_threads;
 	unit_perc = 1 / n_unit;
-	show_msg(__func__, "n_per_threads: %d \n", n_per_threads);
 	for (i = 1; i <= n_unit; i++) {
 		max_perc = i * unit_perc;
 		if (max_perc >= stop_thre)
@@ -1115,7 +1081,7 @@ void consume_solid_reads(hash_table *ht, const double stop_thre,
 			continue;
 		n_used_reads_pre = *n_used_reads;
 		run_threads(all_edges, solid_reads, ht, n_paired_reads, n_used_reads,
-				n_per_threads, max_perc);
+				max_perc);
 		clock_gettime(CLOCK_MONOTONIC, &finish_time);
 		show_msg(__func__, "Shrinking the hash table; %.2f sec... \n",
 				(float) (finish_time.tv_sec - start_time.tv_sec));
@@ -1155,7 +1121,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	all_edges = g_ptr_array_sized_new(BUFSIZ);
 	ht = pe_load_hash(lib_file);
 	//test_run(ht);
-	test_scaffolding(ht);
+	//test_scaffolding(ht);
 	//test_merge(ht);
 	seqs = &ht->seqs[0];
 	show_msg(__func__, "Removing repetitive reads... \n");

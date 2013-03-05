@@ -321,6 +321,7 @@ edge *new_eg() {
 	eg->is_root = 0;
 	eg->ori = 0;
 	eg->gaps = g_ptr_array_sized_new(INIT_N_GAPS);
+	eg->break_points = g_array_sized_new(TRUE, TRUE, sizeof(int), 0);
 	eg->level = -1;
 	eg->comp_id = -1;
 	return eg;
@@ -366,6 +367,7 @@ void destroy_eg(edge *eg) {
 			free_eg_gap(gap);
 		}
 		free_readarray(eg->gaps);
+		g_array_free(eg->break_points, TRUE);
 		eg->alive = 0;
 		free(eg->name);
 		free(eg);

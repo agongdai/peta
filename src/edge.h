@@ -46,6 +46,7 @@ struct edge {
 	int tid;			// Thread id
 	int comp_id;		// Component id
 	GPtrArray *gaps;
+	GArray *break_points; 	// The points to break the edge
 };
 
 typedef struct {

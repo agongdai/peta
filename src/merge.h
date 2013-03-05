@@ -37,6 +37,7 @@ void merge_ol_comp_edges(edgearray *comp_edges, hash_table *ht,
 void mark_sub_edge(edgearray *all_edges, GPtrArray *hits);
 GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 		const int sd_insert_size, edge *eg, bwa_seq_t *seqs, const int recursive);
+int order_two_edges(edge *eg_1, edge *eg_2, bwa_seq_t *seqs);
 
 #ifdef __cplusplus
 }

@@ -162,7 +162,7 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 			continue;
 		}
 		in_out = g_ptr_array_index(all_edges, mate->contig_id);
-		if (in_out) {
+		if (in_out && in_out->alive) {
 			g_ptr_array_uni_add(raw_in_outs, in_out);
 		}
 	}
@@ -495,7 +495,7 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
  */
 void *merge_ol_edges_thread(void *data) {
 	edge *eg_i = NULL, *eg_j = NULL;
-	int i = 0, j = 0, some_one_merged = 0;
+	int i = 0, j = 0, some_one_merged = 1;
 	bwa_seq_t *seqs = NULL;
 	GPtrArray *edge_candidates = NULL;
 	merging_paras_t *d = (merging_paras_t*) data;
@@ -570,6 +570,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		edge_mutex = g_mutex_new();
 	for (i = 0; i < single_edges->len; i++) {
 		eg_i = g_ptr_array_index(single_edges, i);
+		g_ptr_array_sort(eg_i->reads, (GCompareFunc) cmp_read_by_name);
 		eg_i->tid = 0;
 	}
 	data = (merging_paras_t*) calloc(n_threads, sizeof(merging_paras_t));
@@ -597,7 +598,6 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 	for (i = 0; i < single_edges->len; i++) {
 		eg_i = g_ptr_array_index(single_edges, i);
 		eg_i->visited = 0;
-		g_ptr_array_sort(eg_i->reads, (GCompareFunc) cmp_read_by_name);
 		if (!eg_i->alive) {
 			destroy_eg(eg_i);
 			g_ptr_array_remove_index_fast(single_edges, i);

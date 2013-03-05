@@ -39,6 +39,7 @@ void mate_pool_add(pool *p, bwa_seq_t *new_seq, const int tid);
 void pool_uni_add(pool *p, bwa_seq_t *new_seq);
 void mate_pool_uni_add(pool *p, bwa_seq_t *new_seq);
 bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int left_max_ctg_id);
+int should_start(bwa_seq_t *query);
 void pool_sort_ins(pool *r_pool, bwa_seq_t *new_seq);
 void rm_partial(edge *eg, pool *cur_pool, int ori, bwa_seq_t *seqs, bwa_seq_t *query, int nm);
 void clean_mate_pool(reads_ht *rht, pool *mate_pool, edge *eg);

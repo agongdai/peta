@@ -827,7 +827,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 		for (j = 0; j < n_ctgs; j++) {
 			ctg = &contigs[j];
 			if (eg->id == atoi(ctg->name)) {
-				eg->contig = ctg;
+				eg->contig = new_seq(ctg, ctg->len, 0);
 				eg->len = ctg->len;
 				break;
 			}
@@ -869,6 +869,7 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 //		}
 //		upd_reads_by_ol(ht->seqs, eg, MISMATCHES);
 //	}
+	bwa_free_read_seq(n_ctgs, contigs);
 	free(read_str);
 	fclose(reads_fp);
 	fclose(dump_fp);

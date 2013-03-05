@@ -26,6 +26,15 @@ typedef struct {
 	int alive;
 } comp;
 
+typedef struct {
+	hash_table *ht;
+	edgearray *all_edges;
+	GPtrArray *comps;
+	int insert_size;
+	int sd_insert_size;
+	int tid;
+} comps_aux_t;
+
 edgearray *scaffolding(edgearray *all_edges, const int insert_size,
 		const int sd_insert_size, hash_table *ht, const int n_threads,
 		char *psl_name);
