@@ -542,6 +542,7 @@ void clear_used_reads(edge *eg, const int reset_ctg_id) {
 			r = g_ptr_array_index(eg->reads, i);
 			r->status = TRIED;
 			r->contig_id = UNUSED_CONTIG_ID;
+			r->tid = -1;
 		}
 	}
 	while (eg->reads->len > 0) {
@@ -681,6 +682,7 @@ void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 		index = read->rev_com ? is_sub_seq(rev_read, 0, eg->contig, mismatches
 				+ 2, 0) : is_sub_seq(read, 0, eg->contig, mismatches + 2, 0);
 		bwa_free_read_seq(1, rev_read);
+		read->tid = -1;
 		if (index == NOT_FOUND) {
 			if (g_ptr_array_remove_index_fast(eg->reads, i)) {
 				read->status = TRIED;
@@ -703,6 +705,8 @@ void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 			g_ptr_array_add(eg->pairs, mate);
 			read->status = USED;
 			mate->status = USED;
+			read->tid = eg->tid;
+			mate->tid = eg->tid;
 		}
 	}
 	for (i = 0; i < eg->reads->len; i++) {
@@ -775,9 +779,11 @@ void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
 	seqs = ht->seqs;
 	//show_debug_msg(__func__, "There are %d => %d reads \n", eg->reads->len, eg->pairs->len);
 	for (i = 0; i < eg->reads->len; i++) {
+		read->tid = -1;
 		if (read->contig_id != eg->id) { // Used by another edge in another thread
-			if (g_ptr_array_remove_index_fast(eg->reads, i))
+			if (g_ptr_array_remove_index_fast(eg->reads, i)) {
 				i--;
+			}
 		} else {
 			read = g_ptr_array_index(eg->reads, i);
 			read->status = FRESH;
@@ -817,6 +823,7 @@ void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
 			g_ptr_array_remove_index_fast(eg->reads, i);
 			read->status = TRIED;
 			read->contig_id = UNUSED_CONTIG_ID;
+			read->tid = -1;
 			i--;
 		} else {
 			mate = get_mate(read, seqs);
@@ -826,6 +833,8 @@ void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
 				g_ptr_array_add(eg->pairs, mate);
 				read->status = USED;
 				mate->status = USED;
+				read->tid = eg->tid;
+				mate->tid = eg->tid;
 			}
 		}
 	}
@@ -1103,6 +1112,15 @@ void rev_reads_pos(edge *eg) {
 	for (i = 0; i < reads->len; i++) {
 		r = g_ptr_array_index(reads, i);
 		r->shift = eg->len - r->shift + 1;
+	}
+}
+
+void reset_read_ctg_id(bwa_seq_t *seqs, const int n_seqs) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < n_seqs; i++) {
+		r = &seqs[i];
+		r->contig_id = -1;
 	}
 }
 

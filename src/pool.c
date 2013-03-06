@@ -92,6 +92,7 @@ void pool_add(pool *p, bwa_seq_t *new_seq, const int tid) {
 		return;
 	g_ptr_array_add(p->reads, new_seq);
 	new_seq->is_in_c_pool = tid;
+	new_seq->tid = tid;
 	p->n++;
 }
 
@@ -100,6 +101,7 @@ void mate_pool_add(pool *p, bwa_seq_t *new_seq, const int tid) {
 		return;
 	g_ptr_array_add(p->reads, new_seq);
 	new_seq->is_in_m_pool = tid;
+	new_seq->tid = tid;
 	p->n = p->reads->len;
 }
 
@@ -135,6 +137,7 @@ gboolean pool_rm_index(pool *p, const int i) {
 	gboolean r;
 	bwa_seq_t *read = g_ptr_array_index(p->reads, i);
 	read->is_in_c_pool = 0;
+	read->tid = -1;
 	r = g_ptr_array_remove_index_fast(p->reads, i);
 	p->n = p->reads->len;
 	return r;
@@ -144,6 +147,7 @@ gboolean mate_pool_rm(pool *r_pool, bwa_seq_t *rm_seq) {
 	gboolean r;
 	r = g_ptr_array_remove(r_pool->reads, rm_seq);
 	rm_seq->is_in_m_pool = 0;
+	rm_seq->tid = -1;
 	r_pool->n = r_pool->reads->len;
 	return r;
 }
@@ -152,6 +156,7 @@ gboolean mate_pool_rm_fast(pool *p, bwa_seq_t *read) {
 	gboolean r;
 	r = g_ptr_array_remove(p->reads, read);
 	read->is_in_m_pool = 0;
+	read->tid = -1;
 	p->n = p->reads->len;
 	return r;
 }
@@ -227,6 +232,9 @@ bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int ori) {
 			p->status = TRIED;
 			p->contig_id = ass_eg->id;
 			pool_rm_index(cur_pool, i);
+			// This read is still used by current thread,
+			//   only after the pool is freed, the tid is set to be -1
+			p->tid = ass_eg->tid;
 			i--;
 			continue;
 		}
@@ -243,6 +251,7 @@ bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int ori) {
 			readarray_add(ass_eg, p);
 			i--;
 		}
+		p->tid = ass_eg->tid;
 	}
 	return used;
 }
@@ -331,8 +340,8 @@ void rm_partial(edge *eg, pool *cur_pool, int ori, bwa_seq_t *seqs,
 		is_at_end = ori ? (s->cursor <= nm) : (s->cursor >= s->len - nm - 1);
 		// Remove those reads probably at the splicing junction
 		if (!is_at_end) {
-			if (s->is_in_c_pool != eg->tid || (check_c_1 != confirm_c
-					&& check_c_2 != confirm_c_2)) {
+			if (s->tid != eg->tid || (check_c_1 != confirm_c && check_c_2
+					!= confirm_c_2)) {
 				removed = pool_rm_index(cur_pool, i);
 				//p_query(__func__, s);
 				//p_ctg_seq(__func__, eg->contig);
@@ -482,6 +491,7 @@ void free_pool(pool *r_pool) {
 			for (i = 0; i < r_pool->n; i++) {
 				r = g_ptr_array_index(reads, i);
 				r->is_in_c_pool = 0;
+				r->tid = -1;
 			}
 			r_pool->n = 0;
 			if (reads) {
@@ -532,14 +542,14 @@ void p_pool_read(gpointer *data, gpointer *user_data) {
 			printf("%s", p2->rseq);
 			for (i = 0; i < p2->cursor + 2; i++)
 				printf(" ");
-			printf("%d->%c\t%s\t%d\t[rev_com]", p2->cursor, c, p2->name,
-					p2->status);
+			printf("%d->%c\t%s\t%d\t[pool: %d]\t[tid: %d]\t[rev_com]",
+					p2->cursor, c, p2->name, p->is_in_c_pool, p->tid, p->status);
 		} else {
 			printf("%s", p2->seq);
 			for (i = 0; i < p2->cursor + 2; i++)
 				printf(" ");
-			printf("%d->%c\t%s\t%d\t[pool: %d]", p2->cursor, c, p2->name,
-					p2->status, p2->is_in_c_pool);
+			printf("%d->%c\t%s\t%d\t[pool: %d]\t[tid: %d]", p2->cursor, c,
+					p2->name, p->status, p->is_in_c_pool, p->tid);
 		}
 		printf("\n");
 		bwa_free_read_seq(1, p2);

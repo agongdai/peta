@@ -258,7 +258,7 @@ int correct_reads(hash_table *ht, const int n_threads) {
 		if (s->status != DEAD) {
 			s->status = FRESH;
 			s->is_in_c_pool = 0;
-			s->tid = 0;
+			s->tid = -1;
 		}
 	}
 	g_ptr_array_free(low_kmer_reads, TRUE);

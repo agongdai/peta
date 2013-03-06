@@ -14,6 +14,25 @@
 #include "utils.h"
 #include "edgelist.h"
 
+void free_hit(blat_hit *h) {
+	free(h->tname);
+	free(h->tname);
+	free(h->block_sizes);
+	free(h->q_starts);
+	free(h->t_starts);
+	free(h);
+}
+
+void free_blat_hits(GPtrArray *hits) {
+	int i = 0;
+	blat_hit *h = NULL;
+	for(i = 0; i < hits->len; i++) {
+		h = g_ptr_array_index(hits, i);
+		free(h);
+	}
+	g_ptr_array_free(hits, TRUE);
+}
+
 blat_hit *new_hit() {
 	blat_hit *h = (blat_hit*) malloc(sizeof(blat_hit));
 	h->matches = 0;

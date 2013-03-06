@@ -158,9 +158,10 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 		read = g_ptr_array_index(eg->reads, i);
 		mate = get_mate(read, seqs);
 		if (mate->status == FRESH || mate->contig_id == eg->id
-				|| binary_exists(eg->reads, mate)) {
+				|| mate->contig_id == -1 || binary_exists(eg->reads, mate)) {
 			continue;
 		}
+		show_debug_msg(__func__, "%d edges; mate contig id: %d \n", all_edges->len, mate->contig_id);
 		in_out = g_ptr_array_index(all_edges, mate->contig_id);
 		if (in_out && in_out->alive) {
 			g_ptr_array_uni_add(raw_in_outs, in_out);
@@ -201,21 +202,18 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 				// Get the smaller coverage value
 				target_cov = (cov_1 > cov_2) ? cov_2 : cov_1;
 				// Only if the paired reads have enough coverage
-				show_debug_msg(
-						__func__,
-						"Edge [%d: %d] [%d: %d] Paired reads: %d; Target cov %.2f \n",
-						eg->id, eg->len, in_out->id, in_out->len,
-						pair_reads->len, target_cov);
-				if (eg->id == 6787 && in_out->id == 5018) {
-					p_readarray(pair_reads, 1);
-				}
+				//show_debug_msg(
+				//		__func__,
+				//		"Edge [%d: %d] [%d: %d] Paired reads: %d; Target cov %.2f \n",
+				//		eg->id, eg->len, in_out->id, in_out->len,
+				//		pair_reads->len, target_cov);
+				//show_debug_msg(__func__, "%d level: %d; %d level: %d \n", eg->id, eg->level, in_out->id, in_out->level);
 				if (pair_reads->len >= MIN_VALID_PAIRS && pair_reads->len
 						>= insert_size / 4 * target_cov && reads_has_overlap(
 						pair_reads, in_out->id, insert_size, sd_insert_size)) {
 					// Only if the level value is different, add it.
 					// The level value is initially the component id
 					if (in_out->level != eg->level) {
-						in_out->tid = eg->tid;
 						in_out->level = eg->level;
 						g_ptr_array_add(probable_in_out, in_out);
 					}
@@ -355,6 +353,19 @@ int check_insert_size(edge *eg_left, edge *eg_right, readarray *paired_reads,
 	return 1;
 }
 
+/**
+ * For each pair of contigs, check:
+ * 1: -------------->
+ * 2:			--------------->
+ *
+ * 1:             -------------->
+ * 2: --------------->
+ *
+ * 1: <--------------
+ * 2: 			--------------->
+ *
+ * In next round, edge 1 and 2 maybe exchanged
+ */
 int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 		int insert_size, int sd_insert_size) {
 	bwa_seq_t *rev = NULL;
@@ -363,8 +374,6 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 	int to_merge = 0;
 
 	if (!eg_j->alive || eg_i == eg_j || (eg_i->len < 100 && eg_j->len < 100))
-		return 0;
-	if (eg_i->visited && eg_j->visited)
 		return 0;
 
 	ol = find_ol(eg_i->contig, eg_j->contig, MAX_EDGE_NM);
@@ -402,10 +411,7 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 			}
 		}
 		if (to_merge) {
-			g_mutex_lock(edge_mutex);
 			merge_two_ol_edges(NULL, ht, eg_i, eg_j, ol);
-			g_mutex_unlock(edge_mutex);
-			eg_i->visited = 0;
 			return 1;
 		} else {
 			// ------------->
@@ -430,13 +436,10 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 				}
 			}
 			if (to_merge) {
-				g_mutex_lock(edge_mutex);
 				//bwa_free_read_seq(1, eg_j->contig);
 				eg_j->contig = rev;
 				rev = NULL;
 				merge_two_ol_edges(NULL, ht, eg_i, eg_j, ol);
-				g_mutex_unlock(edge_mutex);
-				eg_i->visited = 0;
 				return 1; // In case the 'rev' is freed accidently.
 			} else {
 				// <------------------
@@ -463,13 +466,10 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 					}
 				}
 				if (to_merge) {
-					g_mutex_lock(edge_mutex);
 					bwa_free_read_seq(1, eg_i->contig);
 					eg_i->contig = rev;
 					rev = NULL;
 					merge_two_ol_edges(NULL, ht, eg_i, eg_j, ol);
-					g_mutex_unlock(edge_mutex);
-					eg_i->visited = 0;
 					return 1; // In case the 'rev' is freed accidently.
 				}
 			} // End of Head-head
@@ -481,61 +481,62 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 }
 
 /**
- * For each pair of contigs, check:
- * 1: -------------->
- * 2:			--------------->
- *
- * 1:             -------------->
- * 2: --------------->
- *
- * 1: <--------------
- * 2: 			--------------->
- *
- * In next round, edge 1 and 2 maybe exchanged
+ * Groups of lock/unlock to make sure: an edge would not appear in multiple threads
  */
-void *merge_ol_edges_thread(void *data) {
+void *merge_ol_edges_thread(gpointer e, gpointer data) {
 	edge *eg_i = NULL, *eg_j = NULL;
-	int i = 0, j = 0, some_one_merged = 1;
-	bwa_seq_t *seqs = NULL;
+	int j = 0, some_one_merged = 1;
 	GPtrArray *edge_candidates = NULL;
 	merging_paras_t *d = (merging_paras_t*) data;
 
-	seqs = d->ht->seqs;
+	eg_i = (edge*) e;
+	if (!eg_i->alive)
+		return NULL;
+	// If this edge is used by another thread, skip
+	g_mutex_lock(edge_mutex);
+	if (eg_i->visited != -1) {
+		g_mutex_unlock(edge_mutex);
+		return NULL;
+	}
+	eg_i->visited = eg_i->tid;
+	g_mutex_unlock(edge_mutex);
 
-	while (some_one_merged) {
-		some_one_merged = 0;
-		for (i = d->start; i < d->end; i++) {
-			eg_i = g_ptr_array_index(d->single_edges, i);
-			eg_i->tid = d->tid;
-			if (!eg_i->alive)
-				continue;
-			if (edge_candidates) {
-				g_ptr_array_free(edge_candidates, TRUE);
-				edge_candidates = NULL;
-			}
-			edge_candidates = find_edges_ol(d->rht, eg_i->contig,
-					d->single_edges);
-			for (j = 0; j < edge_candidates->len; j++) {
-				eg_j = g_ptr_array_index(edge_candidates, j);
-				some_one_merged = try_merging_two_edges(eg_i, eg_j, d->ht,
-						d->insert_size, d->sd_insert_size);
-			} // End of edge candidates
-			eg_i->visited = 1;
+	edge_candidates = find_edges_ol(d->rht, eg_i->contig, d->single_edges);
+	for (j = 0; j < edge_candidates->len; j++) {
+		eg_j = g_ptr_array_index(edge_candidates, j);
+		if (!eg_j->alive)
+			continue;
+
+		// If 'visited' is not -1, it means this edge is currently in another thread
+		g_mutex_lock(edge_mutex);
+		if (eg_j->visited != -1) {
+			g_mutex_unlock(edge_mutex);
+		} else {
+			eg_j->visited = eg_i->tid;
+			g_mutex_unlock(edge_mutex);
+			some_one_merged = try_merging_two_edges(eg_i, eg_j, d->ht,
+					d->insert_size, d->sd_insert_size);
+			// Announce that it is not used by any thread now, maybe not alive anymore
+			g_mutex_lock(edge_mutex);
+			eg_j->visited = -1;
+			g_mutex_unlock(edge_mutex);
 		}
-	}
-	if (edge_candidates) {
-		g_ptr_array_free(edge_candidates, TRUE);
-		edge_candidates = NULL;
-	}
+	} // End of edge candidates
+	g_ptr_array_free(edge_candidates, TRUE);
+	// Announce that it is not used by any thread now
+	g_mutex_lock(edge_mutex);
+	eg_i->visited = -1;
+	g_mutex_unlock(edge_mutex);
 	return NULL;
 }
 
+/**
+ * No mutex is used, because an edge would not appear in two different components
+ */
 void merge_ol_comp_edges(edgearray *comp_edges, hash_table *ht,
 		int insert_size, int sd_insert_size) {
 	int i = 0, j = 0, some_merged = 1;
 	edge *eg = NULL, *eg_i = 0, *eg_j = NULL;
-	if (!edge_mutex)
-		edge_mutex = g_mutex_new();
 	for (i = 0; i < comp_edges->len; i++) {
 		eg = g_ptr_array_index(comp_edges, i);
 		eg->visited = 0;
@@ -557,44 +558,64 @@ void merge_ol_comp_edges(edgearray *comp_edges, hash_table *ht,
 	}
 }
 
+void merge_ol_edges_by_rht(edgearray *single_edges, const int insert_size,
+		const int sd_insert_size, hash_table *ht, reads_ht *rht,
+		const int n_threads) {
+	GThreadPool *thread_pool = NULL;
+	edge *eg_i = NULL;
+	merging_paras_t *data = NULL;
+	int i = 0, has_more = 1, n_pre_alive = 0, n_alive = 0;
+	data = (merging_paras_t*) calloc(1, sizeof(merging_paras_t));
+	data->single_edges = single_edges;
+	data->ht = ht;
+	data->insert_size = insert_size;
+	data->rht = rht;
+	data->sd_insert_size = sd_insert_size;
+	thread_pool = g_thread_pool_new((GFunc) merge_ol_edges_thread, data,
+			n_threads, TRUE, NULL);
+	while (has_more) {
+		n_pre_alive = 0;
+		for (i = 0; i < single_edges->len; i++) {
+			eg_i = g_ptr_array_index(single_edges, i);
+			if (eg_i->alive)
+				n_pre_alive++;
+		}
+		for (i = 0; i < single_edges->len; i++) {
+			eg_i = g_ptr_array_index(single_edges, i);
+			g_thread_pool_push(thread_pool, (gpointer) eg_i, NULL);
+		}
+		n_alive = 0;
+		for (i = 0; i < single_edges->len; i++) {
+			eg_i = g_ptr_array_index(single_edges, i);
+			if (eg_i->alive)
+				n_alive++;
+		}
+		if (n_alive == n_pre_alive)
+			break;
+	}
+	g_thread_pool_free(thread_pool, 0, 1);
+	free(data);
+}
+
 void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		const int sd_insert_size, hash_table *ht, const int n_threads) {
-	int n_per_threads = 0, i = 0;
-	merging_paras_t *data;
-	GThread *threads[n_threads];
-	edge *eg_i = NULL;
+	int i = 0;
 	reads_ht *rht = NULL;
+	edge *eg_i = NULL;
 
-	n_per_threads = single_edges->len / n_threads;
 	if (!edge_mutex)
 		edge_mutex = g_mutex_new();
 	for (i = 0; i < single_edges->len; i++) {
 		eg_i = g_ptr_array_index(single_edges, i);
+		eg_i->visited = -1;
 		g_ptr_array_sort(eg_i->reads, (GCompareFunc) cmp_read_by_name);
-		eg_i->tid = 0;
 	}
-	data = (merging_paras_t*) calloc(n_threads, sizeof(merging_paras_t));
+
 	show_msg(__func__, "Building hash table for templates...\n");
 	rht = build_edges_ht(MATE_OVERLAP_THRE, single_edges);
 	show_msg(__func__, "Merging %d templates...\n", single_edges->len);
-	for (i = 0; i < n_threads; ++i) {
-		data[i].single_edges = single_edges;
-		data[i].ht = ht;
-		data[i].insert_size = insert_size;
-		data[i].start = i * n_per_threads;
-		data[i].end = (i + 1) * n_per_threads;
-		data[i].tid = i + 1;
-		data[i].rht = rht;
-		data[i].sd_insert_size = sd_insert_size;
-		if (i == n_threads - 1)
-			data[i].end = single_edges->len;
-		threads[i] = g_thread_create((GThreadFunc) merge_ol_edges_thread,
-				data + i, TRUE, NULL);
-	}
-	for (i = 0; i < n_threads; ++i) {
-		g_thread_join(threads[i]);
-	}
-
+	merge_ol_edges_by_rht(single_edges, insert_size, sd_insert_size, ht, rht,
+			n_threads);
 	for (i = 0; i < single_edges->len; i++) {
 		eg_i = g_ptr_array_index(single_edges, i);
 		eg_i->visited = 0;
@@ -606,7 +627,6 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 	}
 	show_msg(__func__, "Merged to %d templates.\n", single_edges->len);
 	destroy_reads_ht(rht);
-	free(data);
 }
 
 /**
@@ -622,11 +642,9 @@ void mark_sub_edge(edgearray *all_edges, GPtrArray *hits) {
 			if (h->alen > h->q_size - VAGUE_TAIL_LEN && abs(h->q_end
 					- h->q_start) > h->q_size - VAGUE_TAIL_LEN && h->mismatches
 					<= MAX_EDGE_NM) {
+				show_debug_msg(__func__, "%d edges; %s \n", all_edges->len, h->qname);
 				eg = g_ptr_array_index(all_edges, atoi(h->qname));
 				eg->alive = 0;
-				show_debug_msg(__func__,
-						"Edge [%d, %d] is marked as not alive \n", eg->id,
-						eg->len);
 			}
 		}
 	}

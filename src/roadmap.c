@@ -348,11 +348,13 @@ void destroy_eg(edge *eg) {
 			read = g_ptr_array_index(eg->reads, i);
 			read->status = TRIED;
 			read->contig_id = UNUSED_CONTIG_ID;
+			read->tid = -1;
 		}
 		for (i = 0; i < eg->pairs->len; i++) {
 			read = g_ptr_array_index(eg->pairs, i);
 			read->status = TRIED;
 			read->contig_id = UNUSED_CONTIG_ID;
+			read->tid = -1;
 		}
 		while (eg->reads->len > 0) {
 			g_ptr_array_remove_index_fast(eg->reads, 0);
@@ -651,8 +653,8 @@ void dump_rm(edgearray *all_edges, const char *rm_dump_file,
 	rm_reads = xopen(rm_reads_file, "w");
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
-		if (!eg->alive)
-			continue;
+		//if (!eg->alive)
+		//	continue;
 		// Edge id
 		sprintf(item, "%d\t", eg->id);
 		fputs(item, dump_fp);

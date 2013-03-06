@@ -76,6 +76,7 @@ void rev_reads_pos(edge *eg);
 void reset_edge_ids(edgearray *all_edges);
 int reads_has_overlap(readarray *reads, const int edge_id,
 		const int insert_size, const int sd_insert_size);
+void reset_read_ctg_id(bwa_seq_t *seqs, const int n_seqs);
 
 #ifdef __cplusplus
 	}

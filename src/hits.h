@@ -8,7 +8,7 @@
 #ifndef HITS_H_
 #define HITS_H_
 
-#include "glib.h"
+#include <glib.h>
 #include "pehash.h"
 #include "edgelist.h"
 
@@ -42,5 +42,6 @@ GPtrArray *read_blat_hits(const char *psl_file);
 void p_hit(blat_hit *h);
 gint cmp_hit_by_qname(gpointer a, gpointer b);
 void realign_by_blat(edgearray *all_edges, hash_table *ht, const int n_threads);
+void free_blat_hits(GPtrArray *hits);
 
 #endif /* HITS_H_ */

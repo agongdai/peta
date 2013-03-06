@@ -19,6 +19,14 @@
 #include "merge.h"
 #include "readrm.h"
 
+GMutex *comp_mutex = NULL;
+
+gint cmp_break_point(gpointer a, gpointer b) {
+	int* x = (int*) a;
+	int* y = (int*) b;
+	return *y - *x;
+}
+
 comp *new_comp() {
 	comp *c = (comp*) malloc(sizeof(comp));
 	c->id = 0;
@@ -93,12 +101,23 @@ void combine_connected_comps_thread(gpointer e, gpointer data) {
 	comps_aux_t *d = (comps_aux_t*) data;
 
 	this_c = g_ptr_array_index(d->comps, eg->comp_id);
-	if (!this_c->alive)
+	if (!this_c->alive || !eg->alive)
 		return;
 	probable_in_out = get_probable_in_out(d->all_edges, d->insert_size,
 			d->sd_insert_size, eg, d->ht->seqs, 1);
 	show_debug_msg(__func__, "Probable in out of edge %d: %d \n", eg->id,
 			probable_in_out->len);
+	// If any probable in-out edges are used by another thread, abondan it.
+	g_mutex_lock(comp_mutex);
+	for (i = 0; i < probable_in_out->len; i++) {
+		in_out = g_ptr_array_index(probable_in_out, i);
+		if (in_out->level != eg->level) {
+			g_mutex_unlock(comp_mutex);
+			g_ptr_array_free(probable_in_out, TRUE);
+			return;
+		}
+	}
+	g_mutex_unlock(comp_mutex);
 	for (i = 0; i < probable_in_out->len; i++) {
 		in_out = g_ptr_array_index(probable_in_out, i);
 		show_debug_msg(__func__, "\tEdge [%d, %d]\n", in_out->id, in_out->len);
@@ -118,34 +137,36 @@ void combine_roadmap_comps(edgearray *all_edges, const int insert_size,
 	edge *eg = NULL;
 	GThreadPool *thread_pool = NULL;
 	comps_aux_t *data = (comps_aux_t*) malloc(sizeof(comps_aux_t));
+
+	if (!comp_mutex)
+		comp_mutex = g_mutex_new();
 	data->ht = ht;
 	data->insert_size = insert_size;
 	data->sd_insert_size = sd_insert_size;
 	data->all_edges = all_edges;
 	data->comps = comps;
 
-	thread_pool = g_thread_pool_new((GFunc) combine_connected_comps_thread,
-			data, n_threads, TRUE, NULL);
 	// A flag is set to avoid recursive calling of get_probable in-out edges
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
 		eg->level = eg->comp_id;
 	}
+	thread_pool = g_thread_pool_new((GFunc) combine_connected_comps_thread,
+			data, n_threads, TRUE, NULL);
 	for (i = 0; i < comps->len; i++) {
 		c = g_ptr_array_index(comps, i);
 		if (!c->alive)
 			continue;
 		for (j = 0; j < c->edges->len; j++) {
 			eg = g_ptr_array_index(c->edges, j);
-			if (eg->alive)
-				g_thread_pool_push(thread_pool, (gpointer) eg, NULL);
+			g_thread_pool_push(thread_pool, (gpointer) eg, NULL);
 		}
 	}
+	g_thread_pool_free(thread_pool, 0, 1);
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
 		eg->level = 0;
 	}
-	g_thread_pool_free(thread_pool, 0, 1);
 	free(data);
 }
 
@@ -381,12 +402,21 @@ void get_break_points(edgearray *con_egs, GPtrArray *hits) {
 				}
 			}
 		}
+		g_array_sort(eg, cmp_break_point);
 	}
 }
 
 void break_ol_egs(edgearray *con_egs, GPtrArray *hits, edgearray *all_edges) {
-
+	int j = 0, i = 0;
+	edge *eg = NULL;
 	get_break_points(con_egs, hits);
+	for (i = 0; i < con_egs->len; i++) {
+		eg = g_ptr_array_index(con_egs, i);
+		for (j = 0; j < eg->break_points->len; j++) {
+			show_debug_msg(__func__, "Edge %d: %d \n", eg->id,
+					g_array_index(eg->break_points, int, j));
+		}
+	}
 }
 
 int scaffold_comp_egs_thread(gpointer component, gpointer data) {
@@ -426,7 +456,7 @@ int scaffold_comp_egs_thread(gpointer component, gpointer data) {
 	}
 
 	order_comp_egs(con_egs, ht->seqs);
-	break_ol_egs(con_egs, c->hits, d->all_edges);
+	//break_ol_egs(con_egs, c->hits, d->all_edges);
 	g_ptr_array_free(ol_egs, TRUE);
 	g_ptr_array_free(con_egs, TRUE);
 	return 0;
@@ -460,6 +490,9 @@ void scaffold_comp_egs(GPtrArray *all_comps, edgearray *all_edges,
 	free(data);
 }
 
+/**
+ * Assumption: the components are with ids: 0, 1, 2, 3, ...
+ */
 edgearray *scaffolding(edgearray *all_edges, const int insert_size,
 		const int sd_insert_size, hash_table *ht, const int n_threads,
 		char *psl_name) {

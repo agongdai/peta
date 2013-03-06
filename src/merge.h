@@ -20,7 +20,7 @@ extern "C" {
 
 #define MAX_EDGE_NM				11
 #define EDGE_OL_THRE			11
-#define VAGUE_TAIL_LEN			100
+#define VAGUE_TAIL_LEN			50
 #define EDGE_OL_PERC			0.2
 
 enum ORDER_TYPE {

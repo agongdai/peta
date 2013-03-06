@@ -101,7 +101,9 @@ void keep_mates_in_pool(edge *eg, pool *cur_pool, const hash_table *ht,
 		if (is_paired(read, ori)) {
 			// If the mate is not used, remove 'read'
 			if ((read->rev_com != mate->rev_com) || (mate->status != TRIED)
-					|| eg->id != mate->contig_id) {
+					|| eg->tid != mate->tid) {
+				//p_query(__func__, read);
+				//p_query(__func__, mate);
 				to_remove = 1;
 			} else { // If the distance is not within range, remove 'read'
 				if (abs(eg->len - mate->shift) > (insert_size + sd_insert_size
@@ -147,11 +149,10 @@ pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori) {
 			continue;
 		}
 		// If the mate is already in use, either by current or another thread
-		if (mate->is_in_c_pool || mate->is_in_m_pool || mate->status == USED
-				|| mate->status == DEAD || s->contig_id != eg->id)
+		if (mate->tid != -1 || mate->status == USED || mate->status == DEAD)
 			continue;
-		// If the used read is used by another thread;
-		//	or the mate has been used by this template before.
+		// The read should be used by current edge already
+		//	and the mate has not been used by this template before.
 		if (!(s->status == TRIED && s->contig_id == eg->id) || (mate->status
 				== TRIED && mate->contig_id == eg->id))
 			continue;
@@ -268,7 +269,7 @@ void check_next_char(pool *cur_pool, edge *eg, int *next, const int ori) {
 void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		edge *eg, bwa_seq_t *query, int *next, int ori) {
 	alg *a = NULL;
-	int i = 0, index = 0, pre_cursor = 0;
+	int i = 0, index = 0;
 	bwa_seq_t *s = NULL, *mate = NULL, *seqs = ht->seqs;
 	//show_debug_msg(__func__, "Iterating alignments... \n");
 	// Add aligned reads to current pool
@@ -279,13 +280,19 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 			continue;
 		s = &seqs[index];
 		mate = get_mate(s, seqs);
-		pre_cursor = s->cursor;
+		p_query(__func__, s);
+		p_query(__func__, mate);
+		//pre_cursor = s->cursor;
 
-		if (s->is_in_c_pool || (s->is_in_m_pool && s->is_in_m_pool != eg->tid)
-				|| s->status == USED || s->status == DEAD || (s->status
-				== TRIED && s->contig_id == eg->id))
+		if (s->status == USED || s->status == DEAD || (s->status == TRIED
+				&& s->contig_id == eg->id) || s->tid != -1)
 			continue;
 
+		//          read              mate              read
+		//        =========>        --------->        --------->
+		// Edge: -------------------------------------------->
+		// If the mate of read is TRIED by current edge,
+		//    but from the mate, the read should be at the left, skip this read
 		if (mate->status == TRIED && mate->contig_id == eg->id) {
 			if (is_paired(mate, ori))
 				continue;
@@ -302,8 +309,8 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 			s->cursor = 0;
 			continue;
 		}
-		if ((!ori && pre_cursor > s->cursor) || (ori && pre_cursor < s->cursor))
-			continue;
+		//if ((!ori && pre_cursor > s->cursor) || (ori && pre_cursor < s->cursor))
+		//	continue;
 		pool_add(cur_pool, s, eg->tid);
 	}
 	//show_debug_msg(__func__, "Removing partial... \n");
@@ -428,9 +435,9 @@ void correct_start(edge *eg, pool *cur_pool) {
  */
 edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		const int ori, const int tid) {
-	bwa_seq_t *query = NULL, *r = NULL;
+	bwa_seq_t *query = NULL;
 	pool *cur_pool = NULL;
-	int c = 0, i = 0;
+	int c = 0;
 	int *next = NULL;
 	alignarray *aligns = NULL;
 	edge *eg = NULL;
@@ -476,10 +483,6 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			show_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n", eg->id,
 					eg->len);
 			p_query("Repetitive pattern", query);
-			for (i = 0; i < cur_pool->reads->len; i++) {
-				r = g_ptr_array_index(cur_pool->reads, i);
-				r->status = TRIED;
-			}
 			break;
 		}
 		pe_aln_query(query, query->seq, ht, MISMATCHES, query->len, 0, aligns);
@@ -495,14 +498,11 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			//p_pool("After adding mates", cur_pool, next);
 		}
 		reset_alg(aligns);
-		if (eg->id > 5800) {
-			p_query(__func__, query);
-			show_debug_msg(__func__, "Edge %d, length %d \n", eg->id, eg->len);
-			//p_ctg_seq("Contig", eg->contig);
-			p_pool("Current Pool", cur_pool, next);
-		}
-		if (eg->len > 50000)
-			err_fatal(__func__, "Exit\n");
+		p_query(__func__, query);
+		show_debug_msg(__func__, "Ori %d, Edge %d, length %d \n", ori, eg->id,
+				eg->len);
+		p_ctg_seq("Contig", eg->contig);
+		p_pool("Current Pool", cur_pool, next);
 		c = get_pure_most(next);
 		//show_debug_msg(__func__, "Ori: %d, Next char: %d \n", ori, c);
 		if (cur_pool->n <= 0) {
@@ -549,6 +549,7 @@ edge *pe_ext(const hash_table *ht, bwa_seq_t *query, const int tid) {
 		show_msg(__func__, "Read %s may be in junction area, skip. \n",
 				query->name);
 		query->status = TRIED;
+		query->tid = -1;
 		free_pool(init_pool);
 		return NULL;
 	}
@@ -677,6 +678,18 @@ void est_insert_size(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "Standard Deviation of Insert Size: %f \n", sd_ins_size);
 }
 
+void reset_tid(edge *eg) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < eg->reads->len; i++) {
+		r = g_ptr_array_index(eg->reads, i);
+		if (r->status != USED && r->status != DEAD)
+			r->tid = -1;
+		else
+			r->tid = eg->tid;
+	}
+}
+
 /**
  * Keep only pairs on one edge
  */
@@ -716,6 +729,7 @@ int validate_edge(edgearray *all_edges, edge *eg, hash_table *ht,
 			*n_used_reads += eg->reads->len;
 			g_ptr_array_add(all_edges, eg);
 			g_mutex_unlock(sum_mutex);
+			reset_tid(eg);
 			show_msg(
 					__func__,
 					"[%d] %s: length %d, reads %d=>%d. Used reads %d/%d; Pair reads: %d/%d \n",
@@ -772,6 +786,7 @@ void correct_used_numbers(hash_table *ht, int *n_used_reads,
 		}
 		if (s->status == USED || s->status == TRIED || s->status == DEAD) {
 			*n_used_reads += 1;
+			s->tid = -1;
 		}
 	}
 }
@@ -782,8 +797,10 @@ void rescue_reads(bwa_seq_t *seqs, const int n_seqs) {
 	for (i = 0; i < n_seqs; i++) {
 		r = &seqs[i];
 		r->rev_com = 0;
-		if (r->status == TRIED)
+		if (r->status == TRIED) {
 			r->status = FRESH;
+			r->tid = -1;
+		}
 	}
 }
 
@@ -822,7 +839,9 @@ void *pe_lib_thread(gpointer solid_read, gpointer data) {
 		return NULL;
 	}
 	query->status = TRIED;
+	query->tid = tid;
 	eg = pe_ext(d->ht, query, tid);
+	query->tid = -1;
 	if (!eg) {
 		g_mutex_lock(sum_mutex);
 		*n_used_reads += 1;
@@ -889,34 +908,40 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 
 	name = get_output_file("pair_contigs.fa");
 	pair_contigs = xopen(name, "w");
+	reset_read_ctg_id(ht->seqs, ht->n_seqs);
 	reset_edge_ids(all_edges);
 	save_edges(all_edges, pair_contigs, 0, 0, 0);
 	fflush(pair_contigs);
 	free(name);
 
-	name = get_output_file("roadmap.graph");
-	reads_name = get_output_file("roadmap.reads");
-	dump_rm(all_edges, name, reads_name);
-	free(reads_name);
-	free(name);
+	if (debug_mode) {
+		name = get_output_file("roadmap.graph");
+		reads_name = get_output_file("roadmap.reads");
+		dump_rm(all_edges, name, reads_name);
+		free(reads_name);
+		free(name);
+	}
 
 	show_msg(__func__, "========================================== \n\n");
 	show_msg(__func__, "Merging edges by overlapping... \n");
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
-	reset_edge_ids(all_edges);
 	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
+	reset_read_ctg_id(ht->seqs, ht->n_seqs);
+	reset_edge_ids(all_edges);
 	name = get_output_file("merged_pair_contigs.fa");
 	merged_pair_contigs = xopen(name, "w");
-	reset_edge_ids(all_edges);
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 	fflush(merged_pair_contigs);
 	fclose(merged_pair_contigs);
 	free(name);
-	name = get_output_file("roadmap.1.graph");
-	reads_name = get_output_file("roadmap.1.reads");
-	dump_rm(all_edges, name, reads_name);
-	free(reads_name);
-	free(name);
+
+	if (debug_mode) {
+		name = get_output_file("roadmap.1.graph");
+		reads_name = get_output_file("roadmap.1.reads");
+		dump_rm(all_edges, name, reads_name);
+		free(reads_name);
+		free(name);
+	}
 
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Template merging finished: %.2f sec\n",
@@ -942,7 +967,9 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	hits = read_blat_hits(psl_name);
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
 	mark_sub_edge(all_edges, hits);
+	free_blat_hits(hits);
 	// Only the sequences are used during merging and scaffolding
+	// Now the kmer list and post lists are just parital after shrinking!
 	free(ht->k_mers_occ_acc);
 	free(ht->pos);
 	ht->k_mers_occ_acc = NULL;
@@ -950,8 +977,8 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 
 	if (debug_mode) {
 		//realign_by_blat(all_edges, ht, n_threads);
-		name = get_output_file("roadmap.graph");
-		reads_name = get_output_file("roadmap.reads");
+		name = get_output_file("roadmap.2.graph");
+		reads_name = get_output_file("roadmap.2.reads");
 		dump_rm(all_edges, name, reads_name);
 		free(reads_name);
 		free(name);
@@ -959,7 +986,7 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
-	realign_by_blat(all_edges, ht, n_threads);
+	// realign_by_blat(all_edges, ht, n_threads);
 	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, ht,
 			n_threads, psl_name);
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
@@ -997,9 +1024,9 @@ void test_run(hash_table *ht) {
 	edgearray *edges = g_ptr_array_sized_new(32);
 
 	pair_ctg_id = 1000;
-	query = &seqs[1017080];
+	query = &seqs[2285522];
 	p_query(__func__, query);
-	eg = pe_ext(ht, query, 1);
+	eg = pe_ext(ht, query, 2285522);
 	if (eg) {
 		show_msg(__func__, "[%d] %s: length %d, reads %d=>%d. \n", eg->id,
 				eg->name, eg->len, eg->reads->len, eg->pairs->len);
@@ -1007,7 +1034,7 @@ void test_run(hash_table *ht) {
 	} else {
 		show_msg(__func__, "Hey, not extended. \n");
 	}
-	realign_by_blat(edges, ht, n_threads);
+	// realign_by_blat(edges, ht, n_threads);
 	//	query = &seqs[2497644];
 	//	p_query(__func__, query);
 	//	eg = pe_ext(ht, query, 2);
@@ -1025,13 +1052,15 @@ void test_run(hash_table *ht) {
 
 void test_scaffolding(hash_table *ht) {
 	GPtrArray *paths = NULL;
+	FILE *merged_pair_contigs = NULL;
 	GPtrArray *hits = read_blat_hits("../SRR097897_out/merged.merged.psl");
-	edgearray *all_edges = load_rm(ht, "../SRR097897_out/roadmap.graph",
-			"../SRR097897_out/roadmap.reads",
+	edgearray *all_edges = load_rm(ht, "../SRR097897_out/roadmap.2.graph",
+			"../SRR097897_out/roadmap.2.reads",
 			"../SRR097897_out/merged_pair_contigs.fa");
+
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
 	mark_sub_edge(all_edges, hits);
-	realign_by_blat(all_edges, ht, n_threads);
+	//realign_by_blat(all_edges, ht, n_threads);
 
 	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, ht,
 			n_threads, "../SRR097897_out/merged.merged.psl");
@@ -1135,7 +1164,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 
 	all_edges = g_ptr_array_sized_new(BUFSIZ);
 	ht = pe_load_hash(lib_file);
-	//test_run(ht);
+	test_run(ht);
 	//test_scaffolding(ht);
 	//test_merge(ht);
 	seqs = &ht->seqs[0];
