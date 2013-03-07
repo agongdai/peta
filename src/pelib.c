@@ -1064,10 +1064,12 @@ void test_scaffolding(hash_table *ht) {
 
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
 	mark_sub_edge(all_edges, hits);
-	//realign_by_blat(all_edges, ht, n_threads);
+
+	merged_pair_contigs = xopen("../SRR097897_out/validated.fa", "w");
+	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 
 	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, ht,
-			n_threads, "../SRR097897_out/merged.merged.psl");
+			1, "../SRR097897_out/merged.merged.psl");
 	paths = report_paths(all_edges, ht->seqs);
 	save_paths(paths, "../SRR097897_out/peta.fa", 100);
 	exit(1);
@@ -1169,7 +1171,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	all_edges = g_ptr_array_sized_new(BUFSIZ);
 	ht = pe_load_hash(lib_file);
 	//test_run(ht, lib_file);
-	//test_scaffolding(ht);
+	test_scaffolding(ht);
 	//test_merge(ht);
 	seqs = &ht->seqs[0];
 	show_msg(__func__, "Removing repetitive reads... \n");

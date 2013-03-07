@@ -161,8 +161,8 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 				|| mate->contig_id == -1 || binary_exists(eg->reads, mate)) {
 			continue;
 		}
-		show_debug_msg(__func__, "%d edges; mate contig id: %d \n",
-				all_edges->len, mate->contig_id);
+		//show_debug_msg(__func__, "%d edges; mate contig id: %d \n",
+		//		all_edges->len, mate->contig_id);
 		in_out = g_ptr_array_index(all_edges, mate->contig_id);
 		if (in_out && in_out->alive) {
 			g_ptr_array_uni_add(raw_in_outs, in_out);
@@ -203,14 +203,15 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 				// Get the smaller coverage value
 				target_cov = (cov_1 > cov_2) ? cov_2 : cov_1;
 				// Only if the paired reads have enough coverage
-				//show_debug_msg(
-				//		__func__,
-				//		"Edge [%d: %d] [%d: %d] Paired reads: %d; Target cov %.2f \n",
-				//		eg->id, eg->len, in_out->id, in_out->len,
-				//		pair_reads->len, target_cov);
-				//show_debug_msg(__func__, "%d level: %d; %d level: %d \n", eg->id, eg->level, in_out->id, in_out->level);
+				show_debug_msg(
+						__func__,
+						"Edge [%d: %d] [%d: %d] Paired reads: %d; Target cov %.2f \n",
+						eg->id, eg->len, in_out->id, in_out->len,
+						pair_reads->len, target_cov);
+				show_debug_msg(__func__, "%d level: %d; %d level: %d \n",
+						eg->id, eg->level, in_out->id, in_out->level);
 				if (pair_reads->len >= MIN_VALID_PAIRS && pair_reads->len
-						>= insert_size / 4 * target_cov && reads_has_overlap(
+						>= insert_size / 2 * target_cov && reads_has_overlap(
 						pair_reads, in_out->id, insert_size, sd_insert_size)) {
 					// Only if the level value is different, add it.
 					// The level value is initially the component id
@@ -644,8 +645,8 @@ void mark_sub_edge(edgearray *all_edges, GPtrArray *hits) {
 			if (h->alen > h->q_size - VAGUE_TAIL_LEN && abs(h->q_end
 					- h->q_start) > h->q_size - VAGUE_TAIL_LEN && h->mismatches
 					<= MAX_EDGE_NM) {
-				show_debug_msg(__func__, "%d edges; %s \n", all_edges->len,
-						h->qname);
+				//show_debug_msg(__func__, "%d edges; %s \n", all_edges->len,
+				//		h->qname);
 				eg_long = g_ptr_array_index(all_edges, atoi(h->tname));
 				eg = g_ptr_array_index(all_edges, atoi(h->qname));
 				eg->alive = 0;

@@ -1189,7 +1189,7 @@ int reads_has_overlap(readarray *reads, const int edge_id,
 		}
 	}
 	show_debug_msg(__func__, "Max distance: %d, %d \n", max_dis_1, max_dis_2);
-	if (max_dis_2 > 20 && max_dis_1 < insert_size + sd_insert_size && max_dis_2
+	if (max_dis_2 > 0 && max_dis_1 < insert_size + sd_insert_size && max_dis_2
 			< insert_size + sd_insert_size)
 		return 1;
 	return 0;

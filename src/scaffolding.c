@@ -105,8 +105,10 @@ void combine_connected_comps_thread(gpointer e, gpointer data) {
 		return;
 	probable_in_out = get_probable_in_out(d->all_edges, d->insert_size,
 			d->sd_insert_size, eg, d->ht->seqs, 1);
-	show_debug_msg(__func__, "Probable in out of edge %d: %d \n", eg->id,
+	if (probable_in_out->len >= 1) {
+		show_debug_msg(__func__, "Probable in out of edge %d: %d \n", eg->id,
 			probable_in_out->len);
+	}
 	// If any probable in-out edges are used by another thread, abondan it.
 	g_mutex_lock(comp_mutex);
 	for (i = 0; i < probable_in_out->len; i++) {
