@@ -542,14 +542,14 @@ void p_pool_read(gpointer *data, gpointer *user_data) {
 			printf("%s", p2->rseq);
 			for (i = 0; i < p2->cursor + 2; i++)
 				printf(" ");
-			printf("%d->%c\t%s\t%d\t[pool: %d]\t[tid: %d]\t[rev_com]",
-					p2->cursor, c, p2->name, p->is_in_c_pool, p->tid, p->status);
+			printf("%d->%c@%d\t%s\t[pool: %d]\t[tid: %d]\t[rev_com]",
+					p2->cursor, c, p->status, p2->name, p->is_in_c_pool, p->tid);
 		} else {
 			printf("%s", p2->seq);
 			for (i = 0; i < p2->cursor + 2; i++)
 				printf(" ");
-			printf("%d->%c\t%s\t%d\t[pool: %d]\t[tid: %d]", p2->cursor, c,
-					p2->name, p->status, p->is_in_c_pool, p->tid);
+			printf("%d->%c@%d\t%s\t[pool: %d]\t[tid: %d]",
+					p2->cursor, c, p->status, p2->name, p->is_in_c_pool, p->tid);
 		}
 		printf("\n");
 		bwa_free_read_seq(1, p2);

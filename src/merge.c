@@ -161,7 +161,8 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 				|| mate->contig_id == -1 || binary_exists(eg->reads, mate)) {
 			continue;
 		}
-		show_debug_msg(__func__, "%d edges; mate contig id: %d \n", all_edges->len, mate->contig_id);
+		show_debug_msg(__func__, "%d edges; mate contig id: %d \n",
+				all_edges->len, mate->contig_id);
 		in_out = g_ptr_array_index(all_edges, mate->contig_id);
 		if (in_out && in_out->alive) {
 			g_ptr_array_uni_add(raw_in_outs, in_out);
@@ -633,18 +634,30 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
  * If an edge is a subsequence of another, mark it as not alive
  */
 void mark_sub_edge(edgearray *all_edges, GPtrArray *hits) {
-	int i = 0;
+	int i = 0, j = 0;
 	blat_hit *h = NULL;
-	edge *eg = NULL;
+	edge *eg = NULL, *eg_long = NULL;
+	bwa_seq_t *r = NULL;
 	for (i = 0; i < hits->len; i++) {
 		h = g_ptr_array_index(hits, i);
 		if (h->q_size < h->t_size) {
 			if (h->alen > h->q_size - VAGUE_TAIL_LEN && abs(h->q_end
 					- h->q_start) > h->q_size - VAGUE_TAIL_LEN && h->mismatches
 					<= MAX_EDGE_NM) {
-				show_debug_msg(__func__, "%d edges; %s \n", all_edges->len, h->qname);
+				show_debug_msg(__func__, "%d edges; %s \n", all_edges->len,
+						h->qname);
+				eg_long = g_ptr_array_index(all_edges, atoi(h->tname));
 				eg = g_ptr_array_index(all_edges, atoi(h->qname));
 				eg->alive = 0;
+				for (j = 0; j < eg->reads->len; j++) {
+					r = g_ptr_array_index(eg->reads, j);
+					if (r->contig_id != eg_long->id) {
+						g_ptr_array_add(eg_long->reads, r);
+						r->contig_id = eg_long->id;
+						r->shift += h->t_start;
+					}
+				}
+				clear_used_reads(eg, 0);
 			}
 		}
 	}
