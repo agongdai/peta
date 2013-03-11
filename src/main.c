@@ -49,8 +49,8 @@ int main(int argc, char *argv[]) {
 		return bwa_aln(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "pe_aln") == 0)
 			return pe_aln_test(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "ass") == 0)
-		return pe_ass(argc - 1, argv + 1);
+	//else if (strcmp(argv[1], "ass") == 0)
+	//	return pe_ass(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "samse") == 0)
 		return bwa_sai2sam_se(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "test") == 0)

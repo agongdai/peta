@@ -21,7 +21,7 @@ extern "C" {
 
 #define INIT_PET_N 					1023
 #define INIT_REMOVE_SIZE 			1023
-#define SD_TIMES 					4
+#define SD_TIMES 					3
 #define MEAN_TIMES 					2
 #define PATH_RATIO 					2
 #define RIGHT_CONTIG_CONNETER_COUNT	4

@@ -523,12 +523,14 @@ hash_table *pe_load_hash(char *fa_fn) {
 	hash_opt *opt;
 	uint32_t n_seqs = 0;
 	bwa_seq_t *seqs = NULL;
-	char *hash_fn = malloc(FNLEN);
-	clock_t t = clock();
+	char *hash_fn = NULL;
+	clock_t t = NULL;
+	seqs = load_reads(fa_fn, &n_seqs);
+	hash_fn = malloc(FNLEN);
+	t = clock();
 
 	fprintf(stderr, "[pe_load_hash] Loading hash table of %s... \n", fa_fn);
 	h = (hash_table*) malloc(sizeof(hash_table));
-	seqs = load_reads(fa_fn, &n_seqs);
 	h->seqs = seqs;
 	h->n_seqs = n_seqs;
 	fprintf(stderr,

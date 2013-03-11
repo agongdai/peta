@@ -203,6 +203,8 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 				// Get the smaller coverage value
 				target_cov = (cov_1 > cov_2) ? cov_2 : cov_1;
 				// Only if the paired reads have enough coverage
+				show_debug_msg(__func__,
+						">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 				show_debug_msg(
 						__func__,
 						"Edge [%d: %d] [%d: %d] Paired reads: %d; Target cov %.2f \n",
@@ -210,9 +212,13 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 						pair_reads->len, target_cov);
 				show_debug_msg(__func__, "%d level: %d; %d level: %d \n",
 						eg->id, eg->level, in_out->id, in_out->level);
+				if (eg->id == 2750) {
+					log_edge(eg, seqs);
+					log_edge(in_out, seqs);
+				}
 				if (pair_reads->len >= MIN_VALID_PAIRS && pair_reads->len
-						>= insert_size / 2 * target_cov && reads_has_overlap(
-						pair_reads, in_out->id, insert_size, sd_insert_size)) {
+						>= insert_size / 4 * target_cov && reads_has_overlap(
+						pair_reads, eg, in_out, insert_size, sd_insert_size)) {
 					// Only if the level value is different, add it.
 					// The level value is initially the component id
 					if (in_out->level != eg->level) {
@@ -220,6 +226,8 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 						g_ptr_array_add(probable_in_out, in_out);
 					}
 				}
+				show_debug_msg(__func__,
+						"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n");
 			}
 		}
 		g_ptr_array_free(pair_reads, TRUE);
@@ -264,7 +272,7 @@ edge *merge_two_ol_edges(reads_ht *rht, hash_table *ht, edge *eg_1, edge *eg_2,
 	if (!eg_1->alive || !eg_2->alive)
 		return eg_1;
 
-	show_debug_msg(__func__,
+	show_msg(__func__,
 			"Merging edges [%d, %d] and [%d, %d] by overlapping... \n",
 			eg_1->id, eg_1->len, eg_2->id, eg_2->len);
 	eg_1->len -= ol;
@@ -645,8 +653,9 @@ void mark_sub_edge(edgearray *all_edges, GPtrArray *hits) {
 			if (h->alen > h->q_size - VAGUE_TAIL_LEN && abs(h->q_end
 					- h->q_start) > h->q_size - VAGUE_TAIL_LEN && h->mismatches
 					<= MAX_EDGE_NM) {
-				//show_debug_msg(__func__, "%d edges; %s \n", all_edges->len,
-				//		h->qname);
+				show_debug_msg(__func__,
+						"%d edges; Marked as not alived: [%s, %d] \n",
+						all_edges->len, h->qname, h->q_size);
 				eg_long = g_ptr_array_index(all_edges, atoi(h->tname));
 				eg = g_ptr_array_index(all_edges, atoi(h->qname));
 				eg->alive = 0;

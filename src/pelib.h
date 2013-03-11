@@ -15,7 +15,7 @@
 #define STOP_THRE_STAGE_2	    1
 #define STOP_THRE_STAGE_3	    1
 #define VALID_PAIR_PERC_STAGE_1	0.9
-#define VALID_PAIR_PERC_STAGE_2	0.75
+#define VALID_PAIR_PERC_STAGE_2	0.7
 #define N_SPLIT_UNIT			50
 
 int pe_lib(int argc, char *argv[]);

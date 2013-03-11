@@ -49,10 +49,13 @@ void merge_eg_to_left(edge *left_eg, edge *right_eg, const int gap);
 void merge_eg_to_right(edge *left_eg, edge *right_eg, const int gap);
 int get_mid_pos(readarray *ra, const int ori, const int lib_mean);
 void upd_ctg_id(edge *eg, const int ctg_id, const int status);
-void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches, const int reset_tid);
-void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches, const int reset_tid);
+void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches,
+		const int reset_tid);
+void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches,
+		const int reset_tid);
 void realign_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches);
-void upd_reads(const hash_table *ht, edge *eg, const int mismatches, const int reset_tid);
+void upd_reads(const hash_table *ht, edge *eg, const int mismatches,
+		const int reset_tid);
 int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs);
 void log_reads(edgearray *ea);
 void log_edge(const edge *eg, bwa_seq_t *seqs);
@@ -74,11 +77,11 @@ int binary_exists(const readarray *reads, const bwa_seq_t *read);
 int has_most_fresh_reads(readarray *ra, const int max);
 void rev_reads_pos(edge *eg);
 void reset_edge_ids(edgearray *all_edges);
-int reads_has_overlap(readarray *reads, const int edge_id,
+int reads_has_overlap(readarray *reads, edge *eg, edge *in_out,
 		const int insert_size, const int sd_insert_size);
 void reset_read_ctg_id(bwa_seq_t *seqs, const int n_seqs);
 
 #ifdef __cplusplus
-	}
+}
 #endif
 #endif /* EDGELIST_H_ */

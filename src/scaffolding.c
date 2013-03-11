@@ -106,8 +106,9 @@ void combine_connected_comps_thread(gpointer e, gpointer data) {
 	probable_in_out = get_probable_in_out(d->all_edges, d->insert_size,
 			d->sd_insert_size, eg, d->ht->seqs, 1);
 	if (probable_in_out->len >= 1) {
+		show_debug_msg(__func__, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 		show_debug_msg(__func__, "Probable in out of edge %d: %d \n", eg->id,
-			probable_in_out->len);
+				probable_in_out->len);
 	}
 	// If any probable in-out edges are used by another thread, abondan it.
 	g_mutex_lock(comp_mutex);
@@ -124,9 +125,12 @@ void combine_connected_comps_thread(gpointer e, gpointer data) {
 		in_out = g_ptr_array_index(probable_in_out, i);
 		show_debug_msg(__func__, "\tEdge [%d, %d]\n", in_out->id, in_out->len);
 		c = g_ptr_array_index(d->comps, in_out->comp_id);
-		if (c->alive && this_c != c) {
+		if (this_c->alive && c->alive && this_c != c) {
 			combine_two_comps(this_c, c);
 		}
+	}
+	if (probable_in_out->len >= 1) {
+		show_debug_msg(__func__, "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n");
 	}
 	g_ptr_array_free(probable_in_out, TRUE);
 }
@@ -172,9 +176,12 @@ void combine_roadmap_comps(edgearray *all_edges, const int insert_size,
 	free(data);
 }
 
-int merge_comps_egs_thread(gpointer edges, gpointer data) {
-	edgearray *comp_edges = (edgearray*) edges;
+int merge_comps_egs_thread(gpointer c, gpointer data) {
+	comp *com = (comp*) c;
+	edgearray *comp_edges = com->edges;
 	comps_aux_t *d = (comps_aux_t*) data;
+	show_debug_msg(__func__,
+			"Merging overlapped edges in separated component %d \n");
 	merge_ol_comp_edges(comp_edges, d->ht, d->insert_size, d->sd_insert_size);
 	return 0;
 }
@@ -190,13 +197,22 @@ void merge_comps_egs(edgearray *all_edges, GPtrArray *comps, hash_table *ht,
 	data->sd_insert_size = sd_insert_size;
 	data->all_edges = NULL;
 	data->comps = NULL;
+
+	for (i = 0; i < comps->len; i++) {
+		c = g_ptr_array_index(comps, i);
+		if (!c->alive) {
+			g_ptr_array_remove_index_fast(comps, i);
+			i--;
+		}
+	}
+
 	thread_pool = g_thread_pool_new((GFunc) merge_comps_egs_thread, data,
-			n_threads, TRUE, NULL);
+				n_threads, TRUE, NULL);
 
 	for (i = 0; i < comps->len; i++) {
 		c = g_ptr_array_index(comps, i);
 		if (c->edges->len > 1)
-			g_thread_pool_push(thread_pool, (gpointer) c->edges, NULL);
+			g_thread_pool_push(thread_pool, (gpointer) c, NULL);
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
 	free(data);
@@ -209,7 +225,8 @@ GPtrArray *get_components(edgearray *all_edges, char *psl_name) {
 	GPtrArray *hits = NULL;
 	GPtrArray *all_comps = NULL;
 	comp *new_c = NULL;
-	int i = 0, eg_id = 0, j = 0, has_more = 1, comp_id = 0, hit_start = 0;
+	int i = 0, eg_id = 0, j = 0, has_more = 1, comp_id = 0, hit_start = 0,
+			no_more_hits = 0;
 	blat_hit *h = NULL;
 	edge *eg = NULL, *eg_q = NULL, *eg_t = NULL;
 
@@ -218,6 +235,10 @@ GPtrArray *get_components(edgearray *all_edges, char *psl_name) {
 	hits = read_blat_hits(psl_name);
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
 
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		eg->visited = 0;
+	}
 	show_debug_msg(__func__, "Determining components...\n");
 	for (i = 0; i < all_edges->len; i++) {
 		eg = g_ptr_array_index(all_edges, i);
@@ -232,6 +253,16 @@ GPtrArray *get_components(edgearray *all_edges, char *psl_name) {
 		eg->visited = 1;
 		while (has_more) {
 			has_more = 0;
+			no_more_hits = 1;
+			for (j = hit_start; j < hits->len; j++) {
+				h = g_ptr_array_index(hits, j);
+				if (!h->visited) {
+					no_more_hits = 0;
+					break;
+				}
+			}
+			if (no_more_hits)
+				break;
 			//show_debug_msg(__func__, "Start edge: [%d, %d]; hit_start: %d \n", eg->id, eg->len, hit_start);
 			for (j = hit_start; j < hits->len; j++) {
 				h = g_ptr_array_index(hits, j);
@@ -247,6 +278,10 @@ GPtrArray *get_components(edgearray *all_edges, char *psl_name) {
 				eg_q = g_ptr_array_index(all_edges, eg_id);
 				eg_id = atoi(h->tname);
 				eg_t = g_ptr_array_index(all_edges, eg_id);
+				if (!eg_q->alive || !eg_t->alive) {
+					h->visited = 1;
+					continue;
+				}
 				if (edgearray_find(new_c->edges, eg_q) != NOT_FOUND
 						|| edgearray_find(new_c->edges, eg_t) != NOT_FOUND) {
 					// A->B and B->A, only add either one of the hits

@@ -14,6 +14,7 @@
 #include "peseq.h"
 #include "utils.h"
 #include "pealn.h"
+#include "roadmap.h"
 
 gint cmp_read_by_shift(gpointer a, gpointer b) {
 	bwa_seq_t *read_a = *((bwa_seq_t**) a);
@@ -1161,36 +1162,62 @@ void reset_edge_ids(edgearray *all_edges) {
 	free(ctg_name);
 }
 
-int reads_has_overlap(readarray *reads, const int edge_id,
-		const int insert_size, const int sd_insert_size) {
-	int i = 0, dis = 0, max_dis_1 = 0, max_dis_2 = 0;
-	bwa_seq_t *r = NULL, *r_target_pre = NULL, *r_pre = NULL;
-	for (i = 0; i < reads->len; i++) {
-		r = g_ptr_array_index(reads, i);
-		if (r->contig_id == edge_id)
-			r_target_pre = r;
-		else
-			r_pre = r;
-		if (r_pre && r_target_pre)
-			break;
-	}
-	if (r_pre == NULL || r_target_pre == NULL)
+/**
+ * Validate the pairs spanning two edges.
+ * eg: ------------------------------------         in_out: --------------------------------------
+ *       r1: -----  r3: -----    r2: -----                   m2: -----  m1: -----     m3: -----
+ * eg_dis = r2->shift - r1->shift; in_out_dis = m3->shift - m2->shift
+ * Both eg_dis and in_out_dis must be within insert_size
+ *
+ * Span size must be within insert_size:
+ * (eg->len - r2->shift) + m2->shift < insert_size
+ * (eg->len - r3->shift) + (in_out->len - m3->shift) < insert_size
+ *
+ * Assumption: the 'reads' have pairs ordered two by two: 2, 1, 301, 300, etc...
+ */
+int reads_has_overlap(readarray *pairs, edge *eg, edge *in_out,
+		const int ins_size, const int sd_ins_size) {
+	int i = 0, eg_min = 10000000, eg_max = 0, eg_dis = 0;
+	int in_out_min = 10000000, in_out_max = 0, in_out_dis = 0;
+	int eg_span = 0, in_out_span = 0;
+	bwa_seq_t *r = NULL, *mate = NULL;
+	bwa_seq_t *this_r = NULL, *in_out_m = NULL;
+	if (pairs->len < 2)
 		return 0;
-	for (i = 1; i < reads->len; i++) {
-		r = g_ptr_array_index(reads, i);
-		if (r->contig_id == edge_id) {
-			dis = abs(r->shift - r_target_pre->shift);
-			max_dis_1 = (max_dis_1 > dis) ? max_dis_1 : dis;
-			r_target_pre = r;
+	for (i = 0; i < pairs->len; i++) {
+		r = g_ptr_array_index(pairs, i);
+		if (eg->id == 2750)
+			p_query(__func__, r);
+		if (r->contig_id == eg->id) {
+			eg_min = (r->shift < eg_min) ? r->shift : eg_min;
+			eg_max = (r->shift > eg_max) ? r->shift : eg_max;
 		} else {
-			dis = abs(r->shift - r_pre->shift);
-			max_dis_2 = (max_dis_2 > dis) ? max_dis_2 : dis;
-			r_pre = r;
+			in_out_min = (r->shift < in_out_min) ? r->shift : in_out_min;
+			in_out_max = (r->shift > in_out_max) ? r->shift : in_out_max;
 		}
 	}
-	show_debug_msg(__func__, "Max distance: %d, %d \n", max_dis_1, max_dis_2);
-	if (max_dis_2 > 0 && max_dis_1 < insert_size + sd_insert_size && max_dis_2
-			< insert_size + sd_insert_size)
-		return 1;
-	return 0;
+	eg_dis = abs(eg_max - eg_min);
+	in_out_dis = abs(in_out_max - in_out_min);
+	show_debug_msg(__func__, "Max distance: %d - %d = %d, %d - %d = %d \n", eg_max, eg_min, eg_dis, in_out_max, in_out_min, in_out_dis);
+	if (eg_dis > ins_size + SD_TIMES * sd_ins_size || in_out_dis > ins_size + SD_TIMES * sd_ins_size)
+		return 0;
+	for (i = 0; i < pairs->len; i += 2) {
+		this_r = g_ptr_array_index(pairs, i);
+		in_out_m = g_ptr_array_index(pairs, i + 1);
+		if (this_r->contig_id != eg->id) {
+			r = this_r;
+			this_r = in_out_m;
+			in_out_m = r;
+		}
+		eg_span = this_r->shift;
+		if (eg->len - this_r->shift < this_r->shift)
+			eg_span = eg->len - this_r->shift;
+		in_out_span = in_out_m->shift;
+		if (in_out->len - in_out_m->shift < in_out_m->shift)
+			in_out_span = in_out->len - in_out_m->shift;
+		if (eg_span + in_out_span > ins_size + SD_TIMES * sd_ins_size)
+			return 0;
+	}
+	show_debug_msg(__func__, "Edge [%d, %d] is some in-out of Edge [%d, %d] \n", in_out->id, in_out->len, eg->id, eg->len);
+	return 1;
 }

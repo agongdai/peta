@@ -204,14 +204,14 @@ void add_mates_by_ol(const hash_table *ht, edge *eg, pool *cur_pool,
 		overlapped = find_ol_within_k(tmp, template, nm, ol - 1,
 				query->len - 1, ori);
 		/*if (strcmp(mate->name, "4830908") == 0) {
-		show_debug_msg(__func__, "---------- \n");
-			show_debug_msg("ORI", "ORI: %d \n", ori);
-			p_ctg_seq("QUERY", query);
-			p_query("MATE", tmp);
-			p_query("ORIG", mate);
-			p_query("USED", get_mate(mate, seqs));
-			show_debug_msg(__func__, "OVERLAP 1: %d \n", overlapped);
-		}*/
+		 show_debug_msg(__func__, "---------- \n");
+		 show_debug_msg("ORI", "ORI: %d \n", ori);
+		 p_ctg_seq("QUERY", query);
+		 p_query("MATE", tmp);
+		 p_query("ORIG", mate);
+		 p_query("USED", get_mate(mate, seqs));
+		 show_debug_msg(__func__, "OVERLAP 1: %d \n", overlapped);
+		 }*/
 		if (overlapped >= ol) {
 			// Only if this mate overlaps with some read in the cur_pool, add it.
 			// It is important because sometimes it maybe added just for coincidence.
@@ -483,33 +483,45 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 	while (1) {
 		//p_query(__func__, query);
 		reset_c(next, NULL); // Reset the counter
-		if (!cur_pool || is_repetitive_q(query) || has_rep_pattern(query)) {
+		if (is_repetitive_q(query) || has_rep_pattern(query)) {
 			show_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n", eg->id,
 					eg->len);
 			p_query("Repetitive pattern", query);
-			break;
+			// Try to add more reliable reads: the mate reads into the current pool
+			if (eg->len > insert_size - SD_TIMES * sd_insert_size) {
+				clear_pool(cur_pool);
+				add_mates_by_ol(ht, eg, cur_pool, query->len - 4, 0, query,
+						ori);
+				reset_c(next, NULL); // Reset the counter
+				check_next_char(cur_pool, eg, next, ori);
+			} else
+				break;
+		} else {
+			pe_aln_query(query, query->seq, ht, MISMATCHES, query->len, 0,
+					aligns);
+			pe_aln_query(query, query->rseq, ht, MISMATCHES, query->len, 1,
+					aligns);
+			//p_align(aligns);
+			maintain_pool(aligns, ht, cur_pool, eg, query, next, ori);
+			// If no read in current pool, try less stringent overlapped length and zero mismatches
+			if (eg->len > insert_size - SD_TIMES * sd_insert_size
+					&& cur_pool->reads->len <= 0) {
+				//show_debug_msg(__func__, "Trying mate pool... \n");
+				add_mates_by_ol(ht, eg, cur_pool, RELAX_MATE_OL_THRE,
+						SHORT_MISMATCH, query, ori);
+				reset_c(next, NULL); // Reset the counter
+				check_next_char(cur_pool, eg, next, ori);
+				//p_pool("After adding mates", cur_pool, next);
+			}
+			reset_alg(aligns);
 		}
-		pe_aln_query(query, query->seq, ht, MISMATCHES, query->len, 0, aligns);
-		pe_aln_query(query, query->rseq, ht, MISMATCHES, query->len, 1, aligns);
-		//p_align(aligns);
-		maintain_pool(aligns, ht, cur_pool, eg, query, next, ori);
-		// If no read in current pool, try less stringent overlapped length and zero mismatches
-		if (eg->len > insert_size - sd_insert_size && cur_pool->reads->len <= 0) {
-			//show_debug_msg(__func__, "Trying mate pool... \n");
-			add_mates_by_ol(ht, eg, cur_pool, RELAX_MATE_OL_THRE,
-					SHORT_MISMATCH, query, ori);
-			reset_c(next, NULL); // Reset the counter
-			check_next_char(cur_pool, eg, next, ori);
-			//p_pool("After adding mates", cur_pool, next);
-		}
-		reset_alg(aligns);
-		//p_query(__func__, query);
-		//show_debug_msg(__func__, "Ori %d, Edge %d, length %d \n", ori, eg->id,
-		//		eg->len);
-		//p_ctg_seq("Contig", eg->contig);
-		//p_pool("Current Pool", cur_pool, next);
 		c = get_pure_most(next);
-		//show_debug_msg(__func__, "Ori: %d, Next char: %d \n", ori, c);
+		p_query(__func__, query);
+		show_debug_msg(__func__, "Ori %d, Edge %d, length %d \n", ori, eg->id,
+				eg->len);
+		p_ctg_seq("Contig", eg->contig);
+		p_pool("Current Pool", cur_pool, next);
+		show_debug_msg(__func__, "Ori: %d, Next char: %d \n", ori, c);
 		if (cur_pool->n <= 0) {
 			show_msg(__func__, "[%d, %d] No hits, stop here. \n", eg->id,
 					eg->len);
@@ -802,7 +814,7 @@ void rescue_reads(bwa_seq_t *seqs, const int n_seqs) {
 	for (i = 0; i < n_seqs; i++) {
 		r = &seqs[i];
 		r->rev_com = 0;
-		if (r->status == TRIED) {
+		if (r->status != USED && r->status != DEAD) {
 			r->status = FRESH;
 			r->tid = -1;
 		}
@@ -1028,9 +1040,9 @@ void test_run(hash_table *ht, char *lib_file) {
 	edgearray *edges = g_ptr_array_sized_new(32);
 
 	pair_ctg_id = 1000;
-	query = &seqs[1241440];
+	query = &seqs[1196514];
 	p_query(__func__, query);
-	eg = pe_ext(ht, query, 1241440);
+	eg = pe_ext(ht, query, 1196514);
 	if (eg) {
 		show_msg(__func__, "[%d] %s: length %d, reads %d=>%d. \n", eg->id,
 				eg->name, eg->len, eg->reads->len, eg->pairs->len);
@@ -1057,21 +1069,28 @@ void test_run(hash_table *ht, char *lib_file) {
 void test_scaffolding(hash_table *ht) {
 	GPtrArray *paths = NULL;
 	FILE *merged_pair_contigs = NULL;
-	GPtrArray *hits = read_blat_hits("../SRR097897_out/merged.merged.psl");
-	edgearray *all_edges = load_rm(ht, "../SRR097897_out/roadmap.2.graph",
-			"../SRR097897_out/roadmap.2.reads",
-			"../SRR097897_out/merged_pair_contigs.fa");
+	GPtrArray *hits = read_blat_hits("../SRR027876_trim/merged.merged.psl");
+	edgearray *all_edges = load_rm(ht, "../SRR027876_trim/roadmap.1.graph",
+			"../SRR027876_trim/roadmap.1.reads",
+			"../SRR027876_trim/merged_pair_contigs.fa");
 
+	show_msg(__func__, "Removing sub edges... \n");
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
 	mark_sub_edge(all_edges, hits);
+	free_blat_hits(hits);
 
-	merged_pair_contigs = xopen("../SRR097897_out/validated.fa", "w");
+	realign_by_blat(all_edges, ht, n_threads);
+	merged_pair_contigs = xopen("../SRR027876_trim/validated.fa", "w");
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 
+	show_msg(__func__, "Scaffolding...\n");
 	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, ht,
-			1, "../SRR097897_out/merged.merged.psl");
+			n_threads, "../SRR027876_trim/merged.merged.psl");
+
+	show_msg(__func__, "Reporting paths of %d edges... \n", all_edges->len);
 	paths = report_paths(all_edges, ht->seqs);
-	save_paths(paths, "../SRR097897_out/peta.fa", 100);
+	show_msg(__func__, "Saving %d paths... \n", paths->len);
+	save_paths(paths, "../SRR027876_trim/peta.fa", 100);
 	exit(1);
 }
 
@@ -1159,8 +1178,8 @@ void consume_solid_reads(hash_table *ht, const double stop_thre,
 
 void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	hash_table *ht = NULL;
-	bwa_seq_t *seqs = NULL;
-	int n_paired_reads = 0, n_used_reads = 0, n_rep = 0;
+	bwa_seq_t *seqs = NULL, *s = NULL;
+	int n_paired_reads = 0, n_used_reads = 0, n_rep = 0, i = 0;
 	GPtrArray *all_edges = NULL;
 	readarray *solid_reads = NULL;
 	clean_opt *c_opt = NULL;
@@ -1203,48 +1222,50 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__,
 			"Stage 2/3: Trying to assembly more unpaired reads... \n");
-	rescue_reads(seqs, ht->n_seqs);
-	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
-	c_opt = init_clean_opt();
-	c_opt->kmer = 15;
-	c_opt->stop_thre = 1;
-	c_opt->n_threads = n_threads;
-	g_ptr_array_free(solid_reads, TRUE);
-	show_msg(__func__,
-			"Stage 2/3: Calculating solid reads from unpaired reads... \n");
-	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt, (ht->n_seqs
-			- n_paired_reads) * c_opt->stop_thre, 1, 1);
-	consume_solid_reads(ht, STOP_THRE_STAGE_2, all_edges, solid_reads,
-			&n_used_reads, &n_paired_reads);
-	free(c_opt);
-	clock_gettime(CLOCK_MONOTONIC, &finish_time);
-	show_msg(__func__, "Stage 2 finished: %.2f sec\n",
-			(float) (finish_time.tv_sec - start_time.tv_sec));
+	i = 2;
+	while(--i) {
+		rescue_reads(seqs, ht->n_seqs);
+		correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
+		c_opt = init_clean_opt();
+		c_opt->kmer = 15;
+		c_opt->stop_thre = 1;
+		c_opt->n_threads = n_threads;
+		g_ptr_array_free(solid_reads, TRUE);
+		show_msg(__func__,
+				"Stage 2/3: Calculating solid reads from unpaired reads... \n");
+		solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt, (ht->n_seqs
+				- n_paired_reads) * c_opt->stop_thre, 1, 1);
+		consume_solid_reads(ht, STOP_THRE_STAGE_2, all_edges, solid_reads,
+				&n_used_reads, &n_paired_reads);
+		free(c_opt);
+		clock_gettime(CLOCK_MONOTONIC, &finish_time);
+		show_msg(__func__, "Stage 2 finished: %.2f sec\n",
+				(float) (finish_time.tv_sec - start_time.tv_sec));
+	}
 
 	stage = 3;
 	show_msg(__func__, "========================================== \n");
 	show_msg(__func__, "Stage 3/3: Trying to assembly unpaired reads... \n");
 	rescue_reads(seqs, ht->n_seqs);
 	correct_used_numbers(ht, &n_used_reads, &n_paired_reads);
-	c_opt = init_clean_opt();
-	c_opt->kmer = 15;
-	c_opt->stop_thre = 1;
-	c_opt->n_threads = n_threads;
-	g_ptr_array_free(solid_reads, TRUE);
-	show_msg(__func__,
-			"Stage 3/3: Calculating solid reads from unpaired reads... \n");
-	solid_reads = calc_solid_reads(ht->seqs, ht->n_seqs, c_opt, (ht->n_seqs
-			- n_paired_reads) * c_opt->stop_thre, 1, 1);
+
+	while(solid_reads->len > 0) {
+		g_ptr_array_remove_index_fast(solid_reads, 0);
+	}
+	for (i = 0; i < ht->n_seqs; i++) {
+		s = &ht->seqs[i];
+		if (s->status == FRESH)
+			g_ptr_array_add(solid_reads, s);
+	}
 	consume_solid_reads(ht, STOP_THRE_STAGE_3, all_edges, solid_reads,
 			&n_used_reads, &n_paired_reads);
-	free(c_opt);
+	g_ptr_array_free(solid_reads, TRUE);
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Stage 3 finished: %.2f sec\n",
 			(float) (finish_time.tv_sec - start_time.tv_sec));
 
 	// ht is destoryed in this function
 	post_process_edges(ht, all_edges, lib_file);
-	g_ptr_array_free(solid_reads, TRUE);
 }
 
 int pe_lib_usage() {

@@ -665,13 +665,16 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 	uint32_t n_ctgs = 0;
 	int char_space = BUFSIZ - 1, char_len = 0;
 	edge *eg = NULL, *in_out_eg = NULL, *eg_i = NULL;
-	bwa_seq_t *r = NULL, *contigs = NULL, *ctg = NULL;
+	bwa_seq_t *r = NULL, *contigs = load_reads(contig_file, &n_ctgs), *ctg = NULL;
 	char *read_str = (char*) calloc(char_space, sizeof(char)); // allocate buffer.
 	char *attr[16], *shifts[16], ch = 0;
 
 	dump_fp = xopen(rm_dump_file, "r");
 	reads_fp = xopen(rm_reads_file, "r");
 	edges = g_ptr_array_sized_new(BUFSIZ);
+	show_msg(__func__, "Loading the edge sequences... \n");
+	// Assign the contig sequences
+	//contigs = load_reads(contig_file, &n_ctgs);
 	show_msg(__func__, "Loading roadmap from %s and %s... \n", rm_dump_file,
 			rm_reads_file);
 
@@ -817,9 +820,6 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 			}
 		}
 	}
-	show_msg(__func__, "Loading the edge sequences... \n");
-	// Assign the contig sequences
-	contigs = load_reads(contig_file, &n_ctgs);
 	show_msg(__func__, "Assigning contig sequences and updating read shift values... \n");
 	for (i = 0; i < edges->len; i++) {
 		no_right_connect_edge = 1;
@@ -832,11 +832,11 @@ edgearray *load_rm(const hash_table *ht, const char *rm_dump_file,
 				break;
 			}
 		}
-		/**if (eg->len <= 100) {
-			g_ptr_array_remove_index_fast(edges, i);
-			i--;
-			continue;
-		}**/
+		//if (eg->len <= 100) {
+		//	g_ptr_array_remove_index_fast(edges, i);
+		//	i--;
+		//	continue;
+		//}
 		// Set the root edges
 		// If an edge right connects to some other edge, go to the edge
 		while (eg->right_ctg) {

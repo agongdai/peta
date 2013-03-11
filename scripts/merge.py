@@ -163,6 +163,103 @@ def decode(args):
     fq.close()
     left.close()
     right.close()
+    
+def trim(args):
+    filebase, ext = os.path.splitext(args.fa)
+    trimmed_fn = '%s.trim%d.fa' % (filebase, args.n_trim)
+    trimmed = open(trimmed_fn, 'w')
+    fa = open(args.fa)
+    line_no = 0
+    for line in fa:
+        if line_no % 2 == 0:
+            trimmed.write(line)
+        else:
+            line = line.strip()
+            line = line[args.n_trim:0 - args.n_trim]
+            trimmed.write(line + '\n')
+        line_no += 1
+    trimmed.close()
+    fa.close()
+    print 'Check trimmed file %s ' % trimmed_fn
+    
+def is_n_rep(line, n):
+    if len(line) - n <= 0:
+        return 0
+    is_n_rep = 1
+    for i in range(len(line) - n):
+        if not line[i] == line[i + n]:
+            is_n_rep = 0
+            break
+    if is_n_rep:
+        return 1
+    return 0
+    
+def view(args):
+    f = open(args.fa)
+    filebase, ext = os.path.splitext(args.fa)
+    filtered_fn = '%s.filtered.fa' % (filebase)
+    filtered = open(filtered_fn, 'w')
+    n_total = 0
+    n_has_n = 0
+    n_all_same = 0
+    n_biased = 0
+    n_2_rep = 0
+    n_3_rep = 0
+    n_part_rep = 0
+    read_id = 0
+    for line in f:
+        if '>' in line:
+            continue
+        n_total += 1
+        counter = [0 for x in range(5)]
+        if n_total % 1000000 == 0:
+            print 'Processed %d...' % n_total
+        line = line.upper().strip()
+        if 'N' in line:
+            n_has_n += 1
+            continue
+        for i in range(len(line)):
+            if line[i] == 'A':
+                counter[0] += 1
+            elif line[i] == 'C':
+                counter[1] += 1
+            elif line[i] == 'G':
+                counter[2] += 1
+            elif line[i] == 'T':
+                counter[3] += 1
+            elif line[i] == 'N':
+                counter[4] += 1
+        if len(line) in counter:
+            n_all_same += 1
+            #print 'All same: ' + line
+            continue
+        if len(line) - 1 in counter or len(line) - 2 in counter or len(line) - 3 in counter or len(line) - 4 in counter or len(line) - 5 in counter:
+            n_biased += 1
+            #print 'Biased: ' + line
+            continue
+        if is_n_rep(line, 2):
+            n_2_rep += 1
+            #print '2 bases: ' + line
+            continue
+        if is_n_rep(line, 3):
+            n_3_rep += 1
+            continue
+        filtered.write('>%d\n' % read_id)
+        filtered.write(line + '\n')
+        read_id += 1
+        for i in range(len(line) - 8):
+            if is_n_rep(line[i:i+10], 2):
+                n_part_rep += 1
+                #print 'Partial 2 bases: ' + line
+                break
+    print 'Total reads:              %d' % n_total
+    print 'Has N\'s:                  %d' % n_has_n
+    print 'All base same:            %d' % n_all_same
+    print 'Bases biased:             %d' % n_biased
+    print '2 bases repeat:           %d' % n_2_rep
+    print '3 bases repeat:           %d' % n_3_rep
+    print 'Partial repeat:           %d' % n_part_rep
+    print '%d reads remained. Check file %s ' % (read_id, filtered_fn)
 
 def main():
     parser = ArgumentParser()
@@ -205,6 +302,15 @@ def main():
     parser_app_pair_suffix.add_argument('-f', required=True, help='file', dest='seq_file', metavar='FILE')
     parser_app_pair_suffix.add_argument('-o', required=True, help='output file', dest='fq_with_tag', metavar='FILE')
     parser_app_pair_suffix.add_argument('-d', required=True, default='left', help='left or right', dest='ori')
+    
+    parser_trim = subparsers.add_parser('trim', help='trim the reads, head and tail')
+    parser_trim.set_defaults(func=trim)
+    parser_trim.add_argument('-f', '--fasta', required=True, help='fasta file', dest='fa', metavar='FILE')
+    parser_trim.add_argument('-n', required=False, type=int, default=2, help='fasta file', dest='n_trim')
+    
+    parser_view = subparsers.add_parser('view', help='view the quality of a Fasta file')
+    parser_view.set_defaults(func=view)
+    parser_view.add_argument('fa', help='fasta file', metavar='FILE')
 
     args = parser.parse_args()
     args.func(args)

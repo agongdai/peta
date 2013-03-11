@@ -472,6 +472,7 @@ void clear_pool(pool *r_pool) {
 		r = g_ptr_array_index(reads, i);
 		r->is_in_c_pool = 0;
 		r->is_in_m_pool = 0;
+		r->tid = -1;
 	}
 	while (reads->len > 0)
 		g_ptr_array_remove_index(r_pool->reads, 0);

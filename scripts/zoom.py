@@ -1,4 +1,4 @@
-import sys, os, pysam
+import sys, os, pysam, math
 from subprocess import Popen, PIPE
 import eva, merge
 from eva import FastaFile
@@ -92,6 +92,19 @@ def pair_to_ref(args):
     print summary
     print 'Check text alignment at file %s.pairs.hits' % tx_name
 
+def get_mean(values):
+    sum = 0
+    for v in values:
+        sum += v
+    return sum / len(values)
+    
+def dev(values, mean):  
+    size = len(values)  
+    sum_x2 = 0.0  
+    for v in values:
+        sum_x2 += (v - mean) ** 2
+    return math.sqrt(sum_x2 / (size - 1)) 
+
 def zoom_tx(tx_name, ref, blat_psl, ctg_or_read):
     lines = runInShell('grep ' + tx_name + ' ' + blat_psl)
     hit_lines = lines.split('\n')
@@ -104,6 +117,7 @@ def zoom_tx(tx_name, ref, blat_psl, ctg_or_read):
     for qname, h in hits.iteritems():
         tx_hits.append(h[0])
     summary = ''    
+    spans = []
     if ctg_or_read == 'read':
         n_reads = len(tx_hits)
         n_pairs = 0
@@ -143,12 +157,13 @@ def zoom_tx(tx_name, ref, blat_psl, ctg_or_read):
                 if not h_pre is None:
                     if int(h.qname) - int(h_pre.qname) == 1:
                         n_pairs += 1
+                        spans.append(abs(h.rstart - h_pre.rstart))
             except:
                 pass
             h_pre = h
         if len(tx_hits) > 0:
-            summary += 'transcript:       %s\n' % tx_name
-            summary += 'tx length:        %s\n' % len(tx_seq)
+            summary += 'Transcript:       %s\n' % tx_name
+            summary += 'Tx length:        %s\n' % len(tx_seq)
             summary += '# of reads:       %d\n' % n_reads
             summary += '# of pairs:       2 * %d\n' % n_pairs
             summary += 'Full match:       %d\n' % n_match
@@ -159,6 +174,8 @@ def zoom_tx(tx_name, ref, blat_psl, ctg_or_read):
             summary += '5 mismatch:       %d\n' % n_match_minus_5
             summary += '>5 mismatch:      %d\n' % n_match_lt_5
             summary += '>1 blocks:        %d\n' % n_lt_one_block
+            summary += 'Mean span:        %.2f\n' % (get_mean(spans))
+            summary += 'Std dev:          %.2f\n' % (dev(spans, get_mean(spans)))
     
     tx_hits.sort(key=lambda x: x.n_blocks, reverse=False)
     tx_hits.sort(key=lambda x: x.rstart, reverse=False)
@@ -370,9 +387,9 @@ def draw_dot(args):
             b = Block(args.transcript, -1, next_m, h.qlen, False)
             blocks[args.transcript].append(b)
             
-    print '-----------------------------'
-    print blocks[args.transcript]
-    print '-----------------------------'
+#    print '-----------------------------'
+#    print blocks[args.transcript]
+#    print '-----------------------------'
 
     # Determine the blocks of 'reference' transcripts
     for h in hits:
@@ -407,7 +424,7 @@ def draw_dot(args):
                     blocks[rname].append(b)
     
     for t, tx_blocks in blocks.iteritems():
-        print t, tx_blocks
+#        print t, tx_blocks
         if len(blocks[t]) > 0:
             dot.write('\t%s_0 [fixedsize=true, width=3, style=filled, fillcolor=%s, shape=box, label="%s:%d"] \n' % (nice_name(t), 'orange', t, tx.get_seq_len(t)))
     
@@ -428,10 +445,10 @@ def draw_dot(args):
                 if b.id != i:
                     has_dummy = True
         
-        print '----------------------'    
-        print 'has_dummy ', has_dummy
-        print 'all_covered ', all_covered
-        print tx_cursors
+#        print '----------------------'    
+#        print 'has_dummy ', has_dummy
+#        print 'all_covered ', all_covered
+#        print tx_cursors
         # For each 'referece transcript', draw until the current 'hit block' i
         for t, tx_blocks in blocks.iteritems():
             cursor = tx_cursors[t]
@@ -477,6 +494,7 @@ def draw_dot(args):
         
     dot.write('} \n')
     dot.close()
+    print 'Check file %s.dot' % args.transcript
     
 def gen_cov(args):
     tx = eva.FastaFile(args.transcript)
