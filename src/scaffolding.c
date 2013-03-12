@@ -232,7 +232,7 @@ GPtrArray *get_components(edgearray *all_edges, char *psl_name) {
 
 	all_comps = g_ptr_array_sized_new(16);
 	show_debug_msg(__func__, "Reading Blat hits...\n");
-	hits = read_blat_hits(psl_name);
+	hits = read_blat_hits(psl_name, 100);
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
 
 	for (i = 0; i < all_edges->len; i++) {

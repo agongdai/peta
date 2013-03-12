@@ -982,7 +982,7 @@ void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 
 	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Removing sub edges... \n");
-	hits = read_blat_hits(psl_name);
+	hits = read_blat_hits(psl_name, 100);
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
 	mark_sub_edge(all_edges, hits);
 	free_blat_hits(hits);
@@ -1069,7 +1069,7 @@ void test_run(hash_table *ht, char *lib_file) {
 void test_scaffolding(hash_table *ht) {
 	GPtrArray *paths = NULL;
 	FILE *merged_pair_contigs = NULL;
-	GPtrArray *hits = read_blat_hits("../SRR027876_trim/merged.merged.psl");
+	GPtrArray *hits = read_blat_hits("../SRR027876_trim/merged.merged.psl", 100);
 	edgearray *all_edges = load_rm(ht, "../SRR027876_trim/roadmap.1.graph",
 			"../SRR027876_trim/roadmap.1.reads",
 			"../SRR027876_trim/merged_pair_contigs.fa");
@@ -1079,7 +1079,7 @@ void test_scaffolding(hash_table *ht) {
 	mark_sub_edge(all_edges, hits);
 	free_blat_hits(hits);
 
-	realign_by_blat(all_edges, ht, n_threads);
+	//realign_by_blat(all_edges, ht, n_threads);
 	merged_pair_contigs = xopen("../SRR027876_trim/validated.fa", "w");
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 

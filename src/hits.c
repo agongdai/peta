@@ -101,7 +101,7 @@ gint cmp_hit_by_qname(gpointer a, gpointer b) {
 	return (atoi(hit_a->qname) - atoi(hit_b->qname));
 }
 
-GPtrArray *read_blat_hits(const char *psl_file) {
+GPtrArray *read_blat_hits(const char *psl_file, const int min_match) {
 	char buf[BUFSIZ];
 	char *attr[64], *index[16];
 	FILE *psl = NULL;
@@ -120,6 +120,8 @@ GPtrArray *read_blat_hits(const char *psl_file) {
 		while (attr[i] != NULL) { //ensure a pointer was found
 			attr[++i] = strtok(NULL, "\t"); //continue to tokenize the string
 		}
+		if (atoi(attr[0]) < min_match)
+			continue;
 		h = new_hit();
 		h->matches = atoi(attr[0]);
 		h->mismatches = atoi(attr[1]);

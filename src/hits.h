@@ -38,7 +38,7 @@ typedef struct {
 	int alen;
 } blat_hit;
 
-GPtrArray *read_blat_hits(const char *psl_file);
+GPtrArray *read_blat_hits(const char *psl_file, const int min_match);
 void p_hit(blat_hit *h);
 gint cmp_hit_by_qname(gpointer a, gpointer b);
 void realign_by_blat(edgearray *all_edges, hash_table *ht, const int n_threads);
