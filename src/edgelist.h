@@ -11,6 +11,7 @@
 extern "C" {
 #endif
 
+#include <glib.h>
 #include "edge.h"
 #include "bwase.h"
 #include "pealn.h"
@@ -26,6 +27,7 @@ extern "C" {
 #define SHORT_MISMATCH			1
 #define UPD_READS_THRE			10000
 
+void reset_read_ctg_id(bwa_seq_t *seqs, const int n_seqs);
 gint cmp_read_by_name(gpointer a, gpointer b);
 void g_ptr_array_add_index(GPtrArray *array, gpointer data, const int index);
 void

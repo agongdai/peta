@@ -869,15 +869,14 @@ void run_threads(edgearray *all_edges, readarray *solid_reads, hash_table *ht,
 	free(data);
 }
 
-void post_process_edges(hash_table *ht, edgearray *all_edges) {
+void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 	edgearray *final_paths = NULL;
 	FILE *pair_contigs = NULL;
 	FILE *merged_pair_contigs = NULL;
 	char *name = NULL, *reads_name = NULL, *psl_name = NULL, blat_cmd[BUFSIZE];
 	bwa_seq_t *seqs = NULL;
-	edge *eg = NULL;
-	int i = 0;
 	GPtrArray *hits = NULL;
+	hash_table *fresh_ht = NULL;
 
 	seqs = ht->seqs;
 	clean_edges(ht, all_edges);
@@ -887,30 +886,41 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 
 	name = get_output_file("pair_contigs.fa");
 	pair_contigs = xopen(name, "w");
+	reset_read_ctg_id(ht->seqs, ht->n_seqs);
+	reset_edge_ids(all_edges);
 	save_edges(all_edges, pair_contigs, 0, 0, 0);
 	fflush(pair_contigs);
 	free(name);
 
-	reset_edge_ids(all_edges);
+	if (debug_mode) {
+		name = get_output_file("roadmap.graph");
+		reads_name = get_output_file("roadmap.reads");
+		dump_rm(all_edges, name, reads_name);
+		free(reads_name);
+		free(name);
+	}
+
 	show_msg(__func__, "========================================== \n\n");
 	show_msg(__func__, "Merging edges by overlapping... \n");
-	// Only the sequences are used during merging and scaffolding
-	free(ht->k_mers_occ_acc);
-	free(ht->pos);
-	ht->k_mers_occ_acc = NULL;
-	ht->pos = NULL;
-	for (i = 0; i < all_edges->len; i++) {
-		eg = g_ptr_array_index(all_edges, i);
-		set_rev_com(eg->contig);
-		g_ptr_array_sort(eg->reads, (GCompareFunc) cmp_read_by_name);
-	}
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
 	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
+	//reset_read_ctg_id(ht->seqs, ht->n_seqs);
+	reset_edge_ids(all_edges);
 	name = get_output_file("merged_pair_contigs.fa");
 	merged_pair_contigs = xopen(name, "w");
-	reset_edge_ids(all_edges);
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 	fflush(merged_pair_contigs);
+	fclose(merged_pair_contigs);
+	free(name);
+
+	if (debug_mode) {
+		name = get_output_file("roadmap.1.graph");
+		reads_name = get_output_file("roadmap.1.reads");
+		dump_rm(all_edges, name, reads_name);
+		free(reads_name);
+		free(name);
+	}
+
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Template merging finished: %.2f sec\n",
 			(float) (finish_time.tv_sec - start_time.tv_sec));
@@ -918,6 +928,7 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Blatting merged contigs to find overlapping...\n");
 	psl_name = get_output_file("merged.merged.psl");
+	name = get_output_file("merged_pair_contigs.fa");
 	show_msg(__func__, "%s %s %s %s ... \n", blat_exe, name, name, psl_name);
 	sprintf(blat_cmd, "%s %s %s %s", blat_exe, name, name, psl_name);
 	if (system(blat_cmd) != 0) {
@@ -932,41 +943,32 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Removing sub edges... \n");
 	hits = read_blat_hits(psl_name);
-	free(psl_name);
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
 	mark_sub_edge(all_edges, hits);
-	reset_edge_ids(all_edges);
-	name = get_output_file("validated.fa");
-	merged_pair_contigs = xopen(name, "w");
-	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
-	psl_name = get_output_file("validated.validated.psl");
-	show_msg(__func__, "%s %s %s %s ... \n", blat_exe, name, name, psl_name);
-	sprintf(blat_cmd, "%s %s %s %s", blat_exe, name, name, psl_name);
-	if (system(blat_cmd) != 0) {
-		err_fatal(__func__, "Failed to call 'system' to execute %s \n",
-				blat_cmd);
-	}
-	clock_gettime(CLOCK_MONOTONIC, &finish_time);
-	show_msg(__func__, "Blat finished: %.2f sec\n", (float) (finish_time.tv_sec
-			- start_time.tv_sec));
-	free(name);
+	free_blat_hits(hits);
+	// The kmer list and pos list are shrinked, not used anymore
+	destroy_ht(ht);
 
 	show_msg(__func__, "========================================== \n\n ");
-	if (debug_mode) {
-		realign_by_blat(all_edges, ht, n_threads);
-		name = get_output_file("roadmap.graph");
-		reads_name = get_output_file("roadmap.reads");
-		dump_rm(all_edges, name, reads_name);
-		free(reads_name);
-		free(name);
-	}
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
+	//fresh_ht = pe_load_hash(lib_file);
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
-	scaffolding(all_edges, insert_size, sd_insert_size, ht, n_threads, psl_name);
+	//realign_by_blat(all_edges, fresh_ht, n_threads);
+	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, fresh_ht,
+			n_threads, psl_name);
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Scaffolding finished: %.2f sec\n",
 			(float) (finish_time.tv_sec - start_time.tv_sec));
 	free(psl_name);
+
+	if (debug_mode) {
+		//realign_by_blat(all_edges, ht, n_threads);
+		name = get_output_file("roadmap.2.graph");
+		reads_name = get_output_file("roadmap.2.reads");
+		dump_rm(all_edges, name, reads_name);
+		free(reads_name);
+		free(name);
+	}
 
 	show_msg(__func__, "========================================== \n\n ");
 	if (debug_mode) {
@@ -986,14 +988,13 @@ void post_process_edges(hash_table *ht, edgearray *all_edges) {
 
 	free(name);
 	fclose(pair_contigs);
-	fclose(merged_pair_contigs);
 	g_ptr_array_free(all_edges, TRUE);
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Post processing finished: %.2f sec\n",
 			(float) (finish_time.tv_sec - start_time.tv_sec));
 }
 
-void test_run(hash_table *ht) {
+void test_run(hash_table *ht, char *lib_file) {
 	bwa_seq_t *seqs = ht->seqs, *query = NULL;
 	edge *eg = NULL;
 	edgearray *edges = g_ptr_array_sized_new(32);
@@ -1020,7 +1021,7 @@ void test_run(hash_table *ht) {
 	//		show_msg(__func__, "Hey, not extended. \n");
 	//	}
 
-	post_process_edges(ht, edges);
+	post_process_edges(ht, edges, lib_file);
 	exit(1);
 }
 
@@ -1155,7 +1156,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	all_edges = g_ptr_array_sized_new(BUFSIZ);
 	ht = pe_load_hash(lib_file);
 	//test_run(ht);
-	test_scaffolding(ht);
+	//test_scaffolding(ht);
 	//test_merge(ht);
 	seqs = &ht->seqs[0];
 	show_msg(__func__, "Removing repetitive reads... \n");
@@ -1226,7 +1227,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	show_msg(__func__, "Stage 3 finished: %.2f sec\n",
 			(float) (finish_time.tv_sec - start_time.tv_sec));
 
-	post_process_edges(ht, all_edges);
+	post_process_edges(ht, all_edges, lib_file);
 	g_ptr_array_free(solid_reads, TRUE);
 	destroy_ht(ht);
 }
@@ -1235,6 +1236,16 @@ int pe_lib_usage() {
 	show_msg(__func__,
 			"Command: ./peta pair -p MAX_PAIRS read_file starting_reads \n");
 	return 1;
+}
+
+void test_int() {
+	uint64_t n = 42949672950;
+	int *counter = (int*) calloc(n, sizeof(int));
+	counter[42949672949] = 4095;
+	show_debug_msg(__func__, "%" ID64 "\n", n);
+	show_debug_msg(__func__, "%d\n", counter[42949672949]);
+	free(counter);
+	exit(1);
 }
 
 int pe_lib(int argc, char *argv[]) {
@@ -1281,13 +1292,14 @@ int pe_lib(int argc, char *argv[]) {
 	show_msg(__func__, "Output folder: %s \n", out_root);
 	show_msg(__func__, "Insert size: %d \n", insert_size);
 	show_msg(__func__, "Standard deviation: %d \n", sd_insert_size);
-	if (n_max_pairs > 0) {
-		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
-	} else {
-		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
-	}
-	clock_gettime(CLOCK_MONOTONIC, &finish_time);
-	show_msg(__func__, "Done: %.2f sec\n", (float) (finish_time.tv_sec
-			- start_time.tv_sec));
+	test_int();
+//	if (n_max_pairs > 0) {
+//		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
+//	} else {
+//		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
+//	}
+//	clock_gettime(CLOCK_MONOTONIC, &finish_time);
+//	show_msg(__func__, "Done: %.2f sec\n", (float) (finish_time.tv_sec
+//			- start_time.tv_sec));
 	return 0;
 }

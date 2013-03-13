@@ -76,6 +76,16 @@ void p_hit(blat_hit *h) {
 	printf("\t\n");
 }
 
+void free_blat_hits(GPtrArray *hits) {
+	int i = 0;
+	blat_hit *h = NULL;
+	for(i = 0; i < hits->len; i++) {
+		h = g_ptr_array_index(hits, i);
+		free(h);
+	}
+	g_ptr_array_free(hits, TRUE);
+}
+
 gint cmp_hit_by_qname(gpointer a, gpointer b) {
 	blat_hit *hit_a = *((blat_hit**) a);
 	blat_hit *hit_b = *((blat_hit**) b);

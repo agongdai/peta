@@ -38,6 +38,7 @@ typedef struct {
 	int alen;
 } blat_hit;
 
+void free_blat_hits(GPtrArray *hits);
 GPtrArray *read_blat_hits(const char *psl_file);
 void p_hit(blat_hit *h);
 gint cmp_hit_by_qname(gpointer a, gpointer b);

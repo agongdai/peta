@@ -15,6 +15,15 @@
 #include "utils.h"
 #include "pealn.h"
 
+void reset_read_ctg_id(bwa_seq_t *seqs, const int n_seqs) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < n_seqs; i++) {
+		r = &seqs[i];
+		r->contig_id = -1;
+	}
+}
+
 gint cmp_read_by_shift(gpointer a, gpointer b) {
 	bwa_seq_t *read_a = *((bwa_seq_t**) a);
 	bwa_seq_t *read_b = *((bwa_seq_t**) b);

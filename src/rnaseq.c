@@ -43,3 +43,38 @@ bwa_seq_t *load_reads(const char *fa_fn, uint32_t *n_seqs) {
 	*n_seqs = n_seqs_loaded;
 	return seqs;
 }
+
+bwa_seq_t *binary_seq(bwa_seq_t *seqs, int n_seqs, bwa_seq_t *read) {
+	unsigned int start = 0, end = n_seqs - 1, middle = 0;
+	int cmp_rs = 0;
+	bwa_seq_t *r = NULL;
+
+	if (n_seqs <= 0 || !read)
+		return NULL;
+
+	r = &seqs[0];
+	cmp_rs = strcmp(read->seq, r->seq);
+	if (cmp_rs == -1)
+		return NULL;
+	r = &seqs[n_seqs - 1];
+	cmp_rs = strcmp(read->seq, r->seq);
+	if (cmp_rs == 1)
+		return NULL;
+
+	// Binary search
+	//	printf("[exists] Looking for %d \n", read_id);
+	while (start <= end) {
+		middle = (end + start) / 2;
+		r = &seqs[middle];
+		cmp_rs = strcmp(read->seq, r->seq);
+		if (cmp_rs == 0) {
+			return r;
+		} else {
+			if (cmp_rs == 1)
+				start = middle + 1;
+			else
+				end = middle - 1;
+		}
+	}
+	return NULL;
+}
