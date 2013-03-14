@@ -305,10 +305,10 @@ roadmap *new_rm() {
 edge *new_eg() {
 	edge *eg = (edge*) malloc(sizeof(edge));
 	eg->contig = 0;
-	eg->in_egs = g_ptr_array_sized_new(MAX_N_EDGE_IN);
-	eg->out_egs = g_ptr_array_sized_new(MAX_N_EDGE_OUT);
-	eg->reads = g_ptr_array_sized_new(INIT_N_READ_USED);
-	eg->pairs = g_ptr_array_sized_new(INIT_N_READ_USED);
+	eg->in_egs = g_ptr_array_sized_new(0);
+	eg->out_egs = g_ptr_array_sized_new(0);
+	eg->reads = g_ptr_array_sized_new(0);
+	eg->pairs = g_ptr_array_sized_new(0);
 	eg->name = NULL;
 	eg->right_ctg = NULL;
 	eg->left_ctg = NULL;
@@ -320,7 +320,7 @@ edge *new_eg() {
 	eg->alive = 1;
 	eg->is_root = 0;
 	eg->ori = 0;
-	eg->gaps = g_ptr_array_sized_new(INIT_N_GAPS);
+	eg->gaps = g_ptr_array_sized_new(0);
 	eg->level = -1;
 	eg->comp_id = -1;
 	return eg;

@@ -1,6 +1,6 @@
 import operator
 
-seq = open('../rnaseq/Spombe/SRR097897/SRR097897.fa')
+seq = open('/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa')
 kmer_fn = '../SRR097897_out/kmer.freq'
 kmer = open(kmer_fn, 'w')
 k = 25
@@ -11,19 +11,26 @@ for l in seq:
         continue
     read_no += 1
     line = l.upper().strip()
-    for i in range(len(line) - k):
+    for i in range(len(line) - k + 1):
         s = line[i:i+k]
-        if not s in counter:
-            counter[s] = 0
-        counter[s] += 1
+        #print s
+        try:
+            counter[s] += 1
+        except:
+            counter[s] = 1
+#    if read_no == 1:
+#        break
     if read_no % 1000000 == 0:
         print '%d reads kmer counted...' % read_no
 
+#i = 0
+#for s, count in counter.iteritems():
+#    i += 1
+#    print '%d-%s: %d' % (i, s, count)
+
 seq.close()
 print '%d reads kmer counted.' % read_no
-print 'Sorting the kmer frequencies...'
-sorted_counter = sorted(counter.iteritems(), key=operator.itemgetter(1), reverse=True)
 print 'Saving to %s' % kmer_fn
-for s, number in sorted_counter.iteritems():
+for s, number in counter.iteritems():
     kmer.write('>%d\n' % number)
     kmer.write('%s\n' % s)

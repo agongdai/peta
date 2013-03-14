@@ -27,6 +27,8 @@
 #include "merge.h"
 #include "hits.h"
 #include "rnaseq.h"
+#include "list.h"
+#include "kmer.h"
 
 int pair_ctg_id = 0;
 int overlap_len = 0;
@@ -1280,7 +1282,7 @@ int pe_lib(int argc, char *argv[]) {
 		}
 	}
 	//test_smith_waterman(argv[optind]);
-	if (optind + 2 > argc) {
+	if (optind + 3 > argc) {
 		return pe_lib_usage();
 	}
 	if (!g_thread_supported())
@@ -1292,7 +1294,7 @@ int pe_lib(int argc, char *argv[]) {
 	show_msg(__func__, "Output folder: %s \n", out_root);
 	show_msg(__func__, "Insert size: %d \n", insert_size);
 	show_msg(__func__, "Standard deviation: %d \n", sd_insert_size);
-	test_int();
+	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2]);
 //	if (n_max_pairs > 0) {
 //		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
 //	} else {

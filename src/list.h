@@ -2,25 +2,18 @@
 #ifndef LIST_H_
 #define LIST_H_
 
-#define STACK_SIZE 1024
-#define NOT_FOUND = -999;
+#include <glib.h>
 
 typedef struct
 {
-    int v[STACK_SIZE];
-    int top;
-    int cursor;
-} list;
+	GPtrArray *values;
+	GCompareFunc cmp_f; // Function for comparison
+	int order; 			// 0: increasing; 1: reversed; -1: not sorted
+} slist;
 
-void push(list *s, int val);
-int pop(list *s);
-int pop2(list *s);
-void init(list *s);
-int full(list *s);
-int empty (list *s);
-void p_stack(list *s);
-void clear(list *s);
-int find(list *s, int value);
-int get_size(list *s);
+slist *new_slist(GCompareFunc cmp_f);
+int slist_binary(slist *sl, gpointer query);
+int slist_ins_pt(slist *sl, gpointer new_pt);
+gint cmp_kmer_by_seq(gpointer a, gpointer b);
 
 #endif

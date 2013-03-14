@@ -15,4 +15,7 @@ typedef struct {
 	int fre;
 } mer;
 
+void ext_by_kmers(const char *lib_file, const char *solid_file,
+		const char *kmer_file);
+
 #endif /* KMER_H_ */
