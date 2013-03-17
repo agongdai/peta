@@ -99,6 +99,7 @@ void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp);
 int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs, const int n_seqs);
 indexes *load_index(const char *fn);
 int same_q(const bwa_seq_t *query, const bwa_seq_t *seq);
+int same_bytes(const bwa_seq_t *s);
 int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
 		const int mismatches, const int max_n_gaps, const int score_mat,
 		const int score_mis, const int score_gap);
@@ -115,6 +116,7 @@ int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 		int mismatches);
 int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,
 		const int mismatches);
+void switch_ubyte(bwa_seq_t *s);
 int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *template,
 		const int mismatches, const int min_len, const int max_len,
 		const int ori);

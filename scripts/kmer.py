@@ -31,6 +31,8 @@ for l in seq:
 seq.close()
 print '%d reads kmer counted.' % read_no
 print 'Saving to %s' % kmer_fn
-for s, number in counter.iteritems():
+sorted_counter = sorted(counter.iterkeys())
+for s in sorted_counter:
+    number = counter[s]
     kmer.write('>%d\n' % number)
     kmer.write('%s\n' % s)

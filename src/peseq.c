@@ -31,7 +31,7 @@ void save_fq(const bwa_seq_t *seqs, const char *fp_fn, const uint16_t ol) {
 	sprintf(header, "@%s\n", "0.1");
 	fputs(header, fq_fp);
 	for (i = seqs->len - ol; i < seqs->len; i++) {
-		fputc("acgtn"[(int) seqs->seq[i]], fq_fp);
+		fputc("ACGTN"[(int) seqs->seq[i]], fq_fp);
 	}
 	fputs("\n+\n", fq_fp);
 	for (i = ol - 1; i >= 0; i--) {
@@ -92,7 +92,7 @@ void p_seq(const char *header, const ubyte_t *seq, const int len) {
 		if (seq[i] > 4)
 			printf("%c", seq[i]);
 		else
-			printf("%c", "acgtn"[(int) seq[i]]);
+			printf("%c", "ACGTN"[(int) seq[i]]);
 	}
 	printf("\n");
 }
@@ -191,10 +191,10 @@ bwa_seq_t *merge_seq(bwa_seq_t *s1, bwa_seq_t *s2, const int shift) {
 void map(bwa_seq_t *bwa_seq) {
 	unsigned int i = 0;
 	for (i = 0; i < bwa_seq->len; i++) {
-		bwa_seq->seq[i] = "acgtn"[(int) bwa_seq->seq[i]];
+		bwa_seq->seq[i] = "ACGTN"[(int) bwa_seq->seq[i]];
 	}
 	for (i = 0; i < bwa_seq->len; i++) {
-		bwa_seq->rseq[i] = "acgtn"[(int) bwa_seq->rseq[i]];
+		bwa_seq->rseq[i] = "ACGTN"[(int) bwa_seq->rseq[i]];
 	}
 }
 
@@ -275,12 +275,12 @@ void p_query(const char *header, const bwa_seq_t *q) {
 			if (q->rseq[i] > 4)
 				printf("%c", q->rseq[i]);
 			else
-				printf("%c", "acgtn"[(int) q->rseq[i]]);
+				printf("%c", "ACGTN"[(int) q->rseq[i]]);
 		} else {
 			if (q->seq[i] > 4)
 				printf("%c", q->seq[i]);
 			else
-				printf("%c", "acgtn"[(int) q->seq[i]]);
+				printf("%c", "ACGTN"[(int) q->seq[i]]);
 		}
 	}
 	if (q->is_in_c_pool)
@@ -317,7 +317,7 @@ void p_ctg_seq(const char *header, const bwa_seq_t *q) {
 		if (q->seq[i] > 4)
 			printf("%c", q->seq[i]);
 		else
-			printf("%c", "acgtn"[(int) q->seq[i]]);
+			printf("%c", "ACGTN"[(int) q->seq[i]]);
 	}
 	printf("\n");
 }
@@ -393,7 +393,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	else
 		p->name = (char*) calloc(1, sizeof(char));
 	p->seq = (ubyte_t*) malloc(ol + 1);
-	p->rseq = 0;
+	p->rseq = NULL;
 	memcpy(p->seq, query->seq + shift, ol);
 	p->seq[ol] = '\0';
 	p->rseq = (ubyte_t*) malloc(ol + 1);
@@ -402,6 +402,13 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	p->rseq[ol] = '\0';
 
 	return p;
+}
+
+void switch_ubyte(bwa_seq_t *s) {
+	ubyte_t *b = NULL;
+	b = s->seq;
+	s->seq = s->rseq;
+	s->rseq = b;
 }
 
 void set_rev_com(bwa_seq_t *s) {
@@ -488,7 +495,7 @@ void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp) {
 
 	for (i = 0; i < contig->len; i++) {
 		c = contig->seq[i];
-		c = "acgtn"[(int) c];
+		c = "ACGTN"[(int) c];
 		fputc(c, tx_fp);
 		if ((i + 1) % LINELEN == 0) {
 			fputc('\n', tx_fp);
@@ -566,6 +573,15 @@ int same_q(const bwa_seq_t *query, const bwa_seq_t *seq) {
 	i = query->len;
 	while (i--) {
 		if (query->seq[i] != seq->seq[i])
+			return 0;
+	}
+	return 1;
+}
+
+int same_bytes(const bwa_seq_t *s) {
+	int i = 0;
+	for (i = 0; i < s->len - 1; i++) {
+		if (s->seq[i] != s->seq[i + 1])
 			return 0;
 	}
 	return 1;
