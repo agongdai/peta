@@ -29,6 +29,7 @@
 #include "rnaseq.h"
 #include "list.h"
 #include "kmer.h"
+#include "mate.h"
 
 int pair_ctg_id = 0;
 int overlap_len = 0;
@@ -125,114 +126,6 @@ void keep_mates_in_pool(edge *eg, pool *cur_pool, const hash_table *ht,
 			}
 		}
 	}
-}
-
-/**
- * From current edge, get all mates of the used reads.
- */
-pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori) {
-	int i = 0;
-	bwa_seq_t *s = NULL, *mate = NULL, *seqs = NULL;
-	pool *mate_pool = NULL;
-	mate_pool = new_pool();
-	seqs = ht->seqs;
-	for (i = 0; i < eg->reads->len; i++) {
-		s = g_ptr_array_index(eg->reads, i);
-		mate = get_mate(s, seqs);
-		//p_query("READ", s);
-		//p_query("MATE", mate);
-		// If the mate should have been used.
-		if (is_paired(s, ori))
-			continue;
-		// If the insert size is not in the range
-		if (abs(eg->len - s->shift) > (insert_size + sd_insert_size * SD_TIMES)) {
-			continue;
-		}
-		// If the mate is already in use, either by current or another thread
-		if (mate->is_in_c_pool || mate->is_in_m_pool || mate->status == USED
-				|| mate->status == DEAD)
-			continue;
-		// If the used read is used by another thread;
-		//	or the mate has been used by this template before.
-		if (!(s->status == TRIED && s->contig_id == eg->id) || (mate->status
-				== TRIED && mate->contig_id == eg->id))
-			continue;
-		mate->rev_com = s->rev_com;
-		mate_pool_add(mate_pool, mate, eg->tid);
-	}
-	return mate_pool;
-}
-
-/**
- * Add read to current pool from the mate pool.
- * Check whether a mate overlaps with the tail with length parameter 'nm'
- */
-void add_mates_by_ol(const hash_table *ht, edge *eg, pool *cur_pool,
-		const int ol, const int nm, bwa_seq_t *query, const int ori) {
-	int i = 0, overlapped = 0;
-	bwa_seq_t *mate = NULL, *tmp = NULL;
-	readarray *ol_mates = NULL;
-	bwa_seq_t *template = NULL, *seqs = NULL;
-	pool *mate_pool = NULL;
-	reads_ht *rht = NULL;
-	seqs = ht->seqs;
-	// Copy read length of the end of the contig.
-	template = new_seq(eg->contig, seqs->len, eg->len - seqs->len);
-	if (ori) {
-		seq_reverse(template->len, template->seq, 0);
-	}
-	mate_pool = get_mate_pool_from_edge(eg, ht, ori);
-	//p_readarray(mate_pool->reads, 1);
-	if (mate_pool->n >= N_BIG_MATE_POOL) {
-		rht = build_reads_ht(ol, mate_pool->reads);
-		ol_mates = find_reads_ol_template(rht, template, seqs, ori);
-	} else {
-		ol_mates = mate_pool->reads;
-	}
-	//p_readarray(ol_mates, 1);
-	// Add the mate reads which overlap with the tail into the current pool
-	for (i = 0; i < ol_mates->len; i++) {
-		mate = g_ptr_array_index(ol_mates, i);
-		// For the reads in the mate pool, these ones are not considered:
-		//	1. Is already in c_pool (in this or another thread), or in the mate pool of other thread
-		//	2. Is already used
-		//	3. Its mate is not used
-		//	4. Its mate is used, by by another edge
-		//	5. The distance between the mates are out of range
-		tmp = mate;
-		if (mate->rev_com)
-			tmp = new_mem_rev_seq(mate, mate->len, 0);
-		overlapped = find_ol_within_k(tmp, template, nm, ol - 1,
-				query->len - 1, ori);
-		/*if (strcmp(mate->name, "2460877") == 0) {
-		 show_debug_msg("ORI", "ORI: %d \n", ori);
-		 p_ctg_seq("QUERY", query);
-		 p_query("MATE", tmp);
-		 p_query("ORIG", mate);
-		 p_query("USED", get_mate(mate, seqs));
-		 show_debug_msg(__func__, "OVERLAP 1: %d \n", overlapped);
-		 }*/
-		if (overlapped >= ol) {
-			// Only if this mate overlaps with some read in the cur_pool, add it.
-			// It is important because sometimes it maybe added just for coincidence.
-			mate->cursor = ori ? (mate->len - overlapped - 1) : overlapped;
-			pool_add(cur_pool, mate, eg->tid);
-			//show_debug_msg(__func__, "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
-			//show_debug_msg(__func__, "ORI%d \n", ori);
-			//p_query("ADDED MATE", mate);
-			//p_ctg_seq("TEMPLATE", template);
-			//show_debug_msg(__func__, "Overlapped: %d \n", overlapped);
-			//show_debug_msg(__func__, "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
-			rm_read_from_ht(rht, mate);
-		}
-		if (tmp != mate)
-			bwa_free_read_seq(1, tmp);
-	}
-	if (mate_pool->n >= N_BIG_MATE_POOL)
-		g_ptr_array_free(ol_mates, TRUE);
-	bwa_free_read_seq(1, template);
-	destroy_reads_ht(rht);
-	free_mate_pool(mate_pool);
 }
 
 void check_next_char(pool *cur_pool, edge *eg, int *next, const int ori) {
@@ -491,7 +384,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 		// If no read in current pool, try less stringent overlapped length and zero mismatches
 		if (eg->len > insert_size - sd_insert_size && cur_pool->reads->len <= 0) {
 			add_mates_by_ol(ht, eg, cur_pool, RELAX_MATE_OL_THRE,
-					SHORT_MISMATCH, query, ori);
+					SHORT_MISMATCH, query, ori, insert_size, sd_insert_size);
 			reset_c(next, NULL); // Reset the counter
 			check_next_char(cur_pool, eg, next, ori);
 			//p_pool("After adding mates", cur_pool, next);
@@ -1029,13 +922,12 @@ void test_run(hash_table *ht, char *lib_file) {
 
 void test_scaffolding(hash_table *ht) {
 	GPtrArray *paths = NULL;
-	edgearray *all_edges =
-			load_rm(ht, "../SRR097897_out/roadmap.3.graph",
-					"../SRR097897_out/roadmap.3.reads",
-					"../SRR097897_out/validated.2.fa");
+	edgearray *all_edges = load_rm(ht, "../SRR097897_out/roadmap.3.graph",
+			"../SRR097897_out/roadmap.3.reads",
+			"../SRR097897_out/validated.2.fa");
 	show_msg(__func__, "Scaffolding %d threads... \n", n_threads);
-	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, ht, n_threads,
-			"../SRR097897_out/validated.validated.2.psl");
+	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, ht,
+			n_threads, "../SRR097897_out/validated.validated.2.psl");
 
 	paths = report_paths(all_edges, ht->seqs);
 	save_paths(paths, "../SRR097897_out/peta.fa", 100);
@@ -1044,42 +936,44 @@ void test_scaffolding(hash_table *ht) {
 
 void test_merge(hash_table *ht) {
 	/**
-	FILE *merged_pair_contigs = NULL;
-	edgearray *all_edges = g_ptr_array_sized_new(1023);
-	edge *eg = NULL;
-	bwa_seq_t *contigs = NULL;
-	uint32_t n_ctgs = 0, i = 0;
-	contigs = load_reads("../SRR027876_out/validated.1.fa", &n_ctgs);
-	GPtrArray *hits = read_blat_hits("../SRR027876_out/validated.validated.psl");
+	 FILE *merged_pair_contigs = NULL;
+	 edgearray *all_edges = g_ptr_array_sized_new(1023);
+	 edge *eg = NULL;
+	 bwa_seq_t *contigs = NULL;
+	 uint32_t n_ctgs = 0, i = 0;
+	 contigs = load_reads("../SRR027876_out/validated.1.fa", &n_ctgs);
+	 GPtrArray *hits = read_blat_hits("../SRR027876_out/validated.validated.psl");
 
-	for (i = 0; i < n_ctgs; i++) {
-		eg = new_eg();
-		eg->id = i;
-		eg->contig = &contigs[i];
-		p_ctg_seq(__func__, eg->contig);
-		eg->len = eg->contig->len;
-		g_ptr_array_add(all_edges, eg);
-	}
+	 for (i = 0; i < n_ctgs; i++) {
+	 eg = new_eg();
+	 eg->id = i;
+	 eg->contig = &contigs[i];
+	 p_ctg_seq(__func__, eg->contig);
+	 eg->len = eg->contig->len;
+	 g_ptr_array_add(all_edges, eg);
+	 }
 
-	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
-	mark_sub_edge(all_edges, hits);
-	reset_edge_ids(all_edges);
-	merged_pair_contigs = xopen("../SRR027876_out/validated.2.fa", "w");
-	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
-	**/
+	 g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
+	 mark_sub_edge(all_edges, hits);
+	 reset_edge_ids(all_edges);
+	 merged_pair_contigs = xopen("../SRR027876_out/validated.2.fa", "w");
+	 save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
+	 **/
 	FILE *merged_pair_contigs = NULL;
-	GPtrArray *hits = read_blat_hits("../SRR097897_out/validated.validated.psl");
+	GPtrArray *hits =
+			read_blat_hits("../SRR097897_out/validated.validated.psl");
 	edgearray *all_edges =
-				load_rm(ht, "../SRR097897_out/roadmap.2.graph",
-						"../SRR097897_out/roadmap.2.reads",
-						"../SRR097897_out/validated.fa");
+			load_rm(ht, "../SRR097897_out/roadmap.2.graph",
+					"../SRR097897_out/roadmap.2.reads",
+					"../SRR097897_out/validated.fa");
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
 	mark_sub_edge(all_edges, hits);
 	reset_edge_ids(all_edges);
 	merged_pair_contigs = xopen("../SRR097897_out/validated.2.fa", "w");
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 	realign_by_blat(all_edges, ht, n_threads);
-	dump_rm(all_edges, "../SRR097897_out/roadmap.3.graph", "../SRR097897_out/roadmap.3.reads");
+	dump_rm(all_edges, "../SRR097897_out/roadmap.3.graph",
+			"../SRR097897_out/roadmap.3.reads");
 	exit(1);
 }
 
@@ -1294,14 +1188,14 @@ int pe_lib(int argc, char *argv[]) {
 	show_msg(__func__, "Output folder: %s \n", out_root);
 	show_msg(__func__, "Insert size: %d \n", insert_size);
 	show_msg(__func__, "Standard deviation: %d \n", sd_insert_size);
-	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2]);
-//	if (n_max_pairs > 0) {
-//		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
-//	} else {
-//		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
-//	}
-//	clock_gettime(CLOCK_MONOTONIC, &finish_time);
-//	show_msg(__func__, "Done: %.2f sec\n", (float) (finish_time.tv_sec
-//			- start_time.tv_sec));
+	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2], insert_size, sd_insert_size);
+	//	if (n_max_pairs > 0) {
+	//		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
+	//	} else {
+	//		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
+	//	}
+	//	clock_gettime(CLOCK_MONOTONIC, &finish_time);
+	//	show_msg(__func__, "Done: %.2f sec\n", (float) (finish_time.tv_sec
+	//			- start_time.tv_sec));
 	return 0;
 }

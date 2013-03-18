@@ -30,6 +30,7 @@
 
 #include <stdint.h>
 #include <zlib.h>
+#include <stdio.h>
 
 #ifndef BWA_UBYTE
 #define BWA_UBYTE
