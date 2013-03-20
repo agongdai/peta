@@ -256,7 +256,7 @@ int post_val_edge_thread(gpointer e, gpointer data) {
 	bwa_seq_t *seqs = ht->seqs;
 
 	base_cov = (int*) calloc(eg->len, sizeof(int));
-	realign_reads_by_ht(ht, eg, MISMATCHES);
+	realign_reads_by_ht(ht, eg, MISMATCHES, 0);
 	show_debug_msg(__func__, "Edge [%d, %d], reads %d=>%d \n", eg->id, eg->len,
 			eg->reads->len, eg->pairs->len);
 	for (i = 0; i < eg->reads->len; i++) {

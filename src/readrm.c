@@ -194,7 +194,7 @@ void save_edges(edgearray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 			contig = eg->contig;
 			if (ori)
 				seq_reverse(contig->len, contig->seq, 0);
-			sprintf(h, ">%d len=%d \n", eg->id, contig->len);
+			sprintf(h, ">%d length: %d \n", eg->id, contig->len);
 			save_con(h, contig, ass_fa);
 		}
 	}

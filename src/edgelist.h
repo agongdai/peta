@@ -53,7 +53,8 @@ int get_mid_pos(readarray *ra, const int ori, const int lib_mean);
 void upd_ctg_id(edge *eg, const int ctg_id, const int status);
 void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches);
 void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches);
-void realign_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches);
+void realign_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches,
+		const int ori);
 void upd_reads(const hash_table *ht, edge *eg, const int mismatches);
 int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs);
 void log_reads(edgearray *ea);
@@ -80,6 +81,6 @@ int reads_has_overlap(readarray *reads, const int edge_id,
 		const int insert_size, const int sd_insert_size);
 
 #ifdef __cplusplus
-	}
+}
 #endif
 #endif /* EDGELIST_H_ */

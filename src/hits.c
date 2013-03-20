@@ -174,7 +174,7 @@ GPtrArray *read_blat_hits(const char *psl_file) {
 int realign_thread(gpointer e, gpointer data) {
 	edge *eg = (edge*) e;
 	hash_table *ht = (hash_table*) data;
-	realign_reads_by_ht(ht, eg, MISMATCHES);
+	realign_reads_by_ht(ht, eg, MISMATCHES, 0);
 	return 0;
 }
 

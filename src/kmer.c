@@ -22,6 +22,7 @@
 #include "roadmap.h"
 #include "readrm.h"
 #include "mate.h"
+#include "merge.h"
 
 int kmer_ctg_id = 0;
 int ins_size = 0;
@@ -115,22 +116,91 @@ void mark_kmer_used(slist *kmer_list, bwa_seq_t *kmer) {
 	switch_ubyte(kmer); // Switch back for the query
 }
 
+int ext_eg_query_n(slist *kmer_list, bwa_seq_t *query, edge *eg,
+		bwa_seq_t *read, const int shift, const int ori) {
+	int i = 0, pos = 0, ext_len = 0;
+	ubyte_t *s = NULL, next_c = 0;
+	bwa_seq_t *mer = NULL;
+	if (shift > query->len)
+		return 0;
+	s = read->seq;
+	for (i = shift; i < read->len; i++) {
+		next_c = s[i];
+		ext_que(query, next_c, ori);
+//		pos = slist_binary(kmer_list, query);
+//		if (pos >= 0) {
+//			mer = g_ptr_array_index(kmer_list->values, pos);
+//			if (mer->status = USED)
+//				break;
+//		}
+		ext_con(eg->contig, next_c, 0);
+		//p_ctg_seq(__func__, eg->contig);
+		mark_kmer_used(kmer_list, query);
+	}
+	ext_len = eg->contig->len - eg->len;
+	eg->len = eg->contig->len;
+	return ext_len;
+}
+
+int ext_by_mates(slist *kmer_list, edgearray *mates, bwa_seq_t *query,
+		edge *eg, const int ori) {
+	int ol = 0, i = 0, ext_len = 0;
+	bwa_seq_t *m = NULL, *tmp = NULL, *template = NULL;
+	template = new_seq(eg->contig, query->len, eg->len - query->len);
+	if (ori) {
+		seq_reverse(template->len, template->seq, 0);
+	}
+	for (i = 0; i < mates->len; i++) {
+		m = g_ptr_array_index(mates, i);
+		tmp = m;
+		if (m->rev_com)
+			tmp = new_mem_rev_seq(m, m->len, 0);
+		ol = find_ol_within_k(tmp, template, 1, 0, template->len, ori);
+		//p_ctg_seq(__func__, tmp);
+		//p_ctg_seq(__func__, template);
+		show_debug_msg(__func__, "OL: %d \n", ol);
+		if (ol >= 8) {
+			//p_query("Mate", m);
+			ext_len = ext_eg_query_n(kmer_list, query, eg, tmp, ol, ori);
+		}
+
+		if (m->rev_com)
+			bwa_free_read_seq(1, tmp);
+		if (ext_len > 0)
+			break;
+	}
+	bwa_free_read_seq(1, template);
+	return ext_len;
+}
+
 void kmer_ext_edge(edge *eg, bwa_seq_t *query, slist *kmer_list,
 		hash_table *ht, const int ori) {
 	int next_c = 0;
 	pool *mate_pool = NULL;
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
+	p_query(__func__, query);
 	while (1) {
+		if (eg->len % 100 == 0)
+			show_debug_msg(__func__, "Edge [%d, %d] \n", eg->id, eg->len);
 		//p_query(__func__, query);
 		//p_ctg_seq("Contig", eg->contig);
 		next_c = next_char_by_kmers(kmer_list, query, ori);
 		//show_debug_msg(__func__, "Next char: %d \n", next_c);
 		if (next_c == -1) {
-			realign_reads_by_ht(ht, eg, MISMATCHES);
+			show_debug_msg(__func__, "Edge [%d, %d] \n", eg->id, eg->len);
+			show_debug_msg(__func__, "Realigning \n");
+			realign_reads_by_ht(ht, eg, MISMATCHES, ori);
+			//p_readarray(eg->reads, 1);
+			show_debug_msg(__func__, "Getting mate pool \n");
 			mate_pool = get_mate_pool_from_edge(eg, ht, ori, ins_size,
 					sd_ins_size);
-			break;
+			//p_readarray(mate_pool->reads, 1);
+			show_debug_msg(__func__, "Extending by mates \n");
+			if (ext_by_mates(kmer_list, mate_pool->reads, query, eg, ori))
+				continue;
+			else
+				break;
 		}
 		ext_con(eg->contig, next_c, 0);
 		eg->len = eg->contig->len;
@@ -139,6 +209,7 @@ void kmer_ext_edge(edge *eg, bwa_seq_t *query, slist *kmer_list,
 	}
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
+	bwa_free_read_seq(1, query);
 }
 
 /**
@@ -146,32 +217,42 @@ void kmer_ext_edge(edge *eg, bwa_seq_t *query, slist *kmer_list,
  */
 edge *kmer_ext(slist *kmer_list, bwa_seq_t *kmer, hash_table *ht) {
 	edge *eg = NULL;
-
 	bwa_seq_t *query = NULL;
+	int round_1_len = 0, round_2_len = 0;
 
 	eg = new_eg();
 	eg->id = kmer_ctg_id++;
 	// Get a copy of the kmer
 	query = new_seq(kmer, kmer->len, 0);
 	eg->contig = new_seq(query, query->len, 0);
-	p_query(__func__, query);
 	kmer_ext_edge(eg, query, kmer_list, ht, 0);
-	p_ctg_seq("Contig", eg->contig);
+	round_1_len = eg->len;
+	//p_ctg_seq("Contig", eg->contig);
 	show_debug_msg(__func__, "Edge %d length: %d \n", eg->id, eg->len);
 
-	bwa_free_read_seq(1, query);
 	query = new_seq(eg->contig, kmer->len, 0);
-	p_query("REVERSE", query);
 	kmer_ext_edge(eg, query, kmer_list, ht, 1);
-
-	p_ctg_seq("Contig", eg->contig);
+	//p_ctg_seq("Contig", eg->contig);
 	show_debug_msg(__func__, "Edge %d length: %d \n", eg->id, eg->len);
-	bwa_free_read_seq(1, query);
+
+	if (eg->len - round_1_len > 2) {
+		query = new_seq(eg->contig, kmer->len, 0);
+		round_2_len = eg->len;
+		kmer_ext_edge(eg, query, kmer_list, ht, 0);
+		show_debug_msg(__func__, "Edge %d length: %d \n", eg->id, eg->len);
+		if (eg->len - round_2_len > 2) {
+			query = new_seq(eg->contig, kmer->len, 0);
+			kmer_ext_edge(eg, query, kmer_list, ht, 1);
+			show_debug_msg(__func__, "Edge %d length: %d \n", eg->id, eg->len);
+		}
+	}
+
 	return eg;
 }
 
 void ext_by_kmers(char *lib_file, const char *solid_file,
-		const char *kmer_file, const int insert_size, const int sd_insert_size) {
+		const char *kmer_file, const int insert_size, const int sd_insert_size,
+		const int n_threads) {
 	hash_table *ht = NULL;
 	bwa_seq_t *kmers = NULL, *mer = NULL;
 	uint32_t n_kmers = 0;
@@ -179,7 +260,7 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 	slist *kmer_list = NULL;
 	int i = 0;
 	edge *eg = NULL;
-	FILE *kmer_contigs = xopen("../SRR097897_out/kmer_contigs.fa", "w");
+	FILE *kmer_contigs = NULL;
 	clock_gettime(CLOCK_MONOTONIC, &kmer_start_time);
 
 	show_msg(__func__, "Library: %s \n", lib_file);
@@ -189,14 +270,17 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 
 	kmers = load_reads(kmer_file, &n_kmers);
 	all_edges = g_ptr_array_sized_new(BUFSIZ); // kmer_list->kmers->len
-	ht = pe_load_hash(lib_file);
 
 	show_msg(__func__, "Preparing kmer list...\n");
 	kmer_list = prepare_kmers(kmers, n_kmers);
+	kmer_contigs = xopen("../SRR097897_out/kmer.freq.fa", "w");
+	save_edges(kmer_list->values, kmer_contigs, 0, 0, 0);
+
 	clock_gettime(CLOCK_MONOTONIC, &kmer_finish_time);
 	show_msg(__func__, "Done preparation: %.2f sec\n",
 			(float) (kmer_finish_time.tv_sec - kmer_start_time.tv_sec));
 
+	ht = pe_load_hash(lib_file);
 	show_msg(__func__, "Extending by kmers...\n");
 	for (i = 0; i < kmer_list->kmers->len; i++) {
 		mer = g_ptr_array_index(kmer_list->kmers, i);
@@ -207,7 +291,19 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 			g_ptr_array_add(all_edges, eg);
 		}
 	}
+	kmer_contigs = xopen("../SRR097897_out/kmer_contigs.fa", "w");
 	save_edges(all_edges, kmer_contigs, 0, 0, 100);
+	fflush(kmer_contigs);
+	fclose(kmer_contigs);
+	free_slist(kmer_list);
+	bwa_free_read_seq(n_kmers, kmers);
+
+	reset_edge_ids(all_edges);
+	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
+	destroy_ht(ht);
+	kmer_contigs = xopen("../SRR097897_out/peta.fa", "w");
+	save_edges(all_edges, kmer_contigs, 0, 0, 100);
+
 	clock_gettime(CLOCK_MONOTONIC, &kmer_finish_time);
 	show_msg(__func__, "Done: %.2f sec\n", (float) (kmer_finish_time.tv_sec
 			- kmer_start_time.tv_sec));

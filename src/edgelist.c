@@ -721,7 +721,8 @@ void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 	}
 }
 
-void realign_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
+void realign_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches,
+		const int ori) {
 	int i = 0, index = 0, j = 0;
 	bwa_seq_t *read = NULL, *query = NULL, *seqs = NULL, *mate = NULL;
 	alignarray *aligns = NULL;
@@ -733,6 +734,8 @@ void realign_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
 	while (eg->reads->len > 0) {
 		g_ptr_array_remove_index_fast(eg->reads, 0);
 	}
+	if (ori)
+		seq_reverse(eg->len, eg->contig->seq, 0);
 	//show_debug_msg(__func__, "Aligning ... \n");
 	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
 	//p_ctg_seq("CONTIG", eg->contig);
@@ -751,6 +754,8 @@ void realign_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
 			read = &seqs[index];
 			read->status = TRIED;
 			read->shift = i;
+			if (ori)
+				read->shift = eg->len - i + 1;
 			read->contig_id = eg->id;
 			g_ptr_array_add(eg->reads, read);
 		}
@@ -769,6 +774,8 @@ void realign_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {
 			mate->status = USED;
 		}
 	}
+	if (ori)
+		seq_reverse(eg->len, eg->contig->seq, 0);
 }
 
 void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches) {

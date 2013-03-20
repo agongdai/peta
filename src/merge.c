@@ -349,7 +349,7 @@ int check_insert_size(edge *eg_left, edge *eg_right, readarray *paired_reads,
 		if (type == HEAD_HEAD) {
 			dis = (read_left->shift) + (read_right->shift) - ol;
 		}
-		if (dis > insert_size + SD_TIMES * sd_insert_size)
+		if (dis > insert_size + 4 * sd_insert_size)
 			return 0;
 	}
 	return 1;
