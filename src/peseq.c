@@ -175,7 +175,6 @@ bwa_seq_t *merge_seq_to_left(bwa_seq_t *s2, bwa_seq_t *s1, const int gap) {
  * For example, s2->len = 100, shift = 20, concat s2->seq[20:100] to s1->seq
  */
 bwa_seq_t *merge_seq(bwa_seq_t *s1, bwa_seq_t *s2, const int shift) {
-	int i = 0;
 	if (!s1 || !s2)
 		return 0;
 	s1->full_len = (s1->len + s2->len + 1 - shift);
@@ -283,14 +282,6 @@ void p_query(const char *header, const bwa_seq_t *q) {
 				printf("%c", "ACGTN"[(int) q->seq[i]]);
 		}
 	}
-	if (q->is_in_c_pool)
-		printf(" [pool: %d]", q->is_in_c_pool);
-	else
-		printf(" [no_pool]");
-	if (q->is_in_c_pool)
-		printf(" [m_pool]");
-	else
-		printf(" [no_m_pool]");
 	if (q->rev_com)
 		printf(" [rev_com]");
 	else
@@ -367,23 +358,12 @@ int has_n(const bwa_seq_t *read) {
  */
 bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
-	int i = 0;
 	if (ol + shift > query->len)
 		return 0;
-	for (i = 0; i < 16; i++) {
-		p->bc[i] = 0;
-	}
 	p->tid = -1; // no assigned to a thread
-	p->qual = p->strand = p->type = p->dummy = p->extra_flag = p->n_mm
-			= p->n_gapo = p->n_gape = p->mapQ = p->score = p->n_aln = p->aln
-					= p->n_multi = p->multi = p->sa = p->pos = p->c1 = p->c2
-							= p->n_cigar = p->cigar = p->seQ = p->nm = p->md
-									= 0;
-
-	p->is_in_c_pool = p->is_in_m_pool = 0;
 	p->status = query->status;
 	p->contig_id = query->contig_id;
-	p->full_len = p->clip_len = p->len = ol;
+	p->full_len = p->len = ol;
 	p->cursor = query->cursor;
 	p->shift = query->shift;
 	p->rev_com = query->rev_com;
@@ -421,21 +401,10 @@ void set_rev_com(bwa_seq_t *s) {
 
 bwa_seq_t *blank_seq() {
 	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
-	int i = 0;
-	for (i = 0; i < 16; i++) {
-		p->bc[i] = 0;
-	}
 	p->tid = -1; // no assigned to a thread
-	p->qual = p->strand = p->type = p->dummy = p->extra_flag = p->n_mm
-			= p->n_gapo = p->n_gape = p->mapQ = p->score = p->n_aln = p->aln
-					= p->n_multi = p->multi = p->sa = p->pos = p->c1 = p->c2
-							= p->n_cigar = p->cigar = p->seQ = p->nm = p->md
-									= 0;
-
-	p->is_in_c_pool = p->is_in_m_pool = 0;
 	p->status = 0;
 	p->contig_id = 0;
-	p->full_len = p->clip_len = p->len = 0;
+	p->full_len = p->len = 0;
 	p->cursor = 0;
 	p->shift = 0;
 	p->rev_com = 0;
@@ -461,20 +430,11 @@ bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol,
 bwa_seq_t *new_rev_seq(const bwa_seq_t *query) {
 	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
 	ubyte_t *tmp = NULL;
-	int i = 0;
-	for (i = 0; i < 16; i++) {
-		p->bc[i] = 0;
-	}
 	p->tid = -1; // no assigned to a thread
-	p->qual = p->strand = p->type = p->dummy = p->extra_flag = p->n_mm
-			= p->n_gapo = p->n_gape = p->mapQ = p->score = p->n_aln = p->aln
-					= p->n_multi = p->multi = p->sa = p->pos = p->c1 = p->c2
-							= p->n_cigar = p->cigar = p->seQ = p->nm = p->md
-									= 0;
 
-	p->status = p->shift = p->is_in_c_pool = p->is_in_m_pool = 0;
+	p->status = p->shift = 0;
 	p->contig_id = query->contig_id;
-	p->full_len = p->clip_len = p->len = query->len;
+	p->full_len = p->len = query->len;
 	p->cursor = query->cursor;
 	p->shift = query->shift;
 	p->name = query->name;
@@ -974,11 +934,6 @@ void free_read_seq(bwa_seq_t *p) {
 		free(p->name);
 		free(p->seq);
 		free(p->rseq);
-		free(p->qual);
-		free(p->aln);
-		free(p->md);
-		free(p->multi);
-		free(p->cigar);
 		free(p);
 	}
 }

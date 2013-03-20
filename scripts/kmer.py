@@ -1,7 +1,9 @@
 import operator
 
-seq = open('/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa')
-kmer_fn = '../SRR097897_out/kmer.freq'
+#seq = open('/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa')
+#kmer_fn = '../SRR097897_out/kmer.freq'
+seq = open('/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa')
+kmer_fn = '../SRR027876_out/kmer.freq'
 kmer = open(kmer_fn, 'w')
 k = 25
 counter = {}

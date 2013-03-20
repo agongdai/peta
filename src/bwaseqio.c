@@ -73,85 +73,6 @@ void seq_reverse(int len, ubyte_t *seq, int is_comp) {
 	}
 }
 
-int bwa_trim_read(int trim_qual, bwa_seq_t *p) {
-	int s = 0, l, max = 0, max_l = p->len - 1;
-	if (trim_qual < 1 || p->qual == 0)
-		return 0;
-	for (l = p->len - 1; l >= BWA_MIN_RDLEN - 1; --l) {
-		s += trim_qual - (p->qual[l] - 33);
-		if (s < 0)
-			break;
-		if (s > max) {
-			max = s;
-			max_l = l;
-		}
-	}
-	p->clip_len = p->len = max_l + 1;
-	return p->full_len - p->len;
-}
-
-static bwa_seq_t *bwa_read_bam(bwa_seqio_t *bs, int n_needed, int *n,
-		int is_comp, int trim_qual) {
-	bwa_seq_t *seqs, *p;
-	int n_seqs, l, i;
-	long n_trimmed = 0, n_tot = 0;
-	bam1_t *b;
-
-	b = bam_init1();
-	n_seqs = 0;
-	seqs = (bwa_seq_t*) calloc(n_needed, sizeof(bwa_seq_t));
-	while (bam_read1(bs->fp, b) >= 0) {
-		uint8_t *s, *q;
-		int go = 0;
-		if ((bs->which & 1) && (b->core.flag & BAM_FREAD1))
-			go = 1;
-		if ((bs->which & 2) && (b->core.flag & BAM_FREAD2))
-			go = 1;
-		if ((bs->which & 4) && !(b->core.flag & BAM_FREAD1) && !(b->core.flag
-				& BAM_FREAD2))
-			go = 1;
-		if (go == 0)
-			continue;
-		l = b->core.l_qseq;
-		p = &seqs[n_seqs++];
-		p->tid = -1; // no assigned to a thread
-		p->qual = 0;
-		p->full_len = p->clip_len = p->len = l;
-		n_tot += p->full_len;
-		s = bam1_seq(b);
-		q = bam1_qual(b);
-		p->seq = (ubyte_t*) calloc(p->len + 1, 1);
-		p->qual = (ubyte_t*) calloc(p->len + 1, 1);
-		for (i = 0; i != p->full_len; ++i) {
-			p->seq[i] = bam_nt16_nt4_table[(int) bam1_seqi(s, i)];
-			p->qual[i] = q[i] + 33 < 126 ? q[i] + 33 : 126;
-		}
-		if (bam1_strand(b)) { // then reverse 
-			seq_reverse(p->len, p->seq, 1);
-			seq_reverse(p->len, p->qual, 0);
-		}
-		if (trim_qual >= 1)
-			n_trimmed += bwa_trim_read(trim_qual, p);
-		p->rseq = (ubyte_t*) calloc(p->full_len, 1);
-		memcpy(p->rseq, p->seq, p->len);
-		seq_reverse(p->len, p->seq, 0); // *IMPORTANT*: will be reversed back in bwa_refine_gapped()
-		seq_reverse(p->len, p->rseq, is_comp);
-		p->name = strdup((const char*) bam1_qname(b));
-		if (n_seqs == n_needed)
-			break;
-	}
-	*n = n_seqs;
-	if (n_seqs && trim_qual >= 1)
-		fprintf(stderr, "[bwa_read_seq] %.1f%% bases are trimmed.\n", 100.0f
-				* n_trimmed / n_tot);
-	if (n_seqs == 0) {
-		free(seqs);
-		bam_destroy1(b);
-		return 0;
-	}
-	bam_destroy1(b);
-	return seqs;
-}
 
 #define BARCODE_LOW_QUAL 13
 
@@ -167,8 +88,6 @@ bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int mode,
 		fprintf(stderr, "[%s] the maximum barcode length is 15.\n", __func__);
 		return 0;
 	}
-	if (bs->is_bam)
-		return bwa_read_bam(bs, n_needed, n, is_comp, trim_qual); // l_bc has no effect for BAM input
 	n_seqs = 0;
 	seqs = (bwa_seq_t*) calloc(n_needed, sizeof(bwa_seq_t));
 	while ((l = kseq_read(seq)) >= 0) {
@@ -179,11 +98,6 @@ bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int mode,
 			continue; // sequence length equals or smaller than the barcode length
 		p = &seqs[n_seqs++];
 		if (l_bc) { // then trim barcode
-			for (i = 0; i < l_bc; ++i)
-				p->bc[i] = (seq->qual.l && seq->qual.s[i] - 33
-						< BARCODE_LOW_QUAL) ? tolower(seq->seq.s[i]) : toupper(
-						seq->seq.s[i]);
-			p->bc[i] = 0;
 			for (; i < seq->seq.l; ++i)
 				seq->seq.s[i - l_bc] = seq->seq.s[i];
 			seq->seq.l -= l_bc;
@@ -195,11 +109,9 @@ bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int mode,
 				seq->qual.s[seq->qual.l] = 0;
 			}
 			l = seq->seq.l;
-		} else
-			p->bc[0] = 0;
+		} //else
 		p->tid = -1; // no assigned to a thread
-		p->qual = 0;
-		p->full_len = p->clip_len = p->len = l;
+		p->full_len = p->len = l;
 		n_tot += p->full_len;
 		p->seq = (ubyte_t*) calloc(p->len, 1);
 
@@ -208,8 +120,6 @@ bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int mode,
 		p->status = 0;
 		p->contig_id = -1; // -1 means unused
 		p->shift = 0;
-		p->is_in_c_pool = 0;
-		p->is_in_m_pool = 0;
 		p->rev_com = 0;
 
 		for (i = 0; i != p->full_len; ++i) {
@@ -218,11 +128,6 @@ bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int mode,
 			//			fprintf(stderr, "%d", (int) seqs->seq[i]);
 		}
 
-		if (seq->qual.l) { // copy quality
-			p->qual = (ubyte_t*) strdup((char*) seq->qual.s);
-			if (trim_qual >= 1)
-				n_trimmed += bwa_trim_read(trim_qual, p);
-		}
 		p->rseq = (ubyte_t*) calloc(p->full_len, 1);
 		memcpy(p->rseq, p->seq, p->len);
 		seq_reverse(p->len, p->seq, 0); // *IMPORTANT*: will be reversed back in bwa_refine_gapped()
@@ -253,17 +158,9 @@ void bwa_free_read_seq(int n_seqs, bwa_seq_t *seqs) {
 	if (seqs && n_seqs > 0) {
 		for (i = 0; i != n_seqs; ++i) {
 			bwa_seq_t *p = seqs + i;
-			for (j = 0; j < p->n_multi; ++j)
-				if (p->multi[j].cigar)
-					free(p->multi[j].cigar);
 			free(p->name);
 			free(p->seq);
 			free(p->rseq);
-			free(p->qual);
-			free(p->aln);
-			free(p->md);
-			free(p->multi);
-			free(p->cigar);
 		}
 		free(seqs);
 	}

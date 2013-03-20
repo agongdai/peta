@@ -18,11 +18,11 @@ bwa_seq_t *load_reads(const char *fa_fn, uint32_t *n_seqs) {
 	ks = bwa_open_reads(BWA_MODE, fa_fn);
 	n_seqs_full = N_CHUNK_SEQS;
 	show_msg(__func__, "Loading reads from library %s...\n", fa_fn);
-	seqs = (bwa_seq_t*) calloc (N_DF_MAX_SEQS, sizeof(bwa_seq_t));
-	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, BWA_MODE, 0))
-			!= 0) {
-		show_msg(__func__, "%d sequences loaded: %.2f sec... \n",
-				n_seqs_loaded + n_part_seqs, fa_fn, (float) (clock() - t) / CLOCKS_PER_SEC);
+	seqs = (bwa_seq_t*) calloc(N_DF_MAX_SEQS, sizeof(bwa_seq_t));
+	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, BWA_MODE,
+			0)) != 0) {
+		show_msg(__func__, "%d sequences loaded: %.2f sec... \n", n_seqs_loaded
+				+ n_part_seqs, fa_fn, (float) (clock() - t) / CLOCKS_PER_SEC);
 		pe_reverse_seqs(part_seqs, n_part_seqs);
 
 		if ((n_seqs_loaded + n_part_seqs) > n_seqs_full) {
@@ -30,7 +30,8 @@ bwa_seq_t *load_reads(const char *fa_fn, uint32_t *n_seqs) {
 			kroundup32(n_seqs_full);
 			seqs = (bwa_seq_t*) realloc(seqs, sizeof(bwa_seq_t) * n_seqs_full);
 		}
-		memmove(&seqs[n_seqs_loaded], part_seqs, sizeof(bwa_seq_t) * n_part_seqs);
+		memmove(&seqs[n_seqs_loaded], part_seqs, sizeof(bwa_seq_t)
+				* n_part_seqs);
 		free(part_seqs);
 		n_seqs_loaded += n_part_seqs;
 	}
@@ -44,37 +45,23 @@ bwa_seq_t *load_reads(const char *fa_fn, uint32_t *n_seqs) {
 	return seqs;
 }
 
-bwa_seq_t *binary_seq(bwa_seq_t *seqs, int n_seqs, bwa_seq_t *read) {
-	unsigned int start = 0, end = n_seqs - 1, middle = 0;
-	int cmp_rs = 0;
-	bwa_seq_t *r = NULL;
+bwa_seq_t *load_reads(const char *fa_fn, uint32_t *n_seqs) {
+	bwa_seq_t *seqs = NULL;
+	int n_full = 0, n_loaded = 0;
+	clock_t t = clock();
+	FILE *fa = NULL;
+	fa = xopen(fa_fn, "r");
+	char buf[BUFSIZ];
 
-	if (n_seqs <= 0 || !read)
-		return NULL;
+	seqs = (bwa_seq_t*) calloc(N_DF_MAX_SEQS, sizeof(bwa_seq_t));
+	while (fgets(buf, sizeof(buf), fa)) {
+		if ((n_loaded + 2) > n_full) {
+			n_full += 2;
+			kroundup32(n_full);
+			seqs = (bwa_seq_t*) realloc(seqs, sizeof(bwa_seq_t) * n_full);
+		}
+		if (strstr(buf, ">")) {
 
-	r = &seqs[0];
-	cmp_rs = strcmp(read->seq, r->seq);
-	if (cmp_rs == -1)
-		return NULL;
-	r = &seqs[n_seqs - 1];
-	cmp_rs = strcmp(read->seq, r->seq);
-	if (cmp_rs == 1)
-		return NULL;
-
-	// Binary search
-	//	printf("[exists] Looking for %d \n", read_id);
-	while (start <= end) {
-		middle = (end + start) / 2;
-		r = &seqs[middle];
-		cmp_rs = strcmp(read->seq, r->seq);
-		if (cmp_rs == 0) {
-			return r;
-		} else {
-			if (cmp_rs == 1)
-				start = middle + 1;
-			else
-				end = middle - 1;
 		}
 	}
-	return NULL;
 }

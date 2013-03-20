@@ -63,37 +63,39 @@ typedef struct {
 
 typedef struct {
 	char *name;
-	ubyte_t *seq, *rseq, *qual;
-	uint32_t len:20, strand:1, type:2, dummy:1, extra_flag:8;
-	uint32_t n_mm:8, n_gapo:8, n_gape:8, mapQ:8;
-	int score;
-	int clip_len;
+	ubyte_t *seq, *rseq;
+	//ubyte_t *qual;
+	uint32_t len:20;
+	//uint32_t strand:1, type:2, dummy:1, extra_flag:8;
+	//uint32_t n_mm:8, n_gapo:8, n_gape:8, mapQ:8;
+	//int score;
+	//int clip_len;
 	// alignments in SA coordinates
-	int n_aln;
-	bwt_aln1_t *aln;
+	//int n_aln;
+	//bwt_aln1_t *aln;
 	// multiple hits
-	int n_multi;
-	bwt_multi1_t *multi;
+	//int n_multi;
+	//bwt_multi1_t *multi;
 	// alignment information
-	bwtint_t sa, pos;
-	uint64_t c1:28, c2:28, seQ:8; // number of top1 and top2 hits; single-end mapQ
-	int n_cigar;
-	bwa_cigar_t *cigar;
+	//bwtint_t sa, pos;
+	//uint64_t c1:28, c2:28, seQ:8; // number of top1 and top2 hits; single-end mapQ
+	//int n_cigar;
+	//bwa_cigar_t *cigar;
 	// for multi-threading only
-	int tid;
+	int32_t tid;
 	// barcode
-	char bc[16]; // null terminated; up to 15 bases
+	//char bc[16]; // null terminated; up to 15 bases
 	// NM and MD tags
-	uint32_t full_len:20, nm:12;
-	char *md;
+	uint32_t full_len:20;
+	//uint32_t nm:12;
+	//char *md;
 
-	int cursor;  // Where the cursor is, pointing to next char
+	int16_t is_in_c_pool, is_in_m_pool;
+	int16_t cursor;  // Where the cursor is, pointing to next char
 	tf_flag status;
-	uint32_t is_in_c_pool;
-	uint32_t is_in_m_pool;
 	tf_flag rev_com; // Whether use reverse complement in pool
 	int32_t contig_id;
-	int shift;
+	int32_t shift;
 } bwa_seq_t;
 
 #define BWA_MODE_GAPE       0x01

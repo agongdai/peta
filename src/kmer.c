@@ -273,8 +273,6 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 
 	show_msg(__func__, "Preparing kmer list...\n");
 	kmer_list = prepare_kmers(kmers, n_kmers);
-	kmer_contigs = xopen("../SRR097897_out/kmer.freq.fa", "w");
-	save_edges(kmer_list->values, kmer_contigs, 0, 0, 0);
 
 	clock_gettime(CLOCK_MONOTONIC, &kmer_finish_time);
 	show_msg(__func__, "Done preparation: %.2f sec\n",
@@ -291,7 +289,7 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 			g_ptr_array_add(all_edges, eg);
 		}
 	}
-	kmer_contigs = xopen("../SRR097897_out/kmer_contigs.fa", "w");
+	kmer_contigs = xopen("../SRR027876_out/kmer_contigs.fa", "w");
 	save_edges(all_edges, kmer_contigs, 0, 0, 100);
 	fflush(kmer_contigs);
 	fclose(kmer_contigs);
@@ -301,7 +299,7 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 	reset_edge_ids(all_edges);
 	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
 	destroy_ht(ht);
-	kmer_contigs = xopen("../SRR097897_out/peta.fa", "w");
+	kmer_contigs = xopen("../SRR027876_out/peta.fa", "w");
 	save_edges(all_edges, kmer_contigs, 0, 0, 100);
 
 	clock_gettime(CLOCK_MONOTONIC, &kmer_finish_time);

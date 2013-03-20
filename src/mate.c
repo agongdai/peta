@@ -43,7 +43,7 @@ pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori,
 			continue;
 		}
 		// If the mate is already in use, either by current or another thread
-		if (mate->is_in_c_pool || mate->is_in_m_pool || mate->status == USED
+		if (mate->status == USED
 				|| mate->status == DEAD)
 			continue;
 		// If the used read is used by another thread;

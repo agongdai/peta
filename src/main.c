@@ -2,7 +2,6 @@
 #include <string.h>
 #include "main.h"
 #include "pehash.h"
-#include "ass.h"
 #include "pealn.h"
 #include "clean.h"
 #include "pelib.h"
@@ -41,18 +40,12 @@ int main(int argc, char *argv[]) {
 		return usage();
 	if (strcmp(argv[1], "simu") == 0)
 		return peta_simu(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "index") == 0)
-		return bwa_index(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "hash") == 0)
 		return pe_hash(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "bwa_aln") == 0)
-		return bwa_aln(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "pe_aln") == 0)
 			return pe_aln_test(argc - 1, argv + 1);
 	//else if (strcmp(argv[1], "ass") == 0)
 	//	return pe_ass(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "samse") == 0)
-		return bwa_sai2sam_se(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "test") == 0)
 		return test(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "clean") == 0)

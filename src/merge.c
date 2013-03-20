@@ -13,7 +13,6 @@
 #include <glib.h>
 #include <math.h>
 #include "rand.h"
-#include "ass.h"
 #include "bwase.h"
 #include "utils.h"
 #include "peseq.h"

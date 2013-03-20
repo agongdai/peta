@@ -7,7 +7,6 @@
 #include <math.h>
 #include <pthread.h>
 #include "rand.h"
-#include "ass.h"
 #include "clean.h"
 #include "bwase.h"
 #include "utils.h"
@@ -254,7 +253,7 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
 			continue;
 		}
 		// If the pair of the initial read has wrong orientation, return NULL
-		if (n_counter_pairs >= MAX_COUNTER_PAIRS) {
+		if (n_counter_pairs >= 4) {
 			break;
 		}
 		s->rev_com = a->rev_comp;
@@ -275,7 +274,7 @@ pool *get_start_pool(const hash_table *ht, bwa_seq_t *init_read, const int ori,
 	if (to_free_query)
 		bwa_free_read_seq(1, query);
 	// Indicates that too many counter pairs found, not feasible to extend from init_read
-	if (n_counter_pairs >= MAX_COUNTER_PAIRS) {
+	if (n_counter_pairs >= 4) {
 		free_pool(init_pool);
 		return NULL;
 	} else {
@@ -923,8 +922,7 @@ void test_run(hash_table *ht, char *lib_file) {
 void test_scaffolding(hash_table *ht) {
 	GPtrArray *paths = NULL;
 	edgearray *all_edges = load_rm(ht, "../SRR097897_out/roadmap.3.graph",
-			"../SRR097897_out/roadmap.3.reads",
-			"../SRR097897_out/validated.2.fa");
+			"../SRR097897_out/roadmap.3.reads", "../SRR097897_out/peta.fa");
 	show_msg(__func__, "Scaffolding %d threads... \n", n_threads);
 	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, ht,
 			n_threads, "../SRR097897_out/validated.validated.2.psl");
@@ -960,20 +958,15 @@ void test_merge(hash_table *ht) {
 	 save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 	 **/
 	FILE *merged_pair_contigs = NULL;
-	GPtrArray *hits =
-			read_blat_hits("../SRR097897_out/validated.validated.psl");
-	edgearray *all_edges =
-			load_rm(ht, "../SRR097897_out/roadmap.2.graph",
-					"../SRR097897_out/roadmap.2.reads",
-					"../SRR097897_out/validated.fa");
+	GPtrArray *hits = read_blat_hits("../SRR097897_out/peta.peta.psl");
+	edgearray *all_edges = load_rm(ht, "../SRR097897_out/roadmap.graph",
+			"../SRR097897_out/roadmap.reads", "../SRR097897_out/merged.fa");
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
+	realign_by_blat(all_edges, ht, n_threads);
 	mark_sub_edge(all_edges, hits);
 	reset_edge_ids(all_edges);
-	merged_pair_contigs = xopen("../SRR097897_out/validated.2.fa", "w");
+	merged_pair_contigs = xopen("../SRR097897_out/validated.fa", "w");
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
-	realign_by_blat(all_edges, ht, n_threads);
-	dump_rm(all_edges, "../SRR097897_out/roadmap.3.graph",
-			"../SRR097897_out/roadmap.3.reads");
 	exit(1);
 }
 
@@ -1053,7 +1046,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	ht = pe_load_hash(lib_file);
 	//test_run(ht);
 	//test_scaffolding(ht);
-	//test_merge(ht);
+	test_merge(ht);
 	seqs = &ht->seqs[0];
 	show_msg(__func__, "Removing repetitive reads... \n");
 	n_rep = rm_repetitive_reads(seqs, ht->n_seqs);
@@ -1188,14 +1181,17 @@ int pe_lib(int argc, char *argv[]) {
 	show_msg(__func__, "Output folder: %s \n", out_root);
 	show_msg(__func__, "Insert size: %d \n", insert_size);
 	show_msg(__func__, "Standard deviation: %d \n", sd_insert_size);
-	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2], insert_size, sd_insert_size, n_threads);
-	//	if (n_max_pairs > 0) {
-	//		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
-	//	} else {
-	//		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
-	//	}
-	//	clock_gettime(CLOCK_MONOTONIC, &finish_time);
-	//	show_msg(__func__, "Done: %.2f sec\n", (float) (finish_time.tv_sec
-	//			- start_time.tv_sec));
+	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2], insert_size,
+			sd_insert_size, n_threads);
+	/**
+	if (n_max_pairs > 0) {
+		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
+	} else {
+		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
+	}
+	clock_gettime(CLOCK_MONOTONIC, &finish_time);
+	**/
+	show_msg(__func__, "Done: %.2f sec\n", (float) (finish_time.tv_sec
+			- start_time.tv_sec));
 	return 0;
 }
