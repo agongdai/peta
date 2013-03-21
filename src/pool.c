@@ -507,7 +507,7 @@ void p_pool_read(gpointer *data, gpointer *user_data) {
 		map(p2);
 		c = p->rev_com ? p2->rseq[p2->cursor] : p2->seq[p2->cursor];
 		if (p2->cursor < 0 || p2->cursor >= p2->len)
-			c = 'n';
+			c = 'N';
 		for (i = 0; i < p2->len - p2->cursor; i++)
 			printf(" ");
 
@@ -529,7 +529,7 @@ void p_pool_read(gpointer *data, gpointer *user_data) {
 	} else {
 		c = p->rev_com ? p->rseq[p->cursor] : p->seq[p->cursor];
 		if (p->cursor < 0 || p->cursor >= p->len)
-			c = 'n';
+			c = 'N';
 		printf("[p_pool] %d_%d: %s %s %d->%c\n", p->contig_id, p->shift,
 				p->name, p->seq, p->cursor, c);
 		//printf("[p_pool] %d_%d: %s %s %d->%c %d\n", p->contig_id, p->shift,

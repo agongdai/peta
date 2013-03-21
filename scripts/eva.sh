@@ -1,6 +1,6 @@
 #!/bin/bash
 
-query="validated"
+query="merged_pair_contigs"
 root_dir="/home/carl/Projects/"
 eva_exe="$root_dir/peta_dev/scripts/eva.py"
 db_dir="$root_dir/peta/rnaseq/Spombe/genome/"

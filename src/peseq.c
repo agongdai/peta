@@ -282,6 +282,14 @@ void p_query(const char *header, const bwa_seq_t *q) {
 				printf("%c", "ACGTN"[(int) q->seq[i]]);
 		}
 	}
+	if (q->is_in_c_pool)
+		printf(" [pool: %d]", q->is_in_c_pool);
+	else
+		printf(" [no_pool]");
+	if (q->is_in_m_pool)
+		printf(" [m_pool: %d]", q->is_in_m_pool);
+	else
+		printf(" [no_m_pool]");
 	if (q->rev_com)
 		printf(" [rev_com]");
 	else
@@ -344,10 +352,12 @@ void ext_que(bwa_seq_t *q, const ubyte_t c, const int ori) {
 	}
 }
 
-int has_n(const bwa_seq_t *read) {
+int has_n(const bwa_seq_t *read, int max) {
 	int i = 0;
 	for (i = 0; i < read->len; i++) {
 		if (read->seq[i] == 4 || read->seq[i] == 'n' || read->seq[i] == 'N')
+			max--;
+		if (max <= 0)
 			return 1;
 	}
 	return 0;

@@ -21,7 +21,7 @@
 #define FNLEN 					128
 #define MINCONTIG 				35
 #define NO_REPEAT_BASES			4
-#define NO_REPEAT_LEN 			15
+#define NO_REPEAT_LEN 			16
 #define MIN_OL					6
 #define CLOSE_MIN_OL			6
 
@@ -79,7 +79,7 @@ void p_ctg_seq(const char *header, const bwa_seq_t *q);
 void p_seq(const char *header, const ubyte_t *seq, const int len);
 void ext_con(bwa_seq_t *contig, const ubyte_t c, const int ori);
 void ext_que(bwa_seq_t *q, const ubyte_t c, const int left_max_ctg_id);
-int has_n(const bwa_seq_t *read);
+int has_n(const bwa_seq_t *read, int max);
 bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift);
 void set_rev_com(bwa_seq_t *s);
 bwa_seq_t *blank_seq();

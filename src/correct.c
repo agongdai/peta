@@ -162,7 +162,7 @@ GPtrArray *get_low_kmer_reads(hash_table *ht, const int k, const double thre) {
 			break;
 		c = &max_kmer_diff[i];
 		s = &seqs[c->read_id];
-		if (has_n(s))
+		if (has_n(s, 4))
 			continue;
 		g_ptr_array_add(low_kmer_reads, s);
 		// show_debug_msg(__func__, "%s: %f \n", s->name, c->k_freq);

@@ -921,7 +921,7 @@ void log_reads(edgearray *ea) {
 				if (r->seq[k] > 4)
 					fputc(r->seq[k], reads_fp);
 				else
-					fputc("acgtn"[(int) r->seq[k]], reads_fp);
+					fputc("ACGTN"[(int) r->seq[k]], reads_fp);
 			}
 			fputc('\n', reads_fp);
 		}
@@ -951,7 +951,7 @@ void log_edge(const edge *eg, bwa_seq_t *seqs) {
 		if (eg->contig->seq[i] > 4)
 			sprintf(buf, "%c", eg->contig->seq[i]);
 		else
-			sprintf(buf, "%c", "acgtn"[(int) eg->contig->seq[i]]);
+			sprintf(buf, "%c", "ACGTN"[(int) eg->contig->seq[i]]);
 		fputs(buf, log);
 	}
 	fputs(
@@ -982,7 +982,7 @@ void log_edge(const edge *eg, bwa_seq_t *seqs) {
 				if (eg->contig->seq[i] > 4)
 					sprintf(buf, "%c", eg->contig->seq[i]);
 				else
-					sprintf(buf, "%c", "acgtn"[(int) eg->contig->seq[i]]);
+					sprintf(buf, "%c", "ACGTN"[(int) eg->contig->seq[i]]);
 				fputs(buf, log);
 			}
 			fputs("\n", log);

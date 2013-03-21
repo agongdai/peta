@@ -158,7 +158,7 @@ int ext_by_mates(slist *kmer_list, edgearray *mates, bwa_seq_t *query,
 		ol = find_ol_within_k(tmp, template, 1, 0, template->len, ori);
 		//p_ctg_seq(__func__, tmp);
 		//p_ctg_seq(__func__, template);
-		show_debug_msg(__func__, "OL: %d \n", ol);
+		//show_debug_msg(__func__, "OL: %d \n", ol);
 		if (ol >= 8) {
 			//p_query("Mate", m);
 			ext_len = ext_eg_query_n(kmer_list, query, eg, tmp, ol, ori);
@@ -286,10 +286,11 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 			show_debug_msg(__func__,
 					"========================== %d ===================== \n", i);
 			eg = kmer_ext(kmer_list, mer, ht);
-			g_ptr_array_add(all_edges, eg);
+			if (eg->len > 100)
+				g_ptr_array_add(all_edges, eg);
 		}
 	}
-	kmer_contigs = xopen("../SRR027876_out/kmer_contigs.fa", "w");
+	kmer_contigs = xopen("../SRR097897_out/kmer_contigs.fa", "w");
 	save_edges(all_edges, kmer_contigs, 0, 0, 100);
 	fflush(kmer_contigs);
 	fclose(kmer_contigs);
@@ -299,7 +300,7 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 	reset_edge_ids(all_edges);
 	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
 	destroy_ht(ht);
-	kmer_contigs = xopen("../SRR027876_out/peta.fa", "w");
+	kmer_contigs = xopen("../SRR097897_out/merged.fa", "w");
 	save_edges(all_edges, kmer_contigs, 0, 0, 100);
 
 	clock_gettime(CLOCK_MONOTONIC, &kmer_finish_time);

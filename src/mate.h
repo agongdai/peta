@@ -15,6 +15,7 @@
 
 #define N_BIG_MATE_POOL			10000000
 #define SD_TIMES 			 	4
+#define MAX_COUNTER_PAIRS		4
 
 void add_mates_by_ol(const hash_table *ht, edge *eg, pool *cur_pool,
 		const int ol, const int nm, bwa_seq_t *query, const int ori,

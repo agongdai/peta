@@ -386,7 +386,7 @@ GPtrArray *calc_solid_reads(bwa_seq_t *seqs, const int n_seqs, clean_opt *opt,
 		k_count = &counter_list[i];
 		k_count->read_id = atoi(s->name);
 		k_count->checked = 0;
-		if (has_n(s)) {
+		if (has_n(s, 4)) {
 			k_count->checked = -1;
 			n_has_n++;
 			continue;

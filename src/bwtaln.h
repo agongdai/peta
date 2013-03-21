@@ -32,14 +32,14 @@ typedef struct {
 	char *name;
 	ubyte_t *seq, *rseq;
 	uint32_t len:20;
-	int32_t tid;
+	int tid;
 	uint32_t full_len:20;
-	int16_t is_in_c_pool, is_in_m_pool;
+	int is_in_c_pool, is_in_m_pool;
 	int16_t cursor;  // Where the cursor is, pointing to next char
 	tf_flag status;
 	tf_flag rev_com; // Whether use reverse complement in pool
-	int32_t contig_id;
-	int32_t shift;
+	int contig_id;
+	int shift;
 } bwa_seq_t;
 
 #define BWA_MODE_GAPE       0x01

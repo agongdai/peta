@@ -4,6 +4,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 	int peta_simu(int argc, char *argv[]);
 #ifdef __cplusplus
 }
