@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <glib.h>
 #include "roadmap.h"
-#include "bwase.h"
+#include "bwtaln.h"
 #include "peseq.h"
 #include "pool.h"
 #include "pealn.h"

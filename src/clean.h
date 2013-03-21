@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <glib.h>
-#include "bwase.h"
+#include "bwtaln.h"
 
 #define MAX_N16			4294967295
 #define LOW_KMER		2

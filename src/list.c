@@ -4,7 +4,7 @@
 #include <string.h>
 #include <glib.h>
 #include "list.h"
-#include "bwase.h"
+#include "bwtaln.h"
 #include "peseq.h"
 #include "edgelist.h"
 

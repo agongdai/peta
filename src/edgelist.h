@@ -13,7 +13,7 @@ extern "C" {
 
 #include <glib.h>
 #include "edge.h"
-#include "bwase.h"
+#include "bwtaln.h"
 #include "pealn.h"
 
 #define LIST_SIZE				64

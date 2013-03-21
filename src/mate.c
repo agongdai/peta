@@ -14,7 +14,7 @@
 #include <math.h>
 #include "pool.h"
 #include "pehash.h"
-#include "bwase.h"
+#include "bwtaln.h"
 #include "utils.h"
 #include "peseq.h"
 #include "mate.h"

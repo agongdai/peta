@@ -10,7 +10,6 @@
 
 #include <stdint.h>
 #include "peseq.h"
-#include "bwt.h"
 #include "pehash.h"
 
 #ifdef __cplusplus

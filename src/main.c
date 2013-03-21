@@ -44,8 +44,6 @@ int main(int argc, char *argv[]) {
 		return pe_hash(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "pe_aln") == 0)
 			return pe_aln_test(argc - 1, argv + 1);
-	//else if (strcmp(argv[1], "ass") == 0)
-	//	return pe_ass(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "test") == 0)
 		return test(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "clean") == 0)

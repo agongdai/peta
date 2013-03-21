@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <glib.h>
 #include "bwtaln.h"
-#include "bwase.h"
 #include "pehash.h"
 
 #ifndef kroundup32
@@ -62,11 +61,6 @@ typedef struct {
 	char *exon_e;
 } gene;
 
-typedef struct {
-	bwt_t *bwt[4];
-	bntseq_t *bns;
-} indexes;
-
 void save_fq(const bwa_seq_t *seqs, const char *fp_fn, const uint16_t ol);
 seq *read_seq(const char *fn);
 bwa_seq_t *merge_seq_to_right(bwa_seq_t *s1, bwa_seq_t *s2, const int gap);
@@ -97,7 +91,6 @@ void map(bwa_seq_t *bwa_seq);
 index64 get_index(const char *seq_id);
 void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp);
 int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs, const int n_seqs);
-indexes *load_index(const char *fn);
 int same_q(const bwa_seq_t *query, const bwa_seq_t *seq);
 int same_bytes(const bwa_seq_t *s);
 int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
@@ -125,7 +118,6 @@ void pe_reverse_seqs(bwa_seq_t *seqs, const int n_seqs);
 int is_paired(const bwa_seq_t *read, const int ori);
 int get_mismatches_on_ol(const bwa_seq_t *query, const bwa_seq_t *seq,
 		const int ol, const int max);
-void destroy_index(indexes *in);
 void free_read_seq(bwa_seq_t *p);
 int has_rep_pattern(const bwa_seq_t *read);
 int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,

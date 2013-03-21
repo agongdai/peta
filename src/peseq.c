@@ -14,7 +14,7 @@
 #include "utils.h"
 #include "peseq.h"
 #include "bwtaln.h"
-#include "bntseq.h"
+#include "bwtaln.h"
 #include "pechar.h"
 #include "pehash.h"
 
@@ -500,30 +500,6 @@ int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs,
 	return n_unpaired;
 }
 
-indexes *load_index(const char *fn) {
-	indexes *in = (indexes*) malloc(sizeof(indexes));
-	char *str = (char*) calloc(strlen(fn) + 10, 1);
-	strcpy(str, fn);
-	strcat(str, ".bwt");
-	in->bwt[0] = bwt_restore_bwt(str);
-	in->bwt[2] = bwt_restore_bwt(str);
-	strcpy(str, fn);
-	strcat(str, ".sa");
-	bwt_restore_sa(str, in->bwt[2]);
-
-	strcpy(str, fn);
-	strcat(str, ".rbwt");
-	in->bwt[1] = bwt_restore_bwt(str);
-	in->bwt[3] = bwt_restore_bwt(str);
-	strcpy(str, fn);
-	strcat(str, ".rsa");
-	bwt_restore_sa(str, in->bwt[3]);
-	free(str);
-
-	in->bns = bns_restore(fn);
-	return in;
-}
-
 int same_q(const bwa_seq_t *query, const bwa_seq_t *seq) {
 	unsigned int i = 0;
 	if (!query || !seq || !seq->seq || !query->seq)
@@ -916,17 +892,6 @@ int get_mismatches_on_ol(const bwa_seq_t *query, const bwa_seq_t *seq,
 			n_mismatches++;
 	}
 	return n_mismatches;
-}
-
-void destroy_index(indexes *in) {
-	if (in) {
-		bwt_destroy(in->bwt[0]);
-		bwt_destroy(in->bwt[1]);
-		bwt_destroy(in->bwt[2]);
-		bwt_destroy(in->bwt[3]);
-		bns_destroy(in->bns);
-		free(in);
-	}
 }
 
 void free_read_seq(bwa_seq_t *p) {

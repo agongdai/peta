@@ -13,7 +13,7 @@
 #include <time.h>
 #include "utils.h"
 #include "pehash.h"
-#include "bwase.h"
+#include "bwtaln.h"
 #include "kmer.h"
 #include "pehash.h"
 #include "rnaseq.h"

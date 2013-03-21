@@ -13,7 +13,7 @@
 #include <glib.h>
 #include "pepath.h"
 #include "roadmap.h"
-#include "bwase.h"
+#include "bwtaln.h"
 #include "pechar.h"
 #include "utils.h"
 #include "pehash.h"

@@ -11,7 +11,7 @@
 #include "pehash.h"
 #include "pool.h"
 #include "edgelist.h"
-#include "bwase.h"
+#include "bwtaln.h"
 
 #define N_BIG_MATE_POOL			10000000
 #define SD_TIMES 			 	4

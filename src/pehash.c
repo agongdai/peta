@@ -12,7 +12,7 @@
 #include <glib.h>
 #include <inttypes.h>
 #include "pehash.h"
-#include "bwase.h"
+#include "bwtaln.h"
 #include "peseq.h"
 #include "rnaseq.h"
 #include "edgelist.h"

@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "bwase.h"
+#include "bwtaln.h"
 #include "pool.h"
 #include "peseq.h"
 #include "bwtaln.h"

@@ -8,7 +8,7 @@
 #ifndef KMER_H_
 #define KMER_H_
 
-#include "bwase.h"
+#include "bwtaln.h"
 
 typedef struct {
 	bwa_seq_t *s;

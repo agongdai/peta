@@ -15,7 +15,7 @@ extern "C" {
 #include <stdio.h>
 #include "roadmap.h"
 #include "edgelist.h"
-#include "bwase.h"
+#include "bwtaln.h"
 #include <glib.h>
 
 #define MAX_EDGE_NM				11

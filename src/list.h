@@ -3,7 +3,7 @@
 #define LIST_H_
 
 #include <glib.h>
-#include "bwase.h"
+#include "bwtaln.h"
 
 typedef struct
 {

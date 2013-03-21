@@ -10,7 +10,7 @@
 #include <glib.h>
 #include "pealn.h"
 #include "pehash.h"
-#include "bwase.h"
+#include "bwtaln.h"
 #include "pechar.h"
 
 void free_hits(GPtrArray *hits) {

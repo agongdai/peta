@@ -7,7 +7,7 @@
 
 #ifndef EDGE_H_
 #define EDGE_H_
-#include "bwase.h"
+#include "bwtaln.h"
 #include "glib.h"
 
 #define MAX_N_EDGE_OUT 				7

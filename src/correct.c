@@ -12,7 +12,7 @@
 #include <time.h>
 #include <glib.h>
 #include <math.h>
-#include "bwase.h"
+#include "bwtaln.h"
 #include "utils.h"
 #include "peseq.h"
 #include "pechar.h"

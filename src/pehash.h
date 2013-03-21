@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <glib.h>
-#include "bwase.h"
+#include "bwtaln.h"
 #include "utils.h"
 
 #define ID64 				PRId64

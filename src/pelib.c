@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include "rand.h"
 #include "clean.h"
-#include "bwase.h"
+#include "bwtaln.h"
 #include "utils.h"
 #include "peseq.h"
 #include "pool.h"
@@ -1140,6 +1140,8 @@ void test_int() {
 int pe_lib(int argc, char *argv[]) {
 	int c = 0, n_max_pairs = 0;
 	clock_gettime(CLOCK_MONOTONIC, &start_time);
+	bwa_seq_t *reads = NULL, *r = NULL;
+	uint32_t n_reads = 0, i = 0;
 	while ((c = getopt(argc, argv, "p:k:m:s:o:t:b:d:")) >= 0) {
 		switch (c) {
 		case 'p':
@@ -1181,16 +1183,24 @@ int pe_lib(int argc, char *argv[]) {
 	show_msg(__func__, "Output folder: %s \n", out_root);
 	show_msg(__func__, "Insert size: %d \n", insert_size);
 	show_msg(__func__, "Standard deviation: %d \n", sd_insert_size);
-	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2], insert_size,
-			sd_insert_size, n_threads);
-	/**
-	if (n_max_pairs > 0) {
-		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
-	} else {
-		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
+
+	reads = load_reads("../SRR027876_out/kmer.freq", &n_reads);
+	for (i = 0; i < 10; i++) {
+		r = &reads[i];
+		p_query(__func__, r);
+		r = &reads[n_reads - i - 1];
+		p_query(__func__, r);
 	}
+
+	//	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2], insert_size,
+	//			sd_insert_size, n_threads);
+	/**
+	 if (n_max_pairs > 0) {
+	 est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
+	 } else {
+	 pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
+	 } **/
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
-	**/
 	show_msg(__func__, "Done: %.2f sec\n", (float) (finish_time.tv_sec
 			- start_time.tv_sec));
 	return 0;

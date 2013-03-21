@@ -6,7 +6,7 @@
 #include <glib.h>
 #include <inttypes.h>
 #include <math.h>
-#include "bwase.h"
+#include "bwtaln.h"
 #include "peseq.h"
 #include "utils.h"
 #include "clean.h"

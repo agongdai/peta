@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 #include <glib.h>
-#include "bwase.h"
+#include "bwtaln.h"
 #include "pealn.h"
 #include "pool.h"
 #include "edgelist.h"

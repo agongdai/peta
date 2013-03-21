@@ -14,7 +14,7 @@ extern "C" {
 #include <stdio.h>
 #include "roadmap.h"
 #include "edgelist.h"
-#include "bwase.h"
+#include "bwtaln.h"
 #include <glib.h>
 
 #define INIT_PATH_CTGS 		64

@@ -2,34 +2,18 @@
 #include <ctype.h>
 #include "bwtaln.h"
 #include "utils.h"
-#include "bamlite.h"
 
 #include "kseq.h"
 KSEQ_INIT(gzFile, gzread)
 
 extern unsigned char nst_nt4_table[256];
-static char bam_nt16_nt4_table[] = { 4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4,
-		4, 4 };
 
 struct __bwa_seqio_t {
 	// for BAM input
 	int is_bam, which; // 1st bit: read1, 2nd bit: read2, 3rd: SE
-	bamFile fp;
 	// for fastq input
 	kseq_t *ks;
 };
-
-bwa_seqio_t *bwa_bam_open(const char *fn, int which) {
-	bwa_seqio_t *bs;
-	bam_header_t *h;
-	bs = (bwa_seqio_t*) calloc(1, sizeof(bwa_seqio_t));
-	bs->is_bam = 1;
-	bs->which = which;
-	bs->fp = bam_open(fn, "r");
-	h = bam_header_read(bs->fp);
-	bam_header_destroy(h);
-	return bs;
-}
 
 bwa_seqio_t *bwa_seq_open(const char *fn) {
 	gzFile fp;
@@ -43,12 +27,8 @@ bwa_seqio_t *bwa_seq_open(const char *fn) {
 void bwa_seq_close(bwa_seqio_t *bs) {
 	if (bs == 0)
 		return;
-	if (bs->is_bam)
-		bam_close(bs->fp);
-	else {
-		gzclose(bs->ks->f->f);
-		kseq_destroy(bs->ks);
-	}
+	gzclose(bs->ks->f->f);
+	kseq_destroy(bs->ks);
 	free(bs);
 }
 
@@ -73,14 +53,13 @@ void seq_reverse(int len, ubyte_t *seq, int is_comp) {
 	}
 }
 
-
 #define BARCODE_LOW_QUAL 13
 
 bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int mode,
 		int trim_qual) {
 	bwa_seq_t *seqs, *p;
 	kseq_t *seq = bs->ks;
-	int n_seqs, l, i, is_comp = mode & BWA_MODE_COMPREAD, is_64 = mode
+	int n_seqs, l, i = 0, is_comp = mode & BWA_MODE_COMPREAD, is_64 = mode
 			& BWA_MODE_IL13, l_bc = mode >> 24;
 	long n_trimmed = 0, n_tot = 0;
 
@@ -154,7 +133,7 @@ bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int mode,
 }
 
 void bwa_free_read_seq(int n_seqs, bwa_seq_t *seqs) {
-	int i, j;
+	int i;
 	if (seqs && n_seqs > 0) {
 		for (i = 0; i != n_seqs; ++i) {
 			bwa_seq_t *p = seqs + i;
