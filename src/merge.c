@@ -463,7 +463,7 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 				}
 				if (to_merge) {
 					g_mutex_lock(edge_mutex);
-					bwa_free_read_seq(1, eg_i->contig);
+					//bwa_free_read_seq(1, eg_i->contig);
 					eg_i->contig = rev;
 					rev = NULL;
 					merge_two_ol_edges(NULL, ht, eg_i, eg_j, ol);
@@ -494,7 +494,7 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
  */
 void *merge_ol_edges_thread(void *data) {
 	edge *eg_i = NULL, *eg_j = NULL;
-	int i = 0, j = 0, some_one_merged = 0;
+	int i = 0, j = 0, some_one_merged = 1;
 	bwa_seq_t *seqs = NULL;
 	GPtrArray *edge_candidates = NULL;
 	merging_paras_t *d = (merging_paras_t*) data;
@@ -598,7 +598,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 		eg_i->visited = 0;
 		g_ptr_array_sort(eg_i->reads, (GCompareFunc) cmp_read_by_name);
 		if (!eg_i->alive) {
-			destroy_eg(eg_i);
+			//destroy_eg(eg_i);
 			g_ptr_array_remove_index_fast(single_edges, i);
 			i--;
 		}
@@ -623,9 +623,9 @@ void mark_sub_edge(edgearray *all_edges, GPtrArray *hits) {
 					<= MAX_EDGE_NM) {
 				eg = g_ptr_array_index(all_edges, atoi(h->qname));
 				eg->alive = 0;
-				show_debug_msg(__func__,
-						"Edge [%d, %d] is marked as not alive \n", eg->id,
-						eg->len);
+				//show_debug_msg(__func__,
+				//		"Edge [%d, %d] is marked as not alive \n", eg->id,
+				//		eg->len);
 			}
 		}
 	}

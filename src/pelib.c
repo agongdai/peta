@@ -958,15 +958,18 @@ void test_merge(hash_table *ht) {
 	 save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 	 **/
 	FILE *merged_pair_contigs = NULL;
-	GPtrArray *hits = read_blat_hits("../SRR097897_out/peta.peta.psl");
+	//GPtrArray *hits = read_blat_hits("../SRR097897_out/merged.merged.psl");
 	edgearray *all_edges = load_rm(ht, "../SRR097897_out/roadmap.graph",
 			"../SRR097897_out/roadmap.reads", "../SRR097897_out/merged.fa");
-	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
-	realign_by_blat(all_edges, ht, n_threads);
-	mark_sub_edge(all_edges, hits);
-	reset_edge_ids(all_edges);
+	//g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
+	//mark_sub_edge(all_edges, hits);
+	//reset_edge_ids(all_edges);
+	//realign_by_blat(all_edges, ht, n_threads);
+	//dump_rm(all_edges, "../SRR097897_out/roadmap.graph", "../SRR097897_out/roadmap.reads");
+	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
 	merged_pair_contigs = xopen("../SRR097897_out/validated.fa", "w");
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
+	show_debug_msg(__func__, "Done! \n");
 	exit(1);
 }
 
@@ -1184,22 +1187,14 @@ int pe_lib(int argc, char *argv[]) {
 	show_msg(__func__, "Insert size: %d \n", insert_size);
 	show_msg(__func__, "Standard deviation: %d \n", sd_insert_size);
 
-	reads = load_reads("../SRR027876_out/kmer.freq", &n_reads);
-	for (i = 0; i < 10; i++) {
-		r = &reads[i];
-		p_query(__func__, r);
-		r = &reads[n_reads - i - 1];
-		p_query(__func__, r);
-	}
-
 	//	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2], insert_size,
 	//			sd_insert_size, n_threads);
-	/**
-	 if (n_max_pairs > 0) {
-	 est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
-	 } else {
-	 pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
-	 } **/
+
+	if (n_max_pairs > 0) {
+		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
+	} else {
+		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
+	}
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Done: %.2f sec\n", (float) (finish_time.tv_sec
 			- start_time.tv_sec));
