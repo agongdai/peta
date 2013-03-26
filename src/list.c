@@ -1,64 +1,61 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <ctype.h>
 #include <string.h>
 #include <glib.h>
 #include "list.h"
-#include "bwtaln.h"
+#include "kmer.h"
 #include "peseq.h"
 #include "edgelist.h"
 
 gint cmp_kmer_by_seq(gpointer a, gpointer b) {
-	int i = 0;
-	bwa_seq_t *read_a = *((bwa_seq_t**) a);
-	bwa_seq_t *read_b = *((bwa_seq_t**) b);
-//	return (strcmp(read_a->seq, read_b->seq));
-	for (i = 0; i < read_a->len; i++) {
-		if (read_a->seq[i] < read_b->seq[i])
-			return -1;
-		if (read_a->seq[i] > read_b->seq[i])
-			return 1;
-	}
-	return 0;
+	int64_t rs = 0;
+	mer *read_a = *((mer**) a);
+	mer *read_b = *((mer**) b);
+	rs = (int64_t) read_a->s - (int64_t) read_b->s;
+	if (rs == 0)
+		return 0;
+	if (rs > 0)
+		return 1;
+	return -1;
 }
 
 /*
- * Compare the kmer frequency by the frequency desc, which is stored as seq name
+ * Compare the kmer frequency by the frequency desc
  */
-gint cmp_kmer_by_freq(gpointer a, gpointer b) {
-	int i = 0;
-	bwa_seq_t *read_a = *((bwa_seq_t**) a);
-	bwa_seq_t *read_b = *((bwa_seq_t**) b);
-	return (atoi(read_b->name) - atoi(read_a->name));
-}
-
-int cmp_seq_kmer(bwa_seq_t *a, bwa_seq_t *b) {
-	int i = 0;
-	for (i = 0; i < a->len; i++) {
-		if (a->seq[i] < b->seq[i])
-			return -1;
-		if (a->seq[i] > b->seq[i])
-			return 1;
-	}
-	return 0;
+gint cmp_kmer_by_count(gpointer a, gpointer b) {
+	mer *read_a = *((mer**) a);
+	mer *read_b = *((mer**) b);
+	return ((read_b->count) - (read_a->count));
 }
 
 slist *new_slist() {
 	slist *sl = (slist*) malloc(sizeof(slist));
 	sl->order = -1;
-	sl->values = g_ptr_array_sized_new(0);
 	sl->kmers = g_ptr_array_sized_new(0);
+	sl->starts = g_ptr_array_sized_new(0);
 	return sl;
 }
 
 void free_slist(slist *sl) {
 	if (!sl)
 		return;
-	if (sl->values)
-		g_ptr_array_free(sl->values, TRUE);
+	if (sl->starts)
+		g_ptr_array_free(sl->starts, TRUE);
 	if (sl->kmers)
 		g_ptr_array_free(sl->kmers, TRUE);
 	free(sl);
+}
+
+void slist_sorted_ins(mer *array, const uint32_t size, mer *data, const int index) {
+	mer *s, *r = NULL;
+	if (index < 0)
+		return;
+	s = &array[index];
+	r = &array[index + 1];
+	memmove(r, s, sizeof(mer) * (size - index));
+	array[index] = *data;
 }
 
 /**
@@ -67,26 +64,20 @@ void free_slist(slist *sl) {
  * Return: position of the hit query on the list;
  * 		   -1 if not found.
  */
-int slist_binary(slist *sl, bwa_seq_t *query) {
-	int start = 0, end = sl->values->len - 1, middle = 0;
-	int cmp_rs = 0;
-	bwa_seq_t *r = NULL;
+int slist_binary(mer *kmers, const uint32_t size, uint64_t s) {
+	int start = 0, end = size - 1, middle = 0;
+	mer *m = NULL;
 	while (start <= end) {
 		middle = (start + end) / 2;
-		r = g_ptr_array_index(sl->values, middle);
-		cmp_rs = cmp_seq_kmer(query, r);
-		//show_debug_msg(__func__, "[Start, Middle, End]: [%d, %d, %d] \n", start, middle, end);
-		//p_query(__func__, r);
-		if (cmp_rs == 0) {
-			//show_debug_msg(__func__, "Hit %d !\n", middle);
+		m = &kmers[middle];
+		if (s == m->s) {
 			return middle;
 		}
-		if (cmp_rs > 0)
+		if (s > m->s)
 			start = middle + 1;
 		else
 			end = middle - 1;
 	}
-	//show_debug_msg(__func__, "Not Hit!\n");
 	return -1;
 }
 
@@ -96,25 +87,28 @@ int slist_binary(slist *sl, bwa_seq_t *query) {
  * Return: if query found, return the index;
  *         if query not found, return the index where the query should be inserted into
  */
-int slist_ins_pos(slist *sl, bwa_seq_t *query) {
-	int start = 0, end = sl->values->len - 1, middle = 0;
-	int cmp_rs = 0;
-	bwa_seq_t *v = NULL;
+int slist_ins_pos(mer *kmers, const uint32_t size, mer *query) {
+	int start = 0, end = size - 1, middle = 0;
+	mer *v = NULL;
+	if (size == 0)
+		return 0;
 	while (start <= end) {
 		middle = (start + end) / 2;
-		v = g_ptr_array_index(sl->values, middle);
-		cmp_rs = cmp_seq_kmer(query, v);
-		if (cmp_rs == 0)
+		//show_debug_msg(__func__, "[%d, %d, %d] \n", start, middle, end);
+		v = &kmers[middle];
+		//show_debug_msg(__func__, "q [%" ID64 ", %d] \n", query->s, query->count);
+		//show_debug_msg(__func__, "v [%" ID64 ", %d] \n", v->s, v->count);
+		if (query->s == v->s)
 			return middle;
-		if (cmp_rs > 0)
+		if (query->s > v->s)
 			start = middle + 1;
 		else
 			end = middle - 1;
 	}
 	if (end < 0)
 		return 0;
-	if (start > sl->values->len - 1)
-		return sl->values->len - 1;
+	if (start > size - 1)
+		return size - 1;
 	return start;
 }
 
@@ -124,11 +118,15 @@ int slist_ins_pos(slist *sl, bwa_seq_t *query) {
  * Return: if already exists, return 0;
  *         if inserted correctly, return 1.
  */
-int slist_ins_pt(slist *sl, bwa_seq_t *new_pt) {
+mer *slist_ins_pt(mer *kmers, uint32_t *size, uint32_t *full_space, mer *new_mer) {
 	int pos = 0;
-	if (slist_binary(sl, new_pt) >= 0)
-		return 0;
-	pos = slist_ins_pos(sl, new_pt);
-	g_ptr_array_add_index(sl->values, new_pt, pos);
-	return 1;
+	if ((*size + 2) > *full_space) {
+		*full_space += 2;
+		kroundup32(*full_space);
+		kmers = (mer*) realloc(kmers, sizeof(mer) * (*full_space));
+	}
+	pos = slist_ins_pos(kmers, *size, new_mer);
+	slist_sorted_ins(kmers, *size, new_mer, pos);
+	*size += 1;
+	return kmers;
 }

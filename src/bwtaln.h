@@ -35,11 +35,11 @@ typedef struct {
 	int tid;
 	uint32_t full_len:20;
 	int is_in_c_pool, is_in_m_pool;
-	int16_t cursor;  // Where the cursor is, pointing to next char
+	short cursor;  // Where the cursor is, pointing to next char
 	tf_flag status;
 	tf_flag rev_com; // Whether use reverse complement in pool
 	int contig_id;
-	int shift;
+	short shift;
 } bwa_seq_t;
 
 #define BWA_MODE_GAPE       0x01

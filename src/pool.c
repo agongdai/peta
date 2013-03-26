@@ -17,57 +17,21 @@
 #include "pechar.h"
 #include "pehash.h"
 
-/**
- * Assume that the new read has been verified not existed using exists().
- */
-int get_insert_pos(const pool *r_pool, const bwa_seq_t *read) {
-	unsigned int start = 0, end = r_pool->n - 1, middle = 0;
-	int read_id, id;
-	readarray *reads = r_pool->reads;
-	bwa_seq_t *r;
-
-	if (!r_pool->n || !read)
+int should_start(bwa_seq_t *query) {
+	int tid = atoi(query->name);
+	if (query->status != FRESH)
 		return 0;
-	read_id = atoi(read->name);
-	r = g_ptr_array_index(reads, 0);
-	id = atoi(r->name);
-	if (read_id < id)
+	// If this read is currently used by another thread
+	if (query->is_in_c_pool > 0 && query->is_in_c_pool != tid)
 		return 0;
-	r = g_ptr_array_index(reads, reads->len - 1);
-	id = atoi(r->name);
-	if (read_id > id)
-		return reads->len;
-
-	while (start <= end) {
-		middle = (end + start) / 2;
-		r = g_ptr_array_index(reads, middle);
-		id = atoi(r->name);
-		if (id == read_id)
-			return -1;
-		if (id < read_id)
-			start = middle + 1;
-		else
-			end = middle - 1;
+	if (query->is_in_m_pool > 0 && query->is_in_m_pool != tid)
+		return 0;
+	if (has_n(query, 4) || is_biased_q(query) || has_rep_pattern(query)
+			|| is_repetitive_q(query)) {
+		query->status = TRIED;
+		return 0;
 	}
-	return end + 1;
-}
-
-void insert_fast_index(pool *r_pool, const int index, bwa_seq_t *read) {
-	readarray *reads = r_pool->reads;
-	g_ptr_array_add_index(reads, read, index);
-	r_pool->n = reads->len;
-}
-
-/**
- * Add a new sequence to the pool
- */
-void pool_sort_ins(pool *r_pool, bwa_seq_t *new_seq) {
-	int index = binary_exists(r_pool->reads, new_seq);
-	if (index)
-		return;
-	index = get_insert_pos(r_pool, new_seq);
-	assert(index != -1);
-	insert_fast_index(r_pool, index, new_seq);
+	return 1;
 }
 
 void pool_add(pool *p, bwa_seq_t *new_seq, const int tid) {
@@ -75,6 +39,7 @@ void pool_add(pool *p, bwa_seq_t *new_seq, const int tid) {
 		return;
 	g_ptr_array_add(p->reads, new_seq);
 	new_seq->is_in_c_pool = tid;
+	new_seq->tid = tid;
 	p->n++;
 }
 
@@ -83,6 +48,7 @@ void mate_pool_add(pool *p, bwa_seq_t *new_seq, const int tid) {
 		return;
 	g_ptr_array_add(p->reads, new_seq);
 	new_seq->is_in_m_pool = tid;
+	new_seq->tid = tid;
 	p->n = p->reads->len;
 }
 
@@ -118,6 +84,7 @@ gboolean pool_rm_index(pool *p, const int i) {
 	gboolean r;
 	bwa_seq_t *read = g_ptr_array_index(p->reads, i);
 	read->is_in_c_pool = 0;
+	read->tid = -1;
 	r = g_ptr_array_remove_index_fast(p->reads, i);
 	p->n = p->reads->len;
 	return r;
@@ -127,6 +94,7 @@ gboolean mate_pool_rm(pool *r_pool, bwa_seq_t *rm_seq) {
 	gboolean r;
 	r = g_ptr_array_remove(r_pool->reads, rm_seq);
 	rm_seq->is_in_m_pool = 0;
+	rm_seq->tid = -1;
 	r_pool->n = r_pool->reads->len;
 	return r;
 }
@@ -135,6 +103,7 @@ gboolean mate_pool_rm_fast(pool *p, bwa_seq_t *read) {
 	gboolean r;
 	r = g_ptr_array_remove(p->reads, read);
 	read->is_in_m_pool = 0;
+	read->tid = -1;
 	p->n = p->reads->len;
 	return r;
 }
@@ -210,6 +179,9 @@ bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int ori) {
 			p->status = TRIED;
 			p->contig_id = ass_eg->id;
 			pool_rm_index(cur_pool, i);
+			// This read is still used by current thread,
+			//   only after the pool is freed, the tid is set to be -1
+			p->tid = ass_eg->tid;
 			i--;
 			continue;
 		}
@@ -226,6 +198,7 @@ bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int ori) {
 			readarray_add(ass_eg, p);
 			i--;
 		}
+		p->tid = ass_eg->tid;
 	}
 	return used;
 }
@@ -314,8 +287,8 @@ void rm_partial(edge *eg, pool *cur_pool, int ori, bwa_seq_t *seqs,
 		is_at_end = ori ? (s->cursor <= nm) : (s->cursor >= s->len - nm - 1);
 		// Remove those reads probably at the splicing junction
 		if (!is_at_end) {
-			if (s->is_in_c_pool != eg->tid || (check_c_1 != confirm_c
-					&& check_c_2 != confirm_c_2)) {
+			if (s->tid != eg->tid || (check_c_1 != confirm_c && check_c_2
+					!= confirm_c_2)) {
 				removed = pool_rm_index(cur_pool, i);
 				//p_query(__func__, s);
 				//p_ctg_seq(__func__, eg->contig);
@@ -446,6 +419,7 @@ void clear_pool(pool *r_pool) {
 		r = g_ptr_array_index(reads, i);
 		r->is_in_c_pool = 0;
 		r->is_in_m_pool = 0;
+		r->tid = -1;
 	}
 	while (reads->len > 0)
 		g_ptr_array_remove_index(r_pool->reads, 0);
@@ -465,6 +439,7 @@ void free_pool(pool *r_pool) {
 			for (i = 0; i < r_pool->n; i++) {
 				r = g_ptr_array_index(reads, i);
 				r->is_in_c_pool = 0;
+				r->tid = -1;
 			}
 			r_pool->n = 0;
 			if (reads) {
@@ -507,7 +482,7 @@ void p_pool_read(gpointer *data, gpointer *user_data) {
 		map(p2);
 		c = p->rev_com ? p2->rseq[p2->cursor] : p2->seq[p2->cursor];
 		if (p2->cursor < 0 || p2->cursor >= p2->len)
-			c = 'N';
+			c = 'n';
 		for (i = 0; i < p2->len - p2->cursor; i++)
 			printf(" ");
 
@@ -515,21 +490,21 @@ void p_pool_read(gpointer *data, gpointer *user_data) {
 			printf("%s", p2->rseq);
 			for (i = 0; i < p2->cursor + 2; i++)
 				printf(" ");
-			printf("%d->%c\t%s\t%d\t[rev_com]", p2->cursor, c, p2->name,
-					p2->status);
+			printf("%d->%c@%d\t%s\t[pool: %d]\t[tid: %d]\t[rev_com]",
+					p2->cursor, c, p->status, p2->name, p->is_in_c_pool, p->tid);
 		} else {
 			printf("%s", p2->seq);
 			for (i = 0; i < p2->cursor + 2; i++)
 				printf(" ");
-			printf("%d->%c\t%s\t%d\t[pool: %d]", p2->cursor, c, p2->name,
-					p2->status, p2->is_in_c_pool);
+			printf("%d->%c@%d\t%s\t[pool: %d]\t[tid: %d]",
+					p2->cursor, c, p->status, p2->name, p->is_in_c_pool, p->tid);
 		}
 		printf("\n");
 		bwa_free_read_seq(1, p2);
 	} else {
 		c = p->rev_com ? p->rseq[p->cursor] : p->seq[p->cursor];
 		if (p->cursor < 0 || p->cursor >= p->len)
-			c = 'N';
+			c = 'n';
 		printf("[p_pool] %d_%d: %s %s %d->%c\n", p->contig_id, p->shift,
 				p->name, p->seq, p->cursor, c);
 		//printf("[p_pool] %d_%d: %s %s %d->%c %d\n", p->contig_id, p->shift,
@@ -577,4 +552,3 @@ void p_pool(const char *header, const pool *r_pool, const int *next) {
 	g_ptr_array_foreach(reads, (GFunc) p_pool_read, NULL);
 	printf("[p_pool]****************************** \n");
 }
-

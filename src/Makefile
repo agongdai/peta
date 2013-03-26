@@ -5,7 +5,7 @@ CFLAGS=		-ggdb -g -Wall -O2 $(shell pkg-config --libs gthread-2.0 --cflags glib-
 CXXFLAGS=	$(CFLAGS) $(shell pkg-config --cflags glib-2.0)
 DFLAGS=		-DHAVE_PTHREAD #-D_FILE_OFFSET_BITS=64
 OBJS=		rand.o utils.o roadmap.o edge.o clean.o rnaseq.o correct.o mate.o \
-			pepath.o bwtaln.o pet.o pealn.o edgelist.o pehash.o pelib.o \
+			pepath.o bwtaln.o pealn.o edgelist.o pehash.o pelib.o \
 			pechar.o pool.o peseq.o simu.o hits.o \
 			bwaseqio.o list.o kmer.o \
 			kstring.o readrm.o scaffolding.o merge.o

@@ -51,13 +51,14 @@ hash_key get_hash_key(const ubyte_t *seq, const int start,
 	hash_key key = 0ULL;
 	int i = 0;
 	for (i = 0; i < len * interleaving; i += interleaving) {
-		if (seq[i + start] < 0 || seq[i + start] > 3) {
+		if (seq[i + start] < 0 || seq[i + start] > 4) {
 			return 0;
 		}
 		key <<= 2;
 		// printf("%d \n", seq[i + start]);
-		key = key | seq[i + start];
-		// printf("key = %" ID64 "\n", key);
+		// Keep the last two digits and perform 'or' oepration
+		key = key | (3 & seq[i + start]);
+		// printf("%d: key = %" ID64 "\n", i, key);
 	}
 	return key;
 }

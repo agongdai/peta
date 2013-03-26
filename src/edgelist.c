@@ -36,19 +36,6 @@ gint cmp_read_by_name(gpointer a, gpointer b) {
 	return (atoi(read_a->name) - atoi(read_b->name));
 }
 
-void g_ptr_array_add_index(GPtrArray *array, gpointer data, const int index) {
-	gpointer s, r;
-	if (index < 0 || index > array->len)
-		return;
-	g_ptr_array_add(array, NULL); // Spare one more space
-	if (array->len > 0 && array->len > index) { // If append to the end or the the beginning, not done here.
-		s = &array->pdata[index];
-		r = &array->pdata[index + 1];
-		memmove(r, s, sizeof(gpointer) * (array->len - 1 - index));
-	}
-	array->pdata[index] = data;
-}
-
 void g_ptr_array_replace_index(GPtrArray *array, gpointer data, const int index) {
 	if (!array || index < 0 || index >= array->len)
 		return;

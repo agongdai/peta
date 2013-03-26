@@ -582,6 +582,18 @@ def pair_regions(args):
     print 'Hits in region [%d, %d]: %d' % (args.start_2, args.end_2, n_reads_2)
     print 'Pairs:   %d' % n_pairs
     print 'Check file %s' % fn
+    
+def check_solid(args):
+    solid = open(args.solid, 'r')
+    for line in solid:
+        line = line.strip()
+        cmd = 'grep %s %s' % (line, args.transcript)
+        result = runInShell(cmd)
+        if not result is None and not result == '':
+            print '========================== %s ==========================' % line
+            r = result.split('\n')
+            for read in r:
+                print read.strip()
             
 def main():
     parser = ArgumentParser()
@@ -634,6 +646,11 @@ def main():
     parset_zoom.add_argument('-p', '--psl', required=True, metavar='FILE', help='psl file', dest='psl')
     parset_zoom.add_argument('-s', '--start', required=True, type=int, help='starting point of the region', dest='start')
     parset_zoom.add_argument('-e', '--end', required=True, type=int, help='ending point of the region', dest='end')
+    
+    parset_check = subparsers.add_parser('check', help='Check whether some reads on a contig are solid reads')
+    parset_check.set_defaults(func=check_solid)
+    parset_check.add_argument('transcript', help='the reads-to-transcript file to check')
+    parset_check.add_argument('solid', help='solid reads file, ids only')
     
     args = parser.parse_args()
     args.func(args)

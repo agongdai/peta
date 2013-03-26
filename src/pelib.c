@@ -173,8 +173,8 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 			continue;
 		s = &seqs[index];
 		mate = get_mate(s, seqs);
-		p_query(__func__, s);
-		p_query(__func__, mate);
+		//p_query(__func__, s);
+		//p_query(__func__, mate);
 		//pre_cursor = s->cursor;
 
 		if (s->status == USED || s->status == DEAD || (s->status == TRIED
@@ -206,16 +206,16 @@ void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
 		//	continue;
 		pool_add(cur_pool, s, eg->tid);
 	}
-	show_debug_msg(__func__, "Removing partial... \n");
+	//show_debug_msg(__func__, "Removing partial... \n");
 	// In current pool, if a read does not overlap with the tail properly, remove it
-	p_pool("BEFORE REMOVING PARTIAL", cur_pool, NULL);
+	//p_pool("BEFORE REMOVING PARTIAL", cur_pool, NULL);
 	rm_partial(eg, cur_pool, ori, seqs, query, MISMATCHES);
-	p_pool("AFTER REMOVING PARTIAL", cur_pool, NULL);
+	//p_pool("AFTER REMOVING PARTIAL", cur_pool, NULL);
 	// Keep only the reads whose mate is used previously.
 	if (eg->len >= (insert_size + sd_insert_size * SD_TIMES)) {
-		p_pool("BEFORE KEEPING MATES", cur_pool, NULL);
+		//p_pool("BEFORE KEEPING MATES", cur_pool, NULL);
 		keep_mates_in_pool(eg, cur_pool, ht, ori, 0);
-		p_pool("AFTER KEEPING MATES", cur_pool, NULL);
+		//p_pool("AFTER KEEPING MATES", cur_pool, NULL);
 	}
 	check_next_char(cur_pool, eg, next, ori);
 }
@@ -370,7 +370,7 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
 	while (1) {
-		p_query(__func__, query);
+		//p_query(__func__, query);
 		reset_c(next, NULL); // Reset the counter
 		if (is_repetitive_q(query) || has_rep_pattern(query)) {
 			show_msg(__func__, "[%d, %d] Repetitive pattern, stop!\n", eg->id,
@@ -405,11 +405,11 @@ edge *pair_extension(edge *pre_eg, const hash_table *ht, bwa_seq_t *s,
 			reset_alg(aligns);
 		}
 		c = get_pure_most(next);
-		show_debug_msg(__func__, "Ori %d, Edge %d, length %d \n", ori, eg->id,
-				eg->len);
-		p_ctg_seq("Contig", eg->contig);
-		p_pool("Current Pool", cur_pool, next);
-		show_debug_msg(__func__, "Ori: %d, Next char: %d \n", ori, c);
+		//show_debug_msg(__func__, "Ori %d, Edge %d, length %d \n", ori, eg->id,
+		//		eg->len);
+		//p_ctg_seq("Contig", eg->contig);
+		//p_pool("Current Pool", cur_pool, next);
+		//show_debug_msg(__func__, "Ori: %d, Next char: %d \n", ori, c);
 		if (cur_pool->n <= 0) {
 			show_msg(__func__, "[%d, %d] No hits, stop here. \n", eg->id,
 					eg->len);
@@ -814,7 +814,7 @@ void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 
 	name = get_output_file("pair_contigs.fa");
 	pair_contigs = xopen(name, "w");
-	reset_read_ctg_id(ht->seqs, ht->n_seqs);
+	//reset_read_ctg_id(ht->seqs, ht->n_seqs);
 	reset_edge_ids(all_edges);
 	save_edges(all_edges, pair_contigs, 0, 0, 0);
 	fflush(pair_contigs);
@@ -832,7 +832,7 @@ void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 	show_msg(__func__, "Merging edges by overlapping... \n");
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
 	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
-	reset_read_ctg_id(ht->seqs, ht->n_seqs);
+	//reset_read_ctg_id(ht->seqs, ht->n_seqs);
 	reset_edge_ids(all_edges);
 	name = get_output_file("merged_pair_contigs.fa");
 	merged_pair_contigs = xopen(name, "w");
@@ -875,13 +875,13 @@ void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 	mark_sub_edge(all_edges, hits);
 	free_blat_hits(hits);
 	// The kmer list and pos list are shrinked, not used anymore
-	destroy_ht(ht);
+	//destroy_ht(ht);
 
 	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Scaffolding %d edges... \n", all_edges->len);
-	fresh_ht = pe_load_hash(lib_file);
+	//fresh_ht = pe_load_hash(lib_file);
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
-	realign_by_blat(all_edges, fresh_ht, n_threads);
+	//realign_by_blat(all_edges, fresh_ht, n_threads);
 	all_edges = scaffolding(all_edges, insert_size, sd_insert_size, fresh_ht,
 			n_threads, psl_name);
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
@@ -928,9 +928,9 @@ void test_run(hash_table *ht, char *lib_file) {
 	edgearray *edges = g_ptr_array_sized_new(32);
 
 	pair_ctg_id = 1000;
-	query = &seqs[3456738];
+	query = &seqs[6471745];
 	p_query(__func__, query);
-	eg = pe_ext(ht, query, 3456738);
+	eg = pe_ext(ht, query, 6471745);
 	if (eg) {
 		show_msg(__func__, "[%d] %s: length %d, reads %d=>%d. \n", eg->id,
 				eg->name, eg->len, eg->reads->len, eg->pairs->len);
@@ -1077,7 +1077,7 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 
 	all_edges = g_ptr_array_sized_new(BUFSIZ);
 	ht = pe_load_hash(lib_file);
-	test_run(ht, lib_file);
+	//test_run(ht, lib_file);
 	//test_scaffolding(ht);
 	//test_merge(ht);
 	seqs = &ht->seqs[0];
@@ -1199,18 +1199,19 @@ int pe_lib(int argc, char *argv[]) {
 	}
 	if (!g_thread_supported())
 		g_thread_init(NULL);
-	id_mutex = g_mutex_new();
-	sum_mutex = g_mutex_new();
-	show_msg(__func__, "Maximum pairs: %d \n", n_max_pairs);
-	show_msg(__func__, "Overlap length: %d \n", overlap_len);
-	show_msg(__func__, "Output folder: %s \n", out_root);
-	show_msg(__func__, "Insert size: %d \n", insert_size);
-	show_msg(__func__, "Standard deviation: %d \n", sd_insert_size);
-	if (n_max_pairs > 0) {
-		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
-	} else {
-		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
-	}
+	build_kmers("/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa", "../SRR097897_out/kmer.freq.new", 25);
+//	id_mutex = g_mutex_new();
+//	sum_mutex = g_mutex_new();
+//	show_msg(__func__, "Maximum pairs: %d \n", n_max_pairs);
+//	show_msg(__func__, "Overlap length: %d \n", overlap_len);
+//	show_msg(__func__, "Output folder: %s \n", out_root);
+//	show_msg(__func__, "Insert size: %d \n", insert_size);
+//	show_msg(__func__, "Standard deviation: %d \n", sd_insert_size);
+//	if (n_max_pairs > 0) {
+//		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
+//	} else {
+//		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
+//	}
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Done: %.2f sec\n", (float) (finish_time.tv_sec
 			- start_time.tv_sec));

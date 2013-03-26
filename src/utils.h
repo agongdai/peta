@@ -2,6 +2,7 @@
 #define LH3_UTILS_H
 
 #include <stdio.h>
+#include <stdint.h>
 #include <zlib.h>
 #include <inttypes.h>
 
