@@ -524,10 +524,10 @@ int same_q(const bwa_seq_t *query, const bwa_seq_t *seq) {
 	return 1;
 }
 
-int same_bytes(const bwa_seq_t *s) {
+int same_bytes(const ubyte_t *s, const int k) {
 	int i = 0;
-	for (i = 0; i < s->len - 1; i++) {
-		if (s->seq[i] != s->seq[i + 1])
+	for (i = 0; i < k - 1; i++) {
+		if (s[i] != s[i + 1])
 			return 0;
 	}
 	return 1;

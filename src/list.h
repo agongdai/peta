@@ -17,6 +17,6 @@ void free_slist(slist *sl);
 int slist_binary(mer *kmers, const uint32_t size, uint64_t s);
 mer *slist_ins_pt(mer *kmers, uint32_t *size, uint32_t *full_space, mer *new_mer);
 gint cmp_kmer_by_seq(gpointer a, gpointer b);
-gint cmp_kmer_by_freq(gpointer a, gpointer b);
+gint cmp_kmer_by_count(gpointer a, gpointer b);
 
 #endif

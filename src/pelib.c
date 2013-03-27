@@ -27,6 +27,7 @@
 #include "merge.h"
 #include "hits.h"
 #include "rnaseq.h"
+#include "kmer.h"
 
 int pair_ctg_id = 0;
 int overlap_len = 0;
@@ -1199,19 +1200,23 @@ int pe_lib(int argc, char *argv[]) {
 	}
 	if (!g_thread_supported())
 		g_thread_init(NULL);
-	build_kmers("/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa", "../SRR097897_out/kmer.freq.new", 25);
-//	id_mutex = g_mutex_new();
-//	sum_mutex = g_mutex_new();
-//	show_msg(__func__, "Maximum pairs: %d \n", n_max_pairs);
-//	show_msg(__func__, "Overlap length: %d \n", overlap_len);
-//	show_msg(__func__, "Output folder: %s \n", out_root);
-//	show_msg(__func__, "Insert size: %d \n", insert_size);
-//	show_msg(__func__, "Standard deviation: %d \n", sd_insert_size);
-//	if (n_max_pairs > 0) {
-//		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
-//	} else {
-//		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
-//	}
+	build_kmers(
+			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa",
+			"../SRR097897_out/kmer.freq", 25);
+	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2], insert_size,
+			sd_insert_size, n_threads);
+	//	id_mutex = g_mutex_new();
+	//	sum_mutex = g_mutex_new();
+	//	show_msg(__func__, "Maximum pairs: %d \n", n_max_pairs);
+	//	show_msg(__func__, "Overlap length: %d \n", overlap_len);
+	//	show_msg(__func__, "Output folder: %s \n", out_root);
+	//	show_msg(__func__, "Insert size: %d \n", insert_size);
+	//	show_msg(__func__, "Standard deviation: %d \n", sd_insert_size);
+	//	if (n_max_pairs > 0) {
+	//		est_insert_size(n_max_pairs, argv[optind], argv[optind + 1]);
+	//	} else {
+	//		pe_lib_core(n_max_pairs, argv[optind], argv[optind + 1]);
+	//	}
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
 	show_msg(__func__, "Done: %.2f sec\n", (float) (finish_time.tv_sec
 			- start_time.tv_sec));

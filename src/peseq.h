@@ -92,7 +92,7 @@ index64 get_index(const char *seq_id);
 void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp);
 int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs, const int n_seqs);
 int same_q(const bwa_seq_t *query, const bwa_seq_t *seq);
-int same_bytes(const bwa_seq_t *s);
+int same_bytes(const ubyte_t *s, const int k);
 int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
 		const int mismatches, const int max_n_gaps, const int score_mat,
 		const int score_mis, const int score_gap);
