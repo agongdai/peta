@@ -418,6 +418,8 @@ bwa_seq_t *blank_seq() {
 	p->cursor = 0;
 	p->shift = 0;
 	p->rev_com = 0;
+	p->is_in_c_pool = 0;
+	p->is_in_m_pool = 0;
 
 	p->name = NULL;
 	p->seq = (ubyte_t*) calloc(1, sizeof(ubyte_t));

@@ -1200,9 +1200,9 @@ int pe_lib(int argc, char *argv[]) {
 	}
 	if (!g_thread_supported())
 		g_thread_init(NULL);
-	build_kmers(
-			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa",
-			"../SRR097897_out/kmer.freq", 25);
+	//build_kmers("/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa",
+	//		"../SRR027876_out/kmer.freq", 25);
+	// "/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa"
 	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2], insert_size,
 			sd_insert_size, n_threads);
 	//	id_mutex = g_mutex_new();

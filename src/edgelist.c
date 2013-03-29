@@ -708,6 +708,57 @@ void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches) {
 	}
 }
 
+void realign_extended(const hash_table *ht, edge *eg, const int pos,
+		const int mismatches, const int ori) {
+	int i = 0, index = 0, j = 0, start = pos, end = 0;
+	bwa_seq_t *read = NULL, *query = NULL, *seqs = NULL, *mate = NULL;
+	alignarray *aligns = NULL;
+	alg *a = NULL;
+	seqs = ht->seqs;
+	end = eg->len - seqs->len + 1;
+	if (ori) {
+		seq_reverse(eg->len, eg->contig->seq, 0);
+		start = 0;
+		end = pos - seqs->len + 1;
+	}
+	//show_debug_msg(__func__, "Aligning ... \n");
+	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
+	for (i = start; i < end; i++) {
+		query = new_seq(eg->contig, seqs->len, i);
+		//show_debug_msg(__func__, "Pos %d \n", i);
+		//p_query(__func__, query);
+		pe_aln_query(query, query->seq, ht, mismatches, query->len, 0, aligns);
+		pe_aln_query(query, query->rseq, ht, mismatches, query->len, 1, aligns);
+		for (j = 0; j < aligns->len; j++) {
+			a = g_ptr_array_index(aligns, j);
+			index = a->r_id;
+			if (index >= ht->n_seqs)
+				continue;
+			read = &seqs[index];
+			read->status = TRIED;
+			read->shift = i;
+			if (ori)
+				read->shift = eg->len - i + 1;
+			read->contig_id = eg->id;
+			g_ptr_array_add(eg->reads, read);
+		}
+		bwa_free_read_seq(1, query);
+		reset_alg(aligns);
+	}
+	free_alg(aligns);
+	for (i = 0; i < eg->reads->len; i++) {
+		read = g_ptr_array_index(eg->reads, i);
+		mate = get_mate(read, seqs);
+		if (mate->contig_id == read->contig_id && mate->status != USED
+				&& read->status != USED) {
+			read->status = USED;
+			mate->status = USED;
+		}
+	}
+	if (ori)
+		seq_reverse(eg->len, eg->contig->seq, 0);
+}
+
 void realign_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches,
 		const int ori) {
 	int i = 0, index = 0, j = 0;

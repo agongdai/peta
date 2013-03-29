@@ -53,6 +53,8 @@ void upd_reads_by_ol(bwa_seq_t *seqs, edge *eg, const int mismatches);
 void upd_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches);
 void realign_reads_by_ht(const hash_table *ht, edge *eg, const int mismatches,
 		const int ori);
+void realign_extended(const hash_table *ht, edge *eg, const int pos,
+		const int mismatches, const int ori);
 void upd_reads(const hash_table *ht, edge *eg, const int mismatches);
 int has_pairs_on_edge(edge *eg, bwa_seq_t *seqs, const int n_stop_pairs);
 void log_reads(edgearray *ea);
