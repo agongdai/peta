@@ -1,13 +1,13 @@
 #!/bin/bash
 
-query="validated.2"
+query="merged"
 root_dir="/home/carl/Projects/"
-eva_exe="$root_dir/peta/scripts/eva.py"
+eva_exe="$root_dir/peta_dev/scripts/eva.py"
 db_dir="$root_dir/peta/rnaseq/hg19/genome/"
 db="human.ensembl.cdna.fa"
 blastdb="$root_dir/ncbi-blast-2.2.26+/db/"
 similarity="99"
-query_dir="$root_dir/peta/SRR027876_out/"
+query_dir="$root_dir/peta_dev/SRR027876_out/"
 
 blastn_exe="blastn"
 blat_exe="$root_dir/blat/blat"

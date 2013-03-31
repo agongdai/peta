@@ -475,10 +475,11 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 			if (eg->len > 100)
 				g_ptr_array_add(all_edges, eg);
 			bwa_free_read_seq(1, kmer_seq);
-			//break;
+//			if (all_edges->len > 100)
+//				break;
 		}
 	}
-	kmer_contigs = xopen("../SRR097897_out/kmer_contigs.fa", "w");
+	kmer_contigs = xopen("../SRR027876_out/kmer_contigs.fa", "w");
 	save_edges(all_edges, kmer_contigs, 0, 0, 100);
 	fflush(kmer_contigs);
 	fclose(kmer_contigs);
@@ -487,7 +488,7 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 	reset_edge_ids(all_edges);
 	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
 	destroy_ht(ht);
-	kmer_contigs = xopen("../SRR097897_out/merged.fa", "w");
+	kmer_contigs = xopen("../SRR027876_out/merged.fa", "w");
 	save_edges(all_edges, kmer_contigs, 0, 0, 100);
 
 	clock_gettime(CLOCK_MONOTONIC, &kmer_finish_time);

@@ -3,8 +3,8 @@ import sys, os, pysam
 from argparse import ArgumentParser
 import collections
 
-bad_bases_thre = 50
-full_length_perc = 0.98
+bad_bases_thre = 20
+full_length_perc = 0.99
 near_full_length = 0.9
 
 class ResultSummary(object):
@@ -140,6 +140,23 @@ class FastaFile(object):
 			coverage_file.write('%s\t%d\t%d\t%.2f\n' % (rname, len(self.seqs[rname]), n_reads, n_reads / len(self.seqs[rname])))
 		coverage_file.close()
 
+''' Trop a sequence line to multiple lines with equal length of line_len
+'''
+def trop_seq(seq, line_len):
+	line = ''
+	c_counter = 0
+	for c in seq:
+		line += c
+		c_counter += 1
+		if c_counter % line_len == 0:
+			line += '\n'
+	return line
+
+def get_tx_str(tx_name, seq, line_len):
+	header = '>%s\n' % tx_name
+	seq_line = trop_seq(seq, line_len)
+	return header + seq_line
+
 class BlastHit(object):
 	def __init__(self, qname = None, hit_line = '', rname = None, alen = 0, pos = 0, astart = 0, aend = 0, tid = 0):
 		self.qname = qname
@@ -199,7 +216,7 @@ class BlastHit(object):
 		for s in self.r_block_starts:
 			repr += str(s) + ','
 		repr += ']\t'
-		repr += 'Match: %d; Mismatch: %d; Indels: %d/%d \n' % (self.n_match, self.n_mismatch, self.n_query_gap_bases, self.n_ref_gap_bases)
+		repr += 'Match: %d; Mismatch: %d; Indels: %d/%d' % (self.n_match, self.n_mismatch, self.n_query_gap_bases, self.n_ref_gap_bases)
 		return repr
 	
 def find_hit(hits, query, tx):
@@ -383,7 +400,7 @@ def stat(args):
 			report.write('0\tNone\t0\t0\t')
 		report.write('\n')
 	report.close()
-	print 'Done. Check report file %s/result.txt' % args.out_dir
+	print 'Done. Check report file %s/report.txt' % args.out_dir
 
 def read_psl_hits(hit_lines, key):
 	hits = {}
@@ -566,6 +583,50 @@ def check_dup(args):
 			unique.append(line)
 	print 'Done.\n'
 	ids.close()
+	
+def cmp_psl(args):
+	tx = FastaFile(args.transcript)
+	hits_1 = read_blat_hits(args.psl_1, 'ref')
+	hits_2 = read_blat_hits(args.psl_2, 'ref')
+	n_base_1 = 0
+	n_base_2 = 0
+	n_base_both = 0
+	n_valid = 0
+	n_none = 0
+	for tx_name, seq in tx.seqs.iteritems():
+		tx_len = len(seq)
+		bit_counter_1 = [0 for x in range(tx_len)]
+		if tx_name in hits_1:
+			for h in hits_1[tx_name]:
+				for i in range(h.n_blocks):
+					for j in range(h.r_block_starts[i], h.r_block_starts[i] + h.block_sizes[i]):
+						bit_counter_1[j] = 1
+					
+		bit_counter_2 = [0 for x in range(tx_len)]
+		if tx_name in hits_2:
+			for h in hits_2[tx_name]:
+				for i in range(h.n_blocks):
+					for j in range(h.r_block_starts[i], h.r_block_starts[i] + h.block_sizes[i]):
+						bit_counter_2[j] = 1
+		
+		for i in range(tx_len):
+			n_valid += 1
+			if bit_counter_1[i] == 1 and bit_counter_2[i] == 1:
+				n_base_both += 1
+			if bit_counter_1[i] == 1 and bit_counter_2[i] == 0:
+				n_base_1 += 1
+			if bit_counter_1[i] == 0 and bit_counter_2[i] == 1:
+				n_base_2 += 1
+			if bit_counter_1[i] == 0 and bit_counter_2[i] == 0:
+				n_none += 1
+				n_valid -= 1
+	print '%s: [psl_1]; %s: [psl_2]' % (args.psl_1, args.psl_2)
+	print 'Bases by both:            %d' % n_base_both
+	print 'Bases by psl_1 only:      %d' % n_base_1
+	print 'Bases by psl_2 only:      %d' % n_base_2
+	print 'Bases by none:            %d' % n_none
+	if n_valid > 0:
+		print 'Overlapped bases:         %.2f' % (n_base_both / n_valid)
 
 def main():
     parser = ArgumentParser()
@@ -597,6 +658,12 @@ def main():
     parser_sta.add_argument('-t', '--ref2ref', required=True, metavar='FILE', help='PSL file: annotated transcripts aligned to itself', dest='ref2ref')
     parser_sta.add_argument('-r', '--read2ref', required=False, metavar='FILE', help='PSL file: raw reads aligned to annotated transcripts', dest='read2ref')
     parser_sta.add_argument('-s', required=True, help='similarity', dest='similarity')
+    
+    parser_psl = subparsers.add_parser('psl', help='Compare two PSL hit files')
+    parser_psl.set_defaults(func=cmp_psl)
+    parser_psl.add_argument('transcript', help='annotated transcripts')
+    parser_psl.add_argument('-1', '--psl_1', required=True, metavar='FILE', help='PSL file 1', dest='psl_1')
+    parser_psl.add_argument('-2', '--psl_2', required=True, metavar='FILE', help='PSL file 2', dest='psl_2')
 
     args = parser.parse_args()
     args.func(args)

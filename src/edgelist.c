@@ -735,6 +735,8 @@ void realign_extended(const hash_table *ht, edge *eg, const int pos,
 			if (index >= ht->n_seqs)
 				continue;
 			read = &seqs[index];
+			if (read->status != FRESH)
+				continue;
 			read->status = TRIED;
 			read->shift = i;
 			if (ori)
