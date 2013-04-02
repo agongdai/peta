@@ -7,9 +7,6 @@
 
 #ifndef PEPATH_H_
 #define PEPATH_H_
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include <stdio.h>
 #include "roadmap.h"
@@ -37,6 +34,10 @@ typedef struct {
 	readarray *reads;
 } rm_path;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 rm_path *get_single_edge_path(edge *eg);
 GPtrArray *report_paths(edgearray *all_edges, bwa_seq_t *seqs);
 int pe_path(int argc, char *argv[]);
@@ -47,4 +48,5 @@ void save_paths(GPtrArray *paths, const char *tx_fn, const int min_len);
 #ifdef __cplusplus
 }
 #endif
+
 #endif /* PEPATH_H_ */

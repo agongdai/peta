@@ -70,7 +70,6 @@ typedef struct __bwa_seqio_t bwa_seqio_t;
 extern "C" {
 #endif
 
-
 	bwa_seqio_t *bwa_seq_open(const char *fn);
 	void bwa_seq_close(bwa_seqio_t *bs);
 	void seq_reverse(int len, ubyte_t *seq, int is_comp);

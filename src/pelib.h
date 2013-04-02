@@ -17,6 +17,14 @@
 #define VALID_PAIR_PERC_STAGE_2	0.75
 #define N_SPLIT_UNIT			50
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int pe_lib(int argc, char *argv[]);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PELIB_H_ */

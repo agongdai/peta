@@ -12,10 +12,6 @@
 #include "peseq.h"
 #include "pehash.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define SHIFT 				6
 #define N_DEFAULT_HITS		1024
 #define N_DEFAULT_ALIGNS	128
@@ -58,6 +54,10 @@ typedef struct {
 	int shift; // Check SSAHA paper for meaning.
 	int offset;
 } pos_tuple;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void free_alg(alignarray *alns);
 void reset_alg(alignarray *alns);

@@ -25,10 +25,6 @@
 #define MIN_OL					6
 #define CLOSE_MIN_OL			6
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef GPtrArray seqarray;
 typedef GArray posarray;
 
@@ -60,6 +56,10 @@ typedef struct {
 	char *exon_s;
 	char *exon_e;
 } gene;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void save_fq(const bwa_seq_t *seqs, const char *fp_fn, const uint16_t ol);
 seq *read_seq(const char *fn);
@@ -110,7 +110,7 @@ int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,
 		const int mismatches);
 void switch_ubyte(bwa_seq_t *s);
-int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *template,
+int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *temp,
 		const int mismatches, const int min_len, const int max_len,
 		const int ori);
 int is_repetitive_q(const bwa_seq_t *query);

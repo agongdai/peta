@@ -12,6 +12,11 @@
 #define xzopen(fn, mode) err_xzopen_core(__func__, fn, mode)
 #define xassert(cond, msg) if ((cond) == 0) err_fatal_simple_core(__func__, msg)
 
+#define average(value1, value2)					( ((value1) & (value2)) + ((value1) ^ (value2)) / 2 )
+#define min(value1, value2)						( ((value1) < (value2)) ? (value1) : (value2) )
+#define max(value1, value2)						( ((value1) > (value2)) ? (value1) : (value2) )
+#define med3(a, b, c)							( a<b ? (b<c ? b : a<c ? c : a) : (b>c ? b : a>c ? c : a))
+
 typedef uint64_t index64;
 
 #ifdef __cplusplus

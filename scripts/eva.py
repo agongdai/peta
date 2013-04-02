@@ -3,8 +3,8 @@ import sys, os, pysam
 from argparse import ArgumentParser
 import collections
 
-bad_bases_thre = 20
-full_length_perc = 0.99
+bad_bases_thre = 50
+full_length_perc = 0.98
 near_full_length = 0.9
 
 class ResultSummary(object):
@@ -588,6 +588,7 @@ def cmp_psl(args):
 	tx = FastaFile(args.transcript)
 	hits_1 = read_blat_hits(args.psl_1, 'ref')
 	hits_2 = read_blat_hits(args.psl_2, 'ref')
+	n_base_2_file = open(args.psl_2 + '.base', 'w')
 	n_base_1 = 0
 	n_base_2 = 0
 	n_base_both = 0
@@ -609,6 +610,7 @@ def cmp_psl(args):
 					for j in range(h.r_block_starts[i], h.r_block_starts[i] + h.block_sizes[i]):
 						bit_counter_2[j] = 1
 		
+		n_base_2_on_tx = 0
 		for i in range(tx_len):
 			n_valid += 1
 			if bit_counter_1[i] == 1 and bit_counter_2[i] == 1:
@@ -617,9 +619,17 @@ def cmp_psl(args):
 				n_base_1 += 1
 			if bit_counter_1[i] == 0 and bit_counter_2[i] == 1:
 				n_base_2 += 1
+				n_base_2_on_tx += 1
 			if bit_counter_1[i] == 0 and bit_counter_2[i] == 0:
 				n_none += 1
 				n_valid -= 1
+		if n_base_2_on_tx >= 50:
+			n_base_2_file.write('============== %s: length %d ===============\n' % (tx_name, tx_len))
+			for i in range(tx_len):
+				if bit_counter_1[i] == 0 and bit_counter_2[i] == 1:
+					n_base_2_file.write('%d \n' % i)
+	
+	n_base_2_file.close()			
 	print '%s: [psl_1]; %s: [psl_2]' % (args.psl_1, args.psl_2)
 	print 'Bases by both:            %d' % n_base_both
 	print 'Bases by psl_1 only:      %d' % n_base_1

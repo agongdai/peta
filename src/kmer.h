@@ -10,7 +10,7 @@
 
 #include <stdint.h>
 
-typedef struct {
+typedef struct mer {
 	uint64_t s;
 	uint32_t count;
 	uint8_t status;
@@ -22,6 +22,10 @@ typedef struct {
 	int k;
 } mer_meta;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ext_by_kmers(char *lib_file, const char *solid_file,
 		const char *kmer_file, const int insert_size, const int sd_insert_size,
 		const int n_threads);
@@ -29,5 +33,9 @@ void build_kmers(const char *fa_fn, const char *out_fn, const int k);
 void build_kmers_gvdb(const char *fa_fn, const char *out_fn, const int k);
 GHashTable *load_kmers(const char *kmer_file, GPtrArray *kmer_list,
 		mer_meta *meta);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* KMER_H_ */

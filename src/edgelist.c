@@ -719,9 +719,10 @@ void realign_extended(const hash_table *ht, edge *eg, const int pos,
 	if (ori) {
 		seq_reverse(eg->len, eg->contig->seq, 0);
 		start = 0;
-		end = pos - seqs->len + 1;
+		end = (eg->len - pos);
+		end = (eg->len + 1 < seqs->len + end) ? (eg->len - seqs->len + 1) : end;
 	}
-	//show_debug_msg(__func__, "Aligning ... \n");
+	show_debug_msg(__func__, "Ori: %d; pos: %d; start: %d; end: %d ... \n", ori, pos, start, end);
 	aligns = g_ptr_array_sized_new(N_DEFAULT_ALIGNS);
 	for (i = start; i < end; i++) {
 		query = new_seq(eg->contig, seqs->len, i);
@@ -729,6 +730,7 @@ void realign_extended(const hash_table *ht, edge *eg, const int pos,
 		//p_query(__func__, query);
 		pe_aln_query(query, query->seq, ht, mismatches, query->len, 0, aligns);
 		pe_aln_query(query, query->rseq, ht, mismatches, query->len, 1, aligns);
+        show_debug_msg(__func__, "[%d] # of alignments: %d \n", i, aligns->len);
 		for (j = 0; j < aligns->len; j++) {
 			a = g_ptr_array_index(aligns, j);
 			index = a->r_id;

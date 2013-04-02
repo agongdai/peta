@@ -24,7 +24,6 @@
 #include "readrm.h"
 #include "mate.h"
 #include "merge.h"
-#include "gvdb-builder.h"
 
 int kmer_ctg_id = 0;
 int ins_size = 0;
@@ -32,7 +31,7 @@ int sd_ins_size = 0;
 struct timespec kmer_start_time, kmer_finish_time;
 
 mer *new_mer() {
-	mer *m = (mer*) malloc(sizeof(mer));
+	mer *m = (mer*) malloc(sizeof(struct mer));
 	m->count = 0;
 	m->s = 0;
 	m->status = FRESH;
@@ -99,54 +98,6 @@ bwa_seq_t *get_kmer_seq(mer *kmer, const int k) {
 
 void free_int64(gpointer data) {
 	free(data);
-}
-
-void build_kmers_gvdb(const char *fa_fn, const char *out_fn, const int k) {
-	bwa_seq_t *reads = NULL, *r = NULL;
-	uint32_t n_reads = 0, i = 0, j = 0;
-	uint64_t *mer_v = 0, n_kmers = 0;
-	mer *m = NULL;
-	mer_meta *meta = NULL;
-	GHashTable* hash = gvdb_hash_table_new(NULL, "some");
-	GPtrArray* kmer_list = g_ptr_array_sized_new(BUFSIZ);
-	show_msg(__func__, "Building the kmers hashtable of %s... \n", fa_fn);
-	reads = load_reads(fa_fn, &n_reads);
-	for (i = 0; i < 10000; i++) {
-		r = &reads[i];
-		//p_query(__func__, r);
-		if (i % 1000000 == 0)
-			show_debug_msg(__func__,
-					"%d sequences kmer counted: %d kmers...\n", i, n_kmers);
-		for (j = 0; j < r->len - k; j++) {
-			mer_v = get_kmer_int(r->seq, j, 1, k);
-			//show_debug_msg(__func__, "Kmer id: %" ID64 " \n", *mer_v);
-			m = g_hash_table_lookup(hash, mer_v);
-			if (m) {
-				m = (mer*) m;
-				m->count++;
-				free(mer_v);
-				//show_debug_msg(__func__, "Kmer exists: %" ID64 ", %d \n", exist_m->s, exist_m->count);
-			} else {
-				m = new_mer();
-				m->s = *mer_v;
-				m->count++;
-				n_kmers++;
-				//show_debug_msg(__func__, "Kmer added: %" ID64 ", %d \n", m->s, m->count);
-				g_ptr_array_add(kmer_list, m);
-				g_hash_table_insert(hash, (gpointer) (mer_v), (gpointer) m);
-			}
-		}
-	}
-	meta = new_mer_meta();
-	meta->k = k;
-	meta->n_kmers = n_kmers;
-	meta->n_seqs = n_reads;
-	show_debug_msg(__func__, "%d distinct %d-mers counted \n", n_kmers, k);
-	g_ptr_array_sort(kmer_list, (GCompareFunc) cmp_kmer_by_count);
-	gvdb_table_write_contents(hash, out_fn, TRUE, NULL);
-	free_kmer_list(kmer_list);
-	g_hash_table_destroy(hash);
-	bwa_free_read_seq(n_reads, reads);
 }
 
 void build_kmers(const char *fa_fn, const char *out_fn, const int k) {
@@ -341,8 +292,8 @@ void kmer_ext_edge(edge *eg, bwa_seq_t *query, GHashTable *kmers,
 		next_c = next_char_by_kmers(kmers, meta, query, ori);
 		//show_debug_msg(__func__, "Next char: %d \n", next_c);
 		if (next_c == -1) {
-			//show_debug_msg(__func__, "Realining edge [%d, %d] \n", eg->id,
-			//		eg->len);
+			show_debug_msg(__func__, "[%d, %d] Realigning reads to edge \n", eg->id,
+					eg->len);
 			//p_ctg_seq("Contig", eg->contig);
 			realign_extended(ht, eg, pre_round_len, 0, ori);
 			//p_readarray(eg->reads, 1);
@@ -350,7 +301,7 @@ void kmer_ext_edge(edge *eg, bwa_seq_t *query, GHashTable *kmers,
 			mate_pool = get_mate_pool_from_edge(eg, ht, ori, ins_size,
 					sd_ins_size);
 			//p_readarray(mate_pool->reads, 1);
-			show_debug_msg(__func__, "Extending by mates \n");
+			show_debug_msg(__func__, "[%d, %d] Extending by mates \n", eg->id, eg->len);
 			if (ext_by_mates(kmers, meta, mate_pool->reads, query, eg, ori)) {
 				pre_round_len = eg->len;
 				continue;
@@ -415,12 +366,15 @@ GHashTable *load_kmers(const char *kmer_file, GPtrArray *kmer_list,
 	mer *m = NULL;
 	GHashTable* hash = g_hash_table_new_full(g_int64_hash, g_int64_equal,
 			(GDestroyNotify) free_int64, NULL);
+
 	show_msg(__func__, "Loading kmers...\n");
 	reading = fread(meta, sizeof(mer_meta), 1, kmers_f);
 	show_msg(__func__, "%" ID64 " kmers to load... \n", meta->n_kmers);
 	for (i = 0; i < meta->n_kmers; i++) {
+		if (i % 1000000 == 0)
+			show_msg(__func__, "%" ID64 " kmers loaded...\n", i);
 		m = new_mer();
-		reading = fread(m, sizeof(mer), 1, kmers_f);
+		reading = fread(m, sizeof(struct mer), 1, kmers_f);
 		g_hash_table_insert(hash, (gpointer) (&(m->s)), (gpointer) m);
 		if (m->count > 2)
 			g_ptr_array_add(kmer_list, m);
@@ -475,8 +429,10 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 			if (eg->len > 100)
 				g_ptr_array_add(all_edges, eg);
 			bwa_free_read_seq(1, kmer_seq);
-//			if (all_edges->len > 100)
-//				break;
+			if (all_edges->len % 10 == 0) {
+				erase_reads_on_ht(ht);
+				shrink_ht(ht);
+			}
 		}
 	}
 	kmer_contigs = xopen("../SRR027876_out/kmer_contigs.fa", "w");

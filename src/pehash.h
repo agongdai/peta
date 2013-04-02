@@ -47,6 +47,10 @@ typedef struct {
 	GPtrArray *pos;
 } reads_ht;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int pe_hash(int argc, char *argv[]);
 hash_table *pe_load_hash(char *hash_fn);
 void shrink_ht(hash_table *ht);
@@ -58,14 +62,16 @@ void read_hash_value(index64 *seq_id, int *pos_start, hash_value value);
 void destroy_ht(hash_table *ht);
 hash_opt *init_hash_opt();
 
-GPtrArray *find_reads_ol_template(reads_ht *ht, bwa_seq_t *template,
-		bwa_seq_t *seqs, const int ori);
-GPtrArray *find_edges_ol(reads_ht *ht, bwa_seq_t *template,
-		GPtrArray *all_edges);
+GPtrArray *find_reads_ol_template(reads_ht *ht, bwa_seq_t *temp, bwa_seq_t *seqs, const int ori);
+GPtrArray *find_edges_ol(reads_ht *ht, bwa_seq_t *temp, GPtrArray *all_edges);
 void destroy_reads_ht(reads_ht *ht);
 reads_ht *build_reads_ht(const int k, GPtrArray *initial_reads);
 reads_ht *build_edges_ht(const int k, GPtrArray *init_edges);
 void add_read_to_ht(reads_ht *ht, bwa_seq_t *read);
 void rm_read_from_ht(reads_ht *ht, bwa_seq_t *read);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PEHASH_H_ */
