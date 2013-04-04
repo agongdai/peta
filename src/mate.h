@@ -17,10 +17,18 @@
 #define SD_TIMES 			 	4
 #define MAX_COUNTER_PAIRS		4
 
-void add_mates_by_ol(const hash_table *ht, edge *eg, pool *cur_pool,
-		const int ol, const int nm, bwa_seq_t *query, const int ori,
-		const int insert_size, const int sd_insert_size);
-pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori,
-		const int insert_size, const int sd_insert_size);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+	void add_mates_by_ol(const hash_table *ht, edge *eg, pool *cur_pool,
+			const int ol, const int nm, bwa_seq_t *query, const int ori,
+			const int insert_size, const int sd_insert_size);
+	pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori,
+			const int insert_size, const int sd_insert_size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MATE_H_ */

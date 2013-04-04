@@ -147,11 +147,11 @@ int edgearray_find_similar(edgearray *array, edge *eg) {
 			continue;
 		if (eg_right && eg_i_right && eg_right->id != eg_i_right->id)
 			continue;
-		diff = abs((eg->r_shift - eg->len) - (eg_i->r_shift - eg_i->len));
+		diff = get_abs((eg->r_shift - eg->len) - (eg_i->r_shift - eg_i->len));
 		if (diff < TRIVIAL_DIFF)
 			return i;
 		if (eg_right && eg_i_right) {
-			diff = abs((eg->r_shift - eg_right->len) - (eg_i->r_shift
+			diff = get_abs((eg->r_shift - eg_right->len) - (eg_i->r_shift
 					- eg_i_right->len));
 			if (diff < TRIVIAL_DIFF)
 				return i;
@@ -188,7 +188,7 @@ double *get_pair_dis_on_edge(edge *eg, int *n_pairs) {
 				//p_query("Left", s);
 				//p_query("Right", next_s);
 				//show_debug_msg(__func__, "DISTANCE: %d \n", abs(next_s->shift - s->shift));
-				pairs[*n_pairs] = abs(next_s->shift - s->shift);
+				pairs[*n_pairs] = get_abs(next_s->shift - s->shift);
 				*n_pairs += 1;
 			}
 		}
@@ -730,7 +730,7 @@ void realign_extended(const hash_table *ht, edge *eg, const int pos,
 		//p_query(__func__, query);
 		pe_aln_query(query, query->seq, ht, mismatches, query->len, 0, aligns);
 		pe_aln_query(query, query->rseq, ht, mismatches, query->len, 1, aligns);
-        show_debug_msg(__func__, "[%d] # of alignments: %d \n", i, aligns->len);
+        //show_debug_msg(__func__, "[%d] # of alignments: %d \n", i, aligns->len);
 		for (j = 0; j < aligns->len; j++) {
 			a = g_ptr_array_index(aligns, j);
 			index = a->r_id;
@@ -1206,11 +1206,11 @@ int reads_has_overlap(readarray *reads, const int edge_id,
 	for (i = 1; i < reads->len; i++) {
 		r = g_ptr_array_index(reads, i);
 		if (r->contig_id == edge_id) {
-			dis = abs(r->shift - r_target_pre->shift);
+			dis = get_abs(r->shift - r_target_pre->shift);
 			max_dis_1 = (max_dis_1 > dis) ? max_dis_1 : dis;
 			r_target_pre = r;
 		} else {
-			dis = abs(r->shift - r_pre->shift);
+			dis = get_abs(r->shift - r_pre->shift);
 			max_dis_2 = (max_dis_2 > dis) ? max_dis_2 : dis;
 			r_pre = r;
 		}

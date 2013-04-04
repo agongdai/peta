@@ -27,3 +27,26 @@ void free_eg_gap(eg_gap *gap) {
 		free(gap);
 }
 
+edge *new_eg() {
+	edge *eg = (edge*) malloc(sizeof(edge));
+	eg->contig = 0;
+	eg->in_egs = g_ptr_array_sized_new(0);
+	eg->out_egs = g_ptr_array_sized_new(0);
+	eg->reads = g_ptr_array_sized_new(0);
+	eg->pairs = g_ptr_array_sized_new(0);
+	eg->name = NULL;
+	eg->right_ctg = NULL;
+	eg->left_ctg = NULL;
+	eg->len = 0;
+	eg->r_shift = 0;
+	eg->l_shift = 0;
+	eg->id = 0;
+	eg->visited = 0;
+	eg->alive = 1;
+	eg->is_root = 0;
+	eg->ori = 0;
+	eg->gaps = g_ptr_array_sized_new(0);
+	eg->level = -1;
+	eg->comp_id = -1;
+	return eg;
+}

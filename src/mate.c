@@ -39,7 +39,7 @@ pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori,
 		if (is_paired(s, ori))
 			continue;
 		// If the insert size is not in the range
-		if (abs(eg->len - s->shift) > (insert_size + sd_insert_size * SD_TIMES)) {
+		if (get_abs(eg->len - s->shift) > (insert_size + sd_insert_size * SD_TIMES)) {
 			continue;
 		}
 		// If the mate is already in use, either by current or another thread

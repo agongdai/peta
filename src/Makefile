@@ -4,16 +4,15 @@ CXX=		g++
 CFLAGS=		-ggdb -g -Wall -O2 $(shell pkg-config --libs gthread-2.0 --cflags glib-2.0)
 CXXFLAGS=	-std=c++0x $(CFLAGS)
 DFLAGS=		-DHAVE_PTHREAD #-D_FILE_OFFSET_BITS=64
-OBJS=		rand.o utils.o roadmap.o edge.o clean.o rnaseq.o correct.o mate.o \
+OBJS=		rand.o utils.o roadmap.o edge.o clean.o rnaseq.o \
 			pepath.o bwtaln.o pealn.o edgelist.o pehash.o pelib.o \
 			pechar.o pool.o peseq.o simu.o hits.o \
-			bwaseqio.o list.o kmer.o kmers.o \
+			bwaseqio.o kmers.o correct.o mate.o list.o \
 			kstring.o readrm.o scaffolding.o merge.o
 PROG=		peta
-SDARRAY=	bitarray/*.o
 INCLUDES=	
 LIBS=		-lm -lrt -lz -lpthread $(shell pkg-config --libs glib-2.0)
-SUBDIRS=	bitarray
+SUBDIRS=	
 
 ROOTDIR=	peta_dev
 SRCDIR=		$(ROOTDIR)/src
@@ -42,13 +41,17 @@ lib-recur:
 		done;
 
 peta:lib-recur $(OBJS) main.o
-		$(CXX) $(CFLAGS) $(DFLAGS) $(OBJS) $(SDARRAY) main.o -o $@ $(LIBS)
+		$(CXX) $(CFLAGS) $(DFLAGS) $(OBJS) main.o -o $@ $(LIBS)
 		
-cleanlocal: # $(RM) is the platform-independent command to remove a file.
-		@$(RM) gmon.out *.o a.out $(PROG) *~ *.a core
+clean: # $(RM) is the platform-independent command to remove a file.
+		@$(RM) gmon.out *.o a.out $(PROG) *~ *.a core \
+		wdir=`pwd`; \
+		for subdir in $(SUBDIRS); do \
+			cd $$subdir; \
+			$(MAKE) clean || exit 1; \
+			cd $$wdir; \
+		done;
 
-clean:cleanlocal
-
-dist:cleanlocal
+dist:clean
 		@cd ../../; \
 		tar czf peta-$(VERSION).tgz $(SRCDIR) $(DOCDIR) $(SCRIPTS)

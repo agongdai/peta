@@ -384,8 +384,8 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 	// --------------->
 	//           -------------->
 	if (ol >= EDGE_OL_THRE && ol * EDGE_OL_PERC > nm) {
-		if (ol > MATE_OVERLAP_THRE || abs(ol - eg_i->len) <= EDGE_OL_THRE
-				|| abs(ol - eg_j->len) <= EDGE_OL_THRE) {
+		if (ol > MATE_OVERLAP_THRE || get_abs(ol - eg_i->len) <= EDGE_OL_THRE
+				|| get_abs(ol - eg_j->len) <= EDGE_OL_THRE) {
 			to_merge = 1;
 		} else { // Must not share any reads, and there are paired reads
 			if (!has_reads_in_common(eg_i, eg_j)) {
@@ -412,8 +412,8 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 			rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len, 0);
 			ol = find_ol(eg_i->contig, rev, MAX_EDGE_NM);
 			nm = get_mismatches_on_ol(eg_i->contig, rev, ol, MAX_EDGE_NM);
-			if (ol > MATE_OVERLAP_THRE || abs(ol - eg_i->len) <= EDGE_OL_THRE
-					|| abs(ol - eg_j->len) <= EDGE_OL_THRE) {
+			if (ol > MATE_OVERLAP_THRE || get_abs(ol - eg_i->len) <= EDGE_OL_THRE
+					|| get_abs(ol - eg_j->len) <= EDGE_OL_THRE) {
 				to_merge = 1;
 			} else { // Must not share any reads, and there are paired reads
 				if (!has_reads_in_common(eg_i, eg_j)) {
@@ -444,8 +444,8 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 				rev = new_mem_rev_seq(eg_i->contig, eg_i->contig->len, 0);
 				ol = find_ol(rev, eg_j->contig, MAX_EDGE_NM);
 				nm = get_mismatches_on_ol(rev, eg_j->contig, ol, MAX_EDGE_NM);
-				if (ol > MATE_OVERLAP_THRE || abs(ol - eg_i->len)
-						<= EDGE_OL_THRE || abs(ol - eg_j->len) <= EDGE_OL_THRE) {
+				if (ol > MATE_OVERLAP_THRE || get_abs(ol - eg_i->len)
+						<= EDGE_OL_THRE || get_abs(ol - eg_j->len) <= EDGE_OL_THRE) {
 					to_merge = 1;
 				} else { // Must not share any reads, and there are paired reads
 					if (!has_reads_in_common(eg_i, eg_j)) {
@@ -618,7 +618,7 @@ void mark_sub_edge(edgearray *all_edges, GPtrArray *hits) {
 	for (i = 0; i < hits->len; i++) {
 		h = g_ptr_array_index(hits, i);
 		if (h->q_size < h->t_size) {
-			if (h->alen > h->q_size - VAGUE_TAIL_LEN && abs(h->q_end
+			if (h->alen > h->q_size - VAGUE_TAIL_LEN && get_abs(h->q_end
 					- h->q_start) > h->q_size - VAGUE_TAIL_LEN && h->mismatches
 					<= MAX_EDGE_NM) {
 				eg = g_ptr_array_index(all_edges, atoi(h->qname));

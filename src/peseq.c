@@ -593,11 +593,11 @@ int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
 	int min_acceptable_score = 0, min_len = 0, similarity_score = 0;
 	if (!query || !seq || !seq->seq || !query->seq || mismatches < 0)
 		return 0;
-	if (abs(query->len - seq->len) > mismatches)
+	if (get_abs(query->len - seq->len) > mismatches)
 		return 0;
 	min_len = query->len;
 	min_len = min_len > seq->len ? seq->len : min_len;
-	min_acceptable_score = min_len * score_mat + mismatches * score_mis + abs(
+	min_acceptable_score = min_len * score_mat + mismatches * score_mis + get_abs(
 			query->len - seq->len) * score_gap;
 	similarity_score = smith_waterman(query, seq, score_mat, score_mis,
 			score_gap, min_acceptable_score);
@@ -637,7 +637,7 @@ int is_sub_seq_aln(const ubyte_t *query, const int q_len, const int shift,
 		return NOT_FOUND;
 	if (q_len + shift > seq->len)
 		end = seq->len - shift - 1;
-	start = (shift >= 0) ? 0 : abs(shift);
+	start = (shift >= 0) ? 0 : get_abs(shift);
 	if (ol) {
 		end = (end > (start + ol - 1)) ? end : (start + ol - 1);
 	}
@@ -669,7 +669,7 @@ int is_sub_seq(const bwa_seq_t *query, const int shift, const bwa_seq_t *seq,
 	int nm;
 	if (!query || !seq || !seq->seq || !query->seq)
 		return NOT_FOUND;
-	start = (shift >= 0) ? shift : abs(shift);
+	start = (shift >= 0) ? shift : get_abs(shift);
 	if (ol) {
 		end = (end > (start + ol)) ? (start + ol) : end;
 	}
@@ -698,7 +698,7 @@ int is_sub_seq_byte(const ubyte_t *query, const int q_len, const int shift,
 	int nm;
 	if (!query || !seq || !seq->seq)
 		return NOT_FOUND;
-	start = (shift >= 0) ? shift : abs(shift);
+	start = (shift >= 0) ? shift : get_abs(shift);
 	if (ol) {
 		end = (end > (start + ol)) ? (start + ol) : end;
 	}

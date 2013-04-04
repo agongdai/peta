@@ -302,30 +302,6 @@ roadmap *new_rm() {
 	return rm;
 }
 
-edge *new_eg() {
-	edge *eg = (edge*) malloc(sizeof(edge));
-	eg->contig = 0;
-	eg->in_egs = g_ptr_array_sized_new(0);
-	eg->out_egs = g_ptr_array_sized_new(0);
-	eg->reads = g_ptr_array_sized_new(0);
-	eg->pairs = g_ptr_array_sized_new(0);
-	eg->name = NULL;
-	eg->right_ctg = NULL;
-	eg->left_ctg = NULL;
-	eg->len = 0;
-	eg->r_shift = 0;
-	eg->l_shift = 0;
-	eg->id = 0;
-	eg->visited = 0;
-	eg->alive = 1;
-	eg->is_root = 0;
-	eg->ori = 0;
-	eg->gaps = g_ptr_array_sized_new(0);
-	eg->level = -1;
-	eg->comp_id = -1;
-	return eg;
-}
-
 void free_readarray(readarray *ra) {
 	if (!ra)
 		return;
@@ -530,7 +506,7 @@ int prune_eg(edge *eg) {
 				//  |-> eg: ----()---------------
 				//  |-> eg->right_ctg (shift = 4)
 				if (is_sbl(eg, eg->right_ctg) && ((eg->len - eg->r_shift)
-						< MINCONTIG || (abs((eg->len + eg->r_shift
+						< MINCONTIG || (get_abs((eg->len + eg->r_shift
 						- eg->right_ctg->len)) < MINCONTIG))) {
 					return rm_eg(eg);
 				}
@@ -543,7 +519,7 @@ int prune_eg(edge *eg) {
 					for (i = 0; i < sbls->len; i++) {
 						eg_i = g_ptr_array_index(sbls, i);
 						if (has_edge(eg_i, eg->right_ctg->id, 0)) {
-							if (abs(eg_i->len - (eg->len - eg->r_shift))
+							if (get_abs(eg_i->len - (eg->len - eg->r_shift))
 									< MINCONTIG) {
 								return rm_eg(eg);
 							}

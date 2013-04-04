@@ -90,7 +90,7 @@ double std_dev(double a[], double n) {
 	return sqrt(variance);
 }
 
-int abs(int a) {
+int get_abs(int a) {
 	return (a > 0) ? a : (0 - a);
 }
 

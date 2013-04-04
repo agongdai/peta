@@ -5,7 +5,7 @@
 #include <string.h>
 #include <glib.h>
 #include "list.h"
-#include "kmer.h"
+#include "kmers.h"
 #include "peseq.h"
 #include "edgelist.h"
 
@@ -13,7 +13,7 @@ gint cmp_kmer_by_seq(gpointer a, gpointer b) {
 	int64_t rs = 0;
 	mer *read_a = *((mer**) a);
 	mer *read_b = *((mer**) b);
-	rs = (int64_t) read_a->s - (int64_t) read_b->s;
+	rs = (int64_t) read_b->s - (int64_t) read_a->s;
 	if (rs == 0)
 		return 0;
 	if (rs > 0)

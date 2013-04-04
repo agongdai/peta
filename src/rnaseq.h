@@ -7,9 +7,17 @@
 #define N_DF_MAX_SEQS	8388608
 #define BWA_MODE		3
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern unsigned char nst_nt4_table[256];
 
 bwa_seq_t *load_reads(const char *fa_fn, uint32_t *n_seqs);
 bwa_seq_t *load_arr_reads(const char *fa_fn, uint32_t *n_reads);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* RNASEQ_H_ */

@@ -506,7 +506,7 @@ void mark_duplicate_edges(edgearray *block) {
 			if (eg_i != eg_j && eg_j->alive && similar_seqs(eg_i->contig,
 					eg_j->contig, PATH_MISMATCHES, PATH_MAX_GAPS, SCORE_MATCH,
 					SCORE_MISMATCH, SCORE_GAP)) {
-				if (eg_i->right_ctg == eg_j->right_ctg && abs(eg_i->r_shift
+				if (eg_i->right_ctg == eg_j->right_ctg && get_abs(eg_i->r_shift
 						- eg_j->r_shift) <= PATH_MISMATCHES) {
 					eg_i->alive = 0;
 					show_debug_msg("DUPLICATE", "[%d: %d] <=> [%d, %d] \n",

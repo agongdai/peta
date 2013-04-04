@@ -27,7 +27,7 @@
 #include "merge.h"
 #include "hits.h"
 #include "rnaseq.h"
-#include "kmer.h"
+#include "kmers.h"
 
 int pair_ctg_id = 0;
 int overlap_len = 0;
@@ -107,7 +107,7 @@ void keep_mates_in_pool(edge *eg, pool *cur_pool, const hash_table *ht,
 				//p_query(__func__, mate);
 				to_remove = 1;
 			} else { // If the distance is not within range, remove 'read'
-				if (abs(eg->len - mate->shift) > (insert_size + sd_insert_size
+				if (get_abs(eg->len - mate->shift) > (insert_size + sd_insert_size
 						* SD_TIMES)) {
 					to_remove = 1;
 				}
@@ -1203,8 +1203,8 @@ int pe_lib(int argc, char *argv[]) {
 	//build_kmers("/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa",
 	//		"../SRR027876_out/kmer.freq", 25);
 	// "/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa"
-	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2], insert_size,
-			sd_insert_size, n_threads);
+//	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2], insert_size,
+//			sd_insert_size, n_threads);
 
 
 //	id_mutex = g_mutex_new();

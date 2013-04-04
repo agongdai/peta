@@ -266,7 +266,7 @@ int post_val_edge_thread(gpointer e, gpointer data) {
 		// p_query(__func__, mate);
 		if (mate->contig_id == eg->id && mate->rev_com == r->rev_com) {
 			start = (r->shift > mate->shift) ? mate->shift : r->shift;
-			end = start + abs(r->shift - mate->shift) + r->len;
+			end = start + get_abs(r->shift - mate->shift) + r->len;
 			end = (end > eg->len) ? eg->len : end;
 			for (j = start; j < end; j++) {
 				base_cov[j]++;
