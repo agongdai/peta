@@ -11,6 +11,7 @@
 #include <time.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+#include <string.h>
 #include "kmers.h"
 #include "utils.h"
 #include "pehash.h"
@@ -416,6 +417,7 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 	edge *eg = NULL;
 	FILE *kmer_contigs = NULL;
 	mer_map kmers;
+	char *ctg_name = NULL;
 	clock_gettime(CLOCK_MONOTONIC, &kmer_start_time);
 
 	show_msg(__func__, "Library: %s \n", lib_file);
@@ -433,6 +435,7 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 		all_edges = g_ptr_array_sized_new(BUFSIZ); // kmer_list->kmers->len
 	ht = pe_load_hash(lib_file);
 	show_msg(__func__, "Extending by kmers...\n");
+	ctg_name = (char*) malloc(32 * sizeof(char));
 	for (i = 0; i < kmer_list->len; i++) {
 		m = (mer*) g_ptr_array_index(kmer_list, i);
 		if (m->status != USED && m->count > 2) {
@@ -447,8 +450,11 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 			show_debug_msg(__func__,
 					"========================== %d ===================== \n", i);
 			eg = kmer_ext(kmers, meta, kmer_seq, ht);
-			if (eg->len > 100)
+			if (eg->len > 100) {
+				sprintf(ctg_name, "%" ID64 "\0", i);
+				eg->name = strdup(ctg_name);
 				g_ptr_array_add(all_edges, eg);
+			}
 			bwa_free_read_seq(1, kmer_seq);
 			if (all_edges->len % 10 == 0) {
 				erase_reads_on_ht(ht);
@@ -467,6 +473,9 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 	destroy_ht(ht);
 	kmer_contigs = xopen("../SRR097897_out/merged.fa", "w");
 	save_edges(all_edges, kmer_contigs, 0, 0, 100);
+}
+
+void test_kmer_merge() {
 }
 
 int pe_kmer(int argc, char *argv[]) {
@@ -498,6 +507,7 @@ int pe_kmer(int argc, char *argv[]) {
 	if (!g_thread_supported())
 		g_thread_init(NULL);
 
+	//build_kmers(argv[optind], "../SRR027876_out/kmer.cor.freq", kmer_len);
 	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2], ins_size,
 			sd_ins_size, kmer_n_threads);
 

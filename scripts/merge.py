@@ -164,6 +164,46 @@ def decode(args):
     left.close()
     right.close()
 
+def rev(args):
+    line_no = 0
+    every_n_line = 2
+    if args.type == 'fq':
+        every_n_line = 4
+    with open(args.out, 'w') as output:
+        with open(args.input) as input:
+            for line in input:
+                if line_no % every_n_line == 0:
+                    output.write(line)
+                else:
+                    line = line.strip()
+                    line = rev_comp(line)
+                    output.write(line + '\n')
+                line_no += 1
+    print 'Check file %s' % args.out
+    
+def merge_peta_fa(args):
+    id = 0
+    every_n_line = 2
+    first_c = '>'
+    with open(args.out, 'w') as out:
+        with open(args.left) as left:
+            with open(args.right) as right:
+                line = left.readline().strip()
+                while line:
+                    out.write('>%d\n' % id)
+                    line = left.readline()
+                    out.write(line)
+                    id += 1
+                    
+                    line = right.readline()
+                    line = right.readline()
+                    out.write('>%d\n' % id)
+                    out.write(line)
+                    id += 1
+                    
+                    line = left.readline()
+    print 'Check file %s' % args.out
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -205,6 +245,18 @@ def main():
     parser_app_pair_suffix.add_argument('-f', required=True, help='file', dest='seq_file', metavar='FILE')
     parser_app_pair_suffix.add_argument('-o', required=True, help='output file', dest='fq_with_tag', metavar='FILE')
     parser_app_pair_suffix.add_argument('-d', required=True, default='left', help='left or right', dest='ori')
+
+    parser_rev = subparsers.add_parser('rev', help='reverse complement fasta/fastq')
+    parser_rev.set_defaults(func=rev)
+    parser_rev.add_argument('-t', required=True, help='fq or fa', dest='type', default='fq')
+    parser_rev.add_argument('-f', required=True, help='file', dest='input', metavar='FILE')
+    parser_rev.add_argument('-o', required=True, help='output file', dest='out', metavar='FILE')
+    
+    parser_merge_peta = subparsers.add_parser('merge_peta', help='simply merge left and right reads for PETA')
+    parser_merge_peta.set_defaults(func=merge_peta_fa)
+    parser_merge_peta.add_argument('-l', required=True, help='left mate file', dest='left', metavar='FILE')
+    parser_merge_peta.add_argument('-r', required=True, help='right mate file', dest='right', metavar='FILE')
+    parser_merge_peta.add_argument('-o', required=True, help='output file', dest='out', metavar='FILE')    
 
     args = parser.parse_args()
     args.func(args)

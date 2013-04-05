@@ -407,13 +407,6 @@ void pe_hash_core(const char *fa_fn, hash_opt *opt) {
 		n_seqs += n_part_seqs;
 		for (i = 0; i < n_part_seqs; i++) {
 			s = &part_seqs[i];
-			if (s->len != opt->read_len) {
-				err_fatal(
-						__func__,
-						"Sequence length of %s is not as specified: %d vs %d! \n",
-						s->name, s->len, opt->read_len);
-			}
-			//p_query(__func__, s);
 			while (block_no < opt->n_hash_block && hash_start <= opt->read_len
 					- opt->k * (opt->interleaving)) {
 				hash_start = block_no * opt->block_size;

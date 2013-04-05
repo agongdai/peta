@@ -3,8 +3,8 @@ import sys, os, pysam
 from argparse import ArgumentParser
 import collections
 
-bad_bases_thre = 20
-full_length_perc = 0.99
+bad_bases_thre = 50
+full_length_perc = 0.98
 near_full_length = 0.9
 
 class ResultSummary(object):
@@ -637,6 +637,7 @@ def cmp_psl(args):
 	print 'Bases by none:            %d' % n_none
 	if n_valid > 0:
 		print 'Overlapped bases:         %.2f' % (n_base_both / n_valid)
+	print 'Check file: %s.base' % args.psl_2
 
 def main():
     parser = ArgumentParser()
