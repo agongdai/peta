@@ -7,7 +7,7 @@ DFLAGS=		-DHAVE_PTHREAD #-D_FILE_OFFSET_BITS=64
 OBJS=		rand.o utils.o roadmap.o edge.o clean.o rnaseq.o \
 			pepath.o bwtaln.o pealn.o edgelist.o pehash.o pelib.o \
 			pechar.o pool.o peseq.o simu.o hits.o \
-			bwaseqio.o kmers.o correct.o mate.o list.o \
+			bwaseqio.o correct.o kmers.o mate.o list.o \
 			kstring.o readrm.o scaffolding.o merge.o
 PROG=		peta
 INCLUDES=	
@@ -44,13 +44,13 @@ peta:lib-recur $(OBJS) main.o
 		$(CXX) $(CFLAGS) $(DFLAGS) $(OBJS) main.o -o $@ $(LIBS)
 		
 clean: # $(RM) is the platform-independent command to remove a file.
-		@$(RM) gmon.out *.o a.out $(PROG) *~ *.a core \
-		wdir=`pwd`; \
-		for subdir in $(SUBDIRS); do \
-			cd $$subdir; \
-			$(MAKE) clean || exit 1; \
-			cd $$wdir; \
-		done;
+		@$(RM) gmon.out *.o a.out $(PROG) *~ *.a core 
+#		wdir=`pwd`; \
+#		for subdir in $(SUBDIRS); do \
+#			cd $$subdir; \
+#			$(MAKE) clean || exit 1; \
+#			cd $$wdir; \
+#		done;
 
 dist:clean
 		@cd ../../; \

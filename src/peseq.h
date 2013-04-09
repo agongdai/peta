@@ -61,6 +61,8 @@ typedef struct {
 extern "C" {
 #endif
 
+void rescue_reads(bwa_seq_t *seqs, const int n_seqs);
+gint cmp_reads_by_name(gpointer a, gpointer b);
 void save_fq(const bwa_seq_t *seqs, const char *fp_fn, const uint16_t ol);
 seq *read_seq(const char *fn);
 bwa_seq_t *merge_seq_to_right(bwa_seq_t *s1, bwa_seq_t *s2, const int gap);

@@ -73,6 +73,16 @@ class FastaFile(object):
 		if not fa == '':
 			self.read_seqs()
 			self.set_lengths()
+			
+	def save_to_disk(self, output):
+		with open(output, 'w') as out:
+			for tx_name, seq in self.seqs.iteritems():
+				out.write('>%s length: %d\n' % (tx_name, len(seq)))
+				l = 0
+				for c in seq:
+					out.write(c)
+					if l % 50 == 0:
+						out.write('\n')
 
 	def read_seqs(self):
 		fa = open(self.filename, 'r')

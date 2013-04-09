@@ -106,24 +106,29 @@ def merge_fq(args):
         print 'Unexpected Error:', sys.exc_info()[1]
 
 def rename_ids(args):
-    filebase, ext = os.path.splitext(args.fq)
-    renamed_file = filebase + '_did.fastq'
-    fq_file = open(args.fq, 'r')
+    filebase, ext = os.path.splitext(args.input)
+    renamed_file = '%s_did%s' % (filebase, ext)
+    input_file = open(args.input, 'r')
     renamed = open(renamed_file, 'w')
     counter = 0
-    line = fq_file.readline()
+    line = input_file.readline()
     while line:
         if line.startswith('@'):
             renamed.write('@' + str(counter) + '\n')
-            line = fq_file.readline()
+            line = input_file.readline()
             renamed.write(line)
-            line = fq_file.readline()
+            line = input_file.readline()
             renamed.write(line)
-            line = fq_file.readline()
+            line = input_file.readline()
             renamed.write(line)
             counter += 1
-        line = fq_file.readline()
-    fq_file.close()
+        if line.startswith('>'):
+            renamed.write('>%d\n' % counter)
+            line = input_file.readline()
+            renamed.write(line)
+            counter += 1
+        line = input_file.readline()
+    input_file.close()
     renamed.close()
 
 def fq2fa(args):
@@ -228,7 +233,8 @@ def main():
 
     parser_rename = subparsers.add_parser('rename', help='rename read ids to be 0, 1, 2...')
     parser_rename.set_defaults(func=rename_ids)
-    parser_rename.add_argument('-f', required=True, help='fastq file', dest='fq', metavar='FILE')
+    parser_rename.add_argument('-t', required=True, help='fq or fa', dest='type', default='fq')
+    parser_rename.add_argument('input', help='fastq file')
     
     parser_rename = subparsers.add_parser('decode', help='remove the barcode')
     parser_rename.set_defaults(func=decode)

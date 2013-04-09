@@ -42,8 +42,6 @@ typedef struct {
 #endif
 
 roadmap *new_rm();
-edge *new_eg();
-void destroy_eg(edge *eg);
 void free_readarray(readarray *ra);
 void free_branch(edge *eg, const int ori, edgearray *all_edges);
 void cut_connection(edge *ass_eg, edge *tmp_eg, const int ori);

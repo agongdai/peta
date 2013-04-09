@@ -21,6 +21,38 @@
 #include "edgelist.h"
 
 /**
+ * For the reads used on one edge, keep the pairs only.
+ * For other reads, mark them as TRIED.
+ * It means, these reads can be used again, but not used as a starting read.
+ */
+void keep_pairs_only(edge *eg, bwa_seq_t *seqs) {
+	int i = 0, min_shift = 0, max_shift = 0;
+	bwa_seq_t *read = NULL, *mate = NULL;
+	show_debug_msg(__func__, "Getting mate pairs...\n");
+	//p_readarray(eg->reads, 1);
+	for (i = 0; i < eg->reads->len; i++) {
+		read = g_ptr_array_index(eg->reads, i);
+		mate = get_mate(read, seqs);
+		if (mate->status != FRESH && mate->contig_id == eg->id) {
+			min_shift = read->shift < min_shift ? read->shift : min_shift;
+			max_shift = read->shift > max_shift ? read->shift : max_shift;
+			g_ptr_array_add(eg->pairs, read);
+			g_ptr_array_add(eg->pairs, mate);
+			mate->status = FRESH;
+			read->status = FRESH;
+		}
+	}
+	for (i = 0; i < eg->reads->len; i++) {
+		read = g_ptr_array_index(eg->reads, i);
+		read->status = TRIED;
+	}
+	for (i = 0; i < eg->pairs->len; i++) {
+		read = g_ptr_array_index(eg->pairs, i);
+		read->status = USED;
+	}
+}
+
+/**
  * From current edge, get all mates of the used reads.
  */
 pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori,

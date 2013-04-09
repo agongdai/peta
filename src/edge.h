@@ -34,17 +34,18 @@ struct edge {
 	char *name;
 	edge *right_ctg; 	// If current contig is done before, record it
 	edge *left_ctg;
-	int r_shift; 		// shifted position of the right node
-	int l_shift;
+	short r_shift; 		// shifted position of the right node
+	short l_shift;
 	int id; 			// contig id
 	int len;
-	int visited;
-	int alive;
-	int is_root;
-	int ori;			// Orientation
-	int level;			// For post-processing
+	int8_t visited;
+	int8_t alive;
+	int8_t is_root;
+	int8_t ori;			// Orientation
+	int16_t level;			// For post-processing
 	int tid;			// Thread id
-	int comp_id;		// Component id
+	int16_t comp_id;		// Component id
+	uint64_t start_kmer_int;
 	GPtrArray *gaps;
 };
 
@@ -61,6 +62,8 @@ extern "C" {
 	eg_gap *init_gap(int s_index, int size, int ori);
 	void free_eg_gap(eg_gap *gap);
 	edge *new_eg();
+	void reset_tid(edge *eg);
+	void destroy_eg(edge *eg);
 
 #ifdef __cplusplus
 }

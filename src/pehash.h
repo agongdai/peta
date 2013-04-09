@@ -70,6 +70,9 @@ reads_ht *build_edges_ht(const int k, GPtrArray *init_edges);
 void add_read_to_ht(reads_ht *ht, bwa_seq_t *read);
 void rm_read_from_ht(reads_ht *ht, bwa_seq_t *read);
 
+void correct_used_reads_n(hash_table *ht, int *n_used_reads,
+		int *n_paired_reads);
+
 #ifdef __cplusplus
 }
 #endif

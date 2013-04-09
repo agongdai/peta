@@ -10,6 +10,11 @@
 
 #include <unordered_map>
 #include <stdint.h>
+#include "pehash.h"
+#include "bwtaln.h"
+
+using namespace std;
+typedef unordered_map<uint64_t, uint64_t*> mer_hash;
 
 typedef struct mer {
 	uint64_t s;
@@ -23,12 +28,21 @@ typedef struct {
 	int k;
 } mer_meta;
 
+typedef struct {
+	hash_opt *o;
+	uint64_t n_seqs;
+	bwa_seq_t *seqs;
+	mer_hash *hash;
+} hash_map;
+
+typedef unordered_map<uint64_t, mer*> mer_map;
+typedef unordered_map<uint64_t, uint32_t> mer_counter;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 	void test_sdarray();
-	void load_sda_kmers(const char *kmer_file, GPtrArray *kmer_list, mer_meta *meta);
 	void build_kmers(const char *fa_fn, const char *out_fn, const int k);
 	mer *new_mer();
 	int pe_kmer(int argc, char *argv[]);

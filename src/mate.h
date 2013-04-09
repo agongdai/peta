@@ -21,6 +21,7 @@
 extern "C" {
 #endif
 
+	void keep_pairs_only(edge *eg, bwa_seq_t *seqs);
 	void add_mates_by_ol(const hash_table *ht, edge *eg, pool *cur_pool,
 			const int ol, const int nm, bwa_seq_t *query, const int ori,
 			const int insert_size, const int sd_insert_size);

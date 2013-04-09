@@ -1221,3 +1221,23 @@ int reads_has_overlap(readarray *reads, const int edge_id,
 		return 1;
 	return 0;
 }
+
+/**
+ * Remove not-alive edges, release the reads
+ */
+void clean_edges(const hash_table *ht, edgearray *all_edges) {
+	int i = 0, n_ori = 0;
+	edge *eg = NULL;
+	n_ori = all_edges->len;
+	for (i = 0; i < all_edges->len; i++) {
+		eg = g_ptr_array_index(all_edges, i);
+		if (eg->alive == 0) {
+			clear_used_reads(eg, 0);
+			destroy_eg(eg);
+			if (g_ptr_array_remove_index_fast(all_edges, i))
+				i--;
+		}
+	}
+	show_msg(__func__, "Removed not alive edges %d to %d \n", n_ori,
+			all_edges->len);
+}

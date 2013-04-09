@@ -520,13 +520,13 @@ hash_table *pe_load_hash(char *fa_fn) {
 	char *hash_fn = malloc(FNLEN);
 	clock_t t = clock();
 
-	fprintf(stderr, "[pe_load_hash] Loading hash table of %s... \n", fa_fn);
+	fprintf(stderr, "[pe_load_hash] Loading hash table of %s ... \n", fa_fn);
 	h = (hash_table*) malloc(sizeof(hash_table));
 	seqs = load_reads(fa_fn, &n_seqs);
 	h->seqs = seqs;
 	h->n_seqs = n_seqs;
 	fprintf(stderr,
-			"[pe_load_hash] %d Original sequences loaded: %.2f sec...\n",
+			"[pe_load_hash] %d Original sequences loaded: %.2f sec ...\n",
 			n_seqs, (float) (clock() - t) / CLOCKS_PER_SEC);
 
 	// Load the hash table itself
@@ -538,7 +538,7 @@ hash_table *pe_load_hash(char *fa_fn) {
 	}
 	show_msg(
 			__func__,
-			"Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 "...\n",
+			"Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 " ...\n",
 			opt->k, opt->read_len, opt->n_k_mers, opt->n_pos);
 	h->k_mers_occ_acc = (hash_key*) calloc(opt->n_k_mers, sizeof(hash_key));
 	h->pos = (hash_value*) calloc(opt->n_pos, sizeof(hash_value));
@@ -552,6 +552,25 @@ hash_table *pe_load_hash(char *fa_fn) {
 			opt->n_k_mers, opt->n_pos, (float) (clock() - t) / CLOCKS_PER_SEC);
 	free(hash_fn);
 	return h;
+}
+
+void correct_used_reads_n(hash_table *ht, int *n_used_reads,
+		int *n_paired_reads) {
+	int i = 0;
+	bwa_seq_t *s = NULL;
+	*n_used_reads = 0;
+	*n_paired_reads = 0;
+	for (i = 0; i < ht->n_seqs; i++) {
+		s = &ht->seqs[i];
+		s->rev_com = 0;
+		if (s->status == USED || s->status == DEAD) {
+			*n_paired_reads += 1;
+		}
+		if (s->status == USED || s->status == TRIED || s->status == DEAD) {
+			*n_used_reads += 1;
+			s->tid = -1;
+		}
+	}
 }
 
 void pe_hash_test(char *fa_fn, hash_opt *opt) {

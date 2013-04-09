@@ -12,6 +12,7 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include <string.h>
+#include <stdio.h>
 #include "kmers.h"
 #include "utils.h"
 #include "pehash.h"
@@ -34,9 +35,8 @@ int sd_ins_size = 0;
 int kmer_n_threads = 0;
 int kmer_len = 0;
 char *kmer_out = NULL;
+GMutex *kmer_id_mutex;
 struct timespec kmer_start_time, kmer_finish_time;
-
-typedef unordered_map<uint64_t, mer*> mer_map;
 
 mer_meta *new_mer_meta() {
 	mer_meta *m = (mer_meta*) malloc(sizeof(mer_meta));
@@ -79,6 +79,126 @@ uint64_t get_kmer_int(const ubyte_t *seq, const int start,
 		// printf("%d: key = %" ID64 "\n", i, key);
 	}
 	return key;
+}
+
+void build_kmers_hash(const char *fa_fn, hash_opt *opt) {
+	clock_t t = clock();
+	uint32_t n_reads = 0, i = 0, j = 0;
+	uint64_t mer_v = 0, *kmer_freq = NULL;
+	mer_counter counter;
+	mer_hash hash;
+	bwa_seq_t *reads = NULL, *r = NULL;
+	FILE *hash_fp;
+	char *hash_fn = (char*) malloc(BUFSIZE);
+
+	show_msg(__func__, "Hashing library %s...\n", fa_fn);
+	reads = load_reads(fa_fn, &n_reads);
+
+	// Count frequencies of every kmer
+	show_msg(__func__, "Counting kmer frequencies ...\n");
+	for (i = 0; i < n_reads; i++) {
+		r = &reads[i];
+		for (j = 0; j <= r->len - opt->k; j++) {
+			mer_v = get_kmer_int(r->seq, j, 1, opt->k);
+			if (counter[mer_v]) {
+				counter[mer_v]++;
+			} else {
+				counter[mer_v] = 1;
+				opt->n_k_mers++;
+			}
+			opt->n_pos++;
+		}
+	}
+
+	// Set the value of hash map: first value stores how many reads having this kmer
+	show_msg(__func__, "Allocating space for %" ID64 " kmers, %" ID64 " distinct kmers ...\n", opt->n_pos, opt->n_k_mers);
+	for (mer_counter::iterator it = counter.begin(); it != counter.end(); ++it) {
+		kmer_freq = (uint64_t*) calloc(it->second + 1, sizeof(uint64_t));
+		kmer_freq[0] = 0;
+		hash[it->first] = kmer_freq;
+	}
+	show_msg(__func__, "Setting hash map ...\n");
+	for (i = 0; i < n_reads; i++) {
+		r = &reads[i];
+		for (j = 0; j <= r->len - opt->k; j++) {
+			mer_v = get_kmer_int(r->seq, j, 1, opt->k);
+			kmer_freq = hash[mer_v];
+			kmer_freq[++kmer_freq[0]] = get_hash_value(atoi(r->name), j);
+		}
+	}
+	show_msg(__func__, "Saving hash map of %d reads: %.2f sec ... \n", n_reads,
+			(float) (clock() - t) / CLOCKS_PER_SEC);
+	sprintf(hash_fn, "%s.map", fa_fn);
+	hash_fp = xopen(hash_fn, "w");
+	fwrite(opt, sizeof(hash_opt), 1, hash_fp);
+	for (mer_hash::iterator m = hash.begin(); m != hash.end(); ++m) {
+		mer_v = m->first;
+		fwrite(&mer_v, sizeof(uint64_t), 1, hash_fp);
+		kmer_freq = m->second;
+		fwrite(kmer_freq, sizeof(uint64_t), kmer_freq[0] + 1, hash_fp);
+	}
+	show_msg(__func__, "%d reads hashed: %.2f sec ... \n", n_reads,
+			(float) (clock() - t) / CLOCKS_PER_SEC);
+}
+
+hash_map *load_hash_map(const char *fa_fn, mer_hash& kmers) {
+	clock_t t = clock();
+	FILE *map_fp = NULL;
+	hash_opt *opt = NULL;
+	uint64_t i = 0, *count = NULL, *freq = NULL, *kmer_int = NULL;
+	uint32_t n_seqs = 0;
+	int rs = 0;
+	bwa_seq_t *seqs = NULL;
+	char *map_fn = (char*) malloc(BUFSIZE);
+	hash_map *hm = (hash_map*) malloc(sizeof(hash_map));
+
+	seqs = load_reads(fa_fn, &n_seqs);
+	hm->seqs = seqs;
+	hm->n_seqs = n_seqs;
+
+	sprintf(map_fn, "%s.map", fa_fn);
+	show_msg(__func__, "Loading hash map from %s ...\n", map_fn);
+	map_fp = xopen(map_fn, "rb");
+	opt = (hash_opt*) malloc(sizeof(hash_opt));
+	if (!fread(opt, sizeof(hash_opt), 1, map_fp)) {
+		err_fatal(__func__, "Unable to read from the map file %s! \n", map_fn);
+	}
+	for (i = 0; i < opt->n_k_mers; i++) {
+		kmer_int = (uint64_t*) malloc(sizeof(uint64_t));
+		rs = fread(kmer_int, sizeof(uint64_t), 1, map_fp);
+		count = (uint64_t*) malloc(sizeof(uint64_t));
+		rs = fread(count, sizeof(uint64_t), 1, map_fp);
+		freq = (uint64_t*) calloc(*count + 1, sizeof(uint64_t));
+		rs = fread(freq + 1, sizeof(uint64_t), *count, map_fp);
+		freq[0] = *count;
+		kmers[*kmer_int] = freq;
+	}
+
+	fclose(map_fp);
+	free(map_fn);
+	hm->o = opt;
+	hm->hash = &kmers;
+	show_msg(__func__, "%" ID64 " distinct kmers loaded\n", opt->n_k_mers);
+	show_msg(__func__, "%" ID64 " kmer occurrences loaded\n", opt->n_pos);
+	show_msg(__func__, "Hash map loaded: %.2f sec ... \n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
+	return hm;
+}
+
+void test_kmer_hash(const char *fa_fn) {
+	mer_hash map, *map_copy = NULL;
+	uint64_t i = 0, *freq = NULL;
+	uint64_t j = 0, seq_id = 0;
+	int pos = 0;
+	hash_map *hm = load_hash_map(fa_fn, map);
+	map_copy = hm->hash;
+	for (i = 0; i < 5; i++) {
+		freq = (*map_copy)[i];
+		for (j = i; j < freq[0]; j++) {
+			read_hash_value(&seq_id, &pos, freq[j]);
+show_msg		(__func__, "Read %" ID64 " contains kmer %" ID64 " at %d \n", seq_id, i, pos);
+	}
+}
 }
 
 void build_kmers(const char *fa_fn, const char *out_fn, const int k) {
@@ -141,17 +261,17 @@ void build_kmers(const char *fa_fn, const char *out_fn, const int k) {
 	fclose(out);
 }
 
-void load_kmers(const char *kmer_file, mer_map& kmers,
-		GPtrArray *kmer_list, mer_meta *meta) {
+void load_kmers(const char *kmer_file, mer_map& kmers, GPtrArray *kmer_list,
+		mer_meta *meta) {
 	FILE *kmers_f = xopen(kmer_file, "r");
 	uint64_t i = 0, reading = 0;
 	mer *m = NULL;
 
 	show_msg(__func__, "Loading kmers...\n");
 	reading = fread(meta, sizeof(mer_meta), 1, kmers_f);
-	show_msg(__func__, "%d kmers to load... \n", meta->n_kmers);
+	show_msg(__func__, "%d %d-mers to load... \n", meta->n_kmers, meta->k);
 	for (i = 0; i < meta->n_kmers; i++) {
-		if (i % 10000000 == 0)
+		if (i && i % 10000000 == 0)
 			show_msg(__func__, "%d kmers loaded...\n", i);
 		m = new_mer();
 		reading = fread(m, sizeof(struct mer), 1, kmers_f);
@@ -176,7 +296,7 @@ bwa_seq_t *get_kmer_seq(mer *kmer, const int k) {
 		seq[k - 1 - i] = index;
 		copy >>= 2;
 	}
-read->len = k;
+	read->len = k;
 	read->name = (char*) malloc(32);
 	sprintf(read->name, "%d", kmer->count);
 	set_rev_com(read);
@@ -188,8 +308,8 @@ read->len = k;
  * Return: ACGTN -> 01234;
  *         None -> -1;
  */
-int next_char_by_kmers(mer_map& kmers, mer_meta *meta,
-		bwa_seq_t *query, const int ori) {
+int next_char_by_kmers(mer_map *kmers, mer_meta *meta, bwa_seq_t *query,
+		const int ori) {
 	bwa_seq_t *next_q = NULL;
 	int counters[5], i = 0, max = 0;
 	uint64_t kmer_int = 0;
@@ -201,17 +321,20 @@ int next_char_by_kmers(mer_map& kmers, mer_meta *meta,
 		// Check the forward kmer
 		//p_query("SEQ", next_q);
 		kmer_int = get_kmer_int(next_q->seq, 0, 1, meta->k);
-		m = kmers[kmer_int];
+		m = (*kmers)[kmer_int];
 		if (m) {
+			//show_debug_msg(__func__, "Count: %d\n", m->count);
 			if (m->status != USED)
 				counters[i] = m->count;
 		}
 		// Check the reverse kmer
 		kmer_int = get_kmer_int(next_q->rseq, 0, 1, meta->k);
+		m = (*kmers)[kmer_int];
 		//p_query("REV", next_q);
 		if (m) {
+			//show_debug_msg(__func__, "Count: %d\n", m->count);
 			if (m->status != USED)
-			counters[i] = m->count;
+				counters[i] += m->count;
 		}
 		bwa_free_read_seq(1, next_q);
 	}
@@ -233,25 +356,23 @@ int next_char_by_kmers(mer_map& kmers, mer_meta *meta,
  * Mark a kmer as used.
  * The parameter 'kmer' is a 'copy' only, need to mark the kmer on the list
  */
-void mark_kmer_used(mer_map& kmers, mer_meta *meta,
-		bwa_seq_t *query) {
+void mark_kmer_used(mer_map *kmers, mer_meta *meta, bwa_seq_t *query) {
 	uint64_t kmer_int = 0;
 	mer *m = NULL;
 	kmer_int = get_kmer_int(query->seq, 0, 1, meta->k);
-	m = kmers[kmer_int];
+	m = (*kmers)[kmer_int];
 	if (m) {
 		m->status = USED;
 	}
 	kmer_int = get_kmer_int(query->rseq, 0, 1, meta->k);
-	m = kmers[kmer_int];
+	m = (*kmers)[kmer_int];
 	if (m) {
 		m->status = USED;
 	}
 }
 
-int ext_eg_query_n(mer_map& kmers, mer_meta *meta,
-		bwa_seq_t *query, edge *eg, bwa_seq_t *read, const int shift,
-		const int ori) {
+int ext_eg_query_n(mer_map *kmers, mer_meta *meta, bwa_seq_t *query, edge *eg,
+		bwa_seq_t *read, const int shift, const int ori) {
 	int i = 0, ext_len = 0;
 	ubyte_t *s = NULL, next_c = 0;
 	if (shift > query->len)
@@ -269,8 +390,8 @@ int ext_eg_query_n(mer_map& kmers, mer_meta *meta,
 	return ext_len;
 }
 
-int ext_by_mates(mer_map& kmers, mer_meta *meta,
-		edgearray *mates, bwa_seq_t *query, edge *eg, const int ori) {
+int ext_by_mates(mer_map *kmers, mer_meta *meta, edgearray *mates,
+		bwa_seq_t *query, edge *eg, const int ori) {
 	int ol = 0, ext_len = 0;
 	uint32_t i = 0;
 	bwa_seq_t *m = NULL, *tmp = NULL, *tpl = NULL;
@@ -289,7 +410,7 @@ int ext_by_mates(mer_map& kmers, mer_meta *meta,
 		//show_debug_msg(__func__, "OL: %d \n", ol);
 		if (ol >= 8) {
 			//p_query("Mate", m);
-		ext_len = ext_eg_query_n(kmers, meta, query, eg, tmp, ol, ori);
+			ext_len = ext_eg_query_n(kmers, meta, query, eg, tmp, ol, ori);
 		}
 
 		if (m->rev_com)
@@ -301,26 +422,26 @@ int ext_by_mates(mer_map& kmers, mer_meta *meta,
 	return ext_len;
 }
 
-void kmer_ext_edge(edge *eg, bwa_seq_t *query,
-		mer_map& kmers, mer_meta *meta, hash_table *ht,
-		const int ori) {
+void kmer_ext_edge(edge *eg, bwa_seq_t *query, mer_map *kmers, mer_meta *meta,
+		hash_table *ht, const int ori) {
 	int next_c = 0, pre_round_len = eg->len;
 	pool *mate_pool = NULL;
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
 	p_query(__func__, query);
 	while (1) {
-	//	p_query(__func__, query);
-	//	p_ctg_seq("Contig", eg->contig);
+		//p_query(__func__, query);
+		//p_ctg_seq("Contig", eg->contig);
 		next_c = next_char_by_kmers(kmers, meta, query, ori);
 		//show_debug_msg(__func__, "Next char: %d \n", next_c);
+		// If cannot find next char
 		if (next_c == -1) {
 			show_debug_msg(__func__, "[%d, %d] Realigning reads to edge \n",
 					eg->id, eg->len);
 			//p_ctg_seq("Contig", eg->contig);
 			realign_extended(ht, eg, pre_round_len, 0, ori);
 			//p_readarray(eg->reads, 1);
-		//show_debug_msg(__func__, "Getting mate pool \n");
+			//show_debug_msg(__func__, "Getting mate pool \n");
 			mate_pool = get_mate_pool_from_edge(eg, ht, ori, ins_size,
 					sd_ins_size);
 			//p_readarray(mate_pool->reads, 1);
@@ -344,80 +465,123 @@ void kmer_ext_edge(edge *eg, bwa_seq_t *query,
 	bwa_free_read_seq(1, query);
 }
 
+typedef struct {
+	mer_map *kmers;
+	mer_meta *meta;
+	hash_table *ht;
+	GPtrArray *edge_list;
+} kmer_thread_meta;
+
 /**
  * Extend a kmer
  */
-edge *kmer_ext(mer_map& kmers, mer_meta *meta,
-		bwa_seq_t *kmer, hash_table *ht) {
-edge *eg = NULL;
-	bwa_seq_t *query = NULL;
-int round_1_len = 0, round_2_len = 0;
+void *kmer_ext_thread(gpointer data, gpointer thread_params) {
+	edge *eg = NULL;
+	mer *m = NULL;
+	bwa_seq_t *query = NULL, *kmer = NULL;
+	int round_1_len = 0, round_2_len = 0;
+	kmer_thread_meta *params = (kmer_thread_meta*) thread_params;
+	mer_map *kmers = (params->kmers);
+	m = (mer*) data;
+	kmer = get_kmer_seq(m, params->meta->k);
 
+	if (has_n(kmer, 4) || is_biased_q(kmer)) {
+		bwa_free_read_seq(1, kmer);
+		return NULL;
+	}show_debug_msg(__func__,
+			"========= Kmer: %" ID64 " ========= \n", get_kmer_int(kmer->seq, 0, 1, kmer->len));
 	eg = new_eg();
+	g_mutex_lock(kmer_id_mutex);
 	eg->id = kmer_ctg_id++;
+	g_mutex_unlock(kmer_id_mutex);
 	// Get a copy of the kmer
 	query = new_seq(kmer, kmer->len, 0);
 	eg->contig = new_seq(query, query->len, 0);
-	kmer_ext_edge(eg, query, kmers, meta, ht, 0);
+	eg->len = eg->contig->len;
+	//	p_query(__func__, kmer);
+	//	p_query(__func__, query);
+	kmer_ext_edge(eg, query, kmers, params->meta, params->ht, 0);
 	round_1_len = eg->len;
 	//p_ctg_seq("Contig", eg->contig);
 	show_debug_msg(__func__, "Edge %d length: %d \n", eg->id, eg->len);
 
 	query = new_seq(eg->contig, kmer->len, 0);
-	kmer_ext_edge(eg, query, kmers, meta, ht, 1);
+	kmer_ext_edge(eg, query, kmers, params->meta, params->ht, 1);
 	//p_ctg_seq("Contig", eg->contig);
 	show_debug_msg(__func__, "Edge %d length: %d \n", eg->id, eg->len);
 
 	if (eg->len - round_1_len > 2) {
 		query = new_seq(eg->contig, kmer->len, 0);
 		round_2_len = eg->len;
-		kmer_ext_edge(eg, query, kmers, meta, ht, 0);
+		kmer_ext_edge(eg, query, kmers, params->meta, params->ht, 0);
 		show_debug_msg(__func__, "Edge %d length: %d \n", eg->id, eg->len);
 		if (eg->len - round_2_len > 2) {
 			query = new_seq(eg->contig, kmer->len, 0);
-			kmer_ext_edge(eg, query, kmers, meta, ht, 1);
+			kmer_ext_edge(eg, query, kmers, params->meta, params->ht, 1);
 			show_debug_msg(__func__, "Edge %d length: %d \n", eg->id, eg->len);
 		}
 	}
 
-	return eg;
+	eg->start_kmer_int = get_kmer_int(kmer->seq, 0, 1, kmer->len);
+	if (eg->len < 100000)
+		destroy_eg(eg);
+	else {
+		g_mutex_lock(kmer_id_mutex);
+		g_ptr_array_add(params->edge_list, eg);
+		g_mutex_unlock(kmer_id_mutex);
+	}
+	bwa_free_read_seq(1, kmer);
+
+	return NULL;
 }
 
+void kmer_threads(kmer_thread_meta *params, GPtrArray *kmer_list) {
+	GThreadPool *thread_pool = NULL;
+	mer *m = NULL;
+	uint64_t i = 0;
+	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, params, 1, TRUE,
+			NULL);
 
-/**
-void test_pass_by_ref3(mer_map& kmers) {
-	mer *m = kmers[0];
-	show_msg(__func__, "Kmer 0: %d \n", m->count);
-	show_msg(__func__, "Level 3 Spleeping... \n");
-	show_msg(__func__, "Return... \n");
+	show_msg(__func__, "Extending by kmers...\n");
+	for (i = 0; i < kmer_list->len; i++) {
+		m = (mer*) g_ptr_array_index(kmer_list, i);
+		if (m->status != USED && m->count > 1) {
+			g_thread_pool_push(thread_pool, (gpointer) m, NULL);
+		}
+	}
+	g_thread_pool_free(thread_pool, 0, 1);
 }
 
-void test_pass_by_ref2(mer_map &kmers) {
-	show_msg(__func__, "Level 2 Spleeping... \n");
-	show_msg(__func__, "Return... \n");
-	test_pass_by_ref3(kmers);
+void test_kmer_ext(kmer_thread_meta *params, GPtrArray *kmer_list) {
+	FILE *kmer_contigs = NULL;
+	bwa_seq_t *kmer_seq = NULL;
+	mer_map *map = params->kmers;
+
+	mer *m = (mer*) (*map)[53073660363574];
+	kmer_seq = get_kmer_seq(m, params->meta->k);
+	kmer_ext_thread((gpointer) kmer_seq, (gpointer) params);
+
+	m = (mer*) (*map)[857693345222861];
+	kmer_seq = get_kmer_seq(m, params->meta->k);
+	kmer_ext_thread((gpointer) kmer_seq, (gpointer) params);
+
+	kmer_contigs = xopen("../SRR097897_out/single.fa", "w");
+	save_edges(params->edge_list, kmer_contigs, 0, 0, 0);
+	fflush(kmer_contigs);
+	fclose(kmer_contigs);
 }
 
-void test_pass_by_ref(mer_map &kmers) {
-	show_msg(__func__, "Level 1 Spleeping... \n");
-	show_msg(__func__, "Return... \n");
-	test_pass_by_ref2(kmers);
-}
-**/
-
-void ext_by_kmers(char *lib_file, const char *solid_file,
+void ext_by_kmers_core(char *lib_file, const char *solid_file,
 		const char *kmer_file, const int insert_size, const int sd_insert_size,
 		const int n_threads) {
 	hash_table *ht = NULL;
-	uint64_t i = 0;
 	GPtrArray *all_edges = NULL, *kmer_list = NULL;
-	mer *m = NULL;
 	mer_meta *meta = NULL;
-	bwa_seq_t *kmer_seq = NULL;
-	edge *eg = NULL;
 	FILE *kmer_contigs = NULL;
 	mer_map kmers;
-	char *ctg_name = NULL;
+	kmer_thread_meta *params = (kmer_thread_meta*) calloc(1,
+			sizeof(kmer_thread_meta));
+
 	clock_gettime(CLOCK_MONOTONIC, &kmer_start_time);
 
 	show_msg(__func__, "Library: %s \n", lib_file);
@@ -432,36 +596,17 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 	show_msg(__func__, "Done loading kmers: %.2f sec\n",
 			(float) (kmer_finish_time.tv_sec - kmer_start_time.tv_sec));
 
-		all_edges = g_ptr_array_sized_new(BUFSIZ); // kmer_list->kmers->len
 	ht = pe_load_hash(lib_file);
-	show_msg(__func__, "Extending by kmers...\n");
-	ctg_name = (char*) malloc(32 * sizeof(char));
-	for (i = 0; i < kmer_list->len; i++) {
-		m = (mer*) g_ptr_array_index(kmer_list, i);
-		if (m->status != USED && m->count > 2) {
-		kmer_seq = get_kmer_seq(m, meta->k);
-			p_query(__func__, kmer_seq);
-			if (has_n(kmer_seq, 4) || is_biased_q(kmer_seq)) {
-				bwa_free_read_seq(1, kmer_seq);
-				continue;
-			}
-			//if (all_edges->len > 100)
-			//	break;
-			show_debug_msg(__func__,
-					"========================== %d ===================== \n", i);
-			eg = kmer_ext(kmers, meta, kmer_seq, ht);
-			if (eg->len > 100) {
-				sprintf(ctg_name, "%" ID64 "\0", i);
-				eg->name = strdup(ctg_name);
-				g_ptr_array_add(all_edges, eg);
-			}
-			bwa_free_read_seq(1, kmer_seq);
-			if (all_edges->len % 10 == 0) {
-				erase_reads_on_ht(ht);
-				shrink_ht(ht);
-			}
-		}
-	}
+	all_edges = g_ptr_array_sized_new(BUFSIZ);
+	params->ht = ht;
+	params->kmers = &kmers;
+	params->meta = meta;
+	params->edge_list = all_edges;
+
+	//test_kmer_ext(params, kmer_list);
+	//exit(1);
+	kmer_threads(params, kmer_list);
+
 	kmer_contigs = xopen("../SRR097897_out/kmer_contigs.fa", "w");
 	save_edges(all_edges, kmer_contigs, 0, 0, 100);
 	fflush(kmer_contigs);
@@ -471,11 +616,16 @@ void ext_by_kmers(char *lib_file, const char *solid_file,
 	reset_edge_ids(all_edges);
 	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
 	destroy_ht(ht);
+	free(params);
+
 	kmer_contigs = xopen("../SRR097897_out/merged.fa", "w");
 	save_edges(all_edges, kmer_contigs, 0, 0, 100);
-}
-
-void test_kmer_merge() {
+	fflush(kmer_contigs);
+	fclose(kmer_contigs);
+	kmer_contigs = xopen("../SRR097897_out/merged_all.fa", "w");
+	save_edges(all_edges, kmer_contigs, 0, 0, 0);
+	fflush(kmer_contigs);
+	fclose(kmer_contigs);
 }
 
 int pe_kmer(int argc, char *argv[]) {
@@ -506,10 +656,15 @@ int pe_kmer(int argc, char *argv[]) {
 	}
 	if (!g_thread_supported())
 		g_thread_init(NULL);
+	kmer_id_mutex = g_mutex_new();
 
-	//build_kmers(argv[optind], "../SRR027876_out/kmer.cor.freq", kmer_len);
-	ext_by_kmers(argv[optind], argv[optind + 1], argv[optind + 2], ins_size,
-			sd_ins_size, kmer_n_threads);
+	hash_opt *opt = (hash_opt*) malloc(sizeof(hash_opt));
+	opt->k = kmer_len;
+	test_kmer_hash(
+			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897_corrected.fa");
+	//build_kmers_hash(argv[optind], opt);
+	//ext_by_kmers_core(argv[optind], argv[optind + 1], argv[optind + 2],
+	//		ins_size, sd_ins_size, kmer_n_threads);
 
 	clock_gettime(CLOCK_MONOTONIC, &kmer_finish_time);
 	show_msg(__func__, "Done: %.2f sec\n", (float) (kmer_finish_time.tv_sec

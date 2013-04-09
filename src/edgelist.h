@@ -23,7 +23,7 @@ extern "C" {
 #define INVALID					-1
 #define STOP_PAIRING			400
 #define MIN_VALID_PAIRS			4
-#define MISMATCHES			    2
+#define MISMATCHES			    1
 #define SHORT_MISMATCH			1
 #define UPD_READS_THRE			10000
 
@@ -79,6 +79,7 @@ void rev_reads_pos(edge *eg);
 void reset_edge_ids(edgearray *all_edges);
 int reads_has_overlap(readarray *reads, const int edge_id,
 		const int insert_size, const int sd_insert_size);
+void clean_edges(const hash_table *ht, edgearray *all_edges);
 
 #ifdef __cplusplus
 }

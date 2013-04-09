@@ -1,7 +1,7 @@
 import sys, os, pysam
 from subprocess import Popen, PIPE
 import eva, merge
-from eva import FastaFile
+from eva import *
 from argparse import ArgumentParser
 
 SEP = '    '
@@ -15,10 +15,10 @@ REF = '/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa'
 READ = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa'
 CONTIG = '/home/carl/Projects/peta/SRR027876_out/pair_contigs.fa'
 
-READ_REF_PSL_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.psl'
+READ_REF_PSL_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897_corrected.psl'
 REF_TO_REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/ref.ref.psl'
 REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta'
-READ_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa'
+READ_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897_corrected.fa'
 
 READ_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa'
 REF_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa'
@@ -72,7 +72,6 @@ def ctg_to_ref(args):
 def read_to_ref(args):
     tx_name = args.transcript
     ref = args.tx
-    ctg_or_read = 'read'
     summary, tx_hits = zoom_tx(tx_name, ref, args.psl, 'read')
     align_str = get_align_str(ref, args.reads, tx_hits)
     hits_f = open(tx_name + '.reads.hits', 'w')
@@ -92,7 +91,7 @@ def pair_to_ref(args):
     print summary
     print 'Check text alignment at file %s.pairs.hits' % tx_name
 
-def zoom_tx(tx_name, ref, blat_psl, ctg_or_read):
+def zoom_tx(tx_name, ref, blat_psl, ctg_or_read='read'):
     lines = runInShell('grep ' + tx_name + ' ' + blat_psl)
     hit_lines = lines.split('\n')
     tx_hits = []
@@ -594,6 +593,48 @@ def check_solid(args):
             r = result.split('\n')
             for read in r:
                 print read.strip()
+                
+def oracle(args):
+    anno_tx = FastaFile(args.transcripts)
+    oracle_set = FastaFile()
+    for tx_name, seq in anno_tx.seqs.iteritems():
+        print 'Checking reads on %s ...' % tx_name
+        tx_len = len(seq)
+        summary, tx_hits = zoom_tx(tx_name, args.transcripts, args.psl, 'read')
+        bin_hit = [0 for x in range(tx_len)]
+        tx_hits.sort(key=lambda x: int(x.qname), reverse=False)
+        tx_hits_valid = []
+        # Filter low quality hits
+        for i in range(len(tx_hits) - 1):
+            h = tx_hits[i]
+            h_next = tx_hits[i+1]
+            # Count only the pairs
+            if int(h_next.qname) - int(h.qname) == 1:
+                if h.n_match < h.qlen - 2 and h.rstart > h.qlen and h.rend < tx_len - h.qlen:
+                    continue 
+                if h_next.n_match < h_next.qlen - 2 and h_next.rstart > h_next.qlen and h_next.rend < tx_len - h_next.qlen:
+                    continue 
+                tx_hits_valid.append(h)
+                tx_hits_valid.append(h_next)
+        # Set the bases hit
+        for i in range(len(tx_hits_valid) - 1):
+            h = tx_hits_valid[i]
+            for j in range(h.rstart, h.rend):
+                bin_hit[j] = 1
+        # Count the bases hit
+        hit_bases = 0
+        for i in range(len(bin_hit)):
+            b = bin_hit[i]
+            if b == 0:
+                print 'Not covered base: %d' % i
+            hit_bases += b
+        print '%s Hit bases: %d/%d' % (tx_name, hit_bases, tx_len)
+        if tx_len * 0.98 <= hit_bases and hit_bases < 100:
+            oracle_set.seqs[tx_name] = seq
+        else:
+            print '===== %s is not expressed =====' % tx_name
+    oracle_set.save_to_disk(os.path.join(args.transcripts, 'oracle'))
+    print os.path.join(args.transcripts, 'oracle')
             
 def main():
     parser = ArgumentParser()
@@ -626,8 +667,8 @@ def main():
     parser_one_read_to_ref = subparsers.add_parser('draw', help='draw transcripts splicing patterns')
     parser_one_read_to_ref.set_defaults(func=draw_dot)
     parser_one_read_to_ref.add_argument('transcript', help='annotated transcripts ensembl ID')
-    parser_one_read_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR027876, help='annotated transcripts file', metavar='FILE', dest='tx')
-    parser_one_read_to_ref.add_argument('-p', '--psl', required=False, default=REF_TO_REF_SRR027876, help='ref-to-ref psl file', metavar='FILE', dest='psl')
+    parser_one_read_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR097897, help='annotated transcripts file', metavar='FILE', dest='tx')
+    parser_one_read_to_ref.add_argument('-p', '--psl', required=False, default=REF_TO_REF_SRR097897, help='ref-to-ref psl file', metavar='FILE', dest='psl')
     
     parser_ctg_to_ref = subparsers.add_parser('ctx', help='align all contigs to a transcript and visualize text alignments')
     parser_ctg_to_ref.set_defaults(func=ctg_to_ref)
@@ -639,6 +680,12 @@ def main():
     parset_cov.set_defaults(func=gen_cov)
     parset_cov.add_argument('transcript', help='annotated transcripts')
     parset_cov.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR027876, metavar='FILE', help='psl file', dest='psl')
+    
+    parset_oracle = subparsers.add_parser('oracle', help='check the transcripts expressed')
+    parset_oracle.set_defaults(func=oracle)
+    parset_oracle.add_argument('reads', help='raw RNA-seq reads')
+    parset_oracle.add_argument('transcripts', help='annotated transcripts')
+    parset_oracle.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR027876, metavar='FILE', help='psl file', dest='psl')    
     
     parset_zoom = subparsers.add_parser('zoom', help='Check the hits within some region of a transcript')
     parset_zoom.set_defaults(func=zoom_region)

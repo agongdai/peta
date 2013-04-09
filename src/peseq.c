@@ -14,11 +14,33 @@
 #include "utils.h"
 #include "peseq.h"
 #include "bwtaln.h"
-#include "bwtaln.h"
 #include "pechar.h"
 #include "pehash.h"
 
 extern unsigned char nst_nt4_table[256];
+
+/**
+ * Mark not-used and not-dead reads as fresh
+ * These reads can be used to assemble again
+ */
+void rescue_reads(bwa_seq_t *seqs, const int n_seqs) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < n_seqs; i++) {
+		r = &seqs[i];
+		r->rev_com = 0;
+		if (r->status != USED && r->status != DEAD) {
+			r->status = FRESH;
+			r->tid = -1;
+		}
+	}
+}
+
+gint cmp_reads_by_name(gpointer a, gpointer b) {
+	bwa_seq_t *seq_a = *((bwa_seq_t**) a);
+	bwa_seq_t *seq_b = *((bwa_seq_t**) b);
+	return ((atoi(seq_a->name)) - atoi(seq_b->name));
+}
 
 /**
  * Save the query into disk.
