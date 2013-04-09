@@ -255,8 +255,8 @@ GPtrArray *get_probable_in_out(GPtrArray *all_edges, const int insert_size,
 /**
  * Merge two overlapped edges to a single one
  */
-edge *merge_two_ol_edges(reads_ht *rht, hash_table *ht, edge *eg_1, edge *eg_2,
-		const int ol) {
+edge *merge_two_ol_edges(reads_ht *rht, bwa_seq_t *seqs, edge *eg_1,
+		edge *eg_2, const int ol) {
 	int i = 0;
 	bwa_seq_t *r = NULL, *mate = NULL;
 
@@ -293,7 +293,7 @@ edge *merge_two_ol_edges(reads_ht *rht, hash_table *ht, edge *eg_1, edge *eg_2,
 	}
 	for (i = 0; i < eg_1->reads->len; i++) {
 		r = g_ptr_array_index(eg_1->reads, i);
-		mate = get_mate(r, ht->seqs);
+		mate = get_mate(r, seqs);
 		if (mate->contig_id == r->contig_id && mate->status != USED
 				&& r->status != USED) {
 			g_ptr_array_add(eg_1->pairs, r);
@@ -313,7 +313,7 @@ edge *merge_two_ol_edges(reads_ht *rht, hash_table *ht, edge *eg_1, edge *eg_2,
 
 typedef struct {
 	edgearray *single_edges;
-	hash_table *ht;
+	bwa_seq_t *seqs;
 	int insert_size;
 	int sd_insert_size;
 	int start;
@@ -354,7 +354,7 @@ int check_insert_size(edge *eg_left, edge *eg_right, readarray *paired_reads,
 	return 1;
 }
 
-int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
+int try_merging_two_edges(edge *eg_i, edge *eg_j, bwa_seq_t *seqs,
 		int insert_size, int sd_insert_size) {
 	bwa_seq_t *rev = NULL;
 	readarray *paired_reads = NULL;
@@ -389,8 +389,8 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 			to_merge = 1;
 		} else { // Must not share any reads, and there are paired reads
 			if (!has_reads_in_common(eg_i, eg_j)) {
-				paired_reads = find_unconditional_paired_reads(eg_i, eg_j,
-						ht->seqs);
+				paired_reads
+						= find_unconditional_paired_reads(eg_i, eg_j, seqs);
 				if (paired_reads->len >= MIN_VALID_PAIRS && check_insert_size(
 						eg_i, eg_j, paired_reads, insert_size, sd_insert_size,
 						ol, TAIL_HEAD)) {
@@ -402,7 +402,7 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 		}
 		if (to_merge) {
 			g_mutex_lock(edge_mutex);
-			merge_two_ol_edges(NULL, ht, eg_i, eg_j, ol);
+			merge_two_ol_edges(NULL, seqs, eg_i, eg_j, ol);
 			g_mutex_unlock(edge_mutex);
 			eg_i->visited = 0;
 			return 1;
@@ -412,13 +412,13 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 			rev = new_mem_rev_seq(eg_j->contig, eg_j->contig->len, 0);
 			ol = find_ol(eg_i->contig, rev, MAX_EDGE_NM);
 			nm = get_mismatches_on_ol(eg_i->contig, rev, ol, MAX_EDGE_NM);
-			if (ol > MATE_OVERLAP_THRE || get_abs(ol - eg_i->len) <= EDGE_OL_THRE
-					|| get_abs(ol - eg_j->len) <= EDGE_OL_THRE) {
+			if (ol > MATE_OVERLAP_THRE || get_abs(ol - eg_i->len)
+					<= EDGE_OL_THRE || get_abs(ol - eg_j->len) <= EDGE_OL_THRE) {
 				to_merge = 1;
 			} else { // Must not share any reads, and there are paired reads
 				if (!has_reads_in_common(eg_i, eg_j)) {
 					paired_reads = find_unconditional_paired_reads(eg_i, eg_j,
-							ht->seqs);
+							seqs);
 					if (paired_reads->len >= MIN_VALID_PAIRS
 							&& check_insert_size(eg_i, eg_j, paired_reads,
 									insert_size, sd_insert_size, ol, TAIL_TAIL)) {
@@ -433,7 +433,7 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 				//bwa_free_read_seq(1, eg_j->contig);
 				eg_j->contig = rev;
 				rev = NULL;
-				merge_two_ol_edges(NULL, ht, eg_i, eg_j, ol);
+				merge_two_ol_edges(NULL, seqs, eg_i, eg_j, ol);
 				g_mutex_unlock(edge_mutex);
 				eg_i->visited = 0;
 				return 1; // In case the 'rev' is freed accidently.
@@ -445,12 +445,13 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 				ol = find_ol(rev, eg_j->contig, MAX_EDGE_NM);
 				nm = get_mismatches_on_ol(rev, eg_j->contig, ol, MAX_EDGE_NM);
 				if (ol > MATE_OVERLAP_THRE || get_abs(ol - eg_i->len)
-						<= EDGE_OL_THRE || get_abs(ol - eg_j->len) <= EDGE_OL_THRE) {
+						<= EDGE_OL_THRE || get_abs(ol - eg_j->len)
+						<= EDGE_OL_THRE) {
 					to_merge = 1;
 				} else { // Must not share any reads, and there are paired reads
 					if (!has_reads_in_common(eg_i, eg_j)) {
 						paired_reads = find_unconditional_paired_reads(eg_i,
-								eg_j, ht->seqs);
+								eg_j, seqs);
 						if (paired_reads->len >= MIN_VALID_PAIRS
 								&& check_insert_size(eg_i, eg_j, paired_reads,
 										insert_size, sd_insert_size, ol,
@@ -466,7 +467,7 @@ int try_merging_two_edges(edge *eg_i, edge *eg_j, hash_table *ht,
 					bwa_free_read_seq(1, eg_i->contig);
 					eg_i->contig = rev;
 					rev = NULL;
-					merge_two_ol_edges(NULL, ht, eg_i, eg_j, ol);
+					merge_two_ol_edges(NULL, seqs, eg_i, eg_j, ol);
 					g_mutex_unlock(edge_mutex);
 					eg_i->visited = 0;
 					return 1; // In case the 'rev' is freed accidently.
@@ -499,7 +500,7 @@ void *merge_ol_edges_thread(void *data) {
 	GPtrArray *edge_candidates = NULL;
 	merging_paras_t *d = (merging_paras_t*) data;
 
-	seqs = d->ht->seqs;
+	seqs = d->seqs;
 
 	while (some_one_merged) {
 		some_one_merged = 0;
@@ -516,7 +517,7 @@ void *merge_ol_edges_thread(void *data) {
 					d->single_edges);
 			for (j = 0; j < edge_candidates->len; j++) {
 				eg_j = g_ptr_array_index(edge_candidates, j);
-				some_one_merged = try_merging_two_edges(eg_i, eg_j, d->ht,
+				some_one_merged = try_merging_two_edges(eg_i, eg_j, seqs,
 						d->insert_size, d->sd_insert_size);
 			} // End of edge candidates
 			eg_i->visited = 1;
@@ -529,7 +530,7 @@ void *merge_ol_edges_thread(void *data) {
 	return NULL;
 }
 
-void merge_ol_comp_edges(edgearray *comp_edges, hash_table *ht,
+void merge_ol_comp_edges(edgearray *comp_edges, bwa_seq_t *seqs,
 		int insert_size, int sd_insert_size) {
 	int i = 0, j = 0, some_merged = 1;
 	edge *eg = NULL, *eg_i = 0, *eg_j = NULL;
@@ -549,7 +550,7 @@ void merge_ol_comp_edges(edgearray *comp_edges, hash_table *ht,
 				eg_j = g_ptr_array_index(comp_edges, j);
 				if (eg_j->visited)
 					continue;
-				some_merged = try_merging_two_edges(eg_i, eg_j, ht,
+				some_merged = try_merging_two_edges(eg_i, eg_j, seqs,
 						insert_size, sd_insert_size);
 			}
 		}
@@ -557,7 +558,7 @@ void merge_ol_comp_edges(edgearray *comp_edges, hash_table *ht,
 }
 
 void merge_ol_edges(edgearray *single_edges, const int insert_size,
-		const int sd_insert_size, hash_table *ht, const int n_threads) {
+		const int sd_insert_size, bwa_seq_t *seqs, const int n_threads) {
 	int n_per_threads = 0, i = 0;
 	merging_paras_t *data;
 	GThread *threads[n_threads];
@@ -577,7 +578,7 @@ void merge_ol_edges(edgearray *single_edges, const int insert_size,
 	show_msg(__func__, "Merging %d templates...\n", single_edges->len);
 	for (i = 0; i < n_threads; ++i) {
 		data[i].single_edges = single_edges;
-		data[i].ht = ht;
+		data[i].seqs = seqs;
 		data[i].insert_size = insert_size;
 		data[i].start = i * n_per_threads;
 		data[i].end = (i + 1) * n_per_threads;

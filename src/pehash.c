@@ -202,7 +202,7 @@ GPtrArray *find_reads_on_ht(reads_ht *ht, bwa_seq_t *template, bwa_seq_t *seqs,
 }
 
 GPtrArray *find_reads_ol_template(reads_ht *ht, bwa_seq_t *template,
-		bwa_seq_t *seqs, const int ori) {
+		const bwa_seq_t *seqs, const int ori) {
 	bwa_seq_t *rev = NULL;
 	GPtrArray *hit_reads = NULL;
 	if (ht->n_reads == 0) {

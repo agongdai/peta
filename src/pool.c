@@ -17,6 +17,39 @@
 #include "pechar.h"
 #include "pehash.h"
 
+/**
+ * Count the occurrences of next probable chars.
+ * Result: set the array 'next' as the counters.
+ */
+void check_next_char(pool *cur_pool, edge *eg, int *next, const int ori) {
+	int i = 0, pre_pos = 0, check_pre = 0;
+	bwa_seq_t *s = NULL;
+	if (cur_pool->n > 10)
+		check_pre = 1;
+	for (i = 0; i < cur_pool->n; i++) {
+		s = g_ptr_array_index(cur_pool->reads, i);
+		pre_pos = ori ? s->cursor + 1 : s->cursor - 1;
+		// Only if read's last character is some as the contig's character, count it.
+		if (s->rev_com) {
+			if (check_pre) {
+				if (pre_pos >= 0 && pre_pos < s->len && s->rseq[pre_pos]
+						== eg->contig->seq[eg->contig->len - 1])
+					check_c(next, s->rseq[s->cursor]);
+			} else {
+				check_c(next, s->rseq[s->cursor]);
+			}
+		} else {
+			if (check_pre) {
+				if (pre_pos >= 0 && pre_pos < s->len && s->seq[pre_pos]
+						== eg->contig->seq[eg->contig->len - 1])
+					check_c(next, s->seq[s->cursor]);
+			} else {
+				check_c(next, s->seq[s->cursor]);
+			}
+		}
+	}
+}
+
 int should_start(bwa_seq_t *query) {
 	int tid = atoi(query->name);
 	if (query->status != FRESH)

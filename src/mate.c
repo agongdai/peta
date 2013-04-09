@@ -55,13 +55,12 @@ void keep_pairs_only(edge *eg, bwa_seq_t *seqs) {
 /**
  * From current edge, get all mates of the used reads.
  */
-pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori,
+pool *get_mate_pool_from_edge(edge *eg, const bwa_seq_t *seqs, const int ori,
 		const int insert_size, const int sd_insert_size) {
 	int i = 0;
-	bwa_seq_t *s = NULL, *mate = NULL, *seqs = NULL;
+	bwa_seq_t *s = NULL, *mate = NULL;
 	pool *mate_pool = NULL;
 	mate_pool = new_pool();
-	seqs = ht->seqs;
 	for (i = 0; i < eg->reads->len; i++) {
 		s = g_ptr_array_index(eg->reads, i);
 		mate = get_mate(s, seqs);
@@ -93,22 +92,21 @@ pool *get_mate_pool_from_edge(edge *eg, const hash_table *ht, const int ori,
  * Add read to current pool from the mate pool.
  * Check whether a mate overlaps with the tail with length parameter 'nm'
  */
-void add_mates_by_ol(const hash_table *ht, edge *eg, pool *cur_pool,
+void add_mates_by_ol(const bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 		const int ol, const int nm, bwa_seq_t *query, const int ori,
 		const int insert_size, const int sd_insert_size) {
 	int i = 0, overlapped = 0;
 	bwa_seq_t *mate = NULL, *tmp = NULL;
 	readarray *ol_mates = NULL;
-	bwa_seq_t *template = NULL, *seqs = NULL;
+	bwa_seq_t *template = NULL;
 	pool *mate_pool = NULL;
 	reads_ht *rht = NULL;
-	seqs = ht->seqs;
 	// Copy read length of the end of the contig.
 	template = new_seq(eg->contig, seqs->len, eg->len - seqs->len);
 	if (ori) {
 		seq_reverse(template->len, template->seq, 0);
 	}
-	mate_pool = get_mate_pool_from_edge(eg, ht, ori, insert_size,
+	mate_pool = get_mate_pool_from_edge(eg, seqs, ori, insert_size,
 			sd_insert_size);
 	//p_readarray(mate_pool->reads, 1);
 	if (mate_pool->n >= N_BIG_MATE_POOL) {

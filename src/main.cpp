@@ -37,11 +37,11 @@ static int usage() {
 }
 
 int main(int argc, char *argv[]) {
-	test_kmer_hash(
-				"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897_corrected.fa");
+//	test_kmer_hash(
+//				"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897_corrected.fa");
 //	build_kmers_hash(
 //			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897_corrected.fa", 25);
-	return 1;
+//	return 1;
 	if (argc < 2)
 		return usage();
 	else if (strcmp(argv[1], "hash") == 0)
@@ -54,8 +54,8 @@ int main(int argc, char *argv[]) {
 		return pe_lib(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "graph") == 0)
 		return pe_path(argc - 1, argv + 1);
-//	else if (strcmp(argv[1], "ass") == 0)
-//		return pe_kmer(argc - 1, argv + 1);
+	else if (strcmp(argv[1], "ass") == 0)
+		return pe_kmer(argc - 1, argv + 1);
 	else {
 		fprintf(stderr, "[main] unrecognized command '%s'\n", argv[1]);
 		return 1;

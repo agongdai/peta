@@ -11,9 +11,7 @@
 #include "edge.h"
 #include "pehash.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+
 #define POOLSIZE 				32
 #define EXT_BY_POOL_SIZE		8
 #define	BASES_SUPPORT_THRE		0.85
@@ -25,6 +23,11 @@ typedef struct {
 	size_t space;
 } pool;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void check_next_char(pool *cur_pool, edge *eg, int *next, const int ori);
 pool *new_pool();
 void free_pool(pool *r_pool);
 void free_mate_pool(pool *mate_pool);

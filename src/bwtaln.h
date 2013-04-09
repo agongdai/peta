@@ -31,7 +31,7 @@ typedef unsigned char ubyte_t;
 typedef struct {
 	char *name;
 	ubyte_t *seq, *rseq;
-	uint32_t len;
+	int32_t len;
 	int tid;
 	uint32_t full_len;
 	int is_in_c_pool, is_in_m_pool;

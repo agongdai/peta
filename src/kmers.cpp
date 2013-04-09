@@ -160,11 +160,12 @@ void test_kmer_hash(const char *fa_fn) {
 	hash_map *hm = load_hash_map(fa_fn, map);
 	map_copy = hm->hash;
 
-	for (j = 0; j < 5; j++) {
+	for (j = 0; j < 1000; j++) {
 		query = &hm->seqs[j];
 		query->len = 25;
+		set_rev_com(query);
 		hits = kmer_aln_query(query, hm);
-		show_msg(__func__, "=====================\n");
+		show_debug_msg(__func__, "=====================\n");
 		p_query(__func__, query);
 		for (i = 0; i < hits->len; i++) {
 			query = (bwa_seq_t*) g_ptr_array_index(hits, i);
@@ -206,11 +207,23 @@ void parse_hit_ints(const uint64_t *occs, GPtrArray *hits,
 			hit_id = occs[j + 1];
 			read_hash_value(&read_id, &pos, hit_id);
 			r = &seqs[read_id];
-			r->shift = pos;
+			r->cursor = pos;
 			r->rev_com = ori;
 			g_ptr_array_add(hits, r);
 		}
 	}
+}
+
+/**
+ * Get how many kmers in the hash map
+ */
+uint64_t get_kmer_count(const uint64_t kmer_int, const hash_map *hm) {
+	uint64_t *freq = NULL;
+	freq = (*(hm->hash))[kmer_int];
+	if (freq) {
+		return freq[0];
+	} else
+		return 0;
 }
 
 /**

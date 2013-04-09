@@ -151,3 +151,20 @@ bwa_seq_t *load_arr_reads(const char *fa_fn, uint32_t *n_reads) {
 	return reads;
 }
 
+GPtrArray *load_solid_reads(const char *solid_fn, bwa_seq_t *seqs,
+		const int n_seqs) {
+	int i = 0;
+	char line[80];
+	GPtrArray *solid_reads = NULL;
+	bwa_seq_t *query = NULL;
+	FILE *solid = xopen(solid_fn, "r");
+
+	solid_reads = g_ptr_array_sized_new(n_seqs / 10);
+	while (fgets(line, 80, solid) != NULL) {
+		i = atoi(line);
+		query = &seqs[i];
+		g_ptr_array_add(solid_reads, query);
+	}
+	fclose(solid);
+	return solid_reads;
+}

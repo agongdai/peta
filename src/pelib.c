@@ -122,39 +122,6 @@ void keep_mates_in_pool(edge *eg, pool *cur_pool, const hash_table *ht,
 }
 
 /**
- * Count the occurrences of next probable chars.
- * Result: set the array 'next' as the counters.
- */
-void check_next_char(pool *cur_pool, edge *eg, int *next, const int ori) {
-	int i = 0, pre_pos = 0, check_pre = 0;
-	bwa_seq_t *s = NULL;
-	if (cur_pool->n > 10)
-		check_pre = 1;
-	for (i = 0; i < cur_pool->n; i++) {
-		s = g_ptr_array_index(cur_pool->reads, i);
-		pre_pos = ori ? s->cursor + 1 : s->cursor - 1;
-		// Only if read's last character is some as the contig's character, count it.
-		if (s->rev_com) {
-			if (check_pre) {
-				if (pre_pos >= 0 && pre_pos < s->len && s->rseq[pre_pos]
-						== eg->contig->seq[eg->contig->len - 1])
-					check_c(next, s->rseq[s->cursor]);
-			} else {
-				check_c(next, s->rseq[s->cursor]);
-			}
-		} else {
-			if (check_pre) {
-				if (pre_pos >= 0 && pre_pos < s->len && s->seq[pre_pos]
-						== eg->contig->seq[eg->contig->len - 1])
-					check_c(next, s->seq[s->cursor]);
-			} else {
-				check_c(next, s->seq[s->cursor]);
-			}
-		}
-	}
-}
-
-/**
  * From the alignment results, add/remove reads to/from the current pool.
  */
 void maintain_pool(alignarray *aligns, const hash_table *ht, pool *cur_pool,
@@ -701,7 +668,7 @@ void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 	show_msg(__func__, "========================================== \n\n");
 	show_msg(__func__, "Merging edges by overlapping... \n");
 	// The merging assumes that the 'all_edges' are with contig ids 0,1,2,3...
-	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
+	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht->seqs, n_threads);
 	//reset_read_ctg_id(ht->seqs, ht->n_seqs);
 	reset_edge_ids(all_edges);
 	name = get_output_file("merged.fa");
@@ -853,7 +820,7 @@ void test_merge(hash_table *ht) {
 			"../SRR097897_out/pair_contigs.fa");
 	reset_edge_ids(all_edges);
 	//realign_by_blat(all_edges, ht, n_threads);
-	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht, n_threads);
+	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht->seqs, n_threads);
 	merged_pair_contigs = xopen("../SRR097897_out/merged_pair_contigs.fa", "w");
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 	//	g_ptr_array_sort(hits, (GCompareFunc) cmp_hit_by_qname);
@@ -865,24 +832,6 @@ void test_merge(hash_table *ht) {
 	//	dump_rm(all_edges, "../SRR097897_out/roadmap.1.graph",
 	//			"../SRR097897_out/roadmap.1.reads");
 	exit(1);
-}
-
-readarray *load_solid_reads(const char *solid_fn, bwa_seq_t *seqs,
-		const int n_seqs) {
-	int i = 0;
-	char line[80];
-	readarray *solid_reads = NULL;
-	bwa_seq_t *query = NULL;
-	FILE *solid = xopen(solid_fn, "r");
-
-	solid_reads = g_ptr_array_sized_new(n_seqs / 10);
-	while (fgets(line, 80, solid) != NULL) {
-		i = atoi(line);
-		query = &seqs[i];
-		g_ptr_array_add(solid_reads, query);
-	}
-	fclose(solid);
-	return solid_reads;
 }
 
 void consume_solid_reads(hash_table *ht, const double stop_thre,
