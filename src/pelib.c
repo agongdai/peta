@@ -27,7 +27,6 @@
 #include "merge.h"
 #include "hits.h"
 #include "rnaseq.h"
-#include "kmers.h"
 
 int pair_ctg_id = 0;
 int overlap_len = 0;

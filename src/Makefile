@@ -7,7 +7,7 @@ DFLAGS=		-DHAVE_PTHREAD #-D_FILE_OFFSET_BITS=64
 OBJS=		rand.o utils.o roadmap.o edge.o clean.o rnaseq.o \
 			pepath.o bwtaln.o pealn.o edgelist.o pehash.o pelib.o \
 			pechar.o pool.o peseq.o simu.o hits.o \
-			bwaseqio.o correct.o kmers.o mate.o list.o \
+			bwaseqio.o correct.o kmers.o mate.o \
 			kstring.o readrm.o scaffolding.o merge.o
 PROG=		peta
 INCLUDES=	
