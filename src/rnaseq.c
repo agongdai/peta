@@ -38,11 +38,11 @@ bwa_seq_t *load_reads(const char *fa_fn, uint32_t *n_reads) {
 
 	ks = bwa_open_reads(BWA_MODE, fa_fn);
 	n_seqs_full = N_CHUNK_SEQS;
-	show_msg(__func__, "Loading reads from library %s...\n", fa_fn);
+	show_msg(__func__, "Loading reads from library %s ...\n", fa_fn);
 	seqs = (bwa_seq_t*) calloc(N_DF_MAX_SEQS, sizeof(bwa_seq_t));
 	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, BWA_MODE,
 			0)) != 0) {
-		show_msg(__func__, "%d sequences loaded: %.2f sec... \n", n_seqs_loaded
+		show_msg(__func__, "%d sequences loaded: %.2f sec ... \n", n_seqs_loaded
 				+ n_part_seqs, fa_fn, (float) (clock() - t) / CLOCKS_PER_SEC);
 		pe_reverse_seqs(part_seqs, n_part_seqs);
 		if ((n_seqs_loaded + n_part_seqs) > n_seqs_full) {

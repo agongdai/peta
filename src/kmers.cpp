@@ -20,18 +20,43 @@
 #include "rnaseq.h"
 #include "bwtaln.h"
 
+/**
+ * Return a reverse complement value of a kmer int
+ */
+uint64_t rev_comp_kmer(uint64_t kmer, const int n) {
+	int i = 0, c = 0;
+	uint64_t copy = kmer;
+	uint64_t rev_comp = 0;
+	for (i = 1; i <= n; i++) {
+		c = 3 & copy;
+		c = 3 - c;     	// complement of next char
+		rev_comp <<= 2;
+		rev_comp |= c;
+		copy >>= 2;
+	}
+	return rev_comp;
+}
+
+gint cmp_kmers_by_count(gpointer a, gpointer b) {
+	kmer_counter *c_a = *((kmer_counter**) a);
+	kmer_counter *c_b = *((kmer_counter**) b);
+	return ((c_b->count) - c_a->count);
+}
+
 map_opt *new_map_opt() {
 	map_opt *o = (map_opt*) malloc(sizeof(map_opt));
 	o->k = 0;
 	o->n_k_mers = 0;
 	o->n_pos = 0;
 	o->n_reads = 0;
+	o->n_valid_k_mers = 0;
 	return o;
 }
 
 void destroy_hm(hash_map *hm) {
 	if (hm) {
 		bwa_free_read_seq(hm->n_reads, hm->seqs);
+		free(hm->kmers_ordered);
 		free(hm->o);
 		hm->hash->clear();
 		free(hm);
@@ -55,19 +80,28 @@ uint64_t get_kmer_int(const ubyte_t *seq, const int start,
 	return key;
 }
 
+/**
+ * Structure of hash_map:
+ * 		mer_opt
+ * 		kmer occurrences: kmer int; # of kmers; [read int]
+ * 			a 'read int' is a 'hash_value': upper 48 bits store read id; lower 16 bits store the kmer position on read
+ *      list of kmer ints decreasing by '# of kmers'.
+ */
 void build_kmers_hash(const char *fa_fn, const int k) {
 	clock_t t = clock();
 	uint32_t n_reads = 0, i = 0, j = 0;
-	uint64_t mer_v = 0, *kmer_freq = NULL;
+	uint64_t mer_v = 0, *kmer_freq = NULL, m = 0;
 	mer_counter counter;
 	mer_hash hash;
+	kmer_counter *mer = NULL;
 	bwa_seq_t *reads = NULL, *r = NULL;
 	FILE *hash_fp;
+	GPtrArray *kmers_ordered = NULL;
 	char *hash_fn = (char*) malloc(BUFSIZE);
 	map_opt *opt = (map_opt*) malloc(sizeof(map_opt));
 	opt->k = k;
 
-	show_msg(__func__, "Hashing library %s...\n", fa_fn);
+	show_msg(__func__, "Hashing library %s ...\n", fa_fn);
 	reads = load_reads(fa_fn, &n_reads);
 
 	// Count frequencies of every kmer
@@ -85,6 +119,7 @@ void build_kmers_hash(const char *fa_fn, const int k) {
 			opt->n_pos++;
 		}
 	}
+	kmers_ordered = g_ptr_array_sized_new(opt->n_k_mers);
 
 	// Set the value of hash map: first value stores how many reads having this kmer
 	show_msg(__func__, "Allocating space for %" ID64 " kmers, %" ID64 " distinct kmers ...\n", opt->n_pos, opt->n_k_mers);
@@ -92,7 +127,19 @@ void build_kmers_hash(const char *fa_fn, const int k) {
 		kmer_freq = (uint64_t*) calloc(it->second + 1, sizeof(uint64_t));
 		kmer_freq[0] = 0;
 		hash[it->first] = kmer_freq;
+		mer = (kmer_counter*) malloc(sizeof(kmer_counter));
+		mer->kmer = it->first;
+		mer->count = it->second;
+		if (mer->count > 1) {
+			opt->n_valid_k_mers++;
+			g_ptr_array_add(kmers_ordered, mer);
+		}
 	}
+
+	show_msg(__func__, "Ordering %d kmer by frequencies ...\n",
+			kmers_ordered->len);
+	g_ptr_array_sort(kmers_ordered, (GCompareFunc) cmp_kmers_by_count);
+
 	show_msg(__func__, "Setting hash map ...\n");
 	for (i = 0; i < n_reads; i++) {
 		r = &reads[i];
@@ -113,15 +160,27 @@ void build_kmers_hash(const char *fa_fn, const int k) {
 		kmer_freq = m->second;
 		fwrite(kmer_freq, sizeof(uint64_t), kmer_freq[0] + 1, hash_fp);
 	}
-	show_msg(__func__, "%d reads hashed: %.2f sec ... \n", n_reads,
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+
+	for (m = 0; m < kmers_ordered->len; m++) {
+		mer = (kmer_counter*) g_ptr_array_index(kmers_ordered, m);
+		//if (m < 10)
+		//	show_msg(__func__, "Kmer %" ID64 ": %d \n", mer->kmer, mer->count);
+		if (mer->count <= 1) {
+			break;
+		}
+		fwrite(&(mer->kmer), sizeof(uint64_t), 1, hash_fp);
+	}
+	g_ptr_array_free(kmers_ordered, TRUE);
+	show_msg(__func__, "%d reads hashed: %.2f sec\n", n_reads, (float) (clock()
+			- t) / CLOCKS_PER_SEC);
 }
 
 hash_map *load_hash_map(const char *fa_fn, mer_hash& kmers) {
 	clock_t t = clock();
 	FILE *map_fp = NULL;
 	map_opt *opt = NULL;
-	uint64_t i = 0, *count = NULL, *freq = NULL, *kmer_int = NULL;
+	uint64_t i = 0, *count = NULL, *freq = NULL, *kmer_int = NULL,
+			*kmers_ordered = NULL;
 	uint32_t n_reads = 0;
 	int rs = 0;
 	bwa_seq_t *seqs = NULL;
@@ -151,6 +210,10 @@ hash_map *load_hash_map(const char *fa_fn, mer_hash& kmers) {
 		kmers[*kmer_int] = freq;
 	}
 
+	kmers_ordered = (uint64_t*) calloc(opt->n_k_mers, sizeof(uint64_t));
+	rs = fread(kmers_ordered, sizeof(uint64_t), opt->n_k_mers, map_fp);
+	hm ->kmers_ordered = kmers_ordered;
+
 	fclose(map_fp);
 	free(map_fn);
 	hm->o = opt;
@@ -165,7 +228,7 @@ hash_map *load_hash_map(const char *fa_fn, mer_hash& kmers) {
 void test_kmer_hash(const char *fa_fn) {
 	mer_hash map, *map_copy = NULL;
 	uint64_t i = 0, j = 0;
-	GPtrArray *hits = NULL;
+	GPtrArray *hits = g_ptr_array_sized_new(BUFSIZ);
 	bwa_seq_t *query = NULL;
 	hash_map *hm = load_hash_map(fa_fn, map);
 	map_copy = hm->hash;
@@ -174,7 +237,7 @@ void test_kmer_hash(const char *fa_fn) {
 		query = &hm->seqs[j];
 		query->len = 25;
 		set_rev_com(query);
-		hits = kmer_aln_query(query, hm);
+		kmer_aln_query(query, hm, hits);
 		show_debug_msg(__func__, "=====================\n");
 		p_query(__func__, query);
 		for (i = 0; i < hits->len; i++) {
@@ -200,7 +263,8 @@ bwa_seq_t *get_kmer_seq(uint64_t kmer, const int k) {
 		copy >>= 2;
 	}
 	read->len = k;
-	read->name = (char*) malloc(32);
+	read->name = (char*) malloc(64);
+	sprintf(read->name, "%" ID64, kmer);
 	set_rev_com(read);
 	return read;
 }
@@ -235,7 +299,7 @@ void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm) {
 	if (it != hash->end()) {
 		freq = it->second;
 		free(freq);
-		(*(hm->hash))[kmer_int] = NULL;
+		(*hash)[kmer_int] = NULL;
 		hm->hash->erase(kmer_int);
 	}
 }
@@ -243,27 +307,28 @@ void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm) {
 /**
  * Get how many kmers in the hash map
  */
-uint64_t get_kmer_count(const uint64_t kmer_int, const hash_map *hm) {
+uint64_t get_kmer_count(const uint64_t kmer_int, hash_map *hm) {
 	uint64_t *freq = NULL;
-	freq = (*(hm->hash))[kmer_int];
-	if (freq) {
+	mer_hash *hash = hm->hash;
+	mer_hash::iterator it = hash->find(kmer_int);
+	if (it != hash->end()) {
+		freq = it->second;
 		return freq[0];
-	} else
-		return 0;
+	}
+	return 0;
 }
 
 /**
  * Get reads containing some kmer, including forward and reverse
  */
-GPtrArray *kmer_aln_query(const bwa_seq_t *query, const hash_map *hm) {
-	GPtrArray *hits = NULL, *ret_hits = NULL;
+void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm, GPtrArray *hits) {
+	GPtrArray *ret_hits = NULL;
 	uint64_t kmer_int = 0, i = 0, *occs = NULL;
 	map_opt *opt = hm->o;
 	mer_hash *hash = hm->hash;
 	bwa_seq_t *r = NULL, *r_pre = NULL;
 	mer_hash::iterator it;
 
-	hits = g_ptr_array_sized_new(0);
 	ret_hits = g_ptr_array_sized_new(0);
 	for (i = 0; i <= query->len - opt->k; i++) {
 		kmer_int = get_kmer_int(query->seq, i, 1, opt->k);
@@ -283,13 +348,12 @@ GPtrArray *kmer_aln_query(const bwa_seq_t *query, const hash_map *hm) {
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_reads_by_name);
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		if (r != r_pre) {
-			g_ptr_array_add(ret_hits, r);
+		if (r == r_pre) {
+			g_ptr_array_remove_index(hits, i);
+			i--;
 		}
 		r_pre = r;
 	}
-	g_ptr_array_free(hits, TRUE);
-	return ret_hits;
 }
 
 /**
