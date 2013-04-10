@@ -45,6 +45,7 @@ int next_char_by_kmers(mer_hash *kmers, const int k, bwa_seq_t *query,
 		const int ori);
 void test_kmer_hash(const char *fa_fn);
 uint64_t get_kmer_count(const uint64_t kmer_int, const hash_map *hm);
+void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm);
 GPtrArray *kmer_aln_query(const bwa_seq_t *query, const hash_map *hm);
 
 #ifdef __cplusplus

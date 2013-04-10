@@ -70,12 +70,12 @@ pool *get_mate_pool_from_edge(edge *eg, const bwa_seq_t *seqs, const int ori,
 		if (is_paired(s, ori))
 			continue;
 		// If the insert size is not in the range
-		if (get_abs(eg->len - s->shift) > (insert_size + sd_insert_size * SD_TIMES)) {
+		if (get_abs(eg->len - s->shift) > (insert_size + sd_insert_size
+				* SD_TIMES)) {
 			continue;
 		}
 		// If the mate is already in use, either by current or another thread
-		if (mate->status == USED
-				|| mate->status == DEAD)
+		if (mate->status == USED || mate->status == DEAD)
 			continue;
 		// If the used read is used by another thread;
 		//	or the mate has been used by this template before.
@@ -108,7 +108,7 @@ void add_mates_by_ol(const bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 	}
 	mate_pool = get_mate_pool_from_edge(eg, seqs, ori, insert_size,
 			sd_insert_size);
-	//p_readarray(mate_pool->reads, 1);
+	//p_pool("MATE POOL", mate_pool, NULL);
 	if (mate_pool->n >= N_BIG_MATE_POOL) {
 		rht = build_reads_ht(ol, mate_pool->reads);
 		ol_mates = find_reads_ol_template(rht, template, seqs, ori);
@@ -130,7 +130,8 @@ void add_mates_by_ol(const bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 			tmp = new_mem_rev_seq(mate, mate->len, 0);
 		overlapped = find_ol_within_k(tmp, template, nm, ol - 1,
 				query->len - 1, ori);
-		/*if (strcmp(mate->name, "2460877") == 0) {
+		/*if (strcmp(mate->name, "3353330") == 0) {
+		 p_ctg_seq("CONTIG", template);
 		 show_debug_msg("ORI", "ORI: %d \n", ori);
 		 p_ctg_seq("QUERY", query);
 		 p_query("MATE", tmp);
@@ -150,7 +151,8 @@ void add_mates_by_ol(const bwa_seq_t *seqs, edge *eg, pool *cur_pool,
 			//show_debug_msg(__func__, "Overlapped: %d \n", overlapped);
 			//show_debug_msg(__func__, "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
 			rm_read_from_ht(rht, mate);
-		}
+		} else
+			mate->tid = -1;
 		if (tmp != mate)
 			bwa_free_read_seq(1, tmp);
 	}

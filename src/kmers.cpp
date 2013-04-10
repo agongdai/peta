@@ -138,6 +138,7 @@ hash_map *load_hash_map(const char *fa_fn, mer_hash& kmers) {
 		freq = (uint64_t*) calloc(*count + 1, sizeof(uint64_t));
 		rs = fread(freq + 1, sizeof(uint64_t), *count, map_fp);
 		freq[0] = *count;
+		free(count);
 		kmers[*kmer_int] = freq;
 	}
 
@@ -195,8 +196,8 @@ bwa_seq_t *get_kmer_seq(uint64_t kmer, const int k) {
 	return read;
 }
 
-void parse_hit_ints(const uint64_t *occs, GPtrArray *hits,
-		bwa_seq_t *seqs, const uint8_t ori) {
+void parse_hit_ints(const uint64_t *occs, GPtrArray *hits, bwa_seq_t *seqs,
+		const uint8_t ori) {
 	int pos = 0;
 	uint64_t j = 0, n_hits = 0, hit_id = 0, read_id = 0;
 	bwa_seq_t *r = NULL;
@@ -207,10 +208,23 @@ void parse_hit_ints(const uint64_t *occs, GPtrArray *hits,
 			hit_id = occs[j + 1];
 			read_hash_value(&read_id, &pos, hit_id);
 			r = &seqs[read_id];
-			r->cursor = pos;
+			r->pos = pos;
 			r->rev_com = ori;
 			g_ptr_array_add(hits, r);
 		}
+	}
+}
+
+/**
+ * Free the memory allocated to a kmer;
+ * Remove the kmer from the hashmap
+ */
+void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm) {
+	uint64_t *freq = NULL;
+	freq = (*(hm->hash))[kmer_int];
+	if (freq) {
+		free(freq);
+		hm->hash->erase(kmer_int);
 	}
 }
 

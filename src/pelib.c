@@ -23,7 +23,6 @@
 #include "pepath.h"
 #include "scaffolding.h"
 #include "pehash.h"
-#include "correct.h"
 #include "merge.h"
 #include "hits.h"
 #include "rnaseq.h"
@@ -892,13 +891,13 @@ void pe_lib_core(int n_max_pairs, char *lib_file, char *solid_file) {
 	//test_scaffolding(ht);
 	//test_merge(ht);
 	seqs = &ht->seqs[0];
-	show_msg(__func__, "Removing repetitive reads... \n");
-	n_rep = rm_repetitive_reads(seqs, ht->n_seqs);
-	erase_reads_on_ht(ht);
-	shrink_ht(ht);
+	//show_msg(__func__, "Removing repetitive reads... \n");
+	//n_rep = rm_repetitive_reads(seqs, ht->n_seqs);
+	//erase_reads_on_ht(ht);
+	//shrink_ht(ht);
 	//n_used_reads = n_rep;
 	//n_paired_reads = n_rep;
-	show_msg(__func__, "# of repetitive reads are marked DEAD: %d\n", n_rep);
+	//show_msg(__func__, "# of repetitive reads are marked DEAD: %d\n", n_rep);
 	//show_msg(__func__, "Correcting reads... \n");
 	//correct_reads(ht, 6);
 	//save_unpaired_seqs("../SRR027876_out/clean2.fa", ht->seqs, ht->n_seqs);

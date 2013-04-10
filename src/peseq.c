@@ -308,14 +308,11 @@ void p_query(const char *header, const bwa_seq_t *q) {
 		printf(" [pool: %d]", q->is_in_c_pool);
 	else
 		printf(" [no_pool]");
-	if (q->is_in_m_pool)
-		printf(" [m_pool: %d]", q->is_in_m_pool);
-	else
-		printf(" [no_m_pool]");
+	printf(" [tid: %d]", q->tid);
 	if (q->rev_com)
-		printf(" [rev_com]");
+		printf(" [forward]");
 	else
-		printf(" [not_rev_com]");
+		printf(" [reverse]");
 	printf(" [%d: %d, %d]", q->status, q->contig_id, q->shift);
 	//	printf("\n[rev_com] ");
 	//	for (i = 0; i < q->len; i++) {
@@ -399,6 +396,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	p->cursor = query->cursor;
 	p->shift = query->shift;
 	p->rev_com = query->rev_com;
+	p->pos = query->pos;
 
 	if (query->name)
 		p->name = strdup((const char*) query->name);
@@ -619,8 +617,8 @@ int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
 		return 0;
 	min_len = query->len;
 	min_len = min_len > seq->len ? seq->len : min_len;
-	min_acceptable_score = min_len * score_mat + mismatches * score_mis + get_abs(
-			query->len - seq->len) * score_gap;
+	min_acceptable_score = min_len * score_mat + mismatches * score_mis
+			+ get_abs(query->len - seq->len) * score_gap;
 	similarity_score = smith_waterman(query, seq, score_mat, score_mis,
 			score_gap, min_acceptable_score);
 	if (similarity_score >= min_acceptable_score)
@@ -773,14 +771,14 @@ int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 	return 1;
 }
 
-int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *template,
+int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tpl,
 		const int mismatches, const int min_len, const int max_len,
 		const int ori) {
 	int i = 0, olpped = 0;
-	if (!mate || !template)
+	if (!mate || !tpl)
 		return 0;
 	for (i = max_len; i > min_len; i--) {
-		olpped = ori ? seq_ol(mate, template, i, mismatches) : seq_ol(template,
+		olpped = ori ? seq_ol(mate, tpl, i, mismatches) : seq_ol(tpl,
 				mate, i, mismatches);
 		if (olpped > 0) {
 			olpped = i;
