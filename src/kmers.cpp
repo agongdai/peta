@@ -29,6 +29,15 @@ map_opt *new_map_opt() {
 	return o;
 }
 
+void destroy_hm(hash_map *hm) {
+	if (hm) {
+		bwa_free_read_seq(hm->n_reads, hm->seqs);
+		free(hm->o);
+		hm->hash->clear();
+		free(hm);
+	}
+}
+
 uint64_t get_kmer_int(const ubyte_t *seq, const int start,
 		const int interleaving, const int len) {
 	uint64_t key = 0;
@@ -221,9 +230,12 @@ void parse_hit_ints(const uint64_t *occs, GPtrArray *hits, bwa_seq_t *seqs,
  */
 void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm) {
 	uint64_t *freq = NULL;
-	freq = (*(hm->hash))[kmer_int];
-	if (freq) {
+	mer_hash *hash = hm->hash;
+	mer_hash::iterator it = hash->find(kmer_int);
+	if (it != hash->end()) {
+		freq = it->second;
 		free(freq);
+		(*(hm->hash))[kmer_int] = NULL;
 		hm->hash->erase(kmer_int);
 	}
 }
@@ -247,17 +259,25 @@ GPtrArray *kmer_aln_query(const bwa_seq_t *query, const hash_map *hm) {
 	GPtrArray *hits = NULL, *ret_hits = NULL;
 	uint64_t kmer_int = 0, i = 0, *occs = NULL;
 	map_opt *opt = hm->o;
+	mer_hash *hash = hm->hash;
 	bwa_seq_t *r = NULL, *r_pre = NULL;
+	mer_hash::iterator it;
 
 	hits = g_ptr_array_sized_new(0);
 	ret_hits = g_ptr_array_sized_new(0);
 	for (i = 0; i <= query->len - opt->k; i++) {
 		kmer_int = get_kmer_int(query->seq, i, 1, opt->k);
-		occs = (*(hm->hash))[kmer_int];
-		parse_hit_ints(occs, hits, hm->seqs, 0);
+		it = hash->find(kmer_int);
+		if (it != hash->end()) {
+			occs = it->second;
+			parse_hit_ints(occs, hits, hm->seqs, 0);
+		}
 		kmer_int = get_kmer_int(query->rseq, i, 1, opt->k);
-		occs = (*(hm->hash))[kmer_int];
-		parse_hit_ints(occs, hits, hm->seqs, 1);
+		it = hash->find(kmer_int);
+		if (it != hash->end()) {
+			occs = it->second;
+			parse_hit_ints(occs, hits, hm->seqs, 1);
+		}
 	}
 	// Remove duplicates from the raw hits
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_reads_by_name);

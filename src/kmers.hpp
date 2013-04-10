@@ -36,6 +36,7 @@ typedef struct {
 extern "C" {
 #endif
 
+void destroy_hm(hash_map *hm);
 uint64_t get_kmer_int(const ubyte_t *seq, const int start,
 		const int interleaving, const int len);
 void build_kmers_hash(const char *fa_fn, const int k);

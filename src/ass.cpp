@@ -11,6 +11,8 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 #include "bwtaln.h"
 #include "pool.h"
 #include "edge.h"
@@ -25,6 +27,8 @@
 #include "rnaseq.h"
 #include "pechar.h"
 #include "pelib.h"
+#include "utils.h"
+#include "pehash.h"
 
 using namespace std;
 
@@ -33,6 +37,7 @@ int ins_size = 0;
 int sd_ins_size = 0;
 int kmer_n_threads = 0;
 int kmer_len = 0;
+uint32_t n_used_reads = 0;
 char *kmer_out = NULL;
 
 GMutex *kmer_id_mutex;
@@ -50,8 +55,7 @@ void kmer_pool(GPtrArray *hits, const hash_map *hm, pool *cur_pool, edge *eg,
 		//p_query(__func__, mate);
 		//pre_cursor = s->cursor;
 
-		if (s->status == USED || s->status == DEAD || (s->status == TRIED
-				&& s->contig_id == eg->id) || s->tid != -1)
+		if (s->status != FRESH || s->tid != -1)
 			continue;
 
 		mate->rev_com = s->rev_com;
@@ -189,8 +193,10 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	else {
 		g_mutex_lock(kmer_id_mutex);
 		g_ptr_array_add(params->all_edges, eg);
+		n_used_reads += eg->reads->len;
 		g_mutex_unlock(kmer_id_mutex);
 	}
+	show_debug_msg(__func__, "Consumed reads: %d/%" ID64 " \n", n_used_reads, params->hm->n_reads);
 	return NULL;
 }
 
@@ -208,6 +214,24 @@ void kmer_threads(kmer_t_meta *params, GPtrArray *solid_reads) {
 		//break;
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
+}
+
+void pick_unused_kmers(hash_map *hm) {
+	mer_hash *hash = hm->hash;
+	uint64_t mer_v = 0, *freq = NULL, n_kmers = 0, n = 0;
+	bwa_seq_t *seq = NULL;
+	for (mer_hash::iterator m = hash->begin(); m != hash->end(); ++m) {
+		mer_v = m->first;
+		freq = m->second;
+		n = get_kmer_count(mer_v, hm);
+		if (n > 0) {
+			n_kmers++;
+			seq = get_kmer_seq(mer_v, hm->o->k);
+			p_query(__func__, seq);
+			show_debug_msg(__func__, "Count: %" ID64 "\n", n);
+		}
+	}
+	show_msg(__func__, "Remaining kmers: %" ID64 "\n", n_kmers);
 }
 
 void ext_by_kmers_core(char *lib_file, const char *solid_file) {
@@ -236,15 +260,19 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	//test_kmer_ext(params, kmer_list);
 	//exit(1);
 	kmer_threads(params, solid_reads);
+	g_ptr_array_free(solid_reads, TRUE);
 
 	contigs = xopen("../SRR097897_out/paired.fa", "w");
 	save_edges(all_edges, contigs, 0, 0, 100);
 	fflush(contigs);
 	fclose(contigs);
 
+	pick_unused_kmers(hm);
+
 	reset_edge_ids(all_edges);
 	merge_ol_edges(all_edges, ins_size, sd_ins_size, hm->seqs, kmer_n_threads);
 	free(params);
+	destroy_hm(hm);
 
 	contigs = xopen("../SRR097897_out/merged.fa", "w");
 	save_edges(all_edges, contigs, 0, 0, 100);
