@@ -326,7 +326,7 @@ void rm_partial(edge *eg, pool *cur_pool, int ori, bwa_seq_t *seqs,
 				//p_query(__func__, s);
 				//p_ctg_seq(__func__, eg->contig);
 				s->contig_id = eg->id;
-				s->status = TRIED;
+				s->status = FRESH;
 				if (removed) {
 					s->shift = eg->len - s->cursor + 1;
 					i--;

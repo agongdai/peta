@@ -46,15 +46,6 @@ void pe_lib_help() {
 	show_msg(__func__, "--------------------------------------------------");
 }
 
-char *get_output_file(const char *file_name) {
-	char *name = (char*) calloc(strlen(file_name) + strlen(out_root) + 4,
-			sizeof(char));
-	strcat(name, out_root);
-	strcat(name, "/");
-	strcat(name, file_name);
-	return name;
-}
-
 void concat_doubles(double *base, int *n_total, double *partial, int n_part) {
 	int i = 0;
 	for (i = 0; i < n_part; i++) {
@@ -648,7 +639,7 @@ void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 	show_debug_msg(__func__, "Total valid edges reported: %d \n",
 			all_edges->len);
 
-	name = get_output_file("paired.fa");
+	name = get_output_file("paired.fa", out_root);
 	pair_contigs = xopen(name, "w");
 	//reset_read_ctg_id(ht->seqs, ht->n_seqs);
 	reset_edge_ids(all_edges);
@@ -657,8 +648,8 @@ void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 	free(name);
 
 	if (debug_mode) {
-		name = get_output_file("roadmap.graph");
-		reads_name = get_output_file("roadmap.reads");
+		name = get_output_file("roadmap.graph", out_root);
+		reads_name = get_output_file("roadmap.reads", out_root);
 		dump_rm(all_edges, name, reads_name);
 		free(reads_name);
 		free(name);
@@ -670,7 +661,7 @@ void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 	merge_ol_edges(all_edges, insert_size, sd_insert_size, ht->seqs, n_threads);
 	//reset_read_ctg_id(ht->seqs, ht->n_seqs);
 	reset_edge_ids(all_edges);
-	name = get_output_file("merged.fa");
+	name = get_output_file("merged.fa", out_root);
 	merged_pair_contigs = xopen(name, "w");
 	save_edges(all_edges, merged_pair_contigs, 0, 0, 0);
 	fflush(merged_pair_contigs);
@@ -678,8 +669,8 @@ void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 	free(name);
 
 	if (debug_mode) {
-		name = get_output_file("roadmap.1.graph");
-		reads_name = get_output_file("roadmap.1.reads");
+		name = get_output_file("roadmap.1.graph", out_root);
+		reads_name = get_output_file("roadmap.1.reads", out_root);
 		dump_rm(all_edges, name, reads_name);
 		free(reads_name);
 		free(name);
@@ -691,8 +682,8 @@ void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 
 	show_msg(__func__, "========================================== \n\n ");
 	show_msg(__func__, "Blatting merged contigs to find overlapping...\n");
-	psl_name = get_output_file("merged.merged.psl");
-	name = get_output_file("merged_pair_contigs.fa");
+	psl_name = get_output_file("merged.merged.psl", out_root);
+	name = get_output_file("merged_pair_contigs.fa", out_root);
 	show_msg(__func__, "%s %s %s %s ... \n", blat_exe, name, name, psl_name);
 	sprintf(blat_cmd, "%s %s %s %s", blat_exe, name, name, psl_name);
 	if (system(blat_cmd) != 0) {
@@ -727,8 +718,8 @@ void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 
 	if (debug_mode) {
 		//realign_by_blat(all_edges, ht, n_threads);
-		name = get_output_file("roadmap.2.graph");
-		reads_name = get_output_file("roadmap.2.reads");
+		name = get_output_file("roadmap.2.graph", out_root);
+		reads_name = get_output_file("roadmap.2.reads", out_root);
 		dump_rm(all_edges, name, reads_name);
 		free(reads_name);
 		free(name);
@@ -737,13 +728,13 @@ void post_process_edges(hash_table *ht, edgearray *all_edges, char *lib_file) {
 	show_msg(__func__, "========================================== \n\n ");
 	if (debug_mode) {
 		show_msg(__func__, "Drawing the roadmap... \n");
-		name = get_output_file("roadmap.dot");
+		name = get_output_file("roadmap.dot", out_root);
 		graph_by_edges(all_edges, name);
 		free(name);
 	}
 	show_msg(__func__, "Reporting combinatorial paths... \n");
 	final_paths = report_paths(all_edges, seqs);
-	name = get_output_file("peta.fa");
+	name = get_output_file("peta.fa", out_root);
 	save_paths(final_paths, name, 100);
 
 	clock_gettime(CLOCK_MONOTONIC, &finish_time);
@@ -776,7 +767,7 @@ void test_run(hash_table *ht, char *lib_file) {
 	} else {
 		show_msg(__func__, "Hey, not extended. \n");
 	}
-	name = get_output_file("single.fa");
+	name = get_output_file("single.fa", out_root);
 	single_contig = xopen(name, "w");
 	save_edges(edges, single_contig, 0, 0, 0);
 	exit(1);

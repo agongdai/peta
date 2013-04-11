@@ -110,6 +110,10 @@ void build_kmers_hash(const char *fa_fn, const int k) {
 		r = &reads[i];
 		for (j = 0; j <= r->len - k; j++) {
 			mer_v = get_kmer_int(r->seq, j, 1, k);
+			if (strcmp(r->name, "227346") == 0) {
+				p_query(__func__, r);
+				show_msg(__func__, "j: %d; mer_v: %" ID64 " \n", j, mer_v);
+			}
 			if (counter[mer_v]) {
 				counter[mer_v]++;
 			} else {
@@ -127,6 +131,8 @@ void build_kmers_hash(const char *fa_fn, const int k) {
 		kmer_freq = (uint64_t*) calloc(it->second + 1, sizeof(uint64_t));
 		kmer_freq[0] = 0;
 		hash[it->first] = kmer_freq;
+		if (it->first == 3922922232675962)
+			show_msg(__func__, "Count 3922922232675962: %" ID64 "\n", it->second);
 		mer = (kmer_counter*) malloc(sizeof(kmer_counter));
 		mer->kmer = it->first;
 		mer->count = it->second;
@@ -233,18 +239,9 @@ void test_kmer_hash(const char *fa_fn) {
 	hash_map *hm = load_hash_map(fa_fn, map);
 	map_copy = hm->hash;
 
-	for (j = 0; j < 1000; j++) {
-		query = &hm->seqs[j];
-		query->len = 25;
-		set_rev_com(query);
-		kmer_aln_query(query, hm, hits);
-		show_debug_msg(__func__, "=====================\n");
-		p_query(__func__, query);
-		for (i = 0; i < hits->len; i++) {
-			query = (bwa_seq_t*) g_ptr_array_index(hits, i);
-			p_query(__func__, query);
-		}
-	}
+	show_msg(__func__, "Count of 3922922232675962: %d \n", get_kmer_count(3922922232675962, hm));
+	query = get_kmer_seq(3922922232675962, 25);
+	p_query(__func__, query);
 }
 
 bwa_seq_t *get_kmer_seq(uint64_t kmer, const int k) {
@@ -298,9 +295,7 @@ void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm) {
 	mer_hash::iterator it = hash->find(kmer_int);
 	if (it != hash->end()) {
 		freq = it->second;
-		free(freq);
-		(*hash)[kmer_int] = NULL;
-		hm->hash->erase(kmer_int);
+		freq[0] = 0;
 	}
 }
 
@@ -332,19 +327,24 @@ void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm, GPtrArray *hits)
 	ret_hits = g_ptr_array_sized_new(0);
 	for (i = 0; i <= query->len - opt->k; i++) {
 		kmer_int = get_kmer_int(query->seq, i, 1, opt->k);
+		//show_debug_msg(__func__, "Kmer int: %" ID64 "\n", kmer_int);
 		it = hash->find(kmer_int);
 		if (it != hash->end()) {
 			occs = it->second;
+			//show_debug_msg(__func__, "Kmer count: %" ID64 "\n", occs[0]);
 			parse_hit_ints(occs, hits, hm->seqs, 0);
 		}
 		kmer_int = get_kmer_int(query->rseq, i, 1, opt->k);
+		//show_debug_msg(__func__, "Kmer int: %" ID64 "\n", kmer_int);
 		it = hash->find(kmer_int);
 		if (it != hash->end()) {
 			occs = it->second;
+			//show_debug_msg(__func__, "Kmer count: %" ID64 "\n", occs[0]);
 			parse_hit_ints(occs, hits, hm->seqs, 1);
 		}
 	}
 	// Remove duplicates from the raw hits
+	//show_debug_msg(__func__, "Sorting %d...\n", hits->len);
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_reads_by_name);
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);

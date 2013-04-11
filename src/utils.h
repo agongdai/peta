@@ -34,6 +34,7 @@ extern "C" {
 	double mean(double a[], double n);
 	int get_abs(int a);
 	void trim(char *str);
+	char *get_output_file(const char *file_name, const char *out_root);
 
 #ifdef __cplusplus
 }

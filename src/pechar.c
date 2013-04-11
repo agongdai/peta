@@ -93,18 +93,22 @@ int *get_abs_most(const int *sta, const double threshold) {
 			most = index;
 	}
 	status[0] = most;
-//	if (sta[most] < thre)
-//		status[0] = -1;
+	//	if (sta[most] < thre)
+	//		status[0] = -1;
 	status[1] = most;
 	return status;
 }
 
 int get_pure_most(const int *sta) {
-	int index = 0, most = 0;
+	int index = 0, most = 0, all_0 = 1;
 	for (index = 0; index < 4; index++) {
+		if (sta[index] > 0)
+			all_0 = 0;
 		if (sta[index] > sta[most])
 			most = index;
 	}
+	if (all_0)
+		return -1;
 	return most;
 }
 
@@ -152,4 +156,39 @@ int *get_most(const int *sta) {
 	next_c[++index] = INVALID_CHAR;
 	//	printf("[get_most] a:c:g:t:n => %d:%d:%d:%d:%d \n", sta->n_a, sta->n_c, sta->n_g, sta->n_t, sta->n_n);
 	return next_c;
+}
+
+/**
+ * Example:
+ * ori =   101110
+ * new_c =       11
+ * n = 3
+ *
+ * Return: 00111011
+ */
+uint64_t shift_bit_to_left(uint64_t kmer, const int new_c, const int n) {
+	uint64_t shifted = kmer;
+	uint64_t all_ones = 1;
+	all_ones <<= n * 2;
+	all_ones--;
+	shifted <<= 2;
+	shifted |= (3 & new_c); // Set the new two lower bits
+	shifted &= all_ones; // Set the old two upper bits
+	return shifted;
+}
+
+uint64_t shift_bit_to_right(uint64_t kmer, const int new_c, const int n) {
+	uint64_t shifted = kmer;
+	uint64_t upper = new_c;
+	shifted >>= 2;
+	upper <<= (n - 1) * 2;
+	shifted += upper;
+	return shifted;
+}
+
+uint64_t shift_bit(uint64_t kmer, const int new_c, const int n, const int ori) {
+	if (ori)
+		return shift_bit_to_right(kmer, new_c, n);
+	else
+		return shift_bit_to_left(kmer, new_c, n);
 }

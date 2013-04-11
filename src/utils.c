@@ -103,3 +103,12 @@ void trim(char *str) {
 		}
 	}
 }
+
+char *get_output_file(const char *file_name, const char *out_root) {
+	char *name = (char*) calloc(strlen(file_name) + strlen(out_root) + 4,
+			sizeof(char));
+	strcat(name, out_root);
+	strcat(name, "/");
+	strcat(name, file_name);
+	return name;
+}
