@@ -118,6 +118,7 @@ gboolean pool_rm_index(pool *p, const int i) {
 	bwa_seq_t *read = g_ptr_array_index(p->reads, i);
 	read->is_in_c_pool = 0;
 	read->tid = -1;
+	read->pos = -1;
 	r = g_ptr_array_remove_index_fast(p->reads, i);
 	p->n = p->reads->len;
 	return r;
@@ -211,6 +212,7 @@ bwa_seq_t *forward(pool *cur_pool, const char c, edge *ass_eg, const int ori) {
 		if (p->seq[p->cursor] == 4) {
 			p->status = TRIED;
 			p->contig_id = ass_eg->id;
+			p->pos = -1;
 			pool_rm_index(cur_pool, i);
 			// This read is still used by current thread,
 			//   only after the pool is freed, the tid is set to be -1

@@ -642,9 +642,9 @@ def main():
     parser_read_to_ref = subparsers.add_parser('rtx', help='align all reads to a transcript and visualize text alignments')
     parser_read_to_ref.set_defaults(func=read_to_ref)
     parser_read_to_ref.add_argument('transcript', help='annotated transcripts ensembl ID')
-    parser_read_to_ref.add_argument('-r', '--reads', required=False, default=READ_SRR097897, metavar='FILE', help='reads file', dest='reads')
-    parser_read_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR097897, metavar='FILE', help='annotated transcripts file', dest='tx')
-    parser_read_to_ref.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR097897, metavar='FILE', help='reads to annotated transcripts', dest='psl')
+    parser_read_to_ref.add_argument('-r', '--reads', required=False, default=READ_SRR027876, metavar='FILE', help='reads file', dest='reads')
+    parser_read_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR027876, metavar='FILE', help='annotated transcripts file', dest='tx')
+    parser_read_to_ref.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR027876, metavar='FILE', help='reads to annotated transcripts', dest='psl')
 
     parser_pair_regions = subparsers.add_parser('pr', help='display paired reads of two regions')
     parser_pair_regions.set_defaults(func=pair_regions)
@@ -667,8 +667,8 @@ def main():
     parser_one_read_to_ref = subparsers.add_parser('draw', help='draw transcripts splicing patterns')
     parser_one_read_to_ref.set_defaults(func=draw_dot)
     parser_one_read_to_ref.add_argument('transcript', help='annotated transcripts ensembl ID')
-    parser_one_read_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR097897, help='annotated transcripts file', metavar='FILE', dest='tx')
-    parser_one_read_to_ref.add_argument('-p', '--psl', required=False, default=REF_TO_REF_SRR097897, help='ref-to-ref psl file', metavar='FILE', dest='psl')
+    parser_one_read_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR027876, help='annotated transcripts file', metavar='FILE', dest='tx')
+    parser_one_read_to_ref.add_argument('-p', '--psl', required=False, default=REF_TO_REF_SRR027876, help='ref-to-ref psl file', metavar='FILE', dest='psl')
     
     parser_ctg_to_ref = subparsers.add_parser('ctx', help='align all contigs to a transcript and visualize text alignments')
     parser_ctg_to_ref.set_defaults(func=ctg_to_ref)

@@ -3,8 +3,8 @@ import sys, os, pysam
 from argparse import ArgumentParser
 import collections
 
-bad_bases_thre = 50
-full_length_perc = 0.98
+bad_bases_thre = 20
+full_length_perc = 0.99
 near_full_length = 0.9
 
 class ResultSummary(object):
@@ -634,7 +634,7 @@ def cmp_psl(args):
 				n_none += 1
 				n_valid -= 1
 		if n_base_2_on_tx >= 50:
-			n_base_2_file.write('============== %s: length %d ===============\n' % (tx_name, tx_len))
+			n_base_2_file.write('============== [%s, %d]: length %d ===============\n' % (tx_name, tx_len, n_base_2_on_tx))
 			for i in range(tx_len):
 				if bit_counter_1[i] == 0 and bit_counter_2[i] == 1:
 					n_base_2_file.write('%d \n' % i)
@@ -645,8 +645,8 @@ def cmp_psl(args):
 	print 'Bases by psl_1 only:      %d' % n_base_1
 	print 'Bases by psl_2 only:      %d' % n_base_2
 	print 'Bases by none:            %d' % n_none
-	if n_valid > 0:
-		print 'Overlapped bases:         %.2f' % (n_base_both / n_valid)
+	if n_base_2 > 0:
+		print 'psl_2 bases covered:   %.2f' % (n_base_both / n_base_2)
 	print 'Check file: %s.base' % args.psl_2
 
 def main():

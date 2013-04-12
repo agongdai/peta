@@ -39,6 +39,34 @@ clean_opt *init_clean_opt() {
 	return o;
 }
 
+int rm_repetitive_reads(bwa_seq_t *seqs, const int n_seqs) {
+	bwa_seq_t *s;
+	int i = 0, n_most = 0, k = 0, n_rep = 0;
+	ubyte_t c = 0;
+	int *counter = NULL;
+	counter = (int*) calloc(5, sizeof(int));
+	for (k = 0; k < n_seqs; k++) {
+		s = &seqs[k];
+		n_most = 0;
+		for (i = 0; i < s->len; i++) {
+			c = s->seq[i];
+			counter[c]++;
+		}
+		for (i = 0; i < 5; i++) {
+			if (counter[i] > n_most) {
+				n_most = counter[i];
+			}
+			counter[i] = 0;
+		}
+		if (n_most >= s->len - 2) {
+			s->status = DEAD;
+			n_rep++;
+		}
+	}
+	free(counter);
+	return n_rep;
+}
+
 int get_key(bwa_seq_t *read, const int start, const int end) {
 	int key = 0, i = 0;
 	for (i = start; i < end; i++) {
