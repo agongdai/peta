@@ -34,38 +34,27 @@ def sub_read(fasta, query):
     cmd = '%s %s %s -ooc=%s %s' % (BLAT, fasta, query, BLAT_OCC_11, query_read_psl)
     
 def ctg_to_ref(args):
-    contig = args.contigs
     ref = args.tx
-    print 'Aligning %s to %s ' % (contig, ref)
-    ctg_ref_psl = contig + '.psl'
     if args.transcript:
-        hits_file_name = args.transcript + '.hits'
+        hits_file_name = args.transcript + '.ctg.hits'
     else:
-        hits_file_name = contig + '.hits'
+        hits_file_name = contig + '.ctg.hits'
     hits_file = open(hits_file_name, 'w')
-    cmd = '%s %s %s -ooc=%s %s' % (BLAT, ref, contig, BLAT_OCC_11, ctg_ref_psl)
-    runInShell(cmd)
-    ref_fa = FastaFile(ref)
-    no = 0
-    open_psl = open(ctg_ref_psl, 'r')
-    hit_tx = {}
-    for line in open_psl:
-        no += 1
-        if no <= 5:
-            continue
-        f = line.split('\t')
-        hit_tx[f[13]] = line
-    open_psl.close()
-    print 'Printing the text alignments to %s...' % hits_file_name
-    for tx_name, tx_seq in hit_tx.iteritems():
-        if args.transcript and not args.transcript == tx_name:
-            continue
-        no += 1
-        summary, hits = zoom_tx(tx_name, ref, ctg_ref_psl, 'ctg')
+    for contig in args.contigs:
+        if contig.endswith('fa') or contig.endswith('fasta'):
+            print 'Aligning %s to %s ' % (contig, ref)
+            ctg_ref_psl = contig + '.psl'
+            cmd = '%s %s %s -ooc=%s %s' % (BLAT, ref, contig, BLAT_OCC_11, ctg_ref_psl)
+            print cmd
+            runInShell(cmd)
+        else:
+            ctg_ref_psl = contig
+        summary, hits = zoom_tx(args.transcript, ref, ctg_ref_psl, 'ctg')
         if len(hits) <= 0:
             continue
-        hits_file.write(get_align_str(ref, contig, hits))
-        hits_file.write('=' * 500 + '\n')
+        ctg_fa = contig[0:-4]
+        hits_file.write(get_align_str(ref, ctg_fa, hits))
+        hits_file.write('+' * 2000 + '\n')
     hits_file.close()
     print 'Check file %s' % (hits_file_name)
         
@@ -97,11 +86,12 @@ def zoom_tx(tx_name, ref, blat_psl, ctg_or_read='read'):
     tx_hits = []
     if len(hit_lines) <= 0:
         return tx_hits
-    hits = eva.read_psl_hits(hit_lines, 'query')
+    hits = eva.read_psl_hits(hit_lines, 'ref')
     tx = FastaFile(ref)
     tx_seq = tx.seqs[tx_name]
-    for qname, h in hits.iteritems():
-        tx_hits.append(h[0])
+    for rname, hs in hits.iteritems():
+        if rname == tx_name:
+            tx_hits = hs
     summary = ''    
     if ctg_or_read == 'read':
         n_reads = len(tx_hits)
@@ -710,7 +700,7 @@ def main():
     
     parser_ctg_to_ref = subparsers.add_parser('ctx', help='align all contigs to a transcript and visualize text alignments')
     parser_ctg_to_ref.set_defaults(func=ctg_to_ref)
-    parser_ctg_to_ref.add_argument('contigs', help='contigs file')
+    parser_ctg_to_ref.add_argument('contigs', nargs='+', help='contigs file')
     parser_ctg_to_ref.add_argument('-t', '--transcript', required=False, default=None, help='check hits only for one transcript', dest='transcript')
     parser_ctg_to_ref.add_argument('-f', '--tx', required=False, default=REF_SRR097897, metavar='FILE', help='annotated transcripts file', dest='tx')
 

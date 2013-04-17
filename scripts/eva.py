@@ -229,7 +229,7 @@ class BlastHit(object):
 		for s in self.r_block_starts:
 			repr += str(s) + ','
 		repr += ']\t'
-		repr += 'Match: %d; Mismatch: %d; Indels: %d/%d' % (self.n_match, self.n_mismatch, self.n_query_gap_bases, self.n_ref_gap_bases)
+		repr += 'Match: %d; Mismatch: %d; Indels: %d/%d\n' % (self.n_match, self.n_mismatch, self.n_query_gap_bases, self.n_ref_gap_bases)
 		return repr
 	
 def find_hit(hits, query, tx):

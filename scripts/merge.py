@@ -5,6 +5,9 @@ def rev_comp(sequence):
     complement = {'A':'T','C':'G','G':'C','T':'A','N':'N'}
     return "".join([complement.get(nt.upper(), '') for nt in sequence[::-1]])
 
+def simple_rev(args):
+    print rev_comp(args.seq)
+
 def add_file(fq_file, combined, counter):
     openf = open(fq_file, 'r')
     line_no = 0
@@ -263,6 +266,10 @@ def main():
     parser_merge_peta.add_argument('-l', required=True, help='left mate file', dest='left', metavar='FILE')
     parser_merge_peta.add_argument('-r', required=True, help='right mate file', dest='right', metavar='FILE')
     parser_merge_peta.add_argument('-o', required=True, help='output file', dest='out', metavar='FILE')    
+    
+    parser_rev_comp = subparsers.add_parser('rev', help='simply get the reverse complement')
+    parser_rev_comp.set_defaults(func=simple_rev)
+    parser_rev_comp.add_argument('seq', help='ACGTN seq')
 
     args = parser.parse_args()
     args.func(args)
