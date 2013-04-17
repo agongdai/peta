@@ -43,10 +43,15 @@ char *kmer_out = NULL;
 GMutex *kmer_id_mutex;
 struct timespec kmer_start_time, kmer_finish_time;
 
-int next_char_by_kmers(hash_map *hm, bwa_seq_t *query, const int ori) {
+gint cmp_kmers_by_count(gpointer a, gpointer b) {
+	kmer_counter *c_a = *((kmer_counter**) a);
+	kmer_counter *c_b = *((kmer_counter**) b);
+	return ((c_b->count) - c_a->count);
+}
+
+int next_char_by_kmers(hash_map *hm, uint64_t kmer_int, const int ori) {
 	int counters[4], i = 0, max = 0;
-	uint64_t kmer_int = 0, next_kmer_int = 0;
-	kmer_int = get_kmer_int(query->seq, 0, 1, query->len);
+	uint64_t next_kmer_int = 0;
 	for (i = 0; i < 4; i++) {
 		counters[i] = 0;
 		// Check the forward kmer
@@ -106,70 +111,37 @@ void kmer_pool(GPtrArray *hits, const hash_map *hm, pool *cur_pool, edge *eg,
 	check_next_char(cur_pool, eg, next, ori);
 }
 
-void kmer_ext_edge(edge *eg, bwa_seq_t *query, hash_map *hm, const int ori) {
-	pool *cur_pool = NULL;
-	int c = 0, *next = NULL;
-	uint64_t kmer_int = 0;
-	GPtrArray *hits = NULL;
+void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm, const int ori) {
+	int c = 0;
+	uint64_t rev_kmer_int = 0;
 
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
-	next = (int*) calloc(5, sizeof(int));
-	cur_pool = new_pool();
-	hits = g_ptr_array_sized_new(BUFSIZ);
-	p_query(__func__, query);
 	while (1) {
-		if (same_bytes(query->seq, query->len))
-			break;
-		reset_c(next, NULL); // Reset the counter
-		kmer_aln_query(query, hm, hits);
-		kmer_pool(hits, hm, cur_pool, eg, query, next, ori);
-		if (cur_pool->reads->len <= 2 && eg->len > ins_size - SD_TIMES
-				* sd_ins_size) {
-			//show_debug_msg(__func__, "Trying mate pool... \n");
-			add_mates_by_ol(hm->seqs, eg, cur_pool, RELAX_MATE_OL_THRE,
-					SHORT_MISMATCH, query, ori, ins_size, sd_ins_size);
-			reset_c(next, NULL); // Reset the counter
-			check_next_char(cur_pool, eg, next, ori);
-		}
-		c = get_pure_most(next);
-		c = next_char_by_kmers(hm, query, ori);
+		c = next_char_by_kmers(hm, query_int, ori);
 
-		//p_query(__func__, query);
-		//p_readarray(hits, 1);
 		//show_debug_msg(__func__, "Ori %d, Edge %d, length %d \n", ori, eg->id,
 		//		eg->len);
 		//p_ctg_seq("Contig", eg->contig);
-		//p_pool("Current Pool", cur_pool, next);
 		//show_debug_msg(__func__, "Ori: %d, Next char: %d \n", ori, c);
 
-		kmer_int = get_kmer_int(query->seq, 0, 1, query->len);
-		mark_kmer_used(kmer_int, hm);
-		kmer_int = rev_comp_kmer(kmer_int, hm->o->k);
-		mark_kmer_used(kmer_int, hm);
-		if (cur_pool->n <= 0 || c == -1) {
+		if (c == -1) {
 			show_debug_msg(__func__, "[%d, %d] No hits, stop here. \n", eg->id,
 					eg->len);
 			break;
 		}
-		//show_debug_msg(__func__, "Ori: %d, Next char: %d \n", ori, c);
-		forward(cur_pool, c, eg, ori);
+		mark_kmer_used(query_int, hm);
+		rev_kmer_int = rev_comp_kmer(query_int, hm->o->k);
+		mark_kmer_used(rev_kmer_int, hm);
 		ext_con(eg->contig, c, 0);
 		eg->len = eg->contig->len;
-		ext_que(query, c, ori);
-		while (hits->len > 0) {
-			g_ptr_array_remove_index(hits, 0);
-		}
+		query_int = shift_bit(query_int, c, hm->o->k, ori);
 		if (eg->len % 100 == 0)
 			show_debug_msg(__func__, "Ori %d, Edge %d, length %d \n", ori,
 					eg->id, eg->len);
 	}
-	g_ptr_array_free(hits, TRUE);
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
-	bwa_free_read_seq(1, query);
-	free_pool(cur_pool);
-	free(next);
 }
 
 /**
@@ -177,105 +149,99 @@ void kmer_ext_edge(edge *eg, bwa_seq_t *query, hash_map *hm, const int ori) {
  */
 void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	edge *eg = NULL;
-	bwa_seq_t *query = NULL, *kmer = NULL;
+	bwa_seq_t *kmer = NULL;
 	int round_1_len = 0, round_2_len = 0;
 	uint64_t kmer_int = 0;
 	map_opt *opt = NULL;
+	kmer_counter *counter = NULL;
 	kmer_t_meta *params = (kmer_t_meta*) thread_params;
 	opt = params->hm->o;
 
-	//	kmer_int = *((uint64_t*) data);
-	//	query = get_kmer_seq(kmer_int, opt->k);
-	//	if (get_kmer_count(kmer_int, params->hm) <= 1) {
-	//		bwa_free_read_seq(1, query);
-	//		return NULL;
-	//	}
-	query = (bwa_seq_t*) data;
-	if (query->status != FRESH)
+	counter = (kmer_counter*) data;
+	kmer_int = counter->kmer;
+	if (get_kmer_count(kmer_int, params->hm) <= 1) {
 		return NULL;
+	}
 	eg = new_eg();
 	g_mutex_lock(kmer_id_mutex);
 	eg->id = kmer_ctg_id++;
 	g_mutex_unlock(kmer_id_mutex);
 	// Get a copy of the kmer
-	kmer = new_seq(query, opt->k, query->len - opt->k);
-	eg->contig = new_seq(query, query->len, 0);
+	kmer = get_kmer_seq(kmer_int, opt->k);
+	eg->contig = new_seq(kmer, kmer->len, 0);
 	eg->len = eg->contig->len;
-	eg->tid = atoi(query->name);
-	eg->name = strdup(query->name);
+	eg->tid = atoi(kmer->name);
+	eg->name = strdup(kmer->name);
 
-	if (query->len != opt->k) {
-		query->shift = 0;
-		readarray_add(eg, query);
-	}
-	show_debug_msg(__func__, "============= %s: %d ============ \n", query->name, query->contig_id);
-	kmer_ext_edge(eg, kmer, params->hm, 0);
+	show_debug_msg(__func__, "============= %s: %d ============ \n",
+			kmer->name, counter->count);
+	kmer_ext_edge(eg, kmer_int, params->hm, 0);
 	round_1_len = eg->len;
 	show_debug_msg(__func__, "Edge %d with length: %d \n", eg->id, eg->len);
 
-	kmer = new_seq(eg->contig, opt->k, 0);
-	rev_reads_pos(eg);
-	kmer_ext_edge(eg, kmer, params->hm, 1);
-	rev_reads_pos(eg);
+	kmer_int = get_kmer_int(kmer->seq, 0, 1, kmer->len);
+	bwa_free_read_seq(1, kmer);
+	kmer_ext_edge(eg, kmer_int, params->hm, 1);
 	show_debug_msg(__func__, "Edge %d with length: %d \n", eg->id, eg->len);
 
 	if (eg->len - round_1_len > 2) {
 		kmer = new_seq(eg->contig, opt->k, eg->len - opt->k);
+		kmer_int = get_kmer_int(kmer->seq, 0, 1, kmer->len);
+		bwa_free_read_seq(1, kmer);
 		round_2_len = eg->len;
-		kmer_ext_edge(eg, kmer, params->hm, 0);
+		kmer_ext_edge(eg, kmer_int, params->hm, 0);
 		show_debug_msg(__func__, "Edge %d with length: %d \n", eg->id, eg->len);
 		if (eg->len - round_2_len > 2) {
 			kmer = new_seq(eg->contig, opt->k, 0);
-			rev_reads_pos(eg);
-			kmer_ext_edge(eg, kmer, params->hm, 1);
-			rev_reads_pos(eg);
+			kmer_int = get_kmer_int(kmer->seq, 0, 1, kmer->len);
+			bwa_free_read_seq(1, kmer);
+			kmer_ext_edge(eg, kmer_int, params->hm, 1);
 			show_debug_msg(__func__, "Edge %d with length: %d \n", eg->id,
 					eg->len);
 		}
 	}
 
-	eg->start_kmer_int = get_kmer_int(kmer->seq, 0, 1, kmer->len);
+	eg->start_kmer_int = *((uint64_t*) data);
 	if (eg->len < 50) {
 		destroy_eg(eg);
-		query->status = TRIED;
 	} else {
 		g_mutex_lock(kmer_id_mutex);
 		g_ptr_array_add(params->all_edges, eg);
-		n_used_reads += eg->reads->len;
 		g_mutex_unlock(kmer_id_mutex);
 	}
-	if (query->len == opt->k)
-		bwa_free_read_seq(1, query);
-	show_debug_msg(__func__, "Consumed reads: %d/%" ID64 " \n", n_used_reads, params->hm->n_reads);
+	free(counter);
 	return NULL;
 }
 
 void kmer_threads(kmer_t_meta *params, GPtrArray *solid_reads) {
 	GThreadPool *thread_pool = NULL;
-	uint64_t i = 0;
+	uint64_t i = 0, *count = 0;
 	hash_map *hm = params->hm;
-	map_opt *opt = hm->o;
-	bwa_seq_t *query = NULL;
+	mer_hash *hash = hm->hash;
+	kmer_counter *counter = NULL;
+	GPtrArray *start_kmers = g_ptr_array_sized_new(BUFSIZ);
+
 	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, params, 1, TRUE,
 			NULL);
-	rm_repetitive_reads(hm->seqs, hm->n_reads);
 
 	show_msg(__func__, "Extending by kmers...\n");
-	for (i = 0; i < solid_reads->len; i++) {
-		query = (bwa_seq_t*) g_ptr_array_index(solid_reads, i);
-		//query = &hm->seqs[23853];
-		g_thread_pool_push(thread_pool, (gpointer) query, NULL);
-		//break;
+	for (mer_hash::iterator it = hash->begin(); it != hash->end(); ++it) {
+		count = it->second;
+		if (count[0] > 1) {
+			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
+			counter->kmer = it->first;
+			counter->count = count[0];
+			g_ptr_array_add(start_kmers, counter);
+		}
+	}
+	g_ptr_array_sort(start_kmers, (GCompareFunc) cmp_kmers_by_count);
+	for (i = 0; i < start_kmers->len; i++) {
+		counter = (kmer_counter*) g_ptr_array_index(start_kmers, i);
+		g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
+		//if (i > 100)
+		//	break;
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
-	g_ptr_array_free(solid_reads, TRUE);
-
-	n_used_reads = 0;
-	for (i = 0; i < hm->n_reads; i++) {
-		query = &hm->seqs[i];
-		if (query->status != FRESH)
-			n_used_reads++;
-	}
 }
 
 void pick_unused_kmers(kmer_t_meta *params) {
@@ -307,7 +273,7 @@ void test_kmer_ext(kmer_t_meta *params) {
 	mer_hash *hash = params->hm->hash;
 	show_msg(__func__, "Count for kmer 0: %" ID64 "\n", get_kmer_count(0, params->hm));
 	mark_kmer_used(0, params->hm);
-	show_msg(__func__, "Count for kmer 0: %" ID64 "\n", get_kmer_count(0, params->hm));
+show_msg(__func__, "Count for kmer 0: %" ID64 "\n", get_kmer_count(0, params->hm));
 }
 
 void ext_by_kmers_core(char *lib_file, const char *solid_file) {
@@ -336,10 +302,10 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	//test_kmer_ext(params);
 	//exit(1);
 	kmer_threads(params, solid_reads);
-	pick_unused_kmers(params);
+	//pick_unused_kmers(params);
 
 	contigs = xopen(get_output_file("paired.fa", kmer_out), "w");
-	save_edges(all_edges, contigs, 0, 0, 100);
+	save_edges(all_edges, contigs, 0, 0, 0);
 	fflush(contigs);
 	fclose(contigs);
 

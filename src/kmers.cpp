@@ -37,12 +37,6 @@ uint64_t rev_comp_kmer(uint64_t kmer, const int n) {
 	return rev_comp;
 }
 
-gint cmp_kmers_by_count(gpointer a, gpointer b) {
-	kmer_counter *c_a = *((kmer_counter**) a);
-	kmer_counter *c_b = *((kmer_counter**) b);
-	return ((c_b->count) - c_a->count);
-}
-
 map_opt *new_map_opt() {
 	map_opt *o = (map_opt*) malloc(sizeof(map_opt));
 	o->k = 0;
