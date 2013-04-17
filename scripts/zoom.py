@@ -20,10 +20,10 @@ REF_TO_REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/ref.ref.ps
 REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta'
 READ_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897_corrected.fa'
 
-READ_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa'
-REF_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa'
+READ_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876_corrected.fa'
+REF_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa.oracle'
 REF_TO_REF_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/genome/ref.ref.psl'
-READ_REF_PSL_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.psl'
+READ_REF_PSL_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876_corrected.fa.psl'
 
 def runInShell(cmd):
     p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
@@ -181,6 +181,12 @@ def get_hit_str(hit, reads):
         else:
             hit_str += rev_read_seq[hit.q_block_starts[i]:hit.q_block_starts[i] + hit.block_sizes[i]] 
         pre_end = hit.r_block_starts[i] + hit.block_sizes[i]
+    if (hit.qend < hit.qlen):
+        hit_str += '=>'
+        if hit.strand == '+':
+            hit_str += read_seq[hit.qend:hit.qlen]
+        else:
+            hit_str += rev_read_seq[hit.qend:hit.qlen]
     hit_str += SEP + hit.qname + ':' + str(len(read_seq)) + ' [' + str(hit.rstart) + 'M' + str(hit.n_match) + ',Ins' + str(hit.n_ref_gap_bases) + str(hit.strand) + str(hit.n_mismatch) + ']'
     return hit_str
 
@@ -243,7 +249,7 @@ def get_pair_str(ref, fasta, hits):
     seq = tx.seqs[tx_name].upper()
     read_no = 0
     for h in hits:
-        if read_no % 30 == 0:
+        if read_no % 15 == 0:
             algin_str += seq + '\n'
         mate_id = get_mate_id(h.qname)
         mate_hit = None
@@ -270,7 +276,7 @@ def get_align_str(ref, fasta, hits):
     seq = tx.seqs[tx_name].upper()
     read_no = 0
     for h in hits:
-        if read_no % 30 == 0:
+        if read_no % 15 == 0:
             algin_str += seq + '\n'
         hit_str = get_hit_str(h, reads)
         algin_str += ' ' * h.rstart + hit_str + '\n'
@@ -593,12 +599,44 @@ def check_solid(args):
             r = result.split('\n')
             for read in r:
                 print read.strip()
+
+def raw_oracle(args):
+    anno_tx = FastaFile(args.transcripts)
+    oracle_set = FastaFile()
+    tx_with_hits = {}
+    line_no = 0
+    with open(args.psl) as psl:
+        for line in psl:
+            line_no += 1
+            if line_no <= 5:
+                continue
+            if line_no % 1000000 == 0:
+                print '%d line processed; %d distinct transcripts...' % (line_no, len(tx_with_hits))
+            fields = line.split('\t')
+            tx_name = fields[13]
+            if tx_name in tx_with_hits:
+                tx_with_hits[tx_name] += 1
+            else:
+                tx_with_hits[tx_name] = 0
+                oracle_set.seqs[tx_name] = anno_tx.seqs[tx_name]
+    oracle_set.save_to_disk('%s.oracle' % args.transcripts)
+    print '%s.oracle' % args.transcripts
                 
 def oracle(args):
     anno_tx = FastaFile(args.transcripts)
     oracle_set = FastaFile()
     for tx_name, seq in anno_tx.seqs.iteritems():
-        print 'Checking reads on %s ...' % tx_name
+        print 'Checking reads on %s: length %d ...' % (tx_name, len(seq))
+        lines = runInShell('grep ' + tx_name + ' ' + args.psl)
+        lines = lines.strip()
+        if lines == '':
+            print 'No hit'
+            continue
+        else:
+            print 'Has %d hits' % (len(lines.split('\n')))
+            oracle_set.seqs[tx_name] = seq
+            continue
+        
         tx_len = len(seq)
         summary, tx_hits = zoom_tx(tx_name, args.transcripts, args.psl, 'read')
         bin_hit = [0 for x in range(tx_len)]
@@ -682,7 +720,7 @@ def main():
     parset_cov.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR027876, metavar='FILE', help='psl file', dest='psl')
     
     parset_oracle = subparsers.add_parser('oracle', help='check the transcripts expressed')
-    parset_oracle.set_defaults(func=oracle)
+    parset_oracle.set_defaults(func=raw_oracle)
     parset_oracle.add_argument('reads', help='raw RNA-seq reads')
     parset_oracle.add_argument('transcripts', help='annotated transcripts')
     parset_oracle.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR027876, metavar='FILE', help='psl file', dest='psl')    

@@ -124,7 +124,7 @@ void kmer_ext_edge(edge *eg, bwa_seq_t *query, hash_map *hm, const int ori) {
 		reset_c(next, NULL); // Reset the counter
 		kmer_aln_query(query, hm, hits);
 		kmer_pool(hits, hm, cur_pool, eg, query, next, ori);
-		if (cur_pool->reads->len <= 0 && eg->len > ins_size - SD_TIMES
+		if (cur_pool->reads->len <= 2 && eg->len > ins_size - SD_TIMES
 				* sd_ins_size) {
 			//show_debug_msg(__func__, "Trying mate pool... \n");
 			add_mates_by_ol(hm->seqs, eg, cur_pool, RELAX_MATE_OL_THRE,
@@ -133,7 +133,8 @@ void kmer_ext_edge(edge *eg, bwa_seq_t *query, hash_map *hm, const int ori) {
 			check_next_char(cur_pool, eg, next, ori);
 		}
 		c = get_pure_most(next);
-		//c = next_char_by_kmers(hm, query, ori);
+		c = next_char_by_kmers(hm, query, ori);
+
 		//p_query(__func__, query);
 		//p_readarray(hits, 1);
 		//show_debug_msg(__func__, "Ori %d, Edge %d, length %d \n", ori, eg->id,
@@ -264,6 +265,7 @@ void kmer_threads(kmer_t_meta *params, GPtrArray *solid_reads) {
 		query = (bwa_seq_t*) g_ptr_array_index(solid_reads, i);
 		//query = &hm->seqs[23853];
 		g_thread_pool_push(thread_pool, (gpointer) query, NULL);
+		//break;
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
 	g_ptr_array_free(solid_reads, TRUE);
@@ -285,16 +287,6 @@ void pick_unused_kmers(kmer_t_meta *params) {
 	bwa_seq_t *seq = NULL;
 	GPtrArray *remaining = g_ptr_array_sized_new(BUFSIZ);
 	show_msg(__func__, "Going to assemble remaining reads: %d/%" ID64 " ...\n", n_used_reads, opt->n_reads);
-//	for (mer_hash::iterator m = hash->begin(); m != hash->end(); ++m) {
-//		mer_v = m->first;
-//		n = get_kmer_count(mer_v, hm);
-//		if (n > 1) {
-//			seq = get_kmer_seq(mer_v, hm->o->k);
-//			// Temply set the value for sorting
-//			seq->contig_id = n;
-//			g_ptr_array_add(kmer_reads, seq);
-//		}
-//	}
 	for (i = 0; i < hm->n_reads; i++) {
 		seq = &hm->seqs[i];
 		if (seq->status == FRESH)

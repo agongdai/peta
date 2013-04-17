@@ -81,8 +81,11 @@ class FastaFile(object):
 				l = 0
 				for c in seq:
 					out.write(c)
+					l += 1
 					if l % 50 == 0:
 						out.write('\n')
+				if not l % 50 == 0:
+					out.write('\n')
 
 	def read_seqs(self):
 		fa = open(self.filename, 'r')
@@ -594,6 +597,42 @@ def check_dup(args):
 	print 'Done.\n'
 	ids.close()
 	
+def get_unaligned(args):
+	contigs = FastaFile(args.contigs)
+	hits = read_blat_hits(args.psl)
+	unaligned = FastaFile()
+	for ctg_name, seq in contigs.seqs.iteritems():
+		if not ctg_name in hits:
+			unaligned.seqs[ctg_name] = seq
+	unaligned.save_to_disk('%s.unaligned' % args.psl)
+	print 'Check %s.unaligned' % args.psl
+
+def diff_novo(args):
+	tx = FastaFile(args.transcript)
+	hits_1 = read_blat_hits(args.psl_1, 'ref')
+	hits_2 = read_blat_hits(args.psl_2, 'ref')
+	n_novo_base_1 = 0
+	n_novo_base_2 = 0
+	with open(args.psl_2 + '.novo', 'w') as novo:
+		for tx_name, seq in tx.seqs.iteritems():
+			if tx_name in hits_1 and not tx_name in hits_2:
+				hs = hits_1[tx_name]
+				l = 0
+				for h in hs:
+					l += h.alen
+				novo.write('%s: %s %d\n' % (args.psl_1, tx_name, l))
+				n_novo_base_1 += l
+			if tx_name in hits_2 and not tx_name in hits_1:
+				hs = hits_2[tx_name]
+				l = 0
+				for h in hs:
+					l += h.alen
+				novo.write('%s: %s\n' % (args.psl_2, tx_name, l))
+				n_novo_base_2 += l
+	print 'Novo base only 1: %d' % n_novo_base_1
+	print 'Novo base only 2: %d' % n_novo_base_2
+	print 'Check %s.novo' % args.psl_2
+	
 def cmp_psl(args):
 	tx = FastaFile(args.transcript)
 	hits_1 = read_blat_hits(args.psl_1, 'ref')
@@ -646,7 +685,7 @@ def cmp_psl(args):
 	print 'Bases by psl_2 only:      %d' % n_base_2
 	print 'Bases by none:            %d' % n_none
 	if n_base_2 > 0:
-		print 'psl_2 bases covered:   %.2f' % (n_base_both / n_base_2)
+		print 'psl_2 bases covered:      %.2f' % (n_base_both / (n_base_2 + n_base_both))
 	print 'Check file: %s.base' % args.psl_2
 
 def main():
@@ -685,6 +724,11 @@ def main():
     parser_psl.add_argument('transcript', help='annotated transcripts')
     parser_psl.add_argument('-1', '--psl_1', required=True, metavar='FILE', help='PSL file 1', dest='psl_1')
     parser_psl.add_argument('-2', '--psl_2', required=True, metavar='FILE', help='PSL file 2', dest='psl_2')
+    
+    parser_unaligned = subparsers.add_parser('unaligned', help='Get only unaligned contigs')
+    parser_unaligned.set_defaults(func=get_unaligned)
+    parser_unaligned.add_argument('contigs', help='assembled contigs')
+    parser_unaligned.add_argument('-p', '--psl', required=True, metavar='FILE', help='PSL file', dest='psl')
 
     args = parser.parse_args()
     args.func(args)

@@ -7,7 +7,7 @@ db_dir="$root_dir/peta/rnaseq/Spombe/genome/"
 db="spombe.broad.tx.fasta"
 blastdb="$root_dir/ncbi-blast-2.2.26+/db/"
 similarity="98"
-query_dir="$root_dir/peta_dev/SRR097897_out/"
+query_dir="$root_dir/peta_dev/spombe_630/"
 
 blastn_exe="blastn"
 blat_exe="$root_dir/blat/blat"
