@@ -47,7 +47,7 @@ class ResultSummary(object):
 		print '\t# of near full length %.0f%%:   ' % (near_full_length * 100) + ' ' + str(self.n_tx_near_full_length)
 		print '\t# of 70% covered:             ' + str(self.n_tx_covered_70)
 		print '\tCovered by one contig:        ' + str(self.n_tx_one_covered)
-#		print '\t# of fragmented:              ' + str(self.n_fragmented)
+# 		print '\t# of fragmented:              ' + str(self.n_fragmented)
 		print '\t# of Ctgs not aligned:        ' + str(self.n_not_aligned)
 		print '\tBases not aligned:            ' + str(self.n_bases_not_aligned)
 		print '\t# of Ctgs not reached:        ' + str(self.n_not_reached)
@@ -171,7 +171,7 @@ def get_tx_str(tx_name, seq, line_len):
 	return header + seq_line
 
 class BlastHit(object):
-	def __init__(self, qname = None, hit_line = '', rname = None, alen = 0, pos = 0, astart = 0, aend = 0, tid = 0):
+	def __init__(self, qname=None, hit_line='', rname=None, alen=0, pos=0, astart=0, aend=0, tid=0):
 		self.qname = qname
 		self.n_mismatch = 0
 		self.n_match = 0
@@ -244,12 +244,15 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	file_near_full_length = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_near_full_length.txt'), 'w')
 	file_covered_70 = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_covered_70.txt'), 'w')
 	file_one_covered = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_one_covered.txt'), 'w')
+	file_not_aligned = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_not_aligned.txt'), 'w')
+	file_partial = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_partial.txt'), 'w')
 	similarity = float(args.similarity)
 
 	for tx_name, tx_seq in ref.seqs.iteritems():
 		if not tx_name in r_hits:
 			summary.n_not_reached += 1
 			summary.n_bases_not_reached += len(tx_seq)
+			file_not_aligned.write('%s\t%d\n' % (tx_name, len(tx_seq)))
 		else:
 			r_hits[tx_name].sort(key=lambda x: x.alen, reverse=True)
 
@@ -304,8 +307,14 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 						end = len(tx_seq)
 					for i in range(start, end):
 						binary_covered[i] = 1
+			tmp = n_obtained_bases
 			for i in binary_covered:
 				n_obtained_bases += i
+			if (len(tx_seq) - (n_obtained_bases - tmp)) >= 50:
+				file_partial.write('======= %s: %d \t %d =======\n' % (tx_name, len(tx_seq), (len(tx_seq) - (n_obtained_bases - tmp))))
+				for i in range(len(binary_covered)):
+					if binary_covered[i] == 0:
+						file_partial.write('%d\n' % i)
 				
 	summary.n_bases = contigs.n_bases
 	summary.n_contigs = contigs.n_seqs
@@ -317,17 +326,20 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	summary.n50_optimal = ref.n50
 	summary.report()
 
-	print 'Check %s'%os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_full_length.txt')
-	print 'Check %s'%os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_one_on_one.txt')
-	print 'Check %s'%os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_near_full_length.txt')
-	print 'Check %s'%os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_covered_70.txt')
-	print 'Check %s'%os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_one_covered.txt')
+	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_full_length.txt')
+	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_one_on_one.txt')
+	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_near_full_length.txt')
+	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_covered_70.txt')
+	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_one_covered.txt')
+	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_not_aligned.txt')
+	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_partial.txt')
 
 	file_one_covered.close()
 	file_full_length.close()
 	file_near_full_length.close()
 	file_covered_70.close()
 	file_one_on_one.close()
+	file_not_aligned.close()
 	
 def rm_self(hits):
 	for key, h in hits.iteritems():
@@ -365,7 +377,7 @@ def stat(args):
 			singleton_bin[tx] = False
 			n_cross += 1
 			
-#	read2ref_hits = read_blat_hits(args.read2ref, 'ref')
+# 	read2ref_hits = read_blat_hits(args.read2ref, 'ref')
 	report.write('Transcript\tCross\tLength\tContigs\tHits\tCovered\tLargest Covered\t# of reads\tCoverage\n')
 	for rname in sorted_rnames:
 		ref_len = len(ref.seqs[rname])
@@ -379,7 +391,7 @@ def stat(args):
 		report.write(str(ref_len) + '\t')
 		if rname in hits:
 			hit = hits[rname]
-			report.write(str(len(hit)) + '\t') # Number of contigs
+			report.write(str(len(hit)) + '\t')  # Number of contigs
 			hit.sort(key=lambda x: x.rstart)
 			longest_hit = 0
 			covered = [0 for x in range(ref_len)]
@@ -403,12 +415,12 @@ def stat(args):
 			report.write('%.2f\t' % (covered_perc))
 			largest_cover_perc = longest_hit / ref_len
 			report.write('%.2f\t' % (largest_cover_perc))
-#			if rname in read2ref_hits:
-#				report.write('%d\t' % len(read2ref_hits[rname]))
-#				report.write('%.2f\t' % (len(read2ref_hits[rname]) / ref_len))
-#			else:
-#				report.write('0\t')
-#				report.write('0\t')
+# 			if rname in read2ref_hits:
+# 				report.write('%d\t' % len(read2ref_hits[rname]))
+# 				report.write('%.2f\t' % (len(read2ref_hits[rname]) / ref_len))
+# 			else:
+# 				report.write('0\t')
+# 				report.write('0\t')
 		else:
 			report.write('0\tNone\t0\t0\t')
 		report.write('\n')
@@ -522,8 +534,8 @@ def differ(args):
 				genes[line] = names[i]
 		fp.close()
 	categories = {}
-	for key, value in sorted(genes.iteritems(), key=lambda (k,v): (v,k)):
-		out_file.write(key + '\t' + value  + '\n')
+	for key, value in sorted(genes.iteritems(), key=lambda (k, v): (v, k)):
+		out_file.write(key + '\t' + value + '\n')
 		if value in categories:
 			categories[value] += 1
 		else:

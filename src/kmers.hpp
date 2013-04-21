@@ -16,7 +16,7 @@
 
 using namespace std;
 typedef unordered_map<uint64_t, uint64_t*> mer_hash;
-typedef unordered_map<uint64_t, uint32_t> mer_counter;
+typedef unordered_map<uint64_t, uint64_t> mer_counter;
 
 typedef struct {
 	uint16_t k;
@@ -47,8 +47,8 @@ uint64_t rev_comp_kmer(uint64_t kmer, const int n);
 void destroy_hm(hash_map *hm);
 uint64_t get_kmer_int(const ubyte_t *seq, const int start,
 		const int interleaving, const int len);
-void build_kmers_hash(const char *fa_fn, const int k);
-hash_map *load_hash_map(const char *fa_fn, mer_hash& kmers);
+void build_kmers_hash(const char *fa_fn, const int k, const int with_reads);
+hash_map *load_hash_map(const char *fa_fn, const int with_reads, mer_hash& kmers);
 bwa_seq_t *get_kmer_seq(uint64_t kmer, const int k);
 int next_char_by_kmers(mer_hash *kmers, const int k, bwa_seq_t *query,
 		const int ori);

@@ -15,15 +15,15 @@ REF = '/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa'
 READ = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa'
 CONTIG = '/home/carl/Projects/peta/SRR027876_out/pair_contigs.fa'
 
-READ_REF_PSL_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897_corrected.psl'
+READ_REF_PSL_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.psl'
 REF_TO_REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/ref.ref.psl'
 REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta'
-READ_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897_corrected.fa'
+READ_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa'
 
-READ_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876_corrected.fa'
+READ_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa'
 REF_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa.oracle'
 REF_TO_REF_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/genome/ref.ref.psl'
-READ_REF_PSL_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876_corrected.fa.psl'
+READ_REF_PSL_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa.psl'
 
 def runInShell(cmd):
     p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
@@ -54,7 +54,7 @@ def ctg_to_ref(args):
             continue
         ctg_fa = contig[0:-4]
         hits_file.write(get_align_str(ref, ctg_fa, hits))
-        hits_file.write('+' * 2000 + '\n')
+        hits_file.write('+' * (hits[0].rlen) + '\n')
     hits_file.close()
     print 'Check file %s' % (hits_file_name)
         
@@ -163,6 +163,7 @@ def get_hit_str(hit, reads):
     pre_end = 0
     read_seq = reads.seqs[hit.qname].upper()
     rev_read_seq = merge.rev_comp(read_seq).upper()
+    ins_strs = []
     for i in range(0, hit.n_blocks):
         if pre_end > 0:
             hit_str += '-' * (hit.r_block_starts[i] - pre_end)
@@ -177,7 +178,7 @@ def get_hit_str(hit, reads):
             hit_str += read_seq[hit.qend:hit.qlen]
         else:
             hit_str += rev_read_seq[hit.qend:hit.qlen]
-    hit_str += SEP + hit.qname + ':' + str(len(read_seq)) + ' [' + str(hit.rstart) + 'M' + str(hit.n_match) + ',Ins' + str(hit.n_ref_gap_bases) + str(hit.strand) + str(hit.n_mismatch) + ']'
+    hit_str += SEP + hit.qname + ':' + str(len(read_seq)) + ' [' + str(hit.qstart) + '@' + str(hit.rstart) + 'M' + str(hit.n_match) + ',Ins' + str(hit.n_ref_gap_bases) + str(hit.strand) + str(hit.n_mismatch) + ']'
     return hit_str
 
 def get_pair_hit_str(mate_h_1, mate_h_2, reads):

@@ -81,7 +81,7 @@ uint64_t get_kmer_int(const ubyte_t *seq, const int start,
  * 			a 'read int' is a 'hash_value': upper 48 bits store read id; lower 16 bits store the kmer position on read
  *      list of kmer ints decreasing by '# of kmers'.
  */
-void build_kmers_hash(const char *fa_fn, const int k) {
+void build_kmers_hash(const char *fa_fn, const int k, const int with_reads) {
 	clock_t t = clock();
 	uint32_t n_reads = 0, i = 0, j = 0;
 	uint64_t mer_v = 0, *kmer_freq = NULL, m = 0;
@@ -115,44 +115,59 @@ void build_kmers_hash(const char *fa_fn, const int k) {
 	}
 
 	// Set the value of hash map: first value stores how many reads having this kmer
+
 	show_msg(__func__, "Allocating space for %" ID64 " kmers, %" ID64 " distinct kmers ...\n", opt->n_pos, opt->n_k_mers);
-	for (mer_counter::iterator it = counter.begin(); it != counter.end(); ++it) {
-		kmer_freq = (uint64_t*) calloc(it->second + 1, sizeof(uint64_t));
-		kmer_freq[0] = 0;
-		hash[it->first] = kmer_freq;
-		mer = (kmer_counter*) malloc(sizeof(kmer_counter));
-		mer->kmer = it->first;
-		mer->count = it->second;
-		if (mer->count > 1) {
-			opt->n_valid_k_mers++;
+	if (with_reads) {
+		for (mer_counter::iterator it = counter.begin(); it != counter.end(); ++it) {
+			kmer_freq = (uint64_t*) calloc(it->second + 1, sizeof(uint64_t));
+			kmer_freq[0] = 0;
+			hash[it->first] = kmer_freq;
+			mer = (kmer_counter*) malloc(sizeof(kmer_counter));
+			mer->kmer = it->first;
+			mer->count = it->second;
+			if (mer->count > 1) {
+				opt->n_valid_k_mers++;
+			}
 		}
+
+		show_msg(__func__, "Setting hash map ...\n");
+		for (i = 0; i < n_reads; i++) {
+			r = &reads[i];
+			for (j = 0; j <= r->len - opt->k; j++) {
+				mer_v = get_kmer_int(r->seq, j, 1, k);
+				kmer_freq = hash[mer_v];
+				kmer_freq[++kmer_freq[0]] = get_hash_value(atoi(r->name), j);
+			}
+		}
+		sprintf(hash_fn, "%s.map.reads", fa_fn);
+	} else {
+		for (mer_counter::iterator it = counter.begin(); it != counter.end(); ++it) {
+			kmer_freq = (uint64_t*) calloc(1, sizeof(uint64_t));
+			kmer_freq[0] = it->second;
+			hash[it->first] = kmer_freq;
+		}
+		sprintf(hash_fn, "%s.map", fa_fn);
 	}
 
-	show_msg(__func__, "Setting hash map ...\n");
-	for (i = 0; i < n_reads; i++) {
-		r = &reads[i];
-		for (j = 0; j <= r->len - opt->k; j++) {
-			mer_v = get_kmer_int(r->seq, j, 1, k);
-			kmer_freq = hash[mer_v];
-			kmer_freq[++kmer_freq[0]] = get_hash_value(atoi(r->name), j);
-		}
-	}
 	show_msg(__func__, "Saving hash map of %d reads: %.2f sec ... \n", n_reads,
 			(float) (clock() - t) / CLOCKS_PER_SEC);
-	sprintf(hash_fn, "%s.map", fa_fn);
 	hash_fp = xopen(hash_fn, "w");
 	fwrite(opt, sizeof(map_opt), 1, hash_fp);
 	for (mer_hash::iterator m = hash.begin(); m != hash.end(); ++m) {
 		mer_v = m->first;
 		fwrite(&mer_v, sizeof(uint64_t), 1, hash_fp);
 		kmer_freq = m->second;
-		fwrite(kmer_freq, sizeof(uint64_t), kmer_freq[0] + 1, hash_fp);
+		if (with_reads)
+			fwrite(kmer_freq, sizeof(uint64_t), kmer_freq[0] + 1, hash_fp);
+		else
+			fwrite(kmer_freq, sizeof(uint64_t), 1, hash_fp);
 	}
 	show_msg(__func__, "%d reads hashed: %.2f sec\n", n_reads, (float) (clock()
 			- t) / CLOCKS_PER_SEC);
 }
 
-hash_map *load_hash_map(const char *fa_fn, mer_hash& kmers) {
+hash_map *load_hash_map(const char *fa_fn, const int with_reads,
+		mer_hash& kmers) {
 	clock_t t = clock();
 	FILE *map_fp = NULL;
 	map_opt *opt = NULL;
@@ -203,7 +218,7 @@ void test_kmer_hash(const char *fa_fn) {
 	uint64_t i = 0, j = 0;
 	GPtrArray *hits = g_ptr_array_sized_new(BUFSIZ);
 	bwa_seq_t *query = NULL;
-	hash_map *hm = load_hash_map(fa_fn, map);
+	hash_map *hm = load_hash_map(fa_fn, 0, map);
 	map_copy = hm->hash;
 
 	show_msg(__func__, "Count of 3922922232675962: %d \n", get_kmer_count(

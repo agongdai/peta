@@ -65,7 +65,9 @@ int next_char_by_kmers(hash_map *hm, uint64_t kmer_int, const int ori) {
 	for (i = 0; i < 4; i++) {
 		max = (counters[i] > max) ? counters[i] : max;
 	}
-	// show_debug_msg(__func__, "Max: %d \n", max);
+	show_debug_msg(__func__, "Next [%d:%d:%d:%d]\n", counters[0], counters[1],
+			counters[2], counters[3]);
+	show_debug_msg(__func__, "Max: %d \n", max);
 	if (max == 0)
 		return -1;
 	for (i = 0; i < 4; i++) {
@@ -114,16 +116,24 @@ void kmer_pool(GPtrArray *hits, const hash_map *hm, pool *cur_pool, edge *eg,
 void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm, const int ori) {
 	int c = 0;
 	uint64_t rev_kmer_int = 0;
+	bwa_seq_t *debug = NULL;
 
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
 	while (1) {
 		c = next_char_by_kmers(hm, query_int, ori);
 
-		//show_debug_msg(__func__, "Ori %d, Edge %d, length %d \n", ori, eg->id,
-		//		eg->len);
-		//p_ctg_seq("Contig", eg->contig);
-		//show_debug_msg(__func__, "Ori: %d, Next char: %d \n", ori, c);
+		if (ori)
+			seq_reverse(eg->len, eg->contig->seq, 0);
+		debug = get_kmer_seq(query_int, 25);
+		p_query(__func__, debug);
+		bwa_free_read_seq(1, debug);
+		show_debug_msg(__func__,
+				"Ori %d, Edge %d, length %d, Next char: %d \n", ori, eg->id,
+				eg->len, c);
+		p_ctg_seq("Contig", eg->contig);
+		if (ori)
+			seq_reverse(eg->len, eg->contig->seq, 0);
 
 		if (c == -1) {
 			show_debug_msg(__func__, "[%d, %d] No hits, stop here. \n", eg->id,
@@ -270,10 +280,22 @@ void pick_unused_kmers(kmer_t_meta *params) {
 }
 
 void test_kmer_ext(kmer_t_meta *params) {
-	mer_hash *hash = params->hm->hash;
-	show_msg(__func__, "Count for kmer 0: %" ID64 "\n", get_kmer_count(0, params->hm));
-	mark_kmer_used(0, params->hm);
-show_msg(__func__, "Count for kmer 0: %" ID64 "\n", get_kmer_count(0, params->hm));
+	uint64_t kmer_int = 289104232493298;
+	edge *eg = new_eg();
+	FILE *contigs = NULL;
+	GPtrArray *all_edges = g_ptr_array_sized_new(12);
+	bwa_seq_t *kmer = get_kmer_seq(kmer_int, params->hm->o->k);
+
+	eg->contig = new_seq(kmer, kmer->len, 0);
+	eg->len = eg->contig->len;
+	eg->tid = atoi(kmer->name);
+	eg->name = strdup(kmer->name);
+	kmer_ext_edge(eg, kmer_int, params->hm, 0);
+	kmer_ext_edge(eg, kmer_int, params->hm, 1);
+	g_ptr_array_add(all_edges, eg);
+
+	contigs = xopen(get_output_file("single.fa", kmer_out), "w");
+	save_edges(all_edges, contigs, 0, 0, 0);
 }
 
 void ext_by_kmers_core(char *lib_file, const char *solid_file) {
@@ -287,7 +309,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	show_msg(__func__, "Library: %s \n", lib_file);
 	show_msg(__func__, "Solid Reads: %s \n", solid_file);
 
-	hm = load_hash_map(lib_file, map);
+	hm = load_hash_map(lib_file, 0, map);
 	hm->hash = &map;
 
 	clock_gettime(CLOCK_MONOTONIC, &kmer_finish_time);
@@ -299,8 +321,8 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	params->all_edges = all_edges;
 	solid_reads = load_solid_reads(solid_file, hm->seqs, hm->n_reads);
 
-	//test_kmer_ext(params);
-	//exit(1);
+	test_kmer_ext(params);
+	exit(1);
 	kmer_threads(params, solid_reads);
 	//pick_unused_kmers(params);
 
