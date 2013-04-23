@@ -435,12 +435,12 @@ void set_rev_com(bwa_seq_t *s) {
 	s->rseq[s->len] = '\0';
 }
 
-bwa_seq_t *blank_seq() {
+bwa_seq_t *blank_seq(const int len) {
 	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
 	p->tid = -1; // no assigned to a thread
 	p->status = 0;
 	p->contig_id = 0;
-	p->full_len = p->len = 0;
+	p->full_len = p->len = len;
 	p->cursor = 0;
 	p->shift = 0;
 	p->rev_com = 0;
@@ -448,8 +448,8 @@ bwa_seq_t *blank_seq() {
 	p->is_in_m_pool = 0;
 
 	p->name = NULL;
-	p->seq = (ubyte_t*) calloc(1, sizeof(ubyte_t));
-	p->rseq = (ubyte_t*) calloc(1, sizeof(ubyte_t));
+	p->seq = (ubyte_t*) calloc(len, sizeof(ubyte_t));
+	p->rseq = (ubyte_t*) calloc(len, sizeof(ubyte_t));
 
 	return p;
 }

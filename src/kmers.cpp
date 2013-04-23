@@ -19,6 +19,21 @@
 #include "peseq.h"
 #include "rnaseq.h"
 #include "bwtaln.h"
+#include "pechar.h"
+
+int *count_next_kmers(hash_map *hm, uint64_t query, const int ori) {
+	int *counters = (int*) calloc(4, sizeof(int)), i = 0;
+	uint64_t next_probable_kmer = 0;
+	for (i = 0; i < 4; i++) {
+		counters[i] = 0;
+		next_probable_kmer = shift_bit(query, i, hm->o->k, ori);
+		counters[i] = get_kmer_count(next_probable_kmer, hm);
+		// Get its reverse complement as well
+		next_probable_kmer = rev_comp_kmer(next_probable_kmer, hm->o->k);
+		counters[i] += get_kmer_count(next_probable_kmer, hm);
+	}
+	return counters;
+}
 
 /**
  * Return a reverse complement value of a kmer int
@@ -44,6 +59,7 @@ map_opt *new_map_opt() {
 	o->n_pos = 0;
 	o->n_reads = 0;
 	o->n_valid_k_mers = 0;
+	o->read_len = 0;
 	return o;
 }
 
@@ -84,7 +100,7 @@ uint64_t get_kmer_int(const ubyte_t *seq, const int start,
 void build_kmers_hash(const char *fa_fn, const int k, const int with_reads) {
 	clock_t t = clock();
 	uint32_t n_reads = 0, i = 0, j = 0;
-	uint64_t mer_v = 0, *kmer_freq = NULL, m = 0;
+	uint64_t mer_v = 0, *kmer_freq = NULL;
 	mer_counter counter;
 	mer_hash hash;
 	kmer_counter *mer = NULL;
@@ -96,7 +112,10 @@ void build_kmers_hash(const char *fa_fn, const int k, const int with_reads) {
 
 	show_msg(__func__, "Hashing library %s ...\n", fa_fn);
 	reads = load_reads(fa_fn, &n_reads);
+	if (n_reads <= 0)
+		err_fatal(__func__, "No reads are loaded. Terminated.\n");
 	opt->n_reads = n_reads;
+	opt->read_len = reads->len;
 
 	// Count frequencies of every kmer
 	show_msg(__func__, "Counting kmer frequencies ...\n");
@@ -232,9 +251,7 @@ bwa_seq_t *get_kmer_seq(uint64_t kmer, const int k) {
 	bwa_seq_t *read = NULL;
 	int i = 0;
 	uint64_t copy = kmer, index = 0;
-	read = blank_seq();
-	free(read->seq);
-	read->seq = (ubyte_t*) calloc(k + 1, sizeof(ubyte_t));
+	read = blank_seq(k);
 	seq = read->seq;
 	for (i = 0; i < k; i++) {
 		index = copy;
@@ -276,9 +293,15 @@ void parse_hit_ints(const uint64_t *occs, GPtrArray *hits, bwa_seq_t *seqs,
  * Remove the kmer from the hashmap
  */
 void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm) {
-	uint64_t *freq = NULL;
+	uint64_t *freq = NULL, rev_kmer_int = 0;
 	mer_hash *hash = hm->hash;
 	mer_hash::iterator it = hash->find(kmer_int);
+	if (it != hash->end()) {
+		freq = it->second;
+		freq[0] = 0;
+	}
+	rev_kmer_int = rev_comp_kmer(kmer_int, hm->o->k);
+	it = hash->find(rev_kmer_int);
 	if (it != hash->end()) {
 		freq = it->second;
 		freq[0] = 0;
@@ -331,45 +354,12 @@ void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm, GPtrArray *hits)
 	}
 }
 
-/**
- * Check kmer frequencies of all possible next chars, get the highest one
- * Return: ACGTN -> 01234;
- *         None -> -1;
- */
-int next_char_by_kmers(mer_hash *kmers, const int k, bwa_seq_t *query,
-		const int ori) {
-	bwa_seq_t *next_q = NULL;
-	int counters[5], i = 0, max = 0;
-	uint64_t kmer_int = 0, *freq = NULL;
-	for (i = 0; i < 5; i++) {
-		next_q = new_seq(query, query->len, 0);
-		ext_que(next_q, i, ori);
-		counters[i] = 0;
-		// Check the forward kmer
-		//p_query("SEQ", next_q);
-		kmer_int = get_kmer_int(next_q->seq, 0, 1, k);
-		freq = (*kmers)[kmer_int];
-		if (freq) {
-			counters[i] = freq[0];
-		}
-		// Check the reverse kmer
-		kmer_int = get_kmer_int(next_q->rseq, 0, 1, k);
-		freq = (*kmers)[kmer_int];
-		if (freq) {
-			counters[i] += freq[0];
-		}
-		bwa_free_read_seq(1, next_q);
-	}
-	// Get max occurrence of the chars
-	for (i = 0; i < 5; i++) {
-		max = (counters[i] > max) ? counters[i] : max;
-	}
-	//show_debug_msg(__func__, "Max: %d \n", max);
-	if (max == 0)
-		return -1;
-	for (i = 0; i < 5; i++) {
-		if (max == counters[i])
-			return i;
-	}
-	return -1;
+int next_char_by_kmers(hash_map *hm, uint64_t kmer_int, const int ori) {
+	int *counters = count_next_kmers(hm, kmer_int, ori);
+	int max = get_max_index(counters);
+	free(counters);
+	return max;
+}
+int next_char_by_kmers(hash_map *hm, uint64_t kmer_int, const int ori) {
+int *counters = count_next_kmers
 }

@@ -85,7 +85,7 @@ void ext_que(bwa_seq_t *q, const ubyte_t c, const int left_max_ctg_id);
 int has_n(const bwa_seq_t *read, int max);
 bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift);
 void set_rev_com(bwa_seq_t *s);
-bwa_seq_t *blank_seq();
+bwa_seq_t *blank_seq(const int len);
 bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol,
 		const int shift);
 bwa_seq_t *new_rev_seq(const bwa_seq_t *query);

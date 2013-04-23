@@ -92,7 +92,7 @@ void sync_path(rm_path *p) {
 	int i = 0, shift = 0;
 	edge *eg = NULL, *eg_next = NULL;
 	p->n_ctgs = p->edges->len;
-	seq = blank_seq();
+	seq = blank_seq(1);
 	if (p->n_ctgs > 0) {
 		for (i = 0; i < p->n_ctgs; i++) {
 			eg = g_ptr_array_index(p->edges, i);

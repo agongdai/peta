@@ -17,7 +17,7 @@
 #include "pehash.h"
 
 eg_gap *init_gap(int s_index, int size, int ori) {
-	eg_gap *gap = (eg_gap*) malloc (sizeof(eg_gap));
+	eg_gap *gap = (eg_gap*) malloc(sizeof(eg_gap));
 	gap->s_index = s_index;
 	gap->size = size;
 	gap->ori = ori;
@@ -31,7 +31,8 @@ void free_eg_gap(eg_gap *gap) {
 
 edge *new_eg() {
 	edge *eg = (edge*) malloc(sizeof(edge));
-	eg->contig = 0;
+	eg->contig = NULL;
+	eg->tail = NULL;
 	eg->in_egs = g_ptr_array_sized_new(0);
 	eg->out_egs = g_ptr_array_sized_new(0);
 	eg->reads = g_ptr_array_sized_new(0);
@@ -75,12 +76,42 @@ void free_readarray(readarray *ra) {
 	g_ptr_array_free(ra, TRUE);
 }
 
+/**
+ * Get virtual tail of an edge
+ */
+bwa_seq_t *cut_edge_tail(edge *eg, const int tail_len, const int ori) {
+	bwa_seq_t *tail = NULL;
+	int v_tail_len = 0;
+	if (eg->len >= tail_len) {
+		if (ori)
+			return new_seq(eg->contig, tail_len, 0);
+		else
+			return new_seq(eg->contig, tail_len, eg->len - tail_len);
+	}
+	if (eg->tail && eg->tail->len > 0) {
+		v_tail_len = eg->tail->len + eg->len;
+		v_tail_len = (v_tail_len > tail_len) ? tail_len : v_tail_len;
+		tail = blank_seq(v_tail_len);
+		if (ori) {
+
+		} else {
+			memcpy(tail->seq, eg->tail->seq + (eg->tail->len + eg->len
+					- v_tail_len), sizeof(ubyte_t) * (v_tail_len - eg->len));
+			memcpy(tail->seq + (v_tail_len - eg->len), eg->tail,
+					sizeof(ubyte_t) * eg->len);
+		}
+	} else
+		return new_seq(eg->contig, eg->len, 0);
+	return tail;
+}
+
 void destroy_eg(edge *eg) {
 	eg_gap *gap = NULL;
 	bwa_seq_t *read = NULL;
 	int i = 0;
 	if (eg) {
-		bwa_free_read_seq(1, eg->contig); // bug if free it
+		bwa_free_read_seq(1, eg->contig);
+		bwa_free_read_seq(1, eg->tail);
 		g_ptr_array_free(eg->in_egs, TRUE);
 		if (!eg->right_ctg) {
 			// If eg's right contig is not null, its out_egs is set to be right contig's out_egs

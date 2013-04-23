@@ -42,13 +42,13 @@ Function template_ext(template, hash_table, query, direction):
 			// If it is just noise, likely to come to the same sequence quickly
 			// So here try to extend extra 5 bases quickly, for both branches
 			main_query = shift_query(query, max_c, direction)
-			main_branch = try_short_tpl_ext(main_query, direction, 5)
+			main_branch = try_short_tpl_ext(hash_table, main_query, direction, 5)
 			second_query = shift_query(query, second_c, direction)
-			second_branch = try_short_tpl_ext(second_query, direction, 5)
+			second_branch = try_short_tpl_ext(hash_table, second_query, direction, 5)
 
 			// If there is probable branching
 			if (main_branch != second_branch): 
-				second_branch = try_short_tpl_ext(second_query, direction, hash_table.read_length - 5)
+				second_branch = try_short_tpl_ext(hash_table, second_query, direction, hash_table.read_length - 5)
 				has_junction_read = find_junction_reads(template, second_branch, hash_table, direction)
 				// If the second branch is supported by some junction reads, extend it
 				if (has_junction_read):
@@ -73,18 +73,18 @@ Function template_ext(template, hash_table, query, direction):
 				// It is just an ambiguous base because of sequencing errors, etc. Record it, continue extension
 				mark_kmer_used(hash_table, branch_query)
 				AMBIGUOUS_BASES.add((template, template.length))
-		else:
-			// For every kmer used during this extension, mark the frequency as 0.
-			mark_kmer_used(hash_table, query)
-			// Extend template and the query by one char
-			shift_template(template, c, direction)
-			query = shift_query(query, c, direction)
+
+		// For every kmer used during this extension, mark the frequency as 0.
+		mark_kmer_used(hash_table, query)
+		// Extend template and the query by one char
+		shift_template(template, c, direction)
+		query = shift_query(query, c, direction)
 
 /**
 	Quickly extend a query to some length (parameter max_len), does not mark kmers as used
 	Return: the short branch template
 **/
-Function try_short_tpl_ext(query, direction, max_len):
+Function try_short_tpl_ext(hash_table, query, direction, max_len):
 	branch_template = 0
 	query_copy = query
 	for (i = 0; i < max_len; i++):
@@ -189,7 +189,7 @@ Function count_next_kmers(hash_table, query, direction):
 	next_probable_kmer = 0									
 	for (i = 0; i < 4; i++):
 		counters[i] = 0
-		next_probable_kmer = shift_bit(query, c, direction)
+		next_probable_kmer = shift_bit(query, i, direction)
 		counters[i] = get_kmer_count(hash_table, next_probable_kmer)
 		// Get its reverse complement as well
 		next_probable_kmer = rev_com_kmer(next_probable_kmer)

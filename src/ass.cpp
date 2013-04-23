@@ -32,7 +32,7 @@
 
 using namespace std;
 
-int kmer_ctg_id = 0;
+int kmer_ctg_id = 1;
 int ins_size = 0;
 int sd_ins_size = 0;
 int kmer_n_threads = 0;
@@ -43,109 +43,151 @@ char *kmer_out = NULL;
 GMutex *kmer_id_mutex;
 struct timespec kmer_start_time, kmer_finish_time;
 
+edge *blank_edge(uint64_t query_int, int init_len, int ori) {
+	bwa_seq_t *kmer = NULL;
+	edge *eg = new_eg();
+	g_mutex_lock(kmer_id_mutex);
+	eg->id = kmer_ctg_id++;
+	g_mutex_unlock(kmer_id_mutex);
+	// Get a copy of the kmer
+	kmer = get_kmer_seq(query_int, init_len);
+	if (ori)
+		eg->contig = new_seq(kmer, init_len, 0);
+	else
+		eg->contig = new_seq(kmer, init_len, kmer->len - init_len);
+	eg->len = eg->contig->len;
+	eg->tid = atoi(kmer->name);
+	eg->name = strdup(kmer->name);
+	bwa_free_read_seq(1, kmer);
+	return eg;
+}
+
 gint cmp_kmers_by_count(gpointer a, gpointer b) {
 	kmer_counter *c_a = *((kmer_counter**) a);
 	kmer_counter *c_b = *((kmer_counter**) b);
 	return ((c_b->count) - c_a->count);
 }
 
-int next_char_by_kmers(hash_map *hm, uint64_t kmer_int, const int ori) {
-	int counters[4], i = 0, max = 0;
-	uint64_t next_kmer_int = 0;
-	for (i = 0; i < 4; i++) {
-		counters[i] = 0;
-		// Check the forward kmer
-		next_kmer_int = shift_bit(kmer_int, i, hm->o->k, ori);
-		counters[i] = get_kmer_count(next_kmer_int, hm);
-		// Check the reverse kmer
-		next_kmer_int = rev_comp_kmer(next_kmer_int, hm->o->k);
-		counters[i] += get_kmer_count(next_kmer_int, hm);
+/**
+ * Extend the short template as int64
+ * max_len: should be smaller than 64
+ */
+uint64_t try_short_tpl_ext(hash_map *hm, uint64_t query, const int ori,
+		const int max_len) {
+	uint64_t branch_template = 0;
+	int i = 0, c = 0;
+	for (i = 0; i < max_len; i++) {
+		c = next_char_by_kmers(hm, query, ori);
+		if (c == -1)
+			break;
+		else {
+			branch_template = shift_bit(branch_template, c, hm->o->k, ori);
+			query = shift_bit(query, c, hm->o->k, ori);
+		}
 	}
-	// Get max occurrence of the chars
-	for (i = 0; i < 4; i++) {
-		max = (counters[i] > max) ? counters[i] : max;
-	}
-	show_debug_msg(__func__, "Next [%d:%d:%d:%d]\n", counters[0], counters[1],
-			counters[2], counters[3]);
-	show_debug_msg(__func__, "Max: %d \n", max);
-	if (max == 0)
-		return -1;
-	for (i = 0; i < 4; i++) {
-		if (max == counters[i])
-			return i;
-	}
-	return -1;
+	return branch_template;
 }
 
-void kmer_pool(GPtrArray *hits, const hash_map *hm, pool *cur_pool, edge *eg,
-		bwa_seq_t *query, int *next, const int ori) {
-	uint32_t i = 0;
-	bwa_seq_t *s = NULL, *mate = NULL, *seqs = hm->seqs;
-	// Add aligned reads to current pool
-	for (i = 0; i < hits->len; i++) {
-		s = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		mate = get_mate(s, seqs);
-		//p_query(__func__, s);
-		//p_query(__func__, mate);
-		//pre_cursor = s->cursor;
-
-		if (s->status != FRESH || s->tid != -1)
-			continue;
-
-		mate->rev_com = s->rev_com;
-		if (s->rev_com)
-			s->cursor = ori ? (s->len - query->len - 1 - s->pos) : (s->len
-					- s->pos);
+/**
+ * Extend the short template as ubyte_t's, max_len may be larger than 64
+ */
+ubyte_t *try_short_tpl_byte_ext(hash_map *hm, uint64_t query, const int ori,
+		const int max_len) {
+	ubyte_t *branch_seq = NULL, c = 0;
+	int i = 0;
+	branch_seq = (ubyte_t*) calloc(max_len, sizeof(ubyte_t));
+	for (i = 0; i < max_len; i++) {
+		c = next_char_by_kmers(hm, query, ori);
+		if (c == -1)
+			break;
 		else
-			s->cursor = ori ? (s->pos - 1) : (s->pos + query->len);
-
-		if (s->cursor >= s->len || s->cursor < 0) {
-			s->cursor = 0;
-			continue;
-		}
-		//if ((!ori && pre_cursor > s->cursor) || (ori && pre_cursor < s->cursor))
-		//	continue;
-		pool_add(cur_pool, s, eg->tid);
+			branch_seq[i] = c;
 	}
-	//show_debug_msg(__func__, "Removing partial...\n");
-	rm_partial(eg, cur_pool, ori, seqs, query, MISMATCHES);
-	//p_pool("POOL after removing partial", cur_pool, next);
-	check_next_char(cur_pool, eg, next, ori);
+	return branch_seq;
+}
+
+int find_junction_reads(hash_map *hm, uint64_t query_int, int c, const int ori,
+		const int max_len) {
+	uint64_t query = 0, i = 0, is_valid = 1;
+	ubyte_t *branch_seq = NULL;
+	query = shift_bit(query_int, c, hm->o->k, ori);
+	branch_seq = try_short_tpl_byte_ext(hm, query, ori, max_len);
+	free(branch_seq);
+	return is_valid;
+}
+
+void val_short_tpl(hash_map *hm, uint64_t query_int, int max_c, int second_c,
+		const int ori) {
+	uint64_t main_query = 0, main_branch = 0;
+	uint64_t second_query = 0, second_branch = 0;
+	main_query = shift_bit(query_int, max_c, hm->o->k, ori);
+	main_branch = try_short_tpl_ext(hm, main_query, ori, SHORT_BRANCH_LEN);
+	second_query = shift_bit(query_int, second_c, hm->o->k, ori);
+	second_branch = try_short_tpl_ext(hm, main_query, ori, SHORT_BRANCH_LEN);
+	if (main_branch == second_branch)
+		return 1;
+	return 0;
+}
+
+void one_step_forward(edge *eg, uint64_t query, int next_c, hash_map *hm,
+		const int ori) {
+	mark_kmer_used(query, hm);
+	ext_con(eg->contig, next_c, 0);
+	eg->len = eg->contig->len;
+	return shift_bit(query, next_c, hm->o->k, ori);
 }
 
 void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm, const int ori) {
-	int c = 0;
-	uint64_t rev_kmer_int = 0;
-	bwa_seq_t *debug = NULL;
+	int max_c = 0, second_c = 0, *counters = NULL;
+	int main_is_valid = 0, branch_is_valid = 0;
+	uint64_t rev_kmer_int = 0, second_query = 0;
+	edge *branch_eg = NULL;
+	//	bwa_seq_t *debug = NULL;
 
 	if (ori)
 		seq_reverse(eg->len, eg->contig->seq, 0);
 	while (1) {
-		c = next_char_by_kmers(hm, query_int, ori);
+		counters = count_next_kmers(hm, query_int, ori);
+		max_c = get_max_index(counters);
+		second_c = get_second_freq_char(counters, max_c);
+		free(counters);
 
-		if (ori)
-			seq_reverse(eg->len, eg->contig->seq, 0);
-		debug = get_kmer_seq(query_int, 25);
-		p_query(__func__, debug);
-		bwa_free_read_seq(1, debug);
-		show_debug_msg(__func__,
-				"Ori %d, Edge %d, length %d, Next char: %d \n", ori, eg->id,
-				eg->len, c);
-		p_ctg_seq("Contig", eg->contig);
-		if (ori)
-			seq_reverse(eg->len, eg->contig->seq, 0);
-
-		if (c == -1) {
+		/**
+		 if (ori)
+		 seq_reverse(eg->len, eg->contig->seq, 0);
+		 debug = get_kmer_seq(query_int, 25);
+		 p_query(__func__, debug);
+		 bwa_free_read_seq(1, debug);
+		 show_debug_msg(__func__,
+		 "Ori %d, Edge %d, length %d, Next char: %d \n", ori, eg->id,
+		 eg->len, c);
+		 p_ctg_seq("Contig", eg->contig);
+		 if (ori)
+		 seq_reverse(eg->len, eg->contig->seq, 0);
+		 **/
+		if (max_c == -1) {
 			show_debug_msg(__func__, "[%d, %d] No hits, stop here. \n", eg->id,
 					eg->len);
 			break;
 		}
-		mark_kmer_used(query_int, hm);
-		rev_kmer_int = rev_comp_kmer(query_int, hm->o->k);
-		mark_kmer_used(rev_kmer_int, hm);
-		ext_con(eg->contig, c, 0);
-		eg->len = eg->contig->len;
-		query_int = shift_bit(query_int, c, hm->o->k, ori);
+		if (second_c != -1) {
+			if (val_short_tpl(hm, query_int, max_c, second_c, ori)) {
+				main_is_valid = find_junction_reads(hm, query_int, max_c, ori,
+						hm->o->read_len - SHORT_BRANCH_LEN);
+				branch_is_valid = find_junction_reads(hm, query_int, second_c,
+						ori, hm->o->read_len - SHORT_BRANCH_LEN);
+				if (main_is_valid && branch_is_valid) {
+					query_int = one_step_forward(eg, query_int, max_c, hm, ori);
+					kmer_ext_edge(eg, query_int, hm, ori);
+					branch_eg = blank_edge(query_int, 1, ori);
+				}
+			} else {
+				// Mark the branch kmer as used
+				second_query = shift_bit(query_int, second_c, hm->o->k, ori);
+				mark_kmer_used(second_query, hm);
+			}
+		}
+		query_int = one_step_forward(eg, query_int, max_c, hm, ori);
 		if (eg->len % 100 == 0)
 			show_debug_msg(__func__, "Ori %d, Edge %d, length %d \n", ori,
 					eg->id, eg->len);
@@ -172,16 +214,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	if (get_kmer_count(kmer_int, params->hm) <= 1) {
 		return NULL;
 	}
-	eg = new_eg();
-	g_mutex_lock(kmer_id_mutex);
-	eg->id = kmer_ctg_id++;
-	g_mutex_unlock(kmer_id_mutex);
-	// Get a copy of the kmer
-	kmer = get_kmer_seq(kmer_int, opt->k);
-	eg->contig = new_seq(kmer, kmer->len, 0);
-	eg->len = eg->contig->len;
-	eg->tid = atoi(kmer->name);
-	eg->name = strdup(kmer->name);
+	eg = blank_edge(kmer_int, opt->k, 0);
 
 	show_debug_msg(__func__, "============= %s: %d ============ \n",
 			kmer->name, counter->count);

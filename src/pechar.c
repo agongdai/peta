@@ -192,3 +192,34 @@ uint64_t shift_bit(uint64_t kmer, const int new_c, const int n, const int ori) {
 	else
 		return shift_bit_to_left(kmer, new_c, n);
 }
+
+/**
+ In an array, if some value is maximum, return its index
+ **/
+int get_max_index(const int *counters) {
+	int i = 0, max = 0, max_index = 0;
+	for (i = 0; i < 4; i++) {
+		if (counters[i] > max) {
+			max = counters[i];
+			max_index = i;
+		}
+	}
+	// If no probable next char, return -1
+	if (max == 0)
+		return -1;
+	return max_index;
+}
+
+int get_second_freq_char(const int *counters, const int max) {
+	int *counters_without_max = (int*) calloc(4, sizeof(int));
+	int i = 0, ret_val = 0;
+	for (i = 0; i < 4; i++) {
+		if (i == max)
+			counters_without_max[i] = 0;
+		else
+			counters_without_max[i] = counters[i];
+	}
+	ret_val = get_max_index(counters_without_max);
+	free(counters_without_max);
+	return ret_val;
+}

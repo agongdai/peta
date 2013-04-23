@@ -11,6 +11,8 @@
 #include <glib.h>
 #include "kmers.hpp"
 
+#define		SHORT_BRANCH_LEN	5
+
 typedef struct {
 	hash_map *hm;
 	GPtrArray *all_edges;

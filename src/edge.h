@@ -27,6 +27,7 @@ typedef struct edge edge;
 
 struct edge {
 	bwa_seq_t *contig;
+	bwa_seq_t *tail;
 	edgearray *in_egs;
 	edgearray *out_egs;
 	readarray *reads;
@@ -64,6 +65,7 @@ extern "C" {
 	edge *new_eg();
 	void reset_tid(edge *eg);
 	void destroy_eg(edge *eg);
+	bwa_seq_t *cut_edge_tail(edge *eg, const int tail_len, const int ori);
 
 #ifdef __cplusplus
 }
