@@ -82,24 +82,29 @@ void free_readarray(readarray *ra) {
 bwa_seq_t *cut_edge_tail(edge *eg, const int tail_len, const int ori) {
 	bwa_seq_t *tail = NULL;
 	int v_tail_len = 0;
+	// If the edge is long, cut the tail directly
 	if (eg->len >= tail_len) {
 		if (ori)
 			return new_seq(eg->contig, tail_len, 0);
 		else
 			return new_seq(eg->contig, tail_len, eg->len - tail_len);
 	}
+	// If the edge has a virtual tail, try to get it
 	if (eg->tail && eg->tail->len > 0) {
 		v_tail_len = eg->tail->len + eg->len;
 		v_tail_len = (v_tail_len > tail_len) ? tail_len : v_tail_len;
 		tail = blank_seq(v_tail_len);
 		if (ori) {
-
+			memcpy(tail->seq, eg->contig->seq, sizeof(ubyte_t) * eg->len);
+			memcpy(tail->seq + eg->len, tail->seq, sizeof(ubyte_t)
+					* (v_tail_len - eg->len));
 		} else {
 			memcpy(tail->seq, eg->tail->seq + (eg->tail->len + eg->len
 					- v_tail_len), sizeof(ubyte_t) * (v_tail_len - eg->len));
-			memcpy(tail->seq + (v_tail_len - eg->len), eg->tail,
+			memcpy(tail->seq + (v_tail_len - eg->len), eg->contig->seq,
 					sizeof(ubyte_t) * eg->len);
 		}
+		set_rev_com(tail);
 	} else
 		return new_seq(eg->contig, eg->len, 0);
 	return tail;

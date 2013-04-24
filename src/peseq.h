@@ -112,7 +112,7 @@ int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 		int mismatches);
 int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,
 		const int mismatches);
-void switch_ubyte(bwa_seq_t *s);
+void switch_fr(bwa_seq_t *s);
 int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *temp,
 		const int mismatches, const int min_len, const int max_len,
 		const int ori);

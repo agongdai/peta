@@ -420,7 +420,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	return p;
 }
 
-void switch_ubyte(bwa_seq_t *s) {
+void switch_fr(bwa_seq_t *s) {
 	ubyte_t *b = NULL;
 	b = s->seq;
 	s->seq = s->rseq;
@@ -440,7 +440,8 @@ bwa_seq_t *blank_seq(const int len) {
 	p->tid = -1; // no assigned to a thread
 	p->status = 0;
 	p->contig_id = 0;
-	p->full_len = p->len = len;
+	p->full_len = len;
+	p->len = 0;
 	p->cursor = 0;
 	p->shift = 0;
 	p->rev_com = 0;
@@ -539,17 +540,9 @@ int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs,
 }
 
 int same_q(const bwa_seq_t *query, const bwa_seq_t *seq) {
-	unsigned int i = 0;
-	if (!query || !seq || !seq->seq || !query->seq)
-		return 0;
 	if (query->len != seq->len)
 		return 0;
-	i = query->len;
-	while (i--) {
-		if (query->seq[i] != seq->seq[i])
-			return 0;
-	}
-	return 1;
+	return seq_ol(query, seq, query->len, 0);
 }
 
 int same_bytes(const ubyte_t *s, const int k) {
