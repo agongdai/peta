@@ -1,6 +1,6 @@
 #!/bin/bash
 
-query="paired"
+query="single"
 root_dir="/home/carl/Projects/"
 eva_exe="$root_dir/peta_dev/scripts/eva.py"
 db_dir="/home/carl/Projects/peta/rnaseq/Spombe/genome/"

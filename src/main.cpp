@@ -39,8 +39,8 @@ static int usage() {
 int main(int argc, char *argv[]) {
 //	test_kmer_hash(
 //			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897_corrected.fa");
-	build_kmers_hash("/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa", 25, 0);
-	return 1;
+//	build_kmers_hash("/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa", 25, 1);
+//	return 1;
 	if (argc < 2)
 		return usage();
 	else if (strcmp(argv[1], "hash") == 0)

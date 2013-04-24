@@ -20,6 +20,7 @@ typedef unordered_map<uint64_t, edge*> tpl_hash;
 
 typedef struct {
 	hash_map *hm;
+	tpl_hash *all_tpls;
 } kmer_t_meta;
 
 typedef struct {
@@ -34,7 +35,7 @@ extern "C" {
 #endif
 
 	int pe_kmer(int argc, char *argv[]);
-	void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm, const int ori);
+	void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm, tpl_hash *all_tpls, const int ori);
 
 #ifdef __cplusplus
 }

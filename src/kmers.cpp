@@ -21,21 +21,6 @@
 #include "bwtaln.h"
 #include "pechar.h"
 
-int *count_next_kmers(hash_map *hm, uint64_t query, const int fresh_only,
-		const int ori) {
-	int *counters = (int*) calloc(4, sizeof(int)), i = 0;
-	uint64_t next_probable_kmer = 0;
-	for (i = 0; i < 4; i++) {
-		counters[i] = 0;
-		next_probable_kmer = shift_bit(query, i, hm->o->k, ori);
-		counters[i] = get_kmer_count(next_probable_kmer, hm, fresh_only);
-		// Get its reverse complement as well
-		next_probable_kmer = rev_comp_kmer(next_probable_kmer, hm->o->k);
-		counters[i] += get_kmer_count(next_probable_kmer, hm, fresh_only);
-	}
-	return counters;
-}
-
 /**
  * Return a reverse complement value of a kmer int
  */
@@ -203,7 +188,7 @@ hash_map *load_hash_map(const char *fa_fn, const int with_reads,
 	hm->seqs = seqs;
 	hm->n_reads = n_reads;
 
-	sprintf(map_fn, "%s.map", fa_fn);
+	sprintf(map_fn, "%s.map.reads", fa_fn);
 	show_msg(__func__, "Loading hash map from %s ...\n", map_fn);
 	map_fp = xopen(map_fn, "rb");
 	opt = new_map_opt();
@@ -333,13 +318,16 @@ int kmer_is_used(const uint64_t kmer_int, hash_map *hm) {
 }
 
 void read_tpl_using_kmer(const uint64_t kmer_int, const hash_map *hm,
-		int *tpl_id, int *locus) {
+		int *tpl_id, int *locus, uint64_t *value) {
 	uint64_t *freq = NULL, count = 0, count_copy = 0;
 	mer_hash *hash = hm->hash;
 	mer_hash::iterator it = hash->find(kmer_int);
 	if (it != hash->end()) {
 		freq = it->second;
 		count = freq[0];
+		count_copy = count;
+		count_copy &= LOWER_ONES_32;
+		*value = count_copy;
 		count >>= 32;
 		count_copy = count;
 		count >>= 16;
@@ -365,14 +353,30 @@ uint64_t get_kmer_count(const uint64_t kmer_int, hash_map *hm,
 		// The upper 32 bits stores the template using this kmer,
 		//	reset the upper 32 bits to be 0, to get the frequency
 		if (fresh_only) {
-			count_copy &= UPPER_ONES_32;
+			count_copy >>= 32;
 			if (count_copy > 0)
 				return 0;
 		}
 		count &= LOWER_ONES_32;
+		//show_debug_msg(__func__, "Kmer: %" ID64 "=>%" ID64 "\n", kmer_int, count);
 		return count;
 	}
 	return 0;
+}
+
+int *count_next_kmers(hash_map *hm, uint64_t query, const int fresh_only,
+		const int ori) {
+	int *counters = (int*) calloc(4, sizeof(int)), i = 0;
+	uint64_t next_probable_kmer = 0;
+	for (i = 0; i < 4; i++) {
+		counters[i] = 0;
+		next_probable_kmer = shift_bit(query, i, hm->o->k, ori);
+		counters[i] = get_kmer_count(next_probable_kmer, hm, fresh_only);
+		// Get its reverse complement as well
+		next_probable_kmer = rev_comp_kmer(next_probable_kmer, hm->o->k);
+		counters[i] += get_kmer_count(next_probable_kmer, hm, fresh_only);
+	}
+	return counters;
 }
 
 /**
@@ -427,7 +431,7 @@ GPtrArray *kmer_find_reads(const bwa_seq_t *query, const hash_map *hm,
 
 int next_char_by_kmers(hash_map *hm, uint64_t kmer_int, const int fresh_only,
 		const int ori) {
-	int *counters = count_next_kmers(hm, kmer_int, ori, fresh_only);
+	int *counters = count_next_kmers(hm, kmer_int, fresh_only, ori);
 	int max = get_max_index(counters);
 	free(counters);
 	return max;
