@@ -108,10 +108,10 @@ uint64_t try_short_tpl_ext(hash_map *hm, uint64_t query, const int ori,
 		else {
 			branch_template = shift_bit(branch_template, c, hm->o->k, ori);
 			query = shift_bit(query, c, hm->o->k, ori);
-show_debug_msg		(__func__, "Branch int: %"ID64"\n", branch_template);
+			show_debug_msg(__func__, "Branch int: %"ID64"\n", branch_template);
+		}
 	}
-}
-return branch_template;
+	return branch_template;
 }
 
 /**
@@ -130,6 +130,7 @@ bwa_seq_t *try_short_tpl_byte_ext(hash_map *hm, uint64_t query, const int ori,
 		else
 			branch_seq->seq[i] = c;
 		branch_seq->len++;
+		query = shift_bit(query, c, hm->o->k, ori);
 	}
 	set_rev_com(branch_seq);
 	return branch_seq;
@@ -145,15 +146,17 @@ int find_junction_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 	bwa_seq_t *junction_seq = blank_seq(max_len);
 
 	left_len = (left->len > max_len / 2) ? (max_len / 2) : left->len;
-	memcpy(junction_seq->seq, left + (left->len - left_len), sizeof(ubyte_t)
+	memcpy(junction_seq->seq, left->seq + (left->len - left_len), sizeof(ubyte_t)
 			* left_len);
 	right_len = (right->len - r_shift) > (max_len / 2) ? (max_len / 2)
 			: (right->len - r_shift);
-	memcpy(junction_seq->seq + left_len, right + r_shift, sizeof(ubyte_t)
+	memcpy(junction_seq->seq + left_len, right->seq + r_shift, sizeof(ubyte_t)
 			* right_len);
 	junction_seq->len = left_len + right_len;
 	set_rev_com(junction_seq);
+	p_query("Junction seq", junction_seq);
 	reads = kmer_find_reads(junction_seq, hm, 1);
+	p_readarray(reads, 1);
 	n_reads = reads->len;
 	bwa_free_read_seq(1, junction_seq);
 	g_ptr_array_free(reads, TRUE);
@@ -169,6 +172,8 @@ int val_junction_reads(hash_map *hm, edge *main_tpl, uint64_t query_int, int c,
 	query = shift_bit(query_int, c, hm->o->k, ori);
 	branch_seq = try_short_tpl_byte_ext(hm, query, ori, max_len / 2);
 	main_tail = cut_edge_tail(main_tpl, max_len / 2, ori);
+	p_ctg_seq("Main", main_tail);
+	p_ctg_seq("Branch", branch_seq);
 	if (ori)
 		is_valid = find_junction_reads(hm, branch_seq, main_tail, 0, max_len);
 	else
@@ -185,7 +190,7 @@ int val_short_tpl(hash_map *hm, uint64_t query_int, int max_c, int second_c,
 	main_query = shift_bit(query_int, max_c, hm->o->k, ori);
 	main_branch = try_short_tpl_ext(hm, main_query, ori, SHORT_BRANCH_LEN);
 	second_query = shift_bit(query_int, second_c, hm->o->k, ori);
-	second_branch = try_short_tpl_ext(hm, main_query, ori, SHORT_BRANCH_LEN);
+	second_branch = try_short_tpl_ext(hm, second_query, ori, SHORT_BRANCH_LEN);
 	if (main_branch == second_branch)
 		return 0;
 	// If the second branch cannot extend to SHORT_BRANCH_LEN, just prune it
@@ -314,11 +319,11 @@ void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 				// If the main branch is not valid, set the next char to second frequent char.
 				if (branch_is_valid && !main_is_valid)
 					max_c = second_c;
-			} else {
-				// Mark the branch kmer as used
-				second_query = shift_bit(query_int, second_c, hm->o->k, ori);
-				mark_kmer_used(second_query, hm, eg->id, eg->len - hm->o->k);
-			}
+			}// else {
+			// Mark the branch kmer as used
+			//second_query = shift_bit(query_int, second_c, hm->o->k, ori);
+			//mark_kmer_used(second_query, hm, eg->id, eg->len - hm->o->k);
+			//}
 		}
 		query_int = one_step_forward(eg, query_int, max_c, hm, ori);
 		if (eg->len % 100 == 0)
@@ -361,7 +366,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	show_debug_msg(__func__, "Edge %d with length: %d \n", eg->id, eg->len);
 
 	if (eg->len - round_1_len > 2) {
-		kmer_int = get_kmer_int(eg->contig->seq, 0, eg->len - opt->k, opt->k);
+		kmer_int = get_kmer_int(eg->contig->seq, eg->len - opt->k, 1, opt->k);
 		round_2_len = eg->len;
 		kmer_ext_edge(eg, kmer_int, params->hm, all_tpls, 0);
 		show_debug_msg(__func__, "Edge %d with length: %d \n", eg->id, eg->len);
@@ -408,7 +413,7 @@ void kmer_threads(kmer_t_meta *params) {
 	g_ptr_array_sort(start_kmers, (GCompareFunc) cmp_kmers_by_count);
 	show_msg(__func__, "Extending by kmers...\n");
 	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, params, 1, TRUE,
-				NULL);
+			NULL);
 	for (i = 0; i < start_kmers->len; i++) {
 		counter = (kmer_counter*) g_ptr_array_index(start_kmers, i);
 		g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
@@ -460,8 +465,8 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	params->hm = hm;
 	params->all_tpls = &all_tpls;
 
-	//test_kmer_ext(params);
-	//exit(1);
+	test_kmer_ext(params);
+	exit(1);
 	kmer_threads(params);
 	//pick_unused_kmers(params);
 

@@ -418,6 +418,7 @@ GPtrArray *kmer_find_reads(const bwa_seq_t *query, const hash_map *hm,
 	kmer_aln_query(query, hm, hits);
 	for (i = 0; i < hits->len; i++) {
 		read = (bwa_seq_t*) g_ptr_array_index(hits, i);
+		p_query(__func__, read);
 		part = new_seq(query, read->len, read->shift);
 		if (read->rev_com)
 			switch_fr(part);
@@ -432,6 +433,8 @@ GPtrArray *kmer_find_reads(const bwa_seq_t *query, const hash_map *hm,
 int next_char_by_kmers(hash_map *hm, uint64_t kmer_int, const int fresh_only,
 		const int ori) {
 	int *counters = count_next_kmers(hm, kmer_int, fresh_only, ori);
+	show_debug_msg(__func__, "Counters: [%d, %d, %d, %d]\n", counters[0],
+			counters[1], counters[2], counters[3]);
 	int max = get_max_index(counters);
 	free(counters);
 	return max;
