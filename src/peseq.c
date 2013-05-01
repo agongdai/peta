@@ -316,9 +316,9 @@ void p_query(const char *header, const bwa_seq_t *q) {
 		printf(" [no_pool]");
 	printf(" [tid: %d]", q->tid);
 	if (q->rev_com)
-		printf(" [forward]");
+		printf(" [forward@%d]", q->pos);
 	else
-		printf(" [reverse]");
+		printf(" [reverse@%d]", q->pos);
 	printf(" [%d: %d, %d]", q->status, q->contig_id, q->shift);
 	//	printf("\n[rev_com] ");
 	//	for (i = 0; i < q->len; i++) {

@@ -27,6 +27,7 @@ typedef struct {
 	edge *main_tpl;
 	edge *branch_tpl;
 	int locus;
+	int weight;
 	uint8_t ori;
 } junction;
 

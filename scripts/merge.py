@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, eva
 from argparse import ArgumentParser
 
 def rev_comp(sequence):
@@ -6,7 +6,13 @@ def rev_comp(sequence):
     return "".join([complement.get(nt.upper(), '') for nt in sequence[::-1]])
 
 def simple_rev(args):
-    print rev_comp(args.seq)
+    if os.path.isfile(args.seq):
+        ori = eva.FastaFile(args.seq)
+        for tx_name, seq in ori.seqs.iteritems():
+            ori.seqs[tx_name] = rev_comp(seq)
+        ori.save_to_disk(args.seq + '.rev')
+    else:
+        print rev_comp(args.seq)
 
 def add_file(fq_file, combined, counter):
     openf = open(fq_file, 'r')

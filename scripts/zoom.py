@@ -15,9 +15,9 @@ REF = '/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa'
 READ = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa'
 CONTIG = '/home/carl/Projects/peta/SRR027876_out/pair_contigs.fa'
 
-READ_REF_PSL_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.psl'
-REF_TO_REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/ref.ref.psl'
-REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta'
+READ_REF_PSL_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.rev.psl'
+REF_TO_REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/ref.ref.rev.psl'
+REF_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta.rev'
 READ_SRR097897 = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa'
 
 READ_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa'
