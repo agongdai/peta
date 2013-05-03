@@ -52,6 +52,7 @@ edge *new_eg() {
 	eg->level = -1;
 	eg->comp_id = -1;
 	eg->start_kmer_int = 0;
+	eg->tid = 0;
 	return eg;
 }
 

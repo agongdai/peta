@@ -37,14 +37,14 @@ struct edge {
 	edge *left_ctg;
 	short r_shift; 		// shifted position of the right node
 	short l_shift;
-	int id; 			// contig id
+	uint64_t id; 			// contig id
 	int len;
 	int8_t visited;
 	int8_t alive;
 	int8_t is_root;
 	int8_t ori;			// Orientation
 	int16_t level;			// For post-processing
-	int tid;			// Thread id
+	uint64_t tid;			// Thread id
 	int16_t comp_id;		// Component id
 	uint64_t start_kmer_int;
 	GPtrArray *gaps;

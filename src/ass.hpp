@@ -13,7 +13,8 @@
 #include "kmers.hpp"
 #include "edge.h"
 
-#define		SHORT_BRANCH_LEN	4
+#define		SHORT_BRANCH_SHIFT	4
+#define		MIN_BRANCH_LEN		8
 
 using namespace std;
 typedef unordered_map<uint64_t, edge*> tpl_hash;

@@ -28,6 +28,26 @@ READ_REF_PSL_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR0278
 def runInShell(cmd):
     p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
     return p.communicate()[0]
+	
+def draw_all_dots(args):
+	txs = FastaFile(REF_SRR097897)
+	for tx_name, seq in txs.seqs.iteritems():
+		print tx_name
+		cmd = 'py zoom.py draw %s' % tx_name
+		runInShell(cmd)
+		cmd = 'dot -Tpng %s.dot > ../dots/%s.png' % (tx_name, tx_name)
+		runInShell(cmd)
+		cmd = 'mv %s.dot ../dots/' % tx_name
+		runInShell(cmd)
+        
+def visu_all_reads_to_ref(args):
+    txs = FastaFile(REF_SRR097897)
+    for tx_name, seq in txs.seqs.iteritems():
+        print tx_name + '...'
+        cmd = 'py zoom.py rtx %s' % tx_name
+        runInShell(cmd)
+        cmd = 'mv %s.reads.hits ../hits' % tx_name
+        runInShell(cmd)
 
 def sub_read(fasta, query):
     query_read_psl = query + '.psl'
@@ -727,6 +747,12 @@ def main():
     parset_check.set_defaults(func=check_solid)
     parset_check.add_argument('transcript', help='the reads-to-transcript file to check')
     parset_check.add_argument('solid', help='solid reads file, ids only')
+	
+    parset_dot = subparsers.add_parser('dot', help='Draw all dot files of the annotated transcripts')
+    parset_dot.set_defaults(func=draw_all_dots)
+    
+    parset_hits = subparsers.add_parser('hit', help='Visualize all read-to-ref alignments')
+    parset_hits.set_defaults(func=visu_all_reads_to_ref)    
     
     args = parser.parse_args()
     args.func(args)
