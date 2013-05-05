@@ -126,6 +126,7 @@ bwa_seq_t *try_short_tpl_byte_ext(hash_map *hm, uint64_t query, int first_c,
 	int i = 0, c = 0;
 	branch_seq = blank_seq(max_len);
 	branch_seq->seq[0] = first_c;
+	branch_seq->len = 1;
 	for (i = 1; i < max_len; i++) {
 		c = next_char_by_kmers(hm, query, 1, ori);
 		if (c == -1)
@@ -145,7 +146,7 @@ bwa_seq_t *try_short_tpl_byte_ext(hash_map *hm, uint64_t query, int first_c,
  * Check whether there are reads in the junction area
  */
 int find_junction_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
-		const int r_shift, const int max_len, int *weight) {
+		const int max_len, int *weight) {
 	int left_len = 0, right_len = 0, n_reads = 0;
 	GPtrArray *reads = NULL;
 	bwa_seq_t *junction_seq = blank_seq(max_len);
@@ -153,9 +154,8 @@ int find_junction_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 	left_len = (left->len > max_len / 2) ? (max_len / 2) : left->len;
 	memcpy(junction_seq->seq, left->seq + (left->len - left_len),
 			sizeof(ubyte_t) * left_len);
-	right_len = (right->len - r_shift) > (max_len / 2) ? (max_len / 2)
-			: (right->len - r_shift);
-	memcpy(junction_seq->seq + left_len, right->seq + r_shift, sizeof(ubyte_t)
+	right_len = (right->len) > (max_len / 2) ? (max_len / 2) : (right->len);
+	memcpy(junction_seq->seq + left_len, right->seq, sizeof(ubyte_t)
 			* right_len);
 	junction_seq->len = left_len + right_len;
 	set_rev_com(junction_seq);
@@ -182,16 +182,19 @@ int val_junction_reads(hash_map *hm, edge *main_tpl, uint64_t query_int, int c,
 	bwa_seq_t *branch_seq = NULL, *main_tail = NULL;
 	query = shift_bit(query_int, c, hm->o->k, ori);
 	branch_seq = try_short_tpl_byte_ext(hm, query, c, ori, max_len / 2);
-	if (ori)
+	if (ori) {
 		seq_reverse(main_tpl->len, main_tpl->contig->seq, 0);
-	main_tail = cut_edge_tail(main_tpl, max_len / 2, ori);
+		main_tail = cut_edge_tail(main_tpl, 0, max_len / 2, ori);
+	} else
+		main_tail
+				= cut_edge_tail(main_tpl, main_tpl->len, max_len / 2, ori);
 	p_ctg_seq("Main", main_tail);
 	p_ctg_seq("Branch", branch_seq);
 	if (ori)
-		is_valid = find_junction_reads(hm, branch_seq, main_tail, 0, max_len,
+		is_valid = find_junction_reads(hm, branch_seq, main_tail, max_len,
 				weight);
 	else
-		is_valid = find_junction_reads(hm, main_tail, branch_seq, 0, max_len,
+		is_valid = find_junction_reads(hm, main_tail, branch_seq, max_len,
 				weight);
 	bwa_free_read_seq(1, branch_seq);
 	bwa_free_read_seq(1, main_tail);
@@ -200,14 +203,34 @@ int val_junction_reads(hash_map *hm, edge *main_tpl, uint64_t query_int, int c,
 	return is_valid;
 }
 
+/**
+ Validate the branching event on 'main_tpl' at locus 'shift' with orientation 'ori'
+ The parameter c is the first char of the candidate branch
+ **/
 int val_branching(hash_map *hm, edge *main_tpl, const int shift,
 		uint64_t query_int, int c, const int ori, int *weight,
 		const int max_len) {
-	uint64_t query = 0, is_valid = 1;
+	uint64_t query = 0;
+	int n_reads = 0;
 	bwa_seq_t *branch_seq = NULL, *main_seq = NULL;
 	query = shift_bit(query_int, c, hm->o->k, ori);
 	branch_seq = try_short_tpl_byte_ext(hm, query, c, ori, max_len / 2);
+	p_ctg_seq("BRANCH", branch_seq);
 
+	if (ori) {
+		main_seq = cut_edge_tail(main_tpl, shift, max_len / 2, ori);
+		p_ctg_seq("MAIN", main_seq);
+		n_reads = find_junction_reads(hm, branch_seq, main_seq, max_len,
+				weight);
+	} else {
+		main_seq = cut_edge_tail(main_tpl, shift + hm->o->k, max_len / 2, ori);
+		p_ctg_seq("MAIN", main_seq);
+		n_reads = find_junction_reads(hm, main_seq, branch_seq, max_len,
+				weight);
+	}
+	bwa_free_read_seq(1, main_seq);
+	bwa_free_read_seq(1, branch_seq);
+	return n_reads;
 }
 
 int val_short_tpl(hash_map *hm, uint64_t query_int, int max_c, int second_c,
@@ -234,46 +257,6 @@ uint64_t one_step_forward(edge *eg, uint64_t query, int next_c, hash_map *hm,
 	ext_con(eg->contig, next_c, 0);
 	eg->len = eg->contig->len;
 	return shift_bit(query, next_c, hm->o->k, ori);
-}
-
-void branching(hash_map *hm, tpl_hash *all_tpls, edge *eg, uint64_t query_int,
-		int max_c, int second_c, const int ori, int weight) {
-	int len_bf = 0;
-	uint64_t query_copy = query_int;
-	edge *branch_eg = NULL;
-	len_bf = eg->len;
-	bwa_seq_t *debug = get_kmer_seq(query_int, 25);
-	p_query(__func__, debug);
-	bwa_free_read_seq(1, debug);
-	query_int = one_step_forward(eg, query_copy, max_c, hm, ori);
-	debug = get_kmer_seq(query_int, 25);
-	p_query(__func__, debug);
-	bwa_free_read_seq(1, debug);
-	if (ori)
-		seq_reverse(eg->len, eg->contig->seq, 0);
-	branch_eg = blank_edge(shift_bit(query_copy, second_c, hm->o->k, ori),
-			hm->o->k, 1, ori);
-	show_debug_msg(__func__, "Branching for %d ... \n", branch_eg->id);
-	kmer_ext_edge(eg, query_int, hm, all_tpls, ori);
-	p_ctg_seq("Main: ", eg->contig);
-
-	branch_eg->tail = cut_edge_tail(eg, hm->o->read_len - SHORT_BRANCH_SHIFT,
-			ori);
-	query_int = shift_bit(query_copy, second_c, hm->o->k, ori);
-	kmer_ext_edge(branch_eg, query_int, hm, all_tpls, ori);
-	p_ctg_seq("Branch: ", branch_eg->contig);
-	if (branch_eg->len >= MIN_BRANCH_LEN) {
-		// Currently the locus is eg->len - [real locus]
-		if (ori)
-			add_a_junction(eg, branch_eg, len_bf, ori, weight);
-		else
-			add_a_junction(eg, branch_eg, eg->len - len_bf, ori, weight);
-		g_mutex_lock(kmer_id_mutex);
-		all_tpls->insert(make_pair<uint64_t, edge*> (branch_eg->id, branch_eg));
-		g_mutex_unlock(kmer_id_mutex);
-	} else {
-		destroy_eg(branch_eg);
-	}
 }
 
 void try_right_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
@@ -326,27 +309,33 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			if (c <= 0)
 				continue;
 			weight = 0;
-			branch_query = shift_bit(query_int, c, kmer_len, ori);
-			branch_is_valid = val_branching(hm, eg, query_int, c, ori, 0,
+			branch_query = shift_bit(query_int, j, kmer_len, ori);
+			branch_is_valid = val_branching(hm, eg, i, query_int, j, ori,
 					&weight, (hm->o->read_len - SHORT_BRANCH_SHIFT) * 2);
 			if (branch_is_valid) {
 				branch_eg = blank_edge(branch_query, kmer_len, 1, ori);
-				branch_eg->tail = cut_edge_tail(eg, hm->o->read_len
-						- SHORT_BRANCH_SHIFT, ori);
+				set_tail(eg, i, hm->o->read_len - SHORT_BRANCH_SHIFT, ori);
 				kmer_ext_edge(branch_eg, branch_query, hm, all_tpls, ori);
 				if (branch_eg->len >= MIN_BRANCH_LEN) {
-					add_a_junction(eg, branch_eg, i, ori, weight);
+					if (ori)
+						add_a_junction(eg, branch_eg, i, ori, weight);
+					else
+						add_a_junction(eg, branch_eg, i + kmer_len, ori, weight);
 					g_mutex_lock(kmer_id_mutex);
 					all_tpls->insert(make_pair<uint64_t, edge*> (branch_eg->id,
 							branch_eg));
 					g_mutex_unlock(kmer_id_mutex);
+					// Try to extend branches of current branch
+					kmer_ext_branch(branch_eg, hm, all_tpls, ori);
 				} else {
 					destroy_eg(branch_eg);
 				}
 			}
 		}
 		free(counters);
+		counters = NULL;
 	}
+	free(counters);
 }
 
 void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
@@ -394,8 +383,6 @@ void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 			//		eg->id, eg->len);
 			short_val_rs = val_short_tpl(hm, query_int, max_c, second_c, ori);
 			if (short_val_rs) {
-				show_debug_msg(__func__, "--- Branching [%d, %d]... \n",
-						eg->id, eg->len);
 				main_is_valid = val_junction_reads(hm, eg, query_int, max_c,
 						ori, &weight, (hm->o->read_len - SHORT_BRANCH_SHIFT)
 								* 2);

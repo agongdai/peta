@@ -473,3 +473,13 @@ int next_char_by_kmers(hash_map *hm, uint64_t kmer_int, const int fresh_only,
 	free(counters);
 	return max;
 }
+
+int find_kmer(int argc, char *argv[]) {
+	int c;
+	while ((c = getopt(argc, argv, "")) >= 0) {
+	}
+	if (optind + 1 > argc) {
+		return 1;
+	}
+	return 0;
+}

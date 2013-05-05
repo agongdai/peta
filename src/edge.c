@@ -32,7 +32,8 @@ void free_eg_gap(eg_gap *gap) {
 edge *new_eg() {
 	edge *eg = (edge*) malloc(sizeof(edge));
 	eg->contig = NULL;
-	eg->tail = NULL;
+	eg->l_tail = NULL;
+	eg->r_tail = NULL;
 	eg->in_egs = g_ptr_array_sized_new(0);
 	eg->out_egs = g_ptr_array_sized_new(0);
 	eg->reads = g_ptr_array_sized_new(0);
@@ -78,37 +79,70 @@ void free_readarray(readarray *ra) {
 }
 
 /**
- * Get virtual tail of an edge
+ * Get virtual tail of an edge.
+ * This is used when a branch edge is connectted to the locus of '^'.
+ * When another third-layer branch edge is connectted to this branch edge,
+ * 	its own length may be not long enough, then it cuts some length from the main template.
+ * If the length of the branch edge is long enough, the virtual tail is not used.
+ *
+ * Edge: 	==============================
+ * shift: 	                    ^
+ * ori: 	0 (to the right)
+ * tail_len:	                --------------
+ * Return:                      ==========++++
+ * '++++' is the partial virtual tail of current edge
  */
-bwa_seq_t *cut_edge_tail(edge *eg, const int tail_len, const int ori) {
-	bwa_seq_t *tail = NULL;
+bwa_seq_t *cut_edge_tail(edge *eg, const int shift, const int tail_len,
+		const int ori) {
+	bwa_seq_t *tail = NULL, *partial = NULL, *main_tail = NULL;
 	int v_tail_len = 0;
-	// If the edge is long, cut the tail directly
-	if (eg->len >= tail_len) {
-		if (ori)
-			return new_seq(eg->contig, tail_len, 0);
-		else
-			return new_seq(eg->contig, tail_len, eg->len - tail_len);
+	// Get partial edge at the locus 'shift'.
+	if (ori) {
+		partial = new_seq(eg->contig, eg->len - shift, shift);
+		main_tail = eg->r_tail;
+	} else {
+		partial = new_seq(eg->contig, shift, 0);
+		main_tail = eg->l_tail;
 	}
-	// If the edge has a virtual tail, try to get it
-	if (eg->tail && eg->tail->len > 0) {
-		v_tail_len = eg->tail->len + eg->len;
-		v_tail_len = (v_tail_len > tail_len) ? tail_len : v_tail_len;
-		tail = blank_seq(v_tail_len);
-		if (ori) {
-			memcpy(tail->seq, eg->contig->seq, sizeof(ubyte_t) * eg->len);
-			memcpy(tail->seq + eg->len, tail->seq, sizeof(ubyte_t)
-					* (v_tail_len - eg->len));
-		} else {
-			memcpy(tail->seq, eg->tail->seq + (eg->tail->len + eg->len
-					- v_tail_len), sizeof(ubyte_t) * (v_tail_len - eg->len));
-			memcpy(tail->seq + (v_tail_len - eg->len), eg->contig->seq,
-					sizeof(ubyte_t) * eg->len);
-		}
-		set_rev_com(tail);
-	} else
-		return new_seq(eg->contig, eg->len, 0);
+	// If the edge is long, cut the tail directly
+	if (partial->len >= tail_len) {
+		if (ori)
+			tail = new_seq(partial, tail_len, 0);
+		else
+			tail = new_seq(partial, tail_len, partial->len - tail_len);
+	} else {
+		// If the edge has a virtual tail, try to get it
+		if (main_tail && main_tail->len > 0) {
+			v_tail_len = main_tail->len + partial->len;
+			v_tail_len = (v_tail_len > tail_len) ? tail_len : v_tail_len;
+			tail = blank_seq(v_tail_len);
+			if (ori) {
+				memcpy(tail->seq, partial->seq, sizeof(ubyte_t) * partial->len);
+				memcpy(tail->seq + partial->len, tail->seq, sizeof(ubyte_t)
+						* (v_tail_len - partial->len));
+			} else {
+				memcpy(tail->seq, main_tail->seq + (main_tail->len
+						+ partial->len - v_tail_len), sizeof(ubyte_t)
+						* (v_tail_len - partial->len));
+				memcpy(tail->seq + (v_tail_len - partial->len), partial->seq,
+						sizeof(ubyte_t) * partial->len);
+			}
+			set_rev_com(tail);
+		} else
+			tail = new_seq(partial, partial->len, 0);
+	}
+	bwa_free_read_seq(1, partial);
 	return tail;
+}
+
+void set_tail(edge *eg, const int shift, const int tail_len, const int ori) {
+	if (ori) {
+		bwa_free_read_seq(1, eg->r_tail);
+		eg->r_tail = cut_edge_tail(eg, shift, tail_len, ori);
+	} else {
+		bwa_free_read_seq(1, eg->l_tail);
+		eg->l_tail = cut_edge_tail(eg, shift, tail_len, ori);
+	}
 }
 
 void destroy_eg(edge *eg) {
@@ -117,7 +151,8 @@ void destroy_eg(edge *eg) {
 	int i = 0;
 	if (eg) {
 		bwa_free_read_seq(1, eg->contig);
-		bwa_free_read_seq(1, eg->tail);
+		bwa_free_read_seq(1, eg->r_tail);
+		bwa_free_read_seq(1, eg->l_tail);
 		g_ptr_array_free(eg->in_egs, TRUE);
 		if (!eg->right_ctg) {
 			// If eg's right contig is not null, its out_egs is set to be right contig's out_egs

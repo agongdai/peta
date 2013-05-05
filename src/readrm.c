@@ -188,13 +188,13 @@ void save_edges(edgearray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 		return;
 	h = malloc(BUFSIZE);
 	for (i = 0; i < pfd_ctg_ids->len; i++) {
-		eg = g_ptr_array_index(pfd_ctg_ids, i);
+		eg = (edge*) g_ptr_array_index(pfd_ctg_ids, i);
 		//show_debug_msg(__func__, "Saving edge %d length %d, alive %d \n", eg->id, eg->len, eg->alive);
 		if (p_all || (eg && eg->alive && eg->contig && eg->len > min_len)) {
 			contig = eg->contig;
 			if (ori)
 				seq_reverse(contig->len, contig->seq, 0);
-			sprintf(h, ">%d length: %d start: %s\n", eg->id, contig->len, eg->name);
+			sprintf(h, ">% "ID64" length: %d start: %s\n", eg->id, contig->len, eg->name);
 			save_con(h, contig, ass_fa);
 		}
 	}

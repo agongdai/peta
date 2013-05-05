@@ -32,6 +32,15 @@ typedef struct {
 	uint8_t ori;
 } junction;
 
+typedef struct {
+	edge *tpl;
+	int locus;
+	int8_t main_c;
+	int main_count;
+	int8_t second_c;
+	int second_count;
+} ambi_base;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
