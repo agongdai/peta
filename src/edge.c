@@ -97,6 +97,8 @@ bwa_seq_t *cut_edge_tail(edge *eg, const int shift, const int tail_len,
 	bwa_seq_t *tail = NULL, *partial = NULL, *main_tail = NULL;
 	int v_tail_len = 0;
 	// Get partial edge at the locus 'shift'.
+	show_debug_msg(__func__, "[%d, %d] Cutting edge tail at shift %d for tail length %d from ori %d...\n", eg->id, eg->len, shift, tail_len, ori);
+	p_ctg_seq(__func__, eg->contig);
 	if (ori) {
 		partial = new_seq(eg->contig, eg->len - shift, shift);
 		main_tail = eg->r_tail;
@@ -104,6 +106,7 @@ bwa_seq_t *cut_edge_tail(edge *eg, const int shift, const int tail_len,
 		partial = new_seq(eg->contig, shift, 0);
 		main_tail = eg->l_tail;
 	}
+	p_ctg_seq("MAIN_TA", main_tail);
 	// If the edge is long, cut the tail directly
 	if (partial->len >= tail_len) {
 		if (ori)
@@ -121,6 +124,9 @@ bwa_seq_t *cut_edge_tail(edge *eg, const int shift, const int tail_len,
 				memcpy(tail->seq + partial->len, tail->seq, sizeof(ubyte_t)
 						* (v_tail_len - partial->len));
 			} else {
+				show_debug_msg(__func__, "Virtual tail length %d\n", v_tail_len);
+				p_ctg_seq("PARTIAL", partial);
+				p_ctg_seq("MAIN_TA", main_tail);
 				memcpy(tail->seq, main_tail->seq + (main_tail->len
 						+ partial->len - v_tail_len), sizeof(ubyte_t)
 						* (v_tail_len - partial->len));
@@ -132,6 +138,7 @@ bwa_seq_t *cut_edge_tail(edge *eg, const int shift, const int tail_len,
 			tail = new_seq(partial, partial->len, 0);
 	}
 	bwa_free_read_seq(1, partial);
+	p_ctg_seq("TAIL", tail);
 	return tail;
 }
 

@@ -124,6 +124,8 @@ void upd_tpl_jun_locus(edge *eg, GPtrArray *branching_events,
 	uint32_t i = 0, k = 0;
 	uint64_t query_int = 0;
 	junction *jun = NULL;
+	if (eg->len < kmer_len)
+		return;
 	for (k = 0; k < branching_events->len; k++) {
 		jun = (junction*) g_ptr_array_index(branching_events, k);
 		if (jun->main_tpl == eg && jun->branch_tpl == eg) {
@@ -302,8 +304,9 @@ int right_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
 		if (counters[i] == 0)
 			continue;
 		query_int = shift_bit(query_int, i, hm->o->k, ori);
+		show_debug_msg(__func__, "Looking for template using the kmer...\n");
 		read_tpl_using_kmer(query_int, hm, &eg_id, &locus, &value);
-		tpl_hash::iterator it = all_tpls->find(query_int);
+		tpl_hash::iterator it = all_tpls->find(eg_id);
 		if (it != all_tpls->end()) {
 			right_tpl = it->second;
 			show_debug_msg(__func__,
@@ -357,18 +360,22 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 				set_tail(eg, i, hm->o->read_len - SHORT_BRANCH_SHIFT, ori);
 				kmer_ext_edge(branch_eg, branch_query, hm, all_tpls, ori);
 				if (branch_eg->len >= MIN_BRANCH_LEN) {
-					g_mutex_lock(kmer_id_mutex);
+					show_debug_msg(__func__, "Branch edge [%d, %d]...\n", branch_eg->id, branch_eg->len);
 					if (ori)
 						add_a_junction(eg, branch_eg, query_int, i, ori, weight);
 					else
 						add_a_junction(eg, branch_eg, query_int, i + kmer_len,
 								ori, weight);
+					g_mutex_lock(kmer_id_mutex);
 					all_tpls->insert(make_pair<uint64_t, edge*> (branch_eg->id,
 							branch_eg));
 					g_mutex_unlock(kmer_id_mutex);
 					// Try to extend branches of current branch
-					mark_tpl_kmers_used(eg, hm, kmer_len);
-					upd_tpl_jun_locus(eg, branching_events, kmer_len);
+					show_debug_msg(__func__, "Mark used kmers...\n");
+					mark_tpl_kmers_used(branch_eg, hm, kmer_len);
+					show_debug_msg(__func__, "Update junction locus...\n");
+					upd_tpl_jun_locus(branch_eg, branching_events, kmer_len);
+					show_debug_msg(__func__, "Branching branches...\n");
 					kmer_ext_branch(branch_eg, hm, all_tpls, ori);
 				} else {
 					mark_tpl_kmers_fresh(eg, hm, kmer_len);
@@ -413,6 +420,7 @@ void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 			seq_reverse(eg->len, eg->contig->seq, 0);
 
 		if (max_c == -1) {
+			show_debug_msg(__func__, "Trying right connect...\n");
 			if (right_connect(eg, hm, all_tpls, query_int, ori)) {
 				show_debug_msg(__func__, "[%d, %d] Right connected. \n",
 						eg->id, eg->len);
