@@ -330,8 +330,6 @@ def check_covered(tx, hits, start, end):
 def draw_dot(args):
     tx = FastaFile(args.tx)
     dot = open(args.transcript + '.dot', 'w')
-    cmd = 'grep %s %s' % (args.transcript, args.tx)
-    hit_lines = runInShell(cmd)
     milestones = []
     
     lines = runInShell('grep ' + args.transcript + ' ' + args.psl)

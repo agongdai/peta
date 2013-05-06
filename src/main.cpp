@@ -55,8 +55,6 @@ int main(int argc, char *argv[]) {
 		return pe_path(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "ass") == 0)
 		return pe_kmer(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "find") == 0)
-		return find_kmer(argc - 1, argv + 1);
 	else {
 		fprintf(stderr, "[main] unrecognized command '%s'\n", argv[1]);
 		return 1;

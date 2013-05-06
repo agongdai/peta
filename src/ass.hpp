@@ -30,6 +30,7 @@ typedef struct {
 	int locus;
 	int weight;
 	uint8_t ori;
+	uint64_t kmer;	// Kmer when branching
 } junction;
 
 typedef struct {

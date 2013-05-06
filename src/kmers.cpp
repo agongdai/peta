@@ -266,6 +266,9 @@ void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm,
 		count <<= 16;
 		count += locus;
 		count <<= 32;
+		// Reset the used template to be none
+		freq[0] <<= 32;
+		freq[0] >>= 32;
 		freq[0] += count;
 	}
 	rev_kmer_int = rev_comp_kmer(kmer_int, hm->o->k);
@@ -276,7 +279,31 @@ void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm,
 		count <<= 16;
 		count += locus;
 		count <<= 32;
+		// Reset the used template to be none
+		freq[0] <<= 32;
+		freq[0] >>= 32;
 		freq[0] += count;
+	}
+}
+
+/**
+ * Mark a kmer as not used.
+ */
+void mark_kmer_not_used(const uint64_t kmer_int, const hash_map *hm) {
+	uint64_t *freq = NULL, rev_kmer_int = 0, count = 0;
+	mer_hash *hash = hm->hash;
+	mer_hash::iterator it = hash->find(kmer_int);
+	if (it != hash->end()) {
+		freq = it->second;
+		freq[0] <<= 32;
+		freq[0] >>= 32;
+	}
+	rev_kmer_int = rev_comp_kmer(kmer_int, hm->o->k);
+	it = hash->find(rev_kmer_int);
+	if (it != hash->end()) {
+		freq = it->second;
+		freq[0] <<= 32;
+		freq[0] >>= 32;
 	}
 }
 
