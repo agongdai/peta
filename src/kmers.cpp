@@ -323,7 +323,7 @@ int kmer_is_used(const uint64_t kmer_int, hash_map *hm) {
 }
 
 void read_tpl_using_kmer(const uint64_t kmer_int, const hash_map *hm,
-		uint64_t *tpl_id, int *locus, uint64_t *value) {
+		int *tpl_id, int *locus, uint64_t *value) {
 	uint64_t *freq = NULL, count = 0, count_copy = 0;
 	mer_hash *hash = hm->hash;
 	mer_hash::iterator it = hash->find(kmer_int);
@@ -362,8 +362,9 @@ uint64_t get_kmer_count(const uint64_t kmer_int, hash_map *hm,
 			if (count_copy > 0)
 				return 0;
 		}
-		count &= LOWER_ONES_32;
-		//show_debug_msg(__func__, "Kmer: %" ID64 "=>%" ID64 "\n", kmer_int, count);
+		count <<= 32;
+		count >>= 32;
+		show_debug_msg(__func__, "Kmer: %" ID64 "=>%" ID64 "\n", kmer_int, count);
 		return count;
 	}
 	return 0;

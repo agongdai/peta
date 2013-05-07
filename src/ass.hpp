@@ -17,7 +17,7 @@
 #define		MIN_BRANCH_LEN		8
 
 using namespace std;
-typedef unordered_map<uint64_t, edge*> tpl_hash;
+typedef unordered_map<int, edge*> tpl_hash;
 
 typedef struct {
 	hash_map *hm;

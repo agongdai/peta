@@ -40,7 +40,7 @@ typedef struct {
 
 typedef struct {
 	uint64_t kmer;
-	uint32_t count;
+	uint64_t count;
 } kmer_counter;
 
 #ifdef __cplusplus
@@ -64,7 +64,7 @@ extern "C" {
 	void mark_kmer_not_used(const uint64_t kmer_int, const hash_map *hm);
 	int kmer_is_used(const uint64_t kmer_int, hash_map *hm);
 	void read_tpl_using_kmer(const uint64_t kmer_int, const hash_map *hm,
-			uint64_t *tpl_id, int *locus, uint64_t *value);
+			int *tpl_id, int *locus, uint64_t *value);
 	void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm, GPtrArray *hits);
 
 #ifdef __cplusplus

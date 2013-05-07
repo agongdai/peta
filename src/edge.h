@@ -67,7 +67,7 @@ extern "C" {
 	void reset_tid(edge *eg);
 	void destroy_eg(edge *eg);
 	bwa_seq_t *cut_edge_tail(edge *eg, const int tail_len, const int shift, const int ori);
-	void set_tail(edge *eg, const int shift, const int tail_len, const int ori);
+	void set_tail(edge *branch, edge *parent_eg, const int shift, const int tail_len, const int ori);
 
 #ifdef __cplusplus
 }

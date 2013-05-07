@@ -87,7 +87,7 @@ void free_readarray(readarray *ra) {
  *
  * Edge: 	==============================
  * shift: 	                    ^
- * ori: 	0 (to the right)
+ * ori: 	1 (to the left), using the right virtual tail
  * tail_len:	                --------------
  * Return:                      ==========++++
  * '++++' is the partial virtual tail of current edge
@@ -96,9 +96,8 @@ bwa_seq_t *cut_edge_tail(edge *eg, const int shift, const int tail_len,
 		const int ori) {
 	bwa_seq_t *tail = NULL, *partial = NULL, *main_tail = NULL;
 	int v_tail_len = 0;
-	// Get partial edge at the locus 'shift'.
-	show_debug_msg(__func__, "[%d, %d] Cutting edge tail at shift %d for tail length %d from ori %d...\n", eg->id, eg->len, shift, tail_len, ori);
-	p_ctg_seq(__func__, eg->contig);
+	if (eg->len < shift)
+		return new_seq(eg->contig, eg->len, 0);
 	if (ori) {
 		partial = new_seq(eg->contig, eg->len - shift, shift);
 		main_tail = eg->r_tail;
@@ -106,7 +105,6 @@ bwa_seq_t *cut_edge_tail(edge *eg, const int shift, const int tail_len,
 		partial = new_seq(eg->contig, shift, 0);
 		main_tail = eg->l_tail;
 	}
-	p_ctg_seq("MAIN_TA", main_tail);
 	// If the edge is long, cut the tail directly
 	if (partial->len >= tail_len) {
 		if (ori)
@@ -124,32 +122,33 @@ bwa_seq_t *cut_edge_tail(edge *eg, const int shift, const int tail_len,
 				memcpy(tail->seq + partial->len, tail->seq, sizeof(ubyte_t)
 						* (v_tail_len - partial->len));
 			} else {
-				show_debug_msg(__func__, "Virtual tail length %d\n", v_tail_len);
-				p_ctg_seq("PARTIAL", partial);
-				p_ctg_seq("MAIN_TA", main_tail);
 				memcpy(tail->seq, main_tail->seq + (main_tail->len
 						+ partial->len - v_tail_len), sizeof(ubyte_t)
 						* (v_tail_len - partial->len));
 				memcpy(tail->seq + (v_tail_len - partial->len), partial->seq,
 						sizeof(ubyte_t) * partial->len);
 			}
+			tail->len = v_tail_len;
 			set_rev_com(tail);
 		} else
 			tail = new_seq(partial, partial->len, 0);
 	}
 	bwa_free_read_seq(1, partial);
-	p_ctg_seq("TAIL", tail);
 	return tail;
 }
 
-void set_tail(edge *eg, const int shift, const int tail_len, const int ori) {
+void set_tail(edge *branch, edge *parent_eg, const int shift, const int tail_len, const int ori) {
+	bwa_seq_t *tmp = NULL;
+	// The right/left tail would be used in cut_edge_tail function,
+	//	but will be replaced later. So save to tmp first, free the old one later.
 	if (ori) {
-		bwa_free_read_seq(1, eg->r_tail);
-		eg->r_tail = cut_edge_tail(eg, shift, tail_len, ori);
+		tmp = branch->r_tail;
+		branch->r_tail = cut_edge_tail(parent_eg, shift, tail_len, ori);
 	} else {
-		bwa_free_read_seq(1, eg->l_tail);
-		eg->l_tail = cut_edge_tail(eg, shift, tail_len, ori);
+		tmp = branch->l_tail;
+		branch->l_tail = cut_edge_tail(parent_eg, shift, tail_len, ori);
 	}
+	bwa_free_read_seq(1, tmp);
 }
 
 void destroy_eg(edge *eg) {

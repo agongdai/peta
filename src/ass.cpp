@@ -94,12 +94,14 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 gint cmp_kmers_by_count(gpointer a, gpointer b) {
 	kmer_counter *c_a = *((kmer_counter**) a);
 	kmer_counter *c_b = *((kmer_counter**) b);
-	return ((c_b->count) - c_a->count);
+	return ((c_a->count) - c_b->count);
 }
 
 void mark_tpl_kmers_used(edge *eg, hash_map *hm, const int kmer_len) {
 	int i = 0;
 	uint64_t query_int = 0;
+	if (eg->len < kmer_len)
+		return;
 	for (i = 0; i < eg->len - kmer_len; i++) {
 		query_int = get_kmer_int(eg->contig->seq, i, 1, kmer_len);
 		mark_kmer_used(query_int, hm, eg->id, i);
@@ -120,9 +122,9 @@ void mark_tpl_kmers_fresh(edge *eg, hash_map *hm, const int kmer_len) {
  * Because the locus is not correct when the junction is recorded.
  */
 void upd_tpl_jun_locus(edge *eg, GPtrArray *branching_events,
-		const uint32_t kmer_len) {
-	uint32_t i = 0, k = 0;
-	uint64_t query_int = 0;
+		const int kmer_len) {
+	int i = 0;
+	uint64_t query_int = 0, k = 0;
 	junction *jun = NULL;
 	if (eg->len < kmer_len)
 		return;
@@ -138,27 +140,6 @@ void upd_tpl_jun_locus(edge *eg, GPtrArray *branching_events,
 			}
 		}
 	}
-}
-
-/**
- * Extend the short template as int64
- * max_len: should be smaller than 64
- */
-uint64_t try_short_tpl_ext(hash_map *hm, uint64_t query, const int ori,
-		const int max_len) {
-	uint64_t branch_template = 0;
-	int i = 0, c = 0;
-	for (i = 0; i < max_len; i++) {
-		c = next_char_by_kmers(hm, query, 1, ori);
-		if (c == -1)
-			return LOWER_ONES_32;
-		else {
-			branch_template = shift_bit(branch_template, c, hm->o->k, ori);
-			query = shift_bit(query, c, hm->o->k, ori);
-			//show_debug_msg(__func__, "Branch int: %"ID64"\n", branch_template);
-		}
-	}
-	return branch_template;
 }
 
 /**
@@ -189,7 +170,7 @@ bwa_seq_t *try_short_tpl_byte_ext(hash_map *hm, uint64_t query, int first_c,
 /**
  * Check whether there are reads in the junction area
  */
-int find_junction_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
+int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 		const int max_len, int *weight) {
 	int left_len = 0, right_len = 0, n_reads = 0;
 	GPtrArray *reads = NULL;
@@ -203,10 +184,10 @@ int find_junction_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 			* right_len);
 	junction_seq->len = left_len + right_len;
 	set_rev_com(junction_seq);
-	p_query("Junction seq", junction_seq);
+	// p_query("Junction seq", junction_seq);
 	reads = kmer_find_reads(junction_seq, hm, 1, 0);
 	n_reads = reads->len;
-	show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
+	// show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
 	//p_readarray(reads, 1);
 	*weight = n_reads;
 	bwa_free_read_seq(1, junction_seq);
@@ -216,33 +197,15 @@ int find_junction_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 	return 0;
 }
 
-/**
- * If there are reads spanning the junction, the junction is valid
- * Parameter is_rev: the input edge is reversed
- */
-int val_junction_reads(hash_map *hm, edge *main_tpl, uint64_t query_int, int c,
-		const int ori, int *weight, const int max_len) {
-	uint64_t query = 0, is_valid = 1;
-	bwa_seq_t *branch_seq = NULL, *main_tail = NULL;
-	query = shift_bit(query_int, c, hm->o->k, ori);
-	branch_seq = try_short_tpl_byte_ext(hm, query, c, ori, max_len / 2);
-	if (ori) {
-		seq_reverse(main_tpl->len, main_tpl->contig->seq, 0);
-		main_tail = cut_edge_tail(main_tpl, 0, max_len / 2, ori);
-	} else
-		main_tail = cut_edge_tail(main_tpl, main_tpl->len, max_len / 2, ori);
-	p_ctg_seq("Main", main_tail);
-	p_ctg_seq("Branch", branch_seq);
-	if (ori)
-		is_valid = find_junction_reads(hm, branch_seq, main_tail, max_len,
-				weight);
-	else
-		is_valid = find_junction_reads(hm, main_tail, branch_seq, max_len,
-				weight);
-	bwa_free_read_seq(1, branch_seq);
-	bwa_free_read_seq(1, main_tail);
-	if (ori)
-		seq_reverse(main_tpl->len, main_tpl->contig->seq, 0);
+int find_junc_reads_w_tails(hash_map *hm, edge *left, edge *right,
+		const int r_shift, const int max_len, int *weight) {
+	bwa_seq_t *left_seq = NULL, *right_seq = NULL;
+	int is_valid = 0;
+	left_seq = cut_edge_tail(left, left->len, max_len / 2, 0);
+	right_seq = cut_edge_tail(right, r_shift, max_len / 2, 1);
+	is_valid = find_junc_reads(hm, left_seq, right_seq, max_len, weight);
+	bwa_free_read_seq(1, left_seq);
+	bwa_free_read_seq(1, right_seq);
 	return is_valid;
 }
 
@@ -258,64 +221,51 @@ int val_branching(hash_map *hm, edge *main_tpl, const int shift,
 	bwa_seq_t *branch_seq = NULL, *main_seq = NULL;
 	query = shift_bit(query_int, c, hm->o->k, ori);
 	branch_seq = try_short_tpl_byte_ext(hm, query, c, ori, max_len / 2);
-	p_ctg_seq("BRANCH", branch_seq);
 
 	if (ori) {
 		main_seq = cut_edge_tail(main_tpl, shift, max_len / 2, ori);
-		p_ctg_seq("MAIN", main_seq);
-		n_reads
-				= find_junction_reads(hm, branch_seq, main_seq, max_len, weight);
+		n_reads = find_junc_reads(hm, branch_seq, main_seq, max_len, weight);
 	} else {
 		main_seq = cut_edge_tail(main_tpl, shift + hm->o->k, max_len / 2, ori);
-		p_ctg_seq("MAIN", main_seq);
-		n_reads
-				= find_junction_reads(hm, main_seq, branch_seq, max_len, weight);
+		n_reads = find_junc_reads(hm, main_seq, branch_seq, max_len, weight);
 	}
 	bwa_free_read_seq(1, main_seq);
 	bwa_free_read_seq(1, branch_seq);
 	return n_reads;
 }
 
-int val_short_tpl(hash_map *hm, uint64_t query_int, int max_c, int second_c,
-		const int ori) {
-	uint64_t main_query = 0, main_branch = 0;
-	uint64_t second_query = 0, second_branch = 0;
-	main_query = shift_bit(query_int, max_c, hm->o->k, ori);
-	main_branch = try_short_tpl_ext(hm, main_query, ori, SHORT_BRANCH_SHIFT);
-	second_query = shift_bit(query_int, second_c, hm->o->k, ori);
-	second_branch
-			= try_short_tpl_ext(hm, second_query, ori, SHORT_BRANCH_SHIFT);
-	if (main_branch == second_branch)
-		return 0;
-	// If the second branch cannot extend to SHORT_BRANCH_LEN, just prune it
-	if (second_branch == LOWER_ONES_32)
-		return 0;
-	// If the main branch cannot extend to SHORT_BRANCH_LEN, try branching as well
-	return 1;
-}
-
+/**
+ * If the template reaches some kmer which is used, stop the extension and add a branching event
+ */
 int right_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
 		uint64_t query_int, const int ori) {
-	int *counters = NULL, locus = 0, i = 0, connected = 0;
-	uint64_t eg_id = 0, value = 0;
+	int *counters = NULL, locus = 0, i = 0, connected = 0, eg_id = 0,
+			valid = 0, weight = 0, con_pos = 0;
+	uint64_t value = 0, query_copy = query_int;
 	edge *right_tpl = NULL;
 	counters = count_next_kmers(hm, query_int, 0, ori);
 	for (i = 0; i < 4; i++) {
 		if (counters[i] == 0)
 			continue;
-		query_int = shift_bit(query_int, i, hm->o->k, ori);
-		show_debug_msg(__func__, "Looking for template using the kmer...\n");
+		query_int = shift_bit(query_copy, i, hm->o->k, ori);
 		read_tpl_using_kmer(query_int, hm, &eg_id, &locus, &value);
+
 		tpl_hash::iterator it = all_tpls->find(eg_id);
 		if (it != all_tpls->end()) {
-			right_tpl = it->second;
-			show_debug_msg(__func__,
-					"Right connect [%d, %d] to [%d, %d] at %d. \n", branch->id,
-					branch->len, right_tpl->id, right_tpl->len, locus);
-			// This locus is not correct if connect to itself.
-			add_a_junction(right_tpl, branch, query_int, locus, ori,
-					counters[i]);
-			connected = 1;
+			right_tpl = (edge*) it->second;
+			con_pos = ori ? locus : locus + hm->o->k - 1;
+			valid = find_junc_reads_w_tails(hm, branch, right_tpl, con_pos,
+					(hm->o->read_len - SHORT_BRANCH_SHIFT) * 2, &weight);
+			if (valid) {
+				show_debug_msg(__func__,
+						"Right connect [%d, %d] to [%d, %d] at %d. \n",
+						branch->id, branch->len, right_tpl->id, right_tpl->len,
+						locus);
+				// This locus is not correct if connect to itself.
+				// The locus is always at the left
+				add_a_junction(right_tpl, branch, query_int, con_pos, 1, weight);
+				connected = 1;
+			}
 		}
 	}
 	free(counters);
@@ -326,13 +276,14 @@ int right_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
  * For an existing edge, try to assemble the branches
  */
 void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) {
-	int *counters = NULL, weight = 0, c = 0, i = 0, j = 0;
+	int *counters = NULL, weight = 0, c = 0, i = 0, j = 0, con_pos = 0;
 	int kmer_len = hm->o->k, branch_is_valid = 0;
 	uint64_t query_int = 0, branch_query = 0;
 	edge *branch_eg = NULL;
 	if (eg->len <= kmer_len)
 		return;
-	show_debug_msg(__func__, "Branching [%d, %d]...\n", eg->id, eg->len);
+	show_debug_msg(__func__, "^^^^^ Branching [%d, %d] ^^^^^^\n", eg->id,
+			eg->len);
 	for (i = 0; i < eg->len - kmer_len; i++) {
 		if (ori) {
 			query_int = get_kmer_int(eg->contig->seq, eg->len - kmer_len - i,
@@ -341,47 +292,55 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			query_int = get_kmer_int(eg->contig->seq, i, 1, kmer_len);
 		counters = count_next_kmers(hm, query_int, 1, ori);
 
-		bwa_seq_t *debug = get_kmer_seq(query_int, 25);
-		p_query(__func__, debug);
-		bwa_free_read_seq(1, debug);
-		show_debug_msg(__func__, "%d pos counters ori %d: [%d, %d, %d, %d]\n",
-				i, ori, counters[0], counters[1], counters[2], counters[3]);
+		/**
+		 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
+		 p_query(__func__, debug);
+		 bwa_free_read_seq(1, debug);
+		 show_debug_msg(__func__,
+		 "[%d, %d] %d pos counters ori %d: [%d, %d, %d, %d]\n", eg->id,
+		 eg->len, i, ori, counters[0], counters[1], counters[2],
+		 counters[3]);
+		 **/
 
 		for (j = 0; j < 4; j++) {
 			c = counters[j];
-			if (c <= 0)
+			if (c <= 1)
 				continue;
 			weight = 0;
 			branch_query = shift_bit(query_int, j, kmer_len, ori);
 			branch_is_valid = val_branching(hm, eg, i, query_int, j, ori,
 					&weight, (hm->o->read_len - SHORT_BRANCH_SHIFT) * 2);
-			if (branch_is_valid) {
-				branch_eg = blank_edge(branch_query, kmer_len, 1, ori);
-				set_tail(eg, i, hm->o->read_len - SHORT_BRANCH_SHIFT, ori);
-				kmer_ext_edge(branch_eg, branch_query, hm, all_tpls, ori);
-				if (branch_eg->len >= MIN_BRANCH_LEN) {
-					show_debug_msg(__func__, "Branch edge [%d, %d]...\n", branch_eg->id, branch_eg->len);
-					if (ori)
-						add_a_junction(eg, branch_eg, query_int, i, ori, weight);
-					else
-						add_a_junction(eg, branch_eg, query_int, i + kmer_len,
-								ori, weight);
-					g_mutex_lock(kmer_id_mutex);
-					all_tpls->insert(make_pair<uint64_t, edge*> (branch_eg->id,
-							branch_eg));
-					g_mutex_unlock(kmer_id_mutex);
-					// Try to extend branches of current branch
-					show_debug_msg(__func__, "Mark used kmers...\n");
-					mark_tpl_kmers_used(branch_eg, hm, kmer_len);
-					show_debug_msg(__func__, "Update junction locus...\n");
-					upd_tpl_jun_locus(branch_eg, branching_events, kmer_len);
-					show_debug_msg(__func__, "Branching branches...\n");
-					kmer_ext_branch(branch_eg, hm, all_tpls, ori);
-				} else {
-					mark_tpl_kmers_fresh(eg, hm, kmer_len);
-					destroy_eg(branch_eg);
-				}
-			}
+			if (!branch_is_valid)
+				continue;
+			branch_eg = blank_edge(branch_query, kmer_len, 1, ori);
+			con_pos = ori ? i : i + kmer_len;
+			set_tail(branch_eg, eg, con_pos, hm->o->read_len
+					- SHORT_BRANCH_SHIFT, ori);
+			// Insert first, in case it connects to itself during extension
+			g_mutex_lock(kmer_id_mutex);
+			all_tpls->insert(make_pair<int, edge*> (branch_eg->id, branch_eg));
+			g_mutex_unlock(kmer_id_mutex);
+			kmer_ext_edge(branch_eg, branch_query, hm, all_tpls, ori);
+			//if (branch_eg->len >= MIN_BRANCH_LEN) {
+			if (ori)
+				add_a_junction(eg, branch_eg, query_int, i, ori, weight);
+			else
+				add_a_junction(eg, branch_eg, query_int, i + kmer_len, ori,
+						weight);
+			// Try to extend branches of current branch
+			mark_tpl_kmers_used(branch_eg, hm, kmer_len);
+			upd_tpl_jun_locus(branch_eg, branching_events, kmer_len);
+			kmer_ext_branch(branch_eg, hm, all_tpls, ori);
+			/**
+			 } else {
+			 mark_tpl_kmers_fresh(branch_eg, hm, kmer_len);
+			 g_mutex_lock(kmer_id_mutex);
+			 all_tpls->erase(branch_eg->id);
+			 g_mutex_unlock(kmer_id_mutex);
+			 show_debug_msg(__func__, "[%d, %d] Branch is not valid...\n");
+			 destroy_eg(branch_eg);
+			 }
+			 **/
 		}
 		free(counters);
 		counters = NULL;
@@ -391,9 +350,7 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 
 void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 		tpl_hash *all_tpls, const int ori) {
-	int max_c = 0, second_c = 0, *counters = NULL, weight = 0;
-	int main_is_valid = 0, branch_is_valid = 0, short_val_rs = 0;
-	bwa_seq_t *debug = NULL;
+	int max_c = 0, *counters = NULL, weight = 0;
 
 	show_debug_msg(__func__, "------ Started extending edge %d to ori %d...\n",
 			eg->id, ori);
@@ -403,56 +360,30 @@ void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 		weight = 0;
 		counters = count_next_kmers(hm, query_int, 1, ori);
 		max_c = get_max_index(counters);
-		second_c = get_second_freq_char(counters, max_c);
 
-		if (ori)
-			seq_reverse(eg->len, eg->contig->seq, 0);
-		debug = get_kmer_seq(query_int, 25);
-		p_query(__func__, debug);
-		bwa_free_read_seq(1, debug);
-		show_debug_msg(__func__, "Next chars: [%d, %d, %d, %d] \n",
-				counters[0], counters[1], counters[2], counters[3]);
-		show_debug_msg(__func__,
-				"Ori %d, Edge %d, length %d, Next char: %d \n", ori, eg->id,
-				eg->len, max_c);
-		p_ctg_seq("Contig", eg->contig);
-		if (ori)
-			seq_reverse(eg->len, eg->contig->seq, 0);
+		/**
+		 if (ori)
+		 seq_reverse(eg->len, eg->contig->seq, 0);
+		 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
+		 p_query(__func__, debug);
+		 bwa_free_read_seq(1, debug);
+		 show_debug_msg(__func__, "Next chars: [%d, %d, %d, %d] \n",
+		 counters[0], counters[1], counters[2], counters[3]);
+		 show_debug_msg(__func__,
+		 "Ori %d, Edge %d, length %d, Next char: %d \n", ori, eg->id,
+		 eg->len, max_c);
+		 p_ctg_seq("Contig", eg->contig);
+		 if (ori)
+		 seq_reverse(eg->len, eg->contig->seq, 0);
+		 **/
 
+		free(counters);
 		if (max_c == -1) {
-			show_debug_msg(__func__, "Trying right connect...\n");
-			if (right_connect(eg, hm, all_tpls, query_int, ori)) {
-				show_debug_msg(__func__, "[%d, %d] Right connected. \n",
-						eg->id, eg->len);
-			} else
+			if (!right_connect(eg, hm, all_tpls, query_int, ori))
 				show_debug_msg(__func__, "[%d, %d] No hits, stop here. \n",
 						eg->id, eg->len);
 			break;
 		}
-		// The main branch may be not valid, check the second frequent char, try it
-		if (second_c != -1 && counters[second_c] > 1) {
-			//show_debug_msg(__func__, "[%d, %d] Validating short edges... \n",
-			//		eg->id, eg->len);
-			short_val_rs = val_short_tpl(hm, query_int, max_c, second_c, ori);
-			if (short_val_rs) {
-				main_is_valid = val_junction_reads(hm, eg, query_int, max_c,
-						ori, &weight, (hm->o->read_len - SHORT_BRANCH_SHIFT)
-								* 2);
-				// If the main branch is not valid, set the next char to second frequent char.
-				if (!main_is_valid) {
-					branch_is_valid = val_junction_reads(hm, eg, query_int,
-							second_c, ori, &weight, (hm->o->read_len
-									- SHORT_BRANCH_SHIFT) * 2);
-					if (branch_is_valid)
-						max_c = second_c;
-					else {
-						free(counters);
-						break;
-					}
-				}
-			}
-		}
-		free(counters);
 		ext_con(eg->contig, max_c, 0);
 		eg->len = eg->contig->len;
 		// In case the template has repeats, so mark kmers used TEMPERARIALY. The locus is incorrect.
@@ -482,14 +413,19 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	counter = (kmer_counter*) data;
 	kmer_int = counter->kmer;
 	rev_kmer_int = rev_comp_kmer(kmer_int, opt->k);
-	if (kmer_int < 64 || rev_kmer_int < 64 || get_kmer_count(kmer_int,
-			params->hm, 1) <= 1) {
+	show_debug_msg(__func__, "============= %" ID64 ": %" ID64 " ============ \n",
+			kmer_int, get_kmer_count(kmer_int, params->hm, 0));
+	if (kmer_int < 64 || rev_kmer_int < 64
+			|| kmer_is_used(kmer_int, params->hm) || get_kmer_count(kmer_int,
+			params->hm, 0) <= 1) {
 		return NULL;
 	}
 	eg = blank_edge(kmer_int, opt->k, opt->k, 0);
+	// Insert first, in case it connects to itself during extension
+	g_mutex_lock(kmer_id_mutex);
+	all_tpls->insert(make_pair<int, edge*> (eg->id, eg));
+	g_mutex_unlock(kmer_id_mutex);
 
-	show_debug_msg(__func__, "============= %" ID64 ": %d ============ \n",
-			kmer_int, counter->count);
 	kmer_ext_edge(eg, kmer_int, params->hm, all_tpls, 0);
 	round_1_len = eg->len;
 	show_debug_msg(__func__, "Edge %d with length: %d \n", eg->id, eg->len);
@@ -511,18 +447,17 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		}
 	}
 
-	mark_tpl_kmers_used(eg, params->hm, opt->k);
-	upd_tpl_jun_locus(eg, branching_events, opt->k);
-	kmer_ext_branch(eg, params->hm, all_tpls, 0);
-	kmer_ext_branch(eg, params->hm, all_tpls, 1);
-
-	eg->start_kmer_int = *((uint64_t*) data);
 	if (eg->len <= opt->k) {
+		g_mutex_lock(kmer_id_mutex);
+		all_tpls->erase(eg->id);
+		g_mutex_unlock(kmer_id_mutex);
 		destroy_eg(eg);
 	} else {
-		g_mutex_lock(kmer_id_mutex);
-		all_tpls->insert(make_pair<uint64_t, edge*> (eg->id, eg));
-		g_mutex_unlock(kmer_id_mutex);
+		mark_tpl_kmers_used(eg, params->hm, opt->k);
+		upd_tpl_jun_locus(eg, branching_events, opt->k);
+		kmer_ext_branch(eg, params->hm, all_tpls, 0);
+		kmer_ext_branch(eg, params->hm, all_tpls, 1);
+		eg->start_kmer_int = *((uint64_t*) data);
 	}
 	return NULL;
 }
@@ -538,8 +473,9 @@ void kmer_threads(kmer_t_meta *params) {
 	for (mer_hash::iterator it = hash->begin(); it != hash->end(); ++it) {
 		freq = it->second;
 		count = freq[0];
-		if (count > 1 && it->first > 64 && rev_comp_kmer(it->first, hm->o->k)
-				> 64) {
+		count <<= 32;
+		count >>= 32;
+		if (count > 1 && it->first > 64 && rev_comp_kmer(it->first, hm->o->k) > 64) {
 			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
 			counter->kmer = it->first;
 			counter->count = count;
@@ -554,8 +490,8 @@ void kmer_threads(kmer_t_meta *params) {
 	for (i = 0; i < start_kmers->len; i++) {
 		counter = (kmer_counter*) g_ptr_array_index(start_kmers, i);
 		g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
-		//if (i > 11000)
-		//	break;
+		if (i > 100)
+			break;
 	}
 	for (i = 0; i < start_kmers->len; i++) {
 		counter = (kmer_counter*) g_ptr_array_index(start_kmers, i);
@@ -583,7 +519,7 @@ void store_junctions(char *name, GPtrArray *branching_events) {
 }
 
 void test_kmer_ext(kmer_t_meta *params) {
-	uint64_t kmer_int = 896094812036308;
+	uint64_t kmer_int = 779543035552816;
 	int round_1_len = 0, round_2_len = 0;
 	edge *eg = new_eg();
 	FILE *contigs = NULL;
@@ -592,6 +528,7 @@ void test_kmer_ext(kmer_t_meta *params) {
 	tpl_hash *all_tpls = params->all_tpls;
 
 	eg = blank_edge(kmer_int, 25, 25, 0);
+	all_tpls->insert(make_pair<int, edge*> (eg->id, eg));
 	kmer_ext_edge(eg, kmer_int, params->hm, params->all_tpls, 0);
 	round_1_len = eg->len;
 	show_debug_msg(__func__, "Extending to the right: [%d, %d]... \n", eg->id,
@@ -616,9 +553,10 @@ void test_kmer_ext(kmer_t_meta *params) {
 	//		update_junctions(branching_events, eg, 0);
 	//	}
 
+	mark_tpl_kmers_used(eg, params->hm, opt->k);
+	upd_tpl_jun_locus(eg, branching_events, opt->k);
 	kmer_ext_branch(eg, params->hm, all_tpls, 0);
 	kmer_ext_branch(eg, params->hm, all_tpls, 1);
-	all_tpls->insert(make_pair<uint64_t, edge*> (eg->id, eg));
 
 	all_edges = hash_to_array(all_tpls);
 	contigs = xopen(get_output_file("single.fa", kmer_out), "w");
@@ -651,11 +589,13 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	params->hm = hm;
 	params->all_tpls = &all_tpls;
 
-	test_kmer_ext(params);
-	exit(1);
+	//test_kmer_ext(params);
+	//exit(1);
 	kmer_threads(params);
 	//pick_unused_kmers(params);
 
+	show_msg(__func__, "Saving contigs: %.2f sec\n",
+			(float) (kmer_finish_time.tv_sec - kmer_start_time.tv_sec));
 	contigs = xopen(get_output_file("paired.fa", kmer_out), "w");
 	kmer_edges = hash_to_array(&all_tpls);
 	save_edges(kmer_edges, contigs, 0, 0, 0);
