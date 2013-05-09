@@ -10,10 +10,6 @@
 
 #include <stdint.h>
 
-#define MULPATH 		0.25
-#define LEAST_ALIGN 	0.5
-#define ALIGH_THRE 		20
-#define LEAST_ALIGN_N 	2
 #define NOT_FOUND		-1
 #define INVALID_CHAR	-1
 #define N_NUCLITODE		4

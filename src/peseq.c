@@ -15,26 +15,8 @@
 #include "peseq.h"
 #include "bwtaln.h"
 #include "pechar.h"
-#include "pehash.h"
 
 extern unsigned char nst_nt4_table[256];
-
-/**
- * Mark not-used and not-dead reads as fresh
- * These reads can be used to assemble again
- */
-void rescue_reads(bwa_seq_t *seqs, const int n_seqs) {
-	int i = 0;
-	bwa_seq_t *r = NULL;
-	for (i = 0; i < n_seqs; i++) {
-		r = &seqs[i];
-		r->rev_com = 0;
-		if (r->status != USED && r->status != DEAD) {
-			r->status = FRESH;
-			r->tid = -1;
-		}
-	}
-}
 
 gint cmp_reads_by_name(gpointer a, gpointer b) {
 	bwa_seq_t *seq_a = *((bwa_seq_t**) a);
@@ -68,49 +50,6 @@ void save_fq(const bwa_seq_t *seqs, const char *fp_fn, const uint16_t ol) {
 	fflush(fq_fp);
 	fclose(fq_fp);
 	free(header);
-}
-
-seq *read_seq(const char *fn) {
-	unsigned int counter = 0, in_des = 0, h_c = 0;
-	char c;
-	seq *fa = (seq*) malloc(sizeof(seq));
-	fa->h = (char*) malloc(BUFSIZE);
-	fa->m = BUFSIZE * 2;
-	fa->s = (char*) malloc(fa->m);
-	FILE *fp = xopen(fn, "r");
-
-	while ((c = (char) fgetc(fp))) {
-		h_c = 0;
-		if (c == -1)
-			break;
-		if (c == '>') {
-			fa->h[h_c++] = c;
-			in_des = 1;
-			continue;
-		}
-		if (c == '\n') {
-			in_des = 0;
-			fa->h[h_c++] = c;
-			fa->h[h_c++] = '\0';
-			continue;
-		}
-		if (in_des) {
-			fa->h[h_c++] = c;
-			continue;
-		}
-
-		if (1 + fa->l >= fa->m) {
-			fa->m = fa->l + 2;
-			kroundup32(fa->m);
-			// Adjust the size to nearest 2^k
-			//			fprintf(stderr, "[fa->l, fa->m]: [%zd, %zd]\n", fa->l, fa->m);
-			fa->s = (char*) realloc(fa->s, fa->m);
-		}
-		fa->s[fa->l++] = c;
-		counter++;
-	}
-	fclose(fp);
-	return fa;
 }
 
 void p_seq(const char *header, const ubyte_t *seq, const int len) {
@@ -310,16 +249,11 @@ void p_query(const char *header, const bwa_seq_t *q) {
 				printf("%c", "ACGTN"[(int) q->seq[i]]);
 		}
 	}
-	if (q->is_in_c_pool)
-		printf(" [pool: %d]", q->is_in_c_pool);
-	else
-		printf(" [no_pool]");
-	printf(" [tid: %d]", q->tid);
 	if (q->rev_com)
 		printf(" [forward@%d]", q->pos);
 	else
 		printf(" [reverse@%d]", q->pos);
-	printf(" [%d: %d, %d]", q->status, q->contig_id, q->shift);
+	printf(" [%d: %d]", q->status, q->contig_id);
 	//	printf("\n[rev_com] ");
 	//	for (i = 0; i < q->len; i++) {
 	//		if (q->rseq[i] > 4)
@@ -395,12 +329,9 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
 	if (ol + shift > query->len)
 		return 0;
-	p->tid = -1; // no assigned to a thread
 	p->status = query->status;
 	p->contig_id = query->contig_id;
 	p->full_len = p->len = ol;
-	p->cursor = query->cursor;
-	p->shift = query->shift;
 	p->rev_com = query->rev_com;
 	p->pos = query->pos;
 
@@ -437,16 +368,11 @@ void set_rev_com(bwa_seq_t *s) {
 
 bwa_seq_t *blank_seq(const int len) {
 	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
-	p->tid = -1; // no assigned to a thread
 	p->status = 0;
 	p->contig_id = 0;
 	p->full_len = len;
 	p->len = 0;
-	p->cursor = 0;
-	p->shift = 0;
 	p->rev_com = 0;
-	p->is_in_c_pool = 0;
-	p->is_in_m_pool = 0;
 
 	p->name = NULL;
 	p->seq = (ubyte_t*) calloc(len, sizeof(ubyte_t));
@@ -469,13 +395,10 @@ bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol,
 bwa_seq_t *new_rev_seq(const bwa_seq_t *query) {
 	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
 	ubyte_t *tmp = NULL;
-	p->tid = -1; // no assigned to a thread
 
-	p->status = p->shift = 0;
+	p->status = FRESH;
 	p->contig_id = query->contig_id;
 	p->full_len = p->len = query->len;
-	p->cursor = query->cursor;
-	p->shift = query->shift;
 	p->name = query->name;
 	p->rev_com = query->rev_com;
 
@@ -502,41 +425,6 @@ void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp) {
 	}
 	if (i % LINELEN != 0)
 		fputc('\n', tx_fp);
-}
-
-void save_read(const char *header, const bwa_seq_t *read, FILE *read_fp) {
-	int i = 0;
-	char c = to_upper_lower('N');
-	if (!read)
-		return;
-	fputs(header, read_fp);
-	for (i = 0; i < read->len; i++) {
-		c = read->seq[i];
-		c = "ACGTN"[(int) c];
-		fputc(c, read_fp);
-	}
-	fputc('\n', read_fp);
-}
-
-int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs,
-		const int n_seqs) {
-	int n_unpaired = 0, i = 0;
-	bwa_seq_t *s = NULL;
-	FILE *solid = NULL;
-	char *h = malloc(BUFSIZ);
-
-	solid = xopen(part_solid_fn, "w");
-	for (i = 0; i < n_seqs; i++) {
-		s = &seqs[i];
-		//		if (s->status != USED && s->status != DEAD) {
-		sprintf(h, ">%d\n", n_unpaired);
-		save_read(h, s, solid);
-		n_unpaired++;
-		//		}
-	}
-	free(h);
-	fclose(solid);
-	return n_unpaired;
 }
 
 int same_q(const bwa_seq_t *query, const bwa_seq_t *seq) {

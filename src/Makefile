@@ -4,11 +4,11 @@ CXX=		g++
 CFLAGS=		-ggdb -g -Wall -O2 $(shell pkg-config --libs gthread-2.0 --cflags glib-2.0)
 CXXFLAGS=	-std=c++0x $(CFLAGS)
 DFLAGS=		-DHAVE_PTHREAD #-D_FILE_OFFSET_BITS=64
-OBJS=		rand.o utils.o roadmap.o edge.o clean.o rnaseq.o \
-			pepath.o bwtaln.o pealn.o edgelist.o pehash.o pelib.o \
-			pechar.o pool.o peseq.o simu.o hits.o \
-			bwaseqio.o kmers.o mate.o ass.o \
-			kstring.o readrm.o scaffolding.o merge.o
+OBJS=		utils.o edge.o rnaseq.o \
+			bwtaln.o hash.o \
+			pechar.o peseq.o \
+			bwaseqio.o kmers.o ass.o \
+			kstring.o 
 PROG=		peta
 INCLUDES=	
 LIBS=		-lm -lrt -lz -lpthread $(shell pkg-config --libs glib-2.0)

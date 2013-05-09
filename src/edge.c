@@ -14,7 +14,6 @@
 #include "edge.h"
 #include "peseq.h"
 #include "bwtaln.h"
-#include "pehash.h"
 
 eg_gap *init_gap(int s_index, int size, int ori) {
 	eg_gap *gap = (eg_gap*) malloc(sizeof(eg_gap));
@@ -36,40 +35,15 @@ edge *new_eg() {
 	eg->r_tail = NULL;
 	eg->in_egs = NULL;
 	eg->out_egs = NULL;
-	eg->reads = NULL;
-	eg->pairs = NULL;
-	eg->name = NULL;
-	eg->right_ctg = NULL;
-	eg->left_ctg = NULL;
 	eg->len = 0;
-	eg->r_shift = 0;
-	eg->l_shift = 0;
 	eg->id = 0;
-	eg->visited = 0;
 	eg->alive = 1;
 	eg->is_root = 0;
 	eg->ori = 0;
-	eg->gaps = NULL;
-	eg->level = -1;
 	eg->comp_id = -1;
 	eg->start_kmer_int = 0;
 	eg->tid = 0;
 	return eg;
-}
-
-/**
- * Reset thread id of all edges
- */
-void reset_tid(edge *eg) {
-	int i = 0;
-	bwa_seq_t *r = NULL;
-	for (i = 0; i < eg->reads->len; i++) {
-		r = g_ptr_array_index(eg->reads, i);
-		if (r->status != USED && r->status != DEAD)
-			r->tid = -1;
-		else
-			r->tid = eg->tid;
-	}
 }
 
 void free_readarray(readarray *ra) {
@@ -137,7 +111,8 @@ bwa_seq_t *cut_edge_tail(edge *eg, const int shift, const int tail_len,
 	return tail;
 }
 
-void set_tail(edge *branch, edge *parent_eg, const int shift, const int tail_len, const int ori) {
+void set_tail(edge *branch, edge *parent_eg, const int shift,
+		const int tail_len, const int ori) {
 	bwa_seq_t *tmp = NULL;
 	// The right/left tail would be used in cut_edge_tail function,
 	//	but will be replaced later. So save to tmp first, free the old one later.
@@ -151,44 +126,39 @@ void set_tail(edge *branch, edge *parent_eg, const int shift, const int tail_len
 	bwa_free_read_seq(1, tmp);
 }
 
-void destroy_eg(edge *eg) {
-	eg_gap *gap = NULL;
-	bwa_seq_t *read = NULL;
+void save_edges(edgearray *pfd_ctg_ids, FILE *ass_fa, const int ori,
+		const int p_all, const int min_len) {
 	int i = 0;
+	edge *eg;
+	char *h;
+	bwa_seq_t *contig;
+	if (!pfd_ctg_ids || pfd_ctg_ids->len <= 0)
+		return;
+	h = malloc(BUFSIZE);
+	for (i = 0; i < pfd_ctg_ids->len; i++) {
+		eg = (edge*) g_ptr_array_index(pfd_ctg_ids, i);
+		//show_debug_msg(__func__, "Saving edge %d length %d, alive %d \n", eg->id, eg->len, eg->alive);
+		if (p_all || (eg && eg->alive && eg->contig && eg->len > min_len)) {
+			contig = eg->contig;
+			if (ori)
+				seq_reverse(contig->len, contig->seq, 0);
+			sprintf(h, ">%"ID64" length: %d start: %" ID64 "\n", eg->id,
+					contig->len, eg->start_kmer_int);
+			save_con(h, contig, ass_fa);
+		}
+	}
+	free(h);
+}
+
+void destroy_eg(edge *eg) {
 	if (eg) {
 		bwa_free_read_seq(1, eg->contig);
 		bwa_free_read_seq(1, eg->r_tail);
 		bwa_free_read_seq(1, eg->l_tail);
-		g_ptr_array_free(eg->in_egs, TRUE);
-		if (!eg->right_ctg) {
-			// If eg's right contig is not null, its out_egs is set to be right contig's out_egs
+		if (eg->in_egs)
+			g_ptr_array_free(eg->in_egs, TRUE);
+		if (eg->out_egs)
 			g_ptr_array_free(eg->out_egs, TRUE);
-		}
-		for (i = 0; i < eg->reads->len; i++) {
-			read = g_ptr_array_index(eg->reads, i);
-			read->status = TRIED;
-			read->contig_id = UNUSED_CONTIG_ID;
-		}
-		for (i = 0; i < eg->pairs->len; i++) {
-			read = g_ptr_array_index(eg->pairs, i);
-			read->status = TRIED;
-			read->contig_id = UNUSED_CONTIG_ID;
-		}
-		while (eg->reads->len > 0) {
-			g_ptr_array_remove_index_fast(eg->reads, 0);
-		}
-		while (eg->pairs->len > 0) {
-			g_ptr_array_remove_index_fast(eg->pairs, 0);
-		}
-		free_readarray(eg->reads);
-		free_readarray(eg->pairs);
-		for (i = 0; i < eg->gaps->len; i++) {
-			gap = g_ptr_array_index(eg->gaps, i);
-			free_eg_gap(gap);
-		}
-		free_readarray(eg->gaps);
-		eg->alive = 0;
-		free(eg->name);
 		free(eg);
 	}
 }

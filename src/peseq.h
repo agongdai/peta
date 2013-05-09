@@ -10,23 +10,7 @@
 #include <stdio.h>
 #include <glib.h>
 #include "bwtaln.h"
-#include "pehash.h"
-
-#ifndef kroundup32
-#define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
-#endif
-
-#define BUFSIZE 				1023
-#define LINELEN 				50
-#define FNLEN 					128
-#define MINCONTIG 				35
-#define NO_REPEAT_BASES			4
-#define NO_REPEAT_LEN 			16
-#define MIN_OL					6
-#define CLOSE_MIN_OL			6
-
-typedef GPtrArray seqarray;
-typedef GArray posarray;
+#include "utils.h"
 
 enum READ_STATUS {
 	FRESH,
@@ -39,24 +23,6 @@ enum READ_STATUS {
 	MULTI,
 };
 
-typedef struct {
-	size_t l; // length of real sequence
-	size_t m; // total memory allocated
-	char *h; // Header
-	char *s; // Sequence
-} seq;
-
-typedef struct {
-	size_t l;
-	int exon_c;
-	char strand;
-	char *id;
-	char *ref;
-	char *h;
-	char *exon_s;
-	char *exon_e;
-} gene;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -65,7 +31,6 @@ void rescue_reads(bwa_seq_t *seqs, const int n_seqs);
 gint cmp_reads_by_name(gpointer a, gpointer b);
 gint cmp_reads_by_contig_id(gpointer a, gpointer b);
 void save_fq(const bwa_seq_t *seqs, const char *fp_fn, const uint16_t ol);
-seq *read_seq(const char *fn);
 bwa_seq_t *merge_seq_to_right(bwa_seq_t *s1, bwa_seq_t *s2, const int gap);
 int trun_seq(bwa_seq_t *s, const int shift);
 bwa_seq_t *merge_seq_to_left(bwa_seq_t *s2, bwa_seq_t *s1, const int gap);

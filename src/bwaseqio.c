@@ -89,20 +89,13 @@ bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int mode,
 			}
 			l = seq->seq.l;
 		} //else
-		p->tid = -1; // no assigned to a thread
 		p->full_len = p->len = l;
 		n_tot += p->full_len;
 		p->seq = (ubyte_t*) calloc(p->len, 1);
 
-		// For peta!
-		p->cursor = 0;
-		p->status = 0;
 		p->contig_id = -1; // -1 means unused
-		p->shift = 0;
 		p->rev_com = 0;
 		p->pos = -1;
-		p->is_in_c_pool = -1;
-		p->is_in_m_pool = -1;
 
 		for (i = 0; i != p->full_len; ++i) {
 			//			fprintf(stderr, "%c", seq->seq.s[i]);

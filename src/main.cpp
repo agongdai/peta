@@ -9,11 +9,6 @@
 #include <stdio.h>
 #include <string.h>
 #include "main.h"
-#include "pehash.h"
-#include "pealn.h"
-#include "clean.h"
-#include "pelib.h"
-#include "pepath.h"
 #include "ass.hpp"
 #include "kmers.hpp"
 
@@ -43,18 +38,10 @@ int main(int argc, char *argv[]) {
 //	return 1;
 	if (argc < 2)
 		return usage();
-	else if (strcmp(argv[1], "hash") == 0)
-		return pe_hash(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "pe_aln") == 0)
-		return pe_aln_test(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "clean") == 0)
-		return clean_reads(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "pair") == 0)
-		return pe_lib(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "graph") == 0)
-		return pe_path(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "ass") == 0)
 		return pe_kmer(argc - 1, argv + 1);
+	else if (strcmp(argv[1], "hash") == 0)
+		return build_kmer_hash(argc - 1, argv + 1);
 	else {
 		fprintf(stderr, "[main] unrecognized command '%s'\n", argv[1]);
 		return 1;

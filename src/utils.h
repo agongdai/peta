@@ -16,6 +16,16 @@
 #define min(value1, value2)						( ((value1) < (value2)) ? (value1) : (value2) )
 #define max(value1, value2)						( ((value1) > (value2)) ? (value1) : (value2) )
 #define med3(a, b, c)							( a<b ? (b<c ? b : a<c ? c : a) : (b>c ? b : a>c ? c : a))
+#ifndef kroundup32
+#define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
+#endif
+
+#define ID64 					PRId64
+#define BUFSIZE 				1023
+#define FNLEN 					1023
+#define LINELEN					50
+#define NO_REPEAT_BASES			4
+#define NO_REPEAT_LEN 			15
 
 typedef uint64_t index64;
 
