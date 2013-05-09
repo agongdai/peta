@@ -14,7 +14,7 @@
 #include "edge.h"
 
 #define		SHORT_BRANCH_SHIFT	4
-#define		MIN_BRANCH_LEN		8
+#define 	MIN_WEIGHT			2
 
 using namespace std;
 typedef unordered_map<int, edge*> tpl_hash;

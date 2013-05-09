@@ -194,7 +194,7 @@ void save_edges(edgearray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 			contig = eg->contig;
 			if (ori)
 				seq_reverse(contig->len, contig->seq, 0);
-			sprintf(h, ">% "ID64" length: %d start: %s\n", eg->id, contig->len, eg->name);
+			sprintf(h, ">%"ID64" length: %d start: %s\n", eg->id, contig->len, eg->name);
 			save_con(h, contig, ass_fa);
 		}
 	}

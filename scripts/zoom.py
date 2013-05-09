@@ -24,6 +24,7 @@ READ_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa'
 REF_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa.oracle'
 REF_TO_REF_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/genome/ref.ref.psl'
 READ_REF_PSL_SRR027876 = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa.psl'
+HIT_STR_DESCRIPTION = '[read_id]:[read_length]    [qstart]@[rstart]M[n_matches],Ins[n_ref_gap_bases][strand][n_mismatches]'
 
 def runInShell(cmd):
     p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
@@ -60,6 +61,7 @@ def ctg_to_ref(args):
     else:
         hits_file_name = contig + '.ctg.hits'
     hits_file = open(hits_file_name, 'w')
+    hits_file.write(HIT_STR_DESCRIPTION + '\n')
     for contig in args.contigs:
         if contig.endswith('fa') or contig.endswith('fasta'):
             print 'Aligning %s to %s ' % (contig, ref)

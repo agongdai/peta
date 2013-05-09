@@ -20,6 +20,7 @@
 #include "rnaseq.h"
 #include "bwtaln.h"
 #include "pechar.h"
+#include "pool.h"
 
 /**
  * Return a reverse complement value of a kmer int
@@ -364,7 +365,7 @@ uint64_t get_kmer_count(const uint64_t kmer_int, hash_map *hm,
 		}
 		count <<= 32;
 		count >>= 32;
-		show_debug_msg(__func__, "Kmer: %" ID64 "=>%" ID64 "\n", kmer_int, count);
+		//show_debug_msg(__func__, "Kmer: %" ID64 "=>%" ID64 "\n", kmer_int, count);
 		return count;
 	}
 	return 0;
@@ -474,8 +475,10 @@ GPtrArray *kmer_find_reads(const bwa_seq_t *query, const hash_map *hm,
 		} else {
 			if (n_part_only) {
 				g_ptr_array_add(part_hits, read);
-				if (part_hits->len >= n_part_only)
+				if (part_hits->len >= n_part_only) {
+					bwa_free_read_seq(1, part);
 					break;
+				}
 			}
 		}
 		bwa_free_read_seq(1, part);

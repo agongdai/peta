@@ -34,10 +34,10 @@ edge *new_eg() {
 	eg->contig = NULL;
 	eg->l_tail = NULL;
 	eg->r_tail = NULL;
-	eg->in_egs = g_ptr_array_sized_new(0);
-	eg->out_egs = g_ptr_array_sized_new(0);
-	eg->reads = g_ptr_array_sized_new(0);
-	eg->pairs = g_ptr_array_sized_new(0);
+	eg->in_egs = NULL;
+	eg->out_egs = NULL;
+	eg->reads = NULL;
+	eg->pairs = NULL;
 	eg->name = NULL;
 	eg->right_ctg = NULL;
 	eg->left_ctg = NULL;
@@ -49,7 +49,7 @@ edge *new_eg() {
 	eg->alive = 1;
 	eg->is_root = 0;
 	eg->ori = 0;
-	eg->gaps = g_ptr_array_sized_new(0);
+	eg->gaps = NULL;
 	eg->level = -1;
 	eg->comp_id = -1;
 	eg->start_kmer_int = 0;
