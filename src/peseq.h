@@ -13,14 +13,7 @@
 #include "utils.h"
 
 enum READ_STATUS {
-	FRESH,
-	USED,
-	TRIED,
-	DEAD,
-	HANG,
-	HAS_N,
-	REPETITIVE,
-	MULTI,
+	FRESH, USED, TRIED, DEAD, HANG, HAS_N, REPETITIVE, MULTI,
 };
 
 #ifdef __cplusplus
@@ -43,6 +36,7 @@ bwa_seq_t *get_mate(const bwa_seq_t *s, bwa_seq_t *seqs);
 bwa_seq_t *get_right_mate(const bwa_seq_t *left, bwa_seq_t *seqs);
 bwa_seq_t *get_left_mate(const bwa_seq_t *right, bwa_seq_t *seqs);
 void p_query(const char *header, const bwa_seq_t *q);
+void p_readarray(const GPtrArray *ra, const int all);
 void p_ctg_seq(const char *header, const bwa_seq_t *q);
 void p_seq(const char *header, const ubyte_t *seq, const int len);
 void ext_con(bwa_seq_t *contig, const ubyte_t c, const int ori);
@@ -58,7 +52,8 @@ bwa_seq_t *merge_seq(bwa_seq_t *s1, bwa_seq_t *s2, const int shift);
 void map(bwa_seq_t *bwa_seq);
 index64 get_index(const char *seq_id);
 void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp);
-int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs, const int n_seqs);
+int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs,
+		const int n_seqs);
 int same_q(const bwa_seq_t *query, const bwa_seq_t *seq);
 int same_bytes(const ubyte_t *s, const int k);
 int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
@@ -73,6 +68,8 @@ int is_sub_seq_byte(const ubyte_t *query, const int q_len, const int shift,
 		const bwa_seq_t *seq, int mismatches, const int ol);
 int share_subseq_byte(const ubyte_t *seq_1, const int len,
 		const bwa_seq_t *seq_2, const int mismatches, const int ol);
+int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
+		const int shift, const int mismatches, const int ori);
 int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 		int mismatches);
 int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,

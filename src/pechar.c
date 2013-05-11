@@ -78,19 +78,6 @@ int *get_abs_most(const int *sta, const double threshold) {
 	return status;
 }
 
-int get_pure_most(const int *sta) {
-	int index = 0, most = 0, all_0 = 1;
-	for (index = 0; index < 4; index++) {
-		if (sta[index] > 0)
-			all_0 = 0;
-		if (sta[index] > sta[most])
-			most = index;
-	}
-	if (all_0)
-		return -1;
-	return most;
-}
-
 /**
  * Example:
  * ori =   101110

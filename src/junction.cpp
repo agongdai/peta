@@ -52,10 +52,10 @@ int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 			* right_len);
 	junction_seq->len = left_len + right_len;
 	set_rev_com(junction_seq);
-	// p_query("Junction seq", junction_seq);
+	 p_query("Junction seq", junction_seq);
 	reads = kmer_find_reads(junction_seq, hm, 0, 0);
 	n_reads = reads->len;
-	// show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
+	 show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
 	// p_readarray(reads, 1);
 	*weight = n_reads;
 	bwa_free_read_seq(1, junction_seq);
@@ -92,7 +92,7 @@ void upd_tpl_jun_locus(edge *eg, GPtrArray *branching_events,
 		jun = (junction*) g_ptr_array_index(branching_events, k);
 		if (jun->main_tpl == eg && jun->branch_tpl == eg) {
 			for (i = 0; i < eg->len - kmer_len; i++) {
-				query_int = get_kmer_int(eg->contig->seq, i, 1, kmer_len);
+				query_int = get_kmer_int(eg->ctg->seq, i, 1, kmer_len);
 				if (query_int == jun->kmer) {
 					jun->locus = i;
 					break;

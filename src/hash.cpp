@@ -218,4 +218,5 @@ hash_map *load_hash_map(const char *fa_fn, const int with_reads,
 
 int build_kmer_hash(int argc, char *argv[]) {
 	build_kmers_hash(argv[optind], atoi(argv[optind + 1]), 1);
+	return 0;
 }

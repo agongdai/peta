@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 #include <assert.h>
+#include <glib.h>
 #include "utils.h"
 #include "peseq.h"
 #include "bwtaln.h"
@@ -262,6 +263,21 @@ void p_query(const char *header, const bwa_seq_t *q) {
 	//			printf("%c", "acgtn"[(int) q->rseq[i]]);
 	//	}
 	printf("\n");
+}
+
+void p_readarray(const GPtrArray *ra, const int all) {
+	int i = 0;
+	bwa_seq_t *p;
+	show_debug_msg(__func__, "--------------------------------- \n");
+	show_debug_msg(__func__, " # of Reads: %d \n", ra->len);
+	for (i = 0; i < ra->len; i++) {
+		p = g_ptr_array_index(ra, i);
+		if ((!all && i % 200 == 0) || all)
+			p_query(__func__, p);
+		// show_debug_msg(__func__, "%d: %d_%d Read %s: %d \n", i,
+		// p->contig_id, p->shift, p->name, p->shift);
+	}
+	show_debug_msg(__func__, "--------------------------------- \n");
 }
 
 void p_ctg_seq(const char *header, const bwa_seq_t *q) {
@@ -599,6 +615,9 @@ int is_sub_seq(const bwa_seq_t *query, const int shift, const bwa_seq_t *seq,
 	return NOT_FOUND;
 }
 
+/**
+ *
+ */
 int is_sub_seq_byte(const ubyte_t *query, const int q_len, const int shift,
 		const bwa_seq_t *seq, int mismatches, const int ol) {
 	unsigned int i = 0, start = 0, offset = 0, end = q_len;
@@ -642,6 +661,39 @@ int share_subseq_byte(const ubyte_t *seq_1, const int len,
 	return 0;
 }
 
+/**
+ * Main:  ================================
+ * Shift:                 ^
+ * Ori: 0 (to the right)
+ * Branch:                 ---------
+ * Check:                  =========
+ *                         |||||||||
+ *                         ---------
+ */
+int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
+		const int shift, const int mismatches, const int ori) {
+	bwa_seq_t *sub = NULL;
+	int similar = 0;
+	if (ori) {
+		if (shift < branch->len)
+			return 0;
+		sub = new_seq(main, branch->len, shift - branch->len);
+	} else {
+		if ((main->len - shift) < branch->len)
+			return 0;
+		sub = new_seq(main, branch->len, shift);
+	}
+	p_ctg_seq(__func__, sub);
+	p_ctg_seq(__func__, branch);
+	similar = seq_ol(sub, branch, branch->len, mismatches);
+	free_read_seq(sub);
+	show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches, similar);
+	return similar;
+}
+
+/**
+ * Check whether two sequences share similar regions (length 'ol') with max 'mismatches'.
+ */
 int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 		int mismatches) {
 	int i = 0;
@@ -665,8 +717,8 @@ int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tpl,
 	if (!mate || !tpl)
 		return 0;
 	for (i = max_len; i > min_len; i--) {
-		olpped = ori ? seq_ol(mate, tpl, i, mismatches) : seq_ol(tpl,
-				mate, i, mismatches);
+		olpped = ori ? seq_ol(mate, tpl, i, mismatches) : seq_ol(tpl, mate, i,
+				mismatches);
 		if (olpped > 0) {
 			olpped = i;
 			break;

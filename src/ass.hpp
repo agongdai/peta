@@ -15,6 +15,8 @@
 
 #define		SHORT_BRANCH_SHIFT	4
 #define 	MIN_WEIGHT			2
+#define		ERROR_RATE			0.02
+#define		BRANCH_THRE			0.1
 
 using namespace std;
 typedef unordered_map<int, edge*> tpl_hash;

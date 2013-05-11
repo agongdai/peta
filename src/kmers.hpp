@@ -27,8 +27,10 @@ extern "C" {
 	uint64_t rev_comp_kmer(uint64_t kmer, const int n);
 	bwa_seq_t *get_kmer_seq(uint64_t kmer, const int k);
 	GPtrArray *kmer_find_reads(const bwa_seq_t *query, const hash_map *hm,
-			const int mismatch, const int n_part_only);
+			const int mismatch, const uint32_t n_part_only);
 	int next_char_by_kmers(hash_map *hm, uint64_t kmer_int, const int fresh_only, const int ori);
+	int next_char_max_freq(hash_map *hm, uint64_t kmer_int, const int fresh_only,
+			const int ori);
 	uint64_t get_kmer_count(const uint64_t kmer_int, hash_map *hm, const int fresh);
 	void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm, const int tpl_id, const int locus);
 	void mark_kmer_not_used(const uint64_t kmer_int, const hash_map *hm);
@@ -36,6 +38,7 @@ extern "C" {
 	void read_tpl_using_kmer(const uint64_t kmer_int, const hash_map *hm,
 			int *tpl_id, int *locus, uint64_t *value);
 	void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm, GPtrArray *hits);
+	GPtrArray *align_seq(const bwa_seq_t *query, const hash_map *hm, const int mismatch);
 
 #ifdef __cplusplus
 }

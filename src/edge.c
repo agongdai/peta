@@ -30,7 +30,7 @@ void free_eg_gap(eg_gap *gap) {
 
 edge *new_eg() {
 	edge *eg = (edge*) malloc(sizeof(edge));
-	eg->contig = NULL;
+	eg->ctg = NULL;
 	eg->l_tail = NULL;
 	eg->r_tail = NULL;
 	eg->in_egs = NULL;
@@ -41,8 +41,9 @@ edge *new_eg() {
 	eg->is_root = 0;
 	eg->ori = 0;
 	eg->comp_id = -1;
-	eg->start_kmer_int = 0;
+	eg->start_kmer = 0;
 	eg->tid = 0;
+	eg->coverage = 0.0;
 	return eg;
 }
 
@@ -71,12 +72,12 @@ bwa_seq_t *cut_edge_tail(edge *eg, const int shift, const int tail_len,
 	bwa_seq_t *tail = NULL, *partial = NULL, *main_tail = NULL;
 	int v_tail_len = 0;
 	if (eg->len < shift)
-		return new_seq(eg->contig, eg->len, 0);
+		return new_seq(eg->ctg, eg->len, 0);
 	if (ori) {
-		partial = new_seq(eg->contig, eg->len - shift, shift);
+		partial = new_seq(eg->ctg, eg->len - shift, shift);
 		main_tail = eg->r_tail;
 	} else {
-		partial = new_seq(eg->contig, shift, 0);
+		partial = new_seq(eg->ctg, shift, 0);
 		main_tail = eg->l_tail;
 	}
 	// If the edge is long, cut the tail directly
@@ -138,12 +139,12 @@ void save_edges(edgearray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 	for (i = 0; i < pfd_ctg_ids->len; i++) {
 		eg = (edge*) g_ptr_array_index(pfd_ctg_ids, i);
 		//show_debug_msg(__func__, "Saving edge %d length %d, alive %d \n", eg->id, eg->len, eg->alive);
-		if (p_all || (eg && eg->alive && eg->contig && eg->len > min_len)) {
-			contig = eg->contig;
+		if (p_all || (eg && eg->alive && eg->ctg && eg->len > min_len)) {
+			contig = eg->ctg;
 			if (ori)
 				seq_reverse(contig->len, contig->seq, 0);
 			sprintf(h, ">%"ID64" length: %d start: %" ID64 "\n", eg->id,
-					contig->len, eg->start_kmer_int);
+					contig->len, eg->start_kmer);
 			save_con(h, contig, ass_fa);
 		}
 	}
@@ -152,7 +153,8 @@ void save_edges(edgearray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 
 void destroy_eg(edge *eg) {
 	if (eg) {
-		bwa_free_read_seq(1, eg->contig);
+		show_debug_msg(__func__, "Freeing edge [%d, %d] \n", eg->id, eg->len);
+		bwa_free_read_seq(1, eg->ctg);
 		bwa_free_read_seq(1, eg->r_tail);
 		bwa_free_read_seq(1, eg->l_tail);
 		if (eg->in_egs)
@@ -160,5 +162,25 @@ void destroy_eg(edge *eg) {
 		if (eg->out_egs)
 			g_ptr_array_free(eg->out_egs, TRUE);
 		free(eg);
+	}
+}
+
+/**
+ * Free the edge contigs first, will be destoryed later.
+ */
+void free_eg_seq(edge *eg) {
+	if (eg) {
+		free_read_seq(eg->ctg);
+		eg->ctg = NULL;
+		free_read_seq(eg->r_tail);
+		eg->r_tail = NULL;
+		free_read_seq(eg->l_tail);
+		eg->l_tail = NULL;
+		if (eg->in_egs)
+			g_ptr_array_free(eg->in_egs, TRUE);
+		if (eg->out_egs)
+			g_ptr_array_free(eg->out_egs, TRUE);
+		eg->in_egs = NULL;
+		eg->out_egs = NULL;
 	}
 }
