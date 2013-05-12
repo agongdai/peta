@@ -15,7 +15,8 @@
 #include "hash.hpp"
 
 #define		LOWER_ONES_32		4294967295				// 32 0's, followed by 32 1's
-#define		MIDDLE_ONES_16		65535					// 32 0's, 16 11's, and 16 0's
+#define		LOWER_ONES_24		16777215				// 40 0's, followed by 24 1's
+#define		LOWER_ONES_16		65535					// 48 0's, 16 11's
 
 using namespace std;
 

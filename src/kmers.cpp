@@ -60,7 +60,7 @@ bwa_seq_t *get_kmer_seq(uint64_t kmer, const int k) {
 }
 
 /**
- * Set the upper 48~64 bits to be template id, 32~48 bits to be locus
+ * Set the upper 40~64 bits to be template id, 24~40 bits to be locus
  */
 void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm,
 		const int tpl_id, const int locus) {
@@ -72,10 +72,10 @@ void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm,
 		count = tpl_id;
 		count <<= 16;
 		count += locus;
-		count <<= 32;
+		count <<= 24;
 		// Reset the used template to be none
-		freq[0] <<= 32;
-		freq[0] >>= 32;
+		freq[0] <<= 40;
+		freq[0] >>= 40;
 		freq[0] += count;
 	}
 	rev_kmer_int = rev_comp_kmer(kmer_int, hm->o->k);
@@ -85,10 +85,10 @@ void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm,
 		count = tpl_id;
 		count <<= 16;
 		count += locus;
-		count <<= 32;
+		count <<= 24;
 		// Reset the used template to be none
-		freq[0] <<= 32;
-		freq[0] >>= 32;
+		freq[0] <<= 40;
+		freq[0] >>= 40;
 		freq[0] += count;
 	}
 }
@@ -102,18 +102,21 @@ void mark_kmer_not_used(const uint64_t kmer_int, const hash_map *hm) {
 	mer_hash::iterator it = hash->find(kmer_int);
 	if (it != hash->end()) {
 		freq = it->second;
-		freq[0] <<= 32;
-		freq[0] >>= 32;
+		freq[0] <<= 40;
+		freq[0] >>= 40;
 	}
 	rev_kmer_int = rev_comp_kmer(kmer_int, hm->o->k);
 	it = hash->find(rev_kmer_int);
 	if (it != hash->end()) {
 		freq = it->second;
-		freq[0] <<= 32;
-		freq[0] >>= 32;
+		freq[0] <<= 40;
+		freq[0] >>= 40;
 	}
 }
 
+/**
+ * Check whether a kmer is used.
+ */
 int kmer_is_used(const uint64_t kmer_int, hash_map *hm) {
 	uint64_t *freq = NULL, count = 0;
 	mer_hash *hash = hm->hash;
@@ -121,7 +124,7 @@ int kmer_is_used(const uint64_t kmer_int, hash_map *hm) {
 	if (it != hash->end()) {
 		freq = it->second;
 		count = freq[0];
-		count >>= 32;
+		count >>= 24;
 		if (count > 0)
 			return 1;
 		return 0;
@@ -129,6 +132,9 @@ int kmer_is_used(const uint64_t kmer_int, hash_map *hm) {
 	return -1;
 }
 
+/**
+ * Read the teamplate id and locus using some kmer
+ */
 void read_tpl_using_kmer(const uint64_t kmer_int, const hash_map *hm,
 		int *tpl_id, int *locus, uint64_t *value) {
 	uint64_t *freq = NULL, count = 0, count_copy = 0;
@@ -138,13 +144,13 @@ void read_tpl_using_kmer(const uint64_t kmer_int, const hash_map *hm,
 		freq = it->second;
 		count = freq[0];
 		count_copy = count;
-		count_copy &= LOWER_ONES_32;
+		count_copy &= LOWER_ONES_24;
 		*value = count_copy;
-		count >>= 32;
+		count >>= 24;
 		count_copy = count;
 		count >>= 16;
 		*tpl_id = count;
-		count_copy &= MIDDLE_ONES_16;
+		count_copy &= LOWER_ONES_16;
 		*locus = count_copy;
 	}
 }
@@ -165,12 +171,12 @@ uint64_t get_kmer_count(const uint64_t kmer_int, hash_map *hm,
 		// The upper 32 bits stores the template using this kmer,
 		//	reset the upper 32 bits to be 0, to get the frequency
 		if (fresh_only) {
-			count_copy >>= 32;
+			count_copy >>= 24;
 			if (count_copy > 0)
 				return 0;
 		}
-		count <<= 32;
-		count >>= 32;
+		count <<= 40;
+		count >>= 40;
 		//show_debug_msg(__func__, "Kmer: %" ID64 "=>%" ID64 "\n", kmer_int, count);
 		return count;
 	}
@@ -201,7 +207,7 @@ void parse_hit_ints(const uint64_t *occs, const int query_i,
 
 	if (occs) {
 		n_hits = occs[0];
-		n_hits &= LOWER_ONES_32;
+		n_hits &= LOWER_ONES_24;
 		for (j = 0; j < n_hits; j++) {
 			hit_id = occs[j + 1];
 			read_hash_value(&read_id, &pos, hit_id);
@@ -397,8 +403,8 @@ GPtrArray *kmer_find_reads(const bwa_seq_t *query, const hash_map *hm,
 int next_char_by_kmers(hash_map *hm, uint64_t kmer_int, const int fresh_only,
 		const int ori) {
 	int *counters = count_next_kmers(hm, kmer_int, fresh_only, ori);
-	show_debug_msg(__func__, "Counters: [%d, %d, %d, %d]\n", counters[0],
-			counters[1], counters[2], counters[3]);
+	//show_debug_msg(__func__, "Counters: [%d, %d, %d, %d]\n", counters[0],
+	//		counters[1], counters[2], counters[3]);
 	int max = get_max_index(counters);
 	free(counters);
 	return max;
