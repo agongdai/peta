@@ -328,11 +328,52 @@ uint64_t try_short_tpl_ext(hash_map *hm, uint64_t query, const int ori,
 }
 
 /**
+ * Trim the kmers whose support is only 1.
+ */
+void trim_weak_tails(edge *eg, hash_map *hm, const int ori) {
+	uint64_t query_int = 0;
+	int i = 0, support = 0, kmer_len = hm->o->k, shift = 0;
+	if (ori) {
+		for (i = 0; i <= eg->len - kmer_len; i++) {
+			query_int = get_kmer_int(eg->ctg->seq, i, 1, kmer_len);
+			support = get_kmer_count(query_int, hm, 0);
+			if (support <= 1)
+				shift++;
+			else
+				break;
+		}
+		if (shift > 0) {
+			p_ctg_seq(__func__, eg->ctg);
+			memcpy(eg->ctg->seq, eg->ctg->seq + shift, sizeof(ubyte_t)
+					* (eg->len - shift));
+			eg->ctg->len = eg->len - shift;
+			eg->len = eg->ctg->len;
+			set_rev_com(eg->ctg);
+			p_ctg_seq(__func__, eg->ctg);
+		}
+	} else {
+		p_ctg_seq(__func__, eg->ctg);
+		for (i = eg->len - kmer_len; i >= 0; i--) {
+			query_int = get_kmer_int(eg->ctg->seq, i, 1, kmer_len);
+			support = get_kmer_count(query_int, hm, 0);
+			if (support <= 1) {
+				eg->ctg->len--;
+			} else
+				break;
+		}
+		eg->len = eg->ctg->len;
+		set_rev_com(eg->ctg);
+		p_ctg_seq(__func__, eg->ctg);
+	}
+}
+
+/**
  * For an existing edge, try to assemble the branches
  */
 void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) {
 	int *counters = NULL, weight = 0, c = 0, i = 0, j = 0, con_pos = 0;
-	int kmer_len = hm->o->k, branch_is_valid = 0, max_freq = 0;
+	int kmer_len = hm->o->k, branch_is_valid = 0, max_freq = 0, con_existing =
+			0;
 	uint64_t query_int = 0, branch_query = 0;
 	edge *branch = NULL;
 	if (eg->len <= kmer_len)
@@ -347,7 +388,7 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			c = counters[j];
 			max_freq = next_char_max_freq(hm, query_int, 0, ori);
 
-			/**
+
 			 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
 			 p_query(__func__, debug);
 			 bwa_free_read_seq(1, debug);
@@ -357,10 +398,10 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			 counters[2], counters[3]);
 			 show_debug_msg(__func__, "Counters[]: %d, Max frequency: %d \n",
 			 counters[j], max_freq);
-			 **/
+
 
 			// At the branching point, the frequency should be at least BRANCH_THRE of the max frequency.
-			if (c < MIN_WEIGHT || counters[j] < max_freq * BRANCH_THRE)
+			if (c < MIN_WEIGHT)
 				continue;
 			weight = 0;
 			branch_query = shift_bit(query_int, j, kmer_len, ori);
@@ -369,7 +410,7 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			if (!branch_is_valid || weight < MIN_WEIGHT) {
 				continue;
 			}
-			//show_debug_msg(__func__, "Weight: %d \n", weight);
+			show_debug_msg(__func__, "Weight: %d \n", weight);
 			branch = blank_edge(branch_query, kmer_len, 1, ori);
 
 			con_pos = ori ? i : i + kmer_len;
@@ -379,12 +420,15 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			g_mutex_lock(kmer_id_mutex);
 			all_tpls->insert(make_pair<int, edge*> (branch->id, branch));
 			g_mutex_unlock(kmer_id_mutex);
-			kmer_ext_edge(branch, branch_query, hm, all_tpls, ori);
+			con_existing = kmer_ext_edge(branch, branch_query, hm, all_tpls,
+					ori);
 			cal_coverage(branch, hm);
+			if (!con_existing) {
+				trim_weak_tails(branch, hm, ori);
+			}
 			// If the branch can be merged into main template, erase the branch
-			if (branch->coverage < eg->coverage * BRANCH_THRE
-					|| branch_on_main(eg->ctg, branch->ctg, con_pos,
-							(branch->len / hm->o->k) * 2 + 1, ori)) {
+			if (branch_on_main(eg->ctg, branch->ctg, con_pos, (branch->len
+					/ hm->o->k) * 3 + 1, ori)) {
 				show_debug_msg(__func__, "Branch is not valid: [%d, %d] \n",
 						branch->id, branch->len);
 				// Remove the branch from the global hash table
@@ -417,9 +461,9 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 	free(counters);
 }
 
-void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
+int kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 		tpl_hash *all_tpls, const int ori) {
-	int max_c = 0, *counters = NULL, weight = 0;
+	int max_c = 0, *counters = NULL, weight = 0, con_existing = 0;
 
 	show_debug_msg(__func__, "------ Started extending edge %d to ori %d...\n",
 			eg->id, ori);
@@ -447,13 +491,16 @@ void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 		 p_ctg_seq("Contig", eg->ctg);
 		 if (ori)
 		 seq_reverse(eg->len, eg->ctg->seq, 0);
-		 **/
+		**/
 
 		free(counters);
 		if (max_c == -1) {
 			if (!existing_connect(eg, hm, all_tpls, query_int, ori))
 				show_debug_msg(__func__, "[%d, %d] No hits, stop here. \n",
 						eg->id, eg->len);
+			else {
+				con_existing = 1;
+			}
 			break;
 		}
 		ext_con(eg->ctg, max_c, 0);
@@ -467,6 +514,7 @@ void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 	}
 	if (ori)
 		seq_reverse(eg->len, eg->ctg->seq, 0);
+	return con_existing;
 }
 
 /**
@@ -561,7 +609,7 @@ void kmer_threads(kmer_t_meta *params) {
 	show_msg(__func__, "Extending by kmers...\n");
 	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, params, 1, TRUE,
 			NULL);
-	for (i = 0; i < start_kmers->len; i++) {
+	for (i = 3; i < start_kmers->len; i++) {
 		if (i % 10000 == 0)
 		show_debug_msg(__func__, "Extending %" ID64 "-th kmer... \n ", i);
 		counter = (kmer_counter*) g_ptr_array_index(start_kmers, i);
@@ -569,7 +617,7 @@ void kmer_threads(kmer_t_meta *params) {
 		free(counter);
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		//if (i >= 1000)
-		//break;
+		break;
 	}
 	g_ptr_array_free(start_kmers, TRUE);
 	g_thread_pool_free(thread_pool, 0, 1);

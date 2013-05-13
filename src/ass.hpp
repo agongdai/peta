@@ -49,7 +49,7 @@ extern "C" {
 #endif
 
 	int pe_kmer(int argc, char *argv[]);
-	void kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm, tpl_hash *all_tpls, const int ori);
+	int kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm, tpl_hash *all_tpls, const int ori);
 
 #ifdef __cplusplus
 }
