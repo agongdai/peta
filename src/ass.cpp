@@ -332,38 +332,43 @@ uint64_t try_short_tpl_ext(hash_map *hm, uint64_t query, const int ori,
  */
 void trim_weak_tails(edge *eg, hash_map *hm, const int ori) {
 	uint64_t query_int = 0;
-	int i = 0, support = 0, kmer_len = hm->o->k, shift = 0;
+	int i = 0, support = 0, kmer_len = hm->o->k, shift = 0, sum_sup = 0;
 	if (ori) {
 		for (i = 0; i <= eg->len - kmer_len; i++) {
 			query_int = get_kmer_int(eg->ctg->seq, i, 1, kmer_len);
 			support = get_kmer_count(query_int, hm, 0);
-			if (support <= 1)
+			if (support <= 1) {
 				shift++;
+				sum_sup += support;
+			}
 			else
 				break;
 		}
 		if (shift > 0) {
-			p_ctg_seq(__func__, eg->ctg);
+			//p_ctg_seq(__func__, eg->ctg);
 			memcpy(eg->ctg->seq, eg->ctg->seq + shift, sizeof(ubyte_t)
 					* (eg->len - shift));
 			eg->ctg->len = eg->len - shift;
 			eg->len = eg->ctg->len;
+			eg->kmer_freq -= sum_sup;
 			set_rev_com(eg->ctg);
-			p_ctg_seq(__func__, eg->ctg);
+			//p_ctg_seq(__func__, eg->ctg);
 		}
 	} else {
-		p_ctg_seq(__func__, eg->ctg);
+		//p_ctg_seq(__func__, eg->ctg);
 		for (i = eg->len - kmer_len; i >= 0; i--) {
 			query_int = get_kmer_int(eg->ctg->seq, i, 1, kmer_len);
 			support = get_kmer_count(query_int, hm, 0);
 			if (support <= 1) {
+				sum_sup += support;
 				eg->ctg->len--;
 			} else
 				break;
 		}
+		eg->kmer_freq -= sum_sup;
 		eg->len = eg->ctg->len;
 		set_rev_com(eg->ctg);
-		p_ctg_seq(__func__, eg->ctg);
+		//p_ctg_seq(__func__, eg->ctg);
 	}
 }
 
@@ -388,7 +393,7 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			c = counters[j];
 			max_freq = next_char_max_freq(hm, query_int, 0, ori);
 
-
+			/**
 			 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
 			 p_query(__func__, debug);
 			 bwa_free_read_seq(1, debug);
@@ -398,7 +403,7 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			 counters[2], counters[3]);
 			 show_debug_msg(__func__, "Counters[]: %d, Max frequency: %d \n",
 			 counters[j], max_freq);
-
+			**/
 
 			// At the branching point, the frequency should be at least BRANCH_THRE of the max frequency.
 			if (c < MIN_WEIGHT)
@@ -412,6 +417,7 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			}
 			show_debug_msg(__func__, "Weight: %d \n", weight);
 			branch = blank_edge(branch_query, kmer_len, 1, ori);
+			branch->kmer_freq = get_kmer_count(branch_query, hm, 1);
 
 			con_pos = ori ? i : i + kmer_len;
 			set_tail(branch, eg, con_pos, hm->o->read_len - SHORT_BRANCH_SHIFT,
@@ -428,7 +434,7 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			}
 			// If the branch can be merged into main template, erase the branch
 			if (branch_on_main(eg->ctg, branch->ctg, con_pos, (branch->len
-					/ hm->o->k) * 3 + 1, ori)) {
+					/ hm->o->k + 1) * 3, ori)) {
 				show_debug_msg(__func__, "Branch is not valid: [%d, %d] \n",
 						branch->id, branch->len);
 				// Remove the branch from the global hash table
@@ -437,6 +443,8 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 				g_mutex_unlock(kmer_id_mutex);
 				// Although the branch will be removed, its kmers are marked as used by the main template.
 				branch->id = eg->id;
+				// The kmer frequencies are added to the main tpl now.
+				eg->kmer_freq += branch->kmer_freq;
 				if (ori) {
 					mark_tpl_kmers_used(branch, hm, kmer_len, eg->len
 							- branch->len);
@@ -493,7 +501,6 @@ int kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 		 seq_reverse(eg->len, eg->ctg->seq, 0);
 		**/
 
-		free(counters);
 		if (max_c == -1) {
 			if (!existing_connect(eg, hm, all_tpls, query_int, ori))
 				show_debug_msg(__func__, "[%d, %d] No hits, stop here. \n",
@@ -501,8 +508,11 @@ int kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 			else {
 				con_existing = 1;
 			}
+			free(counters);
 			break;
 		}
+		eg->kmer_freq += counters[max_c];
+		free(counters);
 		ext_con(eg->ctg, max_c, 0);
 		eg->len = eg->ctg->len;
 		// In case the template has repeats, so mark kmers used TEMPERARIALY. The locus is incorrect.
@@ -541,6 +551,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}show_debug_msg(__func__, "============= %" ID64 ": %" ID64 " ============ \n",
 			kmer_int, c);
 	eg = blank_edge(kmer_int, opt->k, opt->k, 0);
+	eg->kmer_freq = get_kmer_count(kmer_int, params->hm, 1);
 	// Insert first, in case it connects to itself during extension
 	g_mutex_lock(kmer_id_mutex);
 	all_tpls->insert(make_pair<int, edge*> (eg->id, eg));
@@ -609,22 +620,22 @@ void kmer_threads(kmer_t_meta *params) {
 	show_msg(__func__, "Extending by kmers...\n");
 	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, params, 1, TRUE,
 			NULL);
-	for (i = 3; i < start_kmers->len; i++) {
+	for (i = 0; i < start_kmers->len; i++) {
 		if (i % 10000 == 0)
 		show_debug_msg(__func__, "Extending %" ID64 "-th kmer... \n ", i);
 		counter = (kmer_counter*) g_ptr_array_index(start_kmers, i);
 		kmer_ext_thread(counter, params);
 		free(counter);
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
-		//if (i >= 1000)
-		break;
+		//if (i >= 100100)
+		//	break;
 	}
 	g_ptr_array_free(start_kmers, TRUE);
 	g_thread_pool_free(thread_pool, 0, 1);
 }
 
 void test_kmer_ext(kmer_t_meta *params) {
-	uint64_t kmer_int = 70364387317792;
+	uint64_t kmer_int = 546747771290904;
 	int round_1_len = 0, round_2_len = 0;
 	edge *eg = new_eg();
 	FILE *contigs = NULL;
@@ -668,6 +679,9 @@ void test_kmer_ext(kmer_t_meta *params) {
 	save_edges(all_edges, contigs, 0, 0, 0);
 	fflush(contigs);
 	fclose(contigs);
+
+	clean_junctions(branching_events);
+	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junctions_by_id);
 	store_junctions(get_output_file("single.junctions", kmer_out),
 			branching_events);
 }
@@ -708,6 +722,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	fclose(contigs);
 
 	clean_junctions(branching_events);
+	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junctions_by_id);
 	store_junctions(get_output_file("paired.junctions", kmer_out),
 			branching_events);
 	//	reset_edge_ids(all_kmer_edges);

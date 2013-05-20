@@ -9,6 +9,8 @@ SEP = '    '
 BLAT = '/home/carl/Projects/blat/blat'
 BLAT_OCC_11 = '/home/carl/Projects/blat/11.ooc'
 
+SPOMBE_GENOME = '/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.fa'
+
 READ_REF_PSL = '/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.psl'
 REF_TO_REF = '/home/carl/Projects/peta/rnaseq/hg19/genome/ref.ref.psl'
 REF = '/home/carl/Projects/peta/rnaseq/hg19/genome/human.ensembl.cdna.fa'
@@ -42,13 +44,43 @@ def draw_all_dots(args):
 		runInShell(cmd)
         
 def visu_all_reads_to_ref(args):
-    txs = FastaFile(REF_SRR097897)
-    for tx_name, seq in txs.seqs.iteritems():
-        print tx_name + '...'
-        cmd = 'py zoom.py rtx %s' % tx_name
-        runInShell(cmd)
-        cmd = 'mv %s.reads.hits ../hits' % tx_name
-        runInShell(cmd)
+    genome = FastaFile(SPOMBE_GENOME)
+    base_in_exon = {}
+    base_in_exon['chr1'] = [0 for _ in range(genome.get_seq_len('chr1'))]
+    base_in_exon['chr2'] = [0 for _ in range(genome.get_seq_len('chr2'))]
+    base_in_exon['chr3'] = [0 for _ in range(genome.get_seq_len('chr3'))]
+    
+    cmd = 'tail -n +6 %s' % args.tx_psl
+    print cmd
+    lines = runInShell(cmd)
+    hit_lines = lines.split('\n')
+    hits = eva.read_psl_hits(hit_lines, 'ref')
+    for chr_index in range(3):
+        chr = 'chr%d' % (chr_index + 1)
+        for h in hits[chr]:
+            for i in range(h.n_blocks):
+                b_start = h.r_block_starts[i]
+                for j in range(h.block_sizes[i]):
+                    base_in_exon[chr][b_start + j] = 1
+    
+    cmd = 'tail -n +6 %s' % args.read_psl
+    print cmd
+    lines = runInShell(cmd)
+    hit_lines = lines.split('\n')
+    read_hits = eva.read_psl_hits(hit_lines, 'query')
+    reads = FastaFile(READ_SRR097897)
+    for read_id in reads.seqs.iterkeys():
+        hits = read_hits[read_id]
+        print 'Read: %s' % read_id
+        print hits
+        pos_in_exon = [0 for _ in range(reads.get_seq_len(read_id))]
+        for h in hits:
+            for i in range(h.n_blocks):
+                b_start = h.q_block_starts[i]
+                for j in range(h.block_sizes[i]):
+                    pos_in_exon[j + b_start] = 1
+        print pos_in_exon
+        break
 
 def sub_read(fasta, query):
     query_read_psl = query + '.psl'
@@ -685,6 +717,22 @@ def oracle(args):
     oracle_set.save_to_disk(os.path.join(args.transcripts, 'oracle'))
     print os.path.join(args.transcripts, 'oracle')
             
+def bedgraph(args):
+    cmd = 'tail -n +6 %s' % args.psl
+    lines = runInShell(cmd)
+    hit_lines = lines.split('\n')
+    for i in range(len(hit_lines) / 10000 + 1):
+        start_index = i*10000
+        end_index = (start_index + 10000)
+        if (start_index + 10000) > len(hit_lines):
+            end_index = len(hit_lines) 
+        hits = eva.read_psl_hits(hit_lines[start_index:end_index], 'ref')
+        for chr, chr_hits in hits.iteritems():
+            for h in chr_hits:
+                for b in range(h.n_blocks):
+                    print '%s\t%d\t%d\t1' % (chr, h.r_block_starts[b], h.r_block_starts[b] + h.block_sizes[b])
+#        break
+                
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -751,8 +799,14 @@ def main():
     parset_dot = subparsers.add_parser('dot', help='Draw all dot files of the annotated transcripts')
     parset_dot.set_defaults(func=draw_all_dots)
     
-    parset_hits = subparsers.add_parser('hit', help='Visualize all read-to-ref alignments')
-    parset_hits.set_defaults(func=visu_all_reads_to_ref)    
+    parset_rtg = subparsers.add_parser('rtg', help='Categorize all read-to-genome alignments')
+    parset_rtg.add_argument('tx_psl', help='PSL of transcript-to-genome alignment')
+    parset_rtg.add_argument('read_psl', help='PSL of read-to-genome alignment')
+    parset_rtg.set_defaults(func=visu_all_reads_to_ref)
+    
+    parset_coverage = subparsers.add_parser('coverage', help='Prepare bedgraph file for PSL hits')
+    parset_coverage.add_argument('psl', help='PSL file')
+    parset_coverage.set_defaults(func=bedgraph)
     
     args = parser.parse_args()
     args.func(args)

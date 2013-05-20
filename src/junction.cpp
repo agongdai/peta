@@ -102,6 +102,12 @@ void upd_tpl_jun_locus(edge *eg, GPtrArray *branching_events,
 	}
 }
 
+gint cmp_junctions_by_id(gpointer a, gpointer b) {
+	junction *c_a = *((junction**) a);
+	junction *c_b = *((junction**) b);
+	return ((c_a->main_tpl->id) - c_b->main_tpl->id);
+}
+
 void store_junctions(char *name, GPtrArray *branching_events) {
 	junction *jun = NULL;
 	uint64_t i = 0;

@@ -40,6 +40,7 @@ struct edge {
 	int32_t comp_id;		// Component id
 	uint64_t start_kmer;	// The starting kmer
 	float coverage;			// Its kmer coverage
+	uint32_t kmer_freq;		// Sum of all kmer frequencies
 };
 
 typedef struct {

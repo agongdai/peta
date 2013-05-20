@@ -482,21 +482,21 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			max = up_left > max ? up_left : max;
 			current_row[j] = max;
 		}
-		//printf("Previous row: \n");
+		printf("Previous row: \n");
 		for (j = 0; j < columns; j++) {
-			//	printf("%d,", previous_row[j]);
+				printf("%d,", previous_row[j]);
 			previous_row[j] = current_row[j];
 			max_score = current_row[j] > max_score ? current_row[j] : max_score;
 		}
-		//printf("\n");
-		//printf("Current row: \n");
-		//for (j = 0; j < columns; j++) {
-		//	printf("%d,", current_row[j]);
-		//}
-		//printf("\n");
-		//printf("Max score: %d \n", max_score);
+		printf("\n");
+		printf("Current row: \n");
+		for (j = 0; j < columns; j++) {
+			printf("%d,", current_row[j]);
+		}
+		printf("\n");
+		printf("Max score: %d \n", max_score);
 		// If the minimal acceptable score is not reachable, stop and return.
-		if ((max_score + (rows - i) * score_mat) < min_acceptable_score) {
+		if ((max_score + (rows - i) * score_mat) <= min_acceptable_score) {
 			free(previous_row);
 			free(current_row);
 			return -1;
@@ -524,6 +524,8 @@ int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
 			+ get_abs(query->len - seq->len) * score_gap;
 	similarity_score = smith_waterman(query, seq, score_mat, score_mis,
 			score_gap, min_acceptable_score);
+	show_debug_msg(__func__, "Score: %d\n", similarity_score);
+	show_debug_msg(__func__, "min_acceptable_score: %d\n", min_acceptable_score);
 	if (similarity_score >= min_acceptable_score)
 		return similarity_score;
 	return 0;
@@ -685,9 +687,12 @@ int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
 	}
 	p_ctg_seq(__func__, sub);
 	p_ctg_seq(__func__, branch);
+	//similar = similar_seqs(sub, branch, mismatches, 1, MATCH_SCORE,
+	//		MISMATCH_SCORE, INDEL_SCORE);
 	similar = seq_ol(sub, branch, branch->len, mismatches);
 	free_read_seq(sub);
-	show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches, similar);
+	show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,
+			similar);
 	return similar;
 }
 

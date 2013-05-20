@@ -26,6 +26,9 @@
 #define LINELEN					50
 #define NO_REPEAT_BASES			4
 #define NO_REPEAT_LEN 			15
+#define	MATCH_SCORE				2
+#define	MISMATCH_SCORE			-1
+#define	INDEL_SCORE				-2
 
 typedef uint64_t index64;
 
