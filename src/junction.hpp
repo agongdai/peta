@@ -9,9 +9,24 @@
 #define JUNCTION_HPP_
 
 #include <glib.h>
-#include "hash.cpp"
+#include <stdint.h>
+#include "hash.hpp"
 #include "bwtaln.h"
 #include "edge.h"
+
+using namespace std;
+typedef struct {
+	edge *main_tpl;
+	edge *branch_tpl;
+	int locus;
+	int weight;
+	uint8_t ori;
+	uint64_t kmer;	// Kmer when branching
+} junction;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 	junction *new_junction(edge *main_tpl, edge *branch_tpl, uint64_t kmer, int locus,
 			int ori, int weight);
@@ -23,5 +38,9 @@
 			const int kmer_len);
 	void store_junctions(char *name, GPtrArray *branching_events);
 	gint cmp_junctions_by_id(gpointer a, gpointer b);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* JUNCTION_HPP_ */

@@ -11,6 +11,7 @@
 #include "main.h"
 #include "ass.hpp"
 #include "kmers.hpp"
+#include "oracle.hpp"
 
 #ifndef PACKAGE_VERSION
 #define PACKAGE_VERSION "0.1"
@@ -42,6 +43,8 @@ int main(int argc, char *argv[]) {
 		return pe_kmer(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "hash") == 0)
 		return build_kmer_hash(argc - 1, argv + 1);
+	else if (strcmp(argv[1], "oracle") == 0)
+		return oracle_set(argc - 1, argv + 1);
 	else {
 		fprintf(stderr, "[main] unrecognized command '%s'\n", argv[1]);
 		return 1;

@@ -21,6 +21,7 @@
 #include "pechar.h"
 #include "utils.h"
 #include "peseq.h"
+#include "junction.hpp"
 
 junction *new_junction(edge *main_tpl, edge *branch_tpl, uint64_t kmer, int locus,
 		int ori, int weight) {

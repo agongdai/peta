@@ -657,7 +657,7 @@ def oracle(args):
         tx_len = len(seq)
         summary, tx_hits = zoom_tx(tx_name, args.transcripts, args.psl, 'ref')
         bin_hit = [0 for _ in range(tx_len)]
-#        tx_hits.sort(key=lambda x: int(x.qname), reverse=False)
+        # tx_hits.sort(key=lambda x: int(x.qname), reverse=False)
         tx_hits_valid = []
         # Filter low quality hits
         for i in range(len(tx_hits)):

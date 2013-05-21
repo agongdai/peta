@@ -39,7 +39,7 @@ extern "C" {
 	void read_tpl_using_kmer(const uint64_t kmer_int, const hash_map *hm,
 			int *tpl_id, int *locus, uint64_t *value);
 	void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm, GPtrArray *hits);
-	GPtrArray *align_seq(const bwa_seq_t *query, const hash_map *hm, const int mismatch);
+	GPtrArray *align_full_seq(const bwa_seq_t *query, const hash_map *hm, const int mismatch);
 
 #ifdef __cplusplus
 }

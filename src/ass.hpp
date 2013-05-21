@@ -27,15 +27,6 @@ typedef struct {
 } kmer_t_meta;
 
 typedef struct {
-	edge *main_tpl;
-	edge *branch_tpl;
-	int locus;
-	int weight;
-	uint8_t ori;
-	uint64_t kmer;	// Kmer when branching
-} junction;
-
-typedef struct {
 	edge *tpl;
 	int locus;
 	int8_t main_c;

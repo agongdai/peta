@@ -198,9 +198,13 @@ int *count_next_kmers(hash_map *hm, uint64_t query, const int fresh_only,
 	return counters;
 }
 
+/**
+ *  query_is_part=1: the query length is shorter than read length
+ *  query_is_part=0: the returned reads should be on the query
+ */
 void parse_hit_ints(const uint64_t *occs, const int query_i,
-		const int query_len, GPtrArray *hits, bwa_seq_t *seqs,
-		const uint8_t ori) {
+		const int query_is_part, const int query_len, GPtrArray *hits,
+		bwa_seq_t *seqs, const uint8_t ori) {
 	int pos = 0;
 	uint64_t j = 0, n_hits = 0, hit_id = 0, read_id = 0;
 	bwa_seq_t *r = NULL;
@@ -217,8 +221,12 @@ void parse_hit_ints(const uint64_t *occs, const int query_i,
 			//            i        kmer
 			// Read:     -----|-----------|---
 			//            pos
+			//p_query(__func__, r);
+			//show_debug_msg(__func__, "query_i: %d; pos: %d; r->len: %d \n",
+			//		query_i, pos, r->len);
 			if (r->pos == -1) { // To avoid adding the same read repeatly.
-				if (query_i - pos >= 0 && (query_i - pos + r->len) <= query_len) {
+				if (query_is_part || (query_i - pos >= 0 && (query_i - pos
+						+ r->len) <= query_len)) {
 					r->pos = query_i - pos;
 					r->rev_com = ori;
 					g_ptr_array_add(hits, r);
@@ -240,10 +248,13 @@ GPtrArray *interset_reads(GPtrArray *list_1, GPtrArray *list_2, GPtrArray *set) 
 		set = g_ptr_array_sized_new(list_1->len);
 	while (index_1 < list_1->len && index_2 < list_2->len) {
 		read_1 = (bwa_seq_t*) g_ptr_array_index(list_1, index_1);
+		//p_query("READ 1", read_1);
 		while (index_2 < list_2->len) {
 			read_2 = (bwa_seq_t*) g_ptr_array_index(list_2, index_2);
+			//p_query("READ 2", read_2);
 			if (read_1 == read_2) {
 				g_ptr_array_add(set, read_1);
+				//show_debug_msg(__func__, "INTERSET\n");
 				index_2++;
 				index_1++;
 				break;
@@ -264,7 +275,8 @@ GPtrArray *interset_reads(GPtrArray *list_1, GPtrArray *list_2, GPtrArray *set) 
 /**
  * Get reads containing some kmer, including forward and reverse
  */
-void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm, GPtrArray *hits) {
+void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm,
+		const int query_is_part, GPtrArray *hits) {
 	uint64_t kmer_int = 0, *occs = NULL;
 	int i = 0;
 	map_opt *opt = hm->o;
@@ -278,7 +290,8 @@ void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm, GPtrArray *hits)
 		if (it != hash->end()) {
 			occs = it->second;
 			//show_debug_msg(__func__, "Kmer count: %" ID64 "\n", occs[0]);
-			parse_hit_ints(occs, i, query->len, hits, hm->seqs, 0);
+			parse_hit_ints(occs, i, query_is_part, query->len, hits, hm->seqs,
+					0);
 		}
 		kmer_int = get_kmer_int(query->rseq, i, 1, opt->k);
 		//show_debug_msg(__func__, "Kmer int: %" ID64 "\n", kmer_int);
@@ -286,7 +299,8 @@ void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm, GPtrArray *hits)
 		if (it != hash->end()) {
 			occs = it->second;
 			//show_debug_msg(__func__, "Kmer count: %" ID64 "\n", occs[0]);
-			parse_hit_ints(occs, i, query->len, hits, hm->seqs, 1);
+			parse_hit_ints(occs, i, query_is_part, query->len, hits, hm->seqs,
+					1);
 		}
 	}
 }
@@ -294,8 +308,10 @@ void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm, GPtrArray *hits)
 /**
  * Get reads with both head and tail kmers, query length is the same as read length
  */
-GPtrArray *head_tail_kmer_reads(const bwa_seq_t *query, const hash_map *hm, GPtrArray *hits) {
-	bwa_seq_t *kmer_seq = NULL;
+GPtrArray *head_tail_kmer_reads(const bwa_seq_t *query, const hash_map *hm,
+		GPtrArray *hits) {
+	bwa_seq_t *kmer_seq = NULL, *read = NULL;
+	uint32_t i = 0;
 	if (query->len <= hm->o->k)
 		return NULL;
 	GPtrArray *head_hits = g_ptr_array_sized_new(0);
@@ -304,14 +320,20 @@ GPtrArray *head_tail_kmer_reads(const bwa_seq_t *query, const hash_map *hm, GPtr
 		hits = g_ptr_array_sized_new(32);
 
 	kmer_seq = new_seq(query, hm->o->k, 0);
-	kmer_aln_query(kmer_seq, hm, head_hits);
+	kmer_aln_query(kmer_seq, hm, 1, head_hits);
 	bwa_free_read_seq(1, kmer_seq);
-	//p_readarray(head_hits, 1);
+	for (i = 0; i < head_hits->len; i++) {
+		read = (bwa_seq_t*) g_ptr_array_index(head_hits, i);
+		read->pos = -1;
+	}
 
 	kmer_seq = new_seq(query, hm->o->k, query->len - hm->o->k);
-	kmer_aln_query(kmer_seq, hm, tail_hits);
+	kmer_aln_query(kmer_seq, hm, 1, tail_hits);
+	for (i = 0; i < tail_hits->len; i++) {
+		read = (bwa_seq_t*) g_ptr_array_index(tail_hits, i);
+		read->pos = -1;
+	}
 	bwa_free_read_seq(1, kmer_seq);
-	//p_readarray(tail_hits, 1);
 
 	interset_reads(head_hits, tail_hits, hits);
 	g_ptr_array_free(head_hits, TRUE);
@@ -323,31 +345,29 @@ GPtrArray *head_tail_kmer_reads(const bwa_seq_t *query, const hash_map *hm, GPtr
  * Align all reads to the 'seq' with 'mismatch'
  * The length of 'seq' should be longer than read length
  */
-GPtrArray *align_seq(const bwa_seq_t *query, const hash_map *hm, const int mismatch) {
+GPtrArray *align_full_seq(const bwa_seq_t *query, const hash_map *hm,
+		const int mismatch) {
 	GPtrArray *hits = g_ptr_array_sized_new(32);
-	uint32_t i = 0;
+	uint32_t i = 0, j = 0;
 	bwa_seq_t *read = NULL, *part = NULL;
 	if (query->len < hm->o->read_len)
 		return g_ptr_array_sized_new(0);
 	for (i = 0; i <= query->len - hm->o->read_len; i++) {
 		part = new_seq(query, hm->o->read_len, i);
-		hits = head_tail_kmer_reads(query, hm, hits);
-		bwa_free_read_seq(1, part);
-	}
-	for (i = 0; i < hits->len; i++) {
-		read = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		part = new_seq(query, read->len, read->pos);
-		if (read->rev_com)
-			switch_fr(part);
-		if (!seq_ol(read, part, read->len, mismatch)) {
-			read->pos = -1;
-			g_ptr_array_remove_index_fast(hits, i--);
+		head_tail_kmer_reads(query, hm, hits);
+		//p_readarray(hits, 1);
+		for (j = 0; j < hits->len; j++) {
+			read = (bwa_seq_t*) g_ptr_array_index(hits, j);
+			if (read->rev_com)
+				switch_fr(part);
+			if (!seq_ol(read, part, read->len, mismatch)) {
+				read->pos = -1;
+				g_ptr_array_remove_index_fast(hits, j--);
+			}
+			if (read->rev_com)
+				switch_fr(part);
 		}
 		bwa_free_read_seq(1, part);
-	}
-	for (i = 0; i < hits->len; i++) {
-		read = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		read->pos = -1;
 	}
 	return hits;
 }
@@ -364,7 +384,7 @@ GPtrArray *kmer_find_reads(const bwa_seq_t *query, const hash_map *hm,
 	hits = g_ptr_array_sized_new(64);
 	if (n_part_only)
 		part_hits = g_ptr_array_sized_new(n_part_only);
-	kmer_aln_query(query, hm, hits);
+	kmer_aln_query(query, hm, 0, hits);
 	for (i = 0; i < hits->len; i++) {
 		read = (bwa_seq_t*) g_ptr_array_index(hits, i);
 		part = new_seq(query, read->len, read->pos);

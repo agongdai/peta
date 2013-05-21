@@ -4,8 +4,8 @@ CXX=		g++
 CFLAGS=		-ggdb -g -Wall -O2 $(shell pkg-config --libs gthread-2.0 --cflags glib-2.0)
 CXXFLAGS=	-std=c++0x $(CFLAGS)
 DFLAGS=		-DHAVE_PTHREAD #-D_FILE_OFFSET_BITS=64
-OBJS=		utils.o edge.o rnaseq.o \
-			bwtaln.o hash.o \
+OBJS=		utils.o edge.o rnaseq.o oracle.o \
+			bwtaln.o hash.o junction.o \
 			pechar.o peseq.o \
 			bwaseqio.o kmers.o ass.o \
 			kstring.o 

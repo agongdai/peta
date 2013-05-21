@@ -17,11 +17,11 @@
 #include "edge.h"
 #include "kmers.hpp"
 #include "ass.hpp"
+#include "junction.hpp"
 #include "rnaseq.h"
 #include "pechar.h"
 #include "utils.h"
 #include "peseq.h"
-#include "junction.cpp"
 
 using namespace std;
 
