@@ -642,28 +642,6 @@ def check_solid(args):
             r = result.split('\n')
             for read in r:
                 print read.strip()
-
-def raw_oracle(args):
-    anno_tx = FastaFile(args.transcripts)
-    oracle_set = FastaFile()
-    tx_with_hits = {}
-    line_no = 0
-    with open(args.psl) as psl:
-        for line in psl:
-            line_no += 1
-            if line_no <= 5:
-                continue
-            if line_no % 1000000 == 0:
-                print '%d line processed; %d distinct transcripts...' % (line_no, len(tx_with_hits))
-            fields = line.split('\t')
-            tx_name = fields[13]
-            if tx_name in tx_with_hits:
-                tx_with_hits[tx_name] += 1
-            else:
-                tx_with_hits[tx_name] = 0
-                oracle_set.seqs[tx_name] = anno_tx.seqs[tx_name]
-    oracle_set.save_to_disk('%s.oracle' % args.transcripts)
-    print '%s.oracle' % args.transcripts
                 
 def oracle(args):
     anno_tx = FastaFile(args.transcripts)
@@ -673,30 +651,28 @@ def oracle(args):
         lines = runInShell('grep ' + tx_name + ' ' + args.psl)
         lines = lines.strip()
         if lines == '':
-            print 'No hit'
-            continue
-        else:
-            print 'Has %d hits' % (len(lines.split('\n')))
-            oracle_set.seqs[tx_name] = seq
+            print '===== %s is not expressed =====' % tx_name
             continue
         
         tx_len = len(seq)
-        summary, tx_hits = zoom_tx(tx_name, args.transcripts, args.psl, 'read')
-        bin_hit = [0 for x in range(tx_len)]
-        tx_hits.sort(key=lambda x: int(x.qname), reverse=False)
+        summary, tx_hits = zoom_tx(tx_name, args.transcripts, args.psl, 'ref')
+        bin_hit = [0 for _ in range(tx_len)]
+#        tx_hits.sort(key=lambda x: int(x.qname), reverse=False)
         tx_hits_valid = []
         # Filter low quality hits
-        for i in range(len(tx_hits) - 1):
+        for i in range(len(tx_hits)):
             h = tx_hits[i]
-            h_next = tx_hits[i+1]
-            # Count only the pairs
-            if int(h_next.qname) - int(h.qname) == 1:
-                if h.n_match < h.qlen - 2 and h.rstart > h.qlen and h.rend < tx_len - h.qlen:
-                    continue 
-                if h_next.n_match < h_next.qlen - 2 and h_next.rstart > h_next.qlen and h_next.rend < tx_len - h_next.qlen:
-                    continue 
+            if h.rstart <= 1:
+                if h.rend - h.rstart - h.n_match <= 1:
+                    tx_hits_valid.append(h)
+                continue
+            if h.rend >= h.qlen - 1:
+                if h.rend - h.rstart - h.n_match <= 1:
+                    tx_hits_valid.append(h)
+                continue
+            # If more than 1 mismatches, ignore
+            if h.n_match >= h.qlen - 1:
                 tx_hits_valid.append(h)
-                tx_hits_valid.append(h_next)
         # Set the bases hit
         for i in range(len(tx_hits_valid) - 1):
             h = tx_hits_valid[i]
@@ -710,12 +686,12 @@ def oracle(args):
                 print 'Not covered base: %d' % i
             hit_bases += b
         print '%s Hit bases: %d/%d' % (tx_name, hit_bases, tx_len)
-        if tx_len * 0.98 <= hit_bases and hit_bases < 100:
+        if hit_bases >= tx_len - 10:
             oracle_set.seqs[tx_name] = seq
         else:
             print '===== %s is not expressed =====' % tx_name
-    oracle_set.save_to_disk(os.path.join(args.transcripts, 'oracle'))
-    print os.path.join(args.transcripts, 'oracle')
+    oracle_set.save_to_disk('oracle.fa')
+    print 'Check file oracle.fa'
             
 def bedgraph(args):
     cmd = 'tail -n +6 %s' % args.psl
@@ -779,10 +755,9 @@ def main():
     parset_cov.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR027876, metavar='FILE', help='psl file', dest='psl')
     
     parset_oracle = subparsers.add_parser('oracle', help='check the transcripts expressed')
-    parset_oracle.set_defaults(func=raw_oracle)
-    parset_oracle.add_argument('reads', help='raw RNA-seq reads')
+    parset_oracle.set_defaults(func=oracle)
     parset_oracle.add_argument('transcripts', help='annotated transcripts')
-    parset_oracle.add_argument('-p', '--psl', required=False, default=READ_REF_PSL_SRR027876, metavar='FILE', help='psl file', dest='psl')    
+    parset_oracle.add_argument('psl', help='read-to-transcript PSL file')    
     
     parset_zoom = subparsers.add_parser('zoom', help='Check the hits within some region of a transcript')
     parset_zoom.set_defaults(func=zoom_region)
