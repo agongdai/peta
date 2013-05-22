@@ -312,32 +312,24 @@ GPtrArray *head_tail_kmer_reads(const bwa_seq_t *query, const hash_map *hm,
 		GPtrArray *hits) {
 	bwa_seq_t *kmer_seq = NULL, *read = NULL;
 	uint32_t i = 0;
-	if (query->len <= hm->o->k)
-		return NULL;
-	GPtrArray *head_hits = g_ptr_array_sized_new(0);
-	GPtrArray *tail_hits = g_ptr_array_sized_new(0);
 	if (!hits)
 		hits = g_ptr_array_sized_new(32);
+	if (query->len <= hm->o->k)
+		return hits;
 
 	kmer_seq = new_seq(query, hm->o->k, 0);
-	kmer_aln_query(kmer_seq, hm, 1, head_hits);
+	kmer_aln_query(kmer_seq, hm, 1, hits);
 	bwa_free_read_seq(1, kmer_seq);
-	for (i = 0; i < head_hits->len; i++) {
-		read = (bwa_seq_t*) g_ptr_array_index(head_hits, i);
-		read->pos = -1;
-	}
 
 	kmer_seq = new_seq(query, hm->o->k, query->len - hm->o->k);
-	kmer_aln_query(kmer_seq, hm, 1, tail_hits);
-	for (i = 0; i < tail_hits->len; i++) {
-		read = (bwa_seq_t*) g_ptr_array_index(tail_hits, i);
-		read->pos = -1;
-	}
+	kmer_aln_query(kmer_seq, hm, 1, hits);
 	bwa_free_read_seq(1, kmer_seq);
 
-	interset_reads(head_hits, tail_hits, hits);
-	g_ptr_array_free(head_hits, TRUE);
-	g_ptr_array_free(tail_hits, TRUE);
+	for (i = 0; i < hits->len; i++) {
+		read = (bwa_seq_t*) g_ptr_array_index(hits, i);
+		read->pos = -1;
+	}
+
 	return hits;
 }
 
