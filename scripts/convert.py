@@ -1,7 +1,7 @@
 from zoom import *
 
 def psl2gene(psl):
-    cmd = r"""tail -n +6 %s | awk -F "\t" 'BEGIN {{ OFS="\t"; }} {{ print $10, $14, $9, $16, $17, $16, $17, $18, $21, $19;}}'""" % (psl)
+    cmd = r"""tail -n +6 %s | awk -F "\t" 'BEGIN {{ OFS="\t"; }} {{ if ($5 == 0) print $10, $14, $9, $16, $17, $16, $17, $18, $21, $19;}}'""" % (psl)
     print cmd
     lines = runInShell(cmd)
     gene_lines = lines.split('\n')
@@ -24,7 +24,7 @@ def psl2gene(psl):
                 sz = int(sizes[i])
                 ends += str(s + sz) + ','
             ends = ends[:-1]
-            ends += ('\t' + fields[0]) * 9
+            ends += ('\t' + fields[0]) * 2
             genes.write(ends + '\n')
     print 'Check file %s.gene' % psl
     
@@ -38,7 +38,23 @@ def fasta2chrs(fasta):
                 chr = line[1:-1]
                 out = open(chr, 'w')
             out.write(line)
+
+def count_not_align(psl):
+    reads_have_hits = {}
+    transcripts = {}
+    with open(psl) as f:
+        line_no = 0
+        for line in f:
+            line_no += 1
+            if line_no <= 5:
+                continue
+            fields = line.split('\t')
+            transcripts[fields[13]] = 1
+            reads_have_hits[fields[9]] = 1
+    print 'Reads having hits on %d transcripts: %d' % (len(transcripts), len(reads_have_hits))            
     
 #psl2gene('/home/carl/Projects/peta/rnaseq/Spombe/genome/tx.rev.genome.psl')
 #psl2gene('/home/carl/Projects/peta_dev/scripts/spombe_630.genome.psl')
-#psl2gene('/home/carl/Projects/peta_dev/SRR097897_out/Trinity.630.genome.psl')
+#psl2gene('/home/carl/Projects/peta/rnaseq/Spombe/genome/tx.630.oracle.genome.psl')
+
+count_not_align('/home/carl/Projects/peta/rnaseq/Spombe/630.tx.rev.psl')

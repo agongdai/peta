@@ -31,7 +31,7 @@
 #include "oracle.hpp"
 
 float tx_is_expressed(bwa_seq_t *transcript, hash_map *hm) {
-	int i = 0, j = 0, n_blank = 0, n_ctu_blank = 0;
+	uint64_t i = 0, n_blank = 0, n_ctu_blank = 0;
 	bwa_seq_t *part = NULL;
 	GPtrArray *hits = NULL;
 	float rpkm = 0;
@@ -50,12 +50,15 @@ float tx_is_expressed(bwa_seq_t *transcript, hash_map *hm) {
 		}
 		g_ptr_array_free(hits, TRUE);
 		if (n_ctu_blank >= hm->o->read_len * 2 - 5) {
-			show_debug_msg(__func__, "Transcript %s is not expressed! \n", transcript->name);
+			show_debug_msg(__func__, "Transcript %s is not expressed! \n",
+					transcript->name);
 			return -1;
 		}
 	}
-	show_debug_msg(__func__, "n_reads: %f; total reads: %d; tx len: %d\n", n_reads, hm->n_reads, transcript->len);
-	rpkm = (float) (pow(10, 9) * n_reads) / ((float) (hm->n_reads * transcript->len));
+	show_debug_msg(__func__, "n_reads: %f; total reads: %d; tx len: %d\n",
+			n_reads, hm->n_reads, transcript->len);
+	rpkm = (float) (pow(10, 9) * n_reads) / ((float) (hm->n_reads
+			* transcript->len));
 	show_debug_msg(__func__, "Transcript %s is expressed! \n", transcript->name);
 	return rpkm;
 }
@@ -83,11 +86,89 @@ int oracle_set(int argc, char *argv[]) {
 		tx = &transcripts[i];
 		rpkm = tx_is_expressed(tx, hm);
 		p_query(__func__, tx);
-		if(rpkm > 0) {
-			sprintf(header, ">%s rpkm:%.2f length:%d\n", tx->name, rpkm, tx->len);
+		if (rpkm > 0) {
+			sprintf(header, ">%s rpkm:%.2f length:%d\n", tx->name, rpkm,
+					tx->len);
 			save_con(header, tx, oracle_file);
 		}
 	}
 	fclose(oracle_file);
+	return 0;
+}
+
+/**
+ * Read in the exons in txt format: chr  start  end  weight
+ */
+GPtrArray *read_regions(char *fn) {
+	FILE *exon_f = xopen(fn, "r");
+	region *r = NULL;
+	char buf[BUFSIZ];
+	int i = 0;
+	GPtrArray *exons = g_ptr_array_sized_new(BUFSIZ);
+	char *attr[64];
+	while (fgets(buf, sizeof(buf), exon_f)) {
+		attr[0] = strtok(buf, "\t");
+		while (attr[i] != NULL) {
+			attr[++i] = strtok(NULL, "\t");
+		}
+		r = (region*) malloc(sizeof(region));
+		r->chr = strdup(attr[0]);
+		r->start = atoi(attr[1]);
+		r->end = atoi(attr[2]);
+		r->weight = atof(attr[3]);
+		g_ptr_array_add(exons, r);
+		i = 0;
+	}
+	fclose(exon_f);
+	return exons;
+}
+
+void save_exons(GPtrArray *exons, char *fn) {
+	FILE *fp = xopen(fn, "w");
+	region *e = NULL;
+	uint32_t i = 0;
+	char line[BUFSIZ];
+	for (i = 0; i < exons->len; i++) {
+		e = (region*) g_ptr_array_index(exons, i);
+		sprintf(line, "%s\t%d\t%d\t%.2f", e->chr, e->start, e->end, e->weight);
+		fputs(line, fp);
+	}
+	fclose(fp);
+}
+
+void save_splicings(GPtrArray *splicings, char *fn) {
+	FILE *fp = xopen(fn, "w");
+	splicing *s = NULL;
+	uint32_t i = 0;
+	char line[BUFSIZ];
+	for (i = 0; i < splicings->len; i++) {
+		s = (splicing*) g_ptr_array_index(splicings, i);
+		sprintf(line, "%s\t%d\t%d\t%.2f", s->chr, s->left->end, s->right->start, s->weight);
+		fputs(line, fp);
+	}
+	fclose(fp);
+}
+
+int genome_splicings(int argc, char *argv[]) {
+	int c;
+	uint64_t kmer_int = 0;
+	bwa_seq_t *chromosomes = NULL;
+	uint32_t n_chr = 0, i = 0, j = 0;
+	mer_hash map;
+	hash_map *hm = NULL;
+	GPtrArray *exons = NULL;
+	region *r = NULL;
+	while ((c = getopt(argc, argv, "")) >= 0) {
+	}
+	if (optind + 2 > argc) {
+		return 1;
+	}
+	chromosomes = load_reads(argv[optind], &n_chr);
+	exons = read_regions(argv[optind + 1]);
+//	hm = load_hash_map(argv[optind + 2], 0, map);
+	for (i = 0; i < exons->len; i++) {
+		r = (region*) g_ptr_array_index(exons, i);
+		show_debug_msg(__func__, "%s\t%d\t%d\t%.2f\n", r->chr, r->start, r->end, r->weight);
+	}
 	return 0;
 }

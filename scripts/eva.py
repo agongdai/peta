@@ -225,7 +225,7 @@ class BlastHit(object):
 		repr += '] ['
 		for s in self.q_block_starts:
 			repr += str(s) + ','
-		repr += ']\t Ref %s:\t [' % self.rname
+		repr += ']\t Ref %s: %d->%d\t [' % (self.rname, self.rstart, self.rend)
 		for s in self.r_block_starts:
 			repr += str(s) + ','
 		repr += ']\t'
@@ -427,6 +427,38 @@ def stat(args):
 	report.close()
 	print 'Done. Check report file %s/report.txt' % args.out_dir
 
+def read_psl_line(line):
+	f = line.split('\t')
+	hit = BlastHit(f[9], line)
+	hit.n_match = int(f[0])
+	hit.n_mismatch = int(f[1])
+	hit.n_rep_match = int(f[2])
+	hit.n_count = int(f[3])
+	hit.n_query_gap = int(f[4])
+	hit.n_query_gap_bases = int(f[5])
+	hit.n_ref_gap = int(f[6])
+	hit.n_ref_gap_bases = int(f[7])
+	hit.strand = f[8]
+	hit.qlen = int(f[10])
+	hit.qstart = int(f[11])
+	hit.qend = int(f[12])
+	hit.rname = f[13]
+	hit.rlen = int(f[14])
+	hit.rstart = int(f[15])
+	hit.rend = int(f[16])
+	hit.n_blocks = int(f[17])
+	f[18] = f[18][0:-1]
+	hit.block_sizes = f[18].split(',')
+	hit.block_sizes = [int(s) for s in hit.block_sizes]
+	f[19] = f[19][0:-1]
+	hit.q_block_starts = f[19].split(',')
+	hit.q_block_starts = [int(s) for s in hit.q_block_starts]
+	f[20] = f[20][0:-1]
+	hit.r_block_starts = f[20].split(',')
+	hit.r_block_starts = [int(s) for s in hit.r_block_starts]
+	hit.set_similarity()
+	return hit
+
 def read_psl_hits(hit_lines, key):
 	hits = {}
 	qname = ''
@@ -450,35 +482,7 @@ def read_psl_hits(hit_lines, key):
 					continue
 			if not reading_hits:
 				continue
-			f = line.split('\t')
-			hit = BlastHit(f[9], line)
-			hit.n_match = int(f[0])
-			hit.n_mismatch = int(f[1])
-			hit.n_rep_match = int(f[2])
-			hit.n_count = int(f[3])
-			hit.n_query_gap = int(f[4])
-			hit.n_query_gap_bases = int(f[5])
-			hit.n_ref_gap = int(f[6])
-			hit.n_ref_gap_bases = int(f[7])
-			hit.strand = f[8]
-			hit.qlen = int(f[10])
-			hit.qstart = int(f[11])
-			hit.qend = int(f[12])
-			hit.rname = f[13]
-			hit.rlen = int(f[14])
-			hit.rstart = int(f[15])
-			hit.rend = int(f[16])
-			hit.n_blocks = int(f[17])
-			f[18] = f[18][0:-1]
-			hit.block_sizes = f[18].split(',')
-			hit.block_sizes = [int(s) for s in hit.block_sizes]
-			f[19] = f[19][0:-1]
-			hit.q_block_starts = f[19].split(',')
-			hit.q_block_starts = [int(s) for s in hit.q_block_starts]
-			f[20] = f[20][0:-1]
-			hit.r_block_starts = f[20].split(',')
-			hit.r_block_starts = [int(s) for s in hit.r_block_starts]
-			hit.set_similarity()
+			hit = read_psl_line(line)
 			if key == 'query':
 				if not hit.qname in hits:
 					hits[hit.qname] = []

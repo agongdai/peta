@@ -13,11 +13,27 @@
 
 using namespace std;
 
+// This is some region on the chromosome
+typedef struct {
+	char *chr;
+	int start;
+	int end;
+	float weight;
+} region;
+
+typedef struct {
+	char *chr;
+	region *left;
+	region *right;
+	float weight;
+} splicing;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 	int oracle_set(int argc, char *argv[]);
+	int genome_splicings(int argc, char *argv[]);
 
 #ifdef __cplusplus
 }
