@@ -10,12 +10,16 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include "bwtaln.h"
+
+#define				EXON_OVERLAP	11
 
 using namespace std;
 
 // This is some region on the chromosome
 typedef struct {
 	char *chr;
+	bwa_seq_t *ctg;
 	int start;
 	int end;
 	float weight;

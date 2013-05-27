@@ -99,14 +99,16 @@ int oracle_set(int argc, char *argv[]) {
 /**
  * Read in the exons in txt format: chr  start  end  weight
  */
-GPtrArray *read_regions(char *fn) {
+GPtrArray *read_regions(char *fn, bwa_seq_t *chrs, const int n_chr) {
 	FILE *exon_f = xopen(fn, "r");
 	region *r = NULL;
+	bwa_seq_t *chr = NULL;
 	char buf[BUFSIZ];
 	int i = 0;
 	GPtrArray *exons = g_ptr_array_sized_new(BUFSIZ);
 	char *attr[64];
 	while (fgets(buf, sizeof(buf), exon_f)) {
+		i = 0;
 		attr[0] = strtok(buf, "\t");
 		while (attr[i] != NULL) {
 			attr[++i] = strtok(NULL, "\t");
@@ -115,9 +117,14 @@ GPtrArray *read_regions(char *fn) {
 		r->chr = strdup(attr[0]);
 		r->start = atoi(attr[1]);
 		r->end = atoi(attr[2]);
+		for (i = 0; i < n_chr; i++) {
+			chr = &chrs[i];
+			if (strcmp(chr->name, r->chr) == 0) {
+				r->ctg = new_seq(chr, r->end - r->start, r->start);
+			}
+		}
 		r->weight = atof(attr[3]);
 		g_ptr_array_add(exons, r);
-		i = 0;
 	}
 	fclose(exon_f);
 	return exons;
@@ -143,18 +150,37 @@ void save_splicings(GPtrArray *splicings, char *fn) {
 	char line[BUFSIZ];
 	for (i = 0; i < splicings->len; i++) {
 		s = (splicing*) g_ptr_array_index(splicings, i);
-		sprintf(line, "%s\t%d\t%d\t%.2f", s->chr, s->left->end, s->right->start, s->weight);
+		sprintf(line, "%s\t%d\t%s\t%d\t%.2f", s->left->chr, s->left->end,
+				s->right->start, s->weight);
 		fputs(line, fp);
 	}
 	fclose(fp);
 }
 
+gint cmp_exons_by_chr(gpointer a, gpointer b) {
+	region *r_a = *((region**) a);
+	region *r_b = *((region**) b);
+	return strcmp(r_a->chr, r_b->chr);
+}
+
+GPtrArray *determine_splicing(mer_hash *hash, hash_map *hm, GPtrArray *exons) {
+	region *r = NULL;
+	uint32_t i = 0;
+	uint64_t query = 0;
+	GPtrArray *splicings = g_ptr_array_sized_new(BUFSIZ);
+	splicing *s = NULL;
+	g_ptr_array_sort(exons, (GCompareFunc) cmp_exons_by_chr);
+
+
+
+	return splicings;
+}
+
 int genome_splicings(int argc, char *argv[]) {
 	int c;
-	uint64_t kmer_int = 0;
 	bwa_seq_t *chromosomes = NULL;
-	uint32_t n_chr = 0, i = 0, j = 0;
-	mer_hash map;
+	uint32_t n_chr = 0, i = 0;
+	mer_hash hash, map;
 	hash_map *hm = NULL;
 	GPtrArray *exons = NULL;
 	region *r = NULL;
@@ -164,11 +190,15 @@ int genome_splicings(int argc, char *argv[]) {
 		return 1;
 	}
 	chromosomes = load_reads(argv[optind], &n_chr);
-	exons = read_regions(argv[optind + 1]);
-//	hm = load_hash_map(argv[optind + 2], 0, map);
+	exons = read_regions(argv[optind + 1], chromosomes, n_chr);
+	hm = load_hash_map(argv[optind + 1], 1, map);
+	build_tpl_hash(hash, exons, EXON_OVERLAP);
+	bwa_free_read_seq(n_chr, chromosomes);
+	determine_splicing(&hash, hm, exons);
 	for (i = 0; i < exons->len; i++) {
 		r = (region*) g_ptr_array_index(exons, i);
-		show_debug_msg(__func__, "%s\t%d\t%d\t%.2f\n", r->chr, r->start, r->end, r->weight);
+		show_debug_msg(__func__, "%s\t%d\t%d\t%.2f\n", r->chr, r->start,
+				r->end, r->weight);
 	}
 	return 0;
 }

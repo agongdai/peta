@@ -16,6 +16,7 @@
 #include "hash.hpp"
 #include "utils.h"
 #include "rnaseq.h"
+#include "edge.h"
 
 uint64_t get_kmer_int(const ubyte_t *seq, const int start,
 		const int interleaving, const int len) {
@@ -167,6 +168,49 @@ void build_kmers_hash(const char *fa_fn, const int k, const int with_reads) {
 	}
 	show_msg(__func__, "%d reads hashed: %.2f sec\n", n_reads, (float) (clock()
 			- t) / CLOCKS_PER_SEC);
+}
+
+void build_tpl_hash(mer_hash& hash, GPtrArray *tpls, const int k) {
+	uint32_t i = 0, j = 0, start = 0, end = 0;
+	uint64_t kmer = 0, *kmer_freq = NULL;
+	edge *eg = NULL;
+	mer_counter counter;
+	for (i = 0; i < tpls->len; i++) {
+		eg = (edge*)g_ptr_array_index(tpls, i);
+		if (eg->len < k)
+			continue;
+		end = eg->len > 2 * k ? k : (eg->len - k);
+		for (j = 0; j < end; j++) {
+			kmer = get_kmer_int(eg->ctg->seq, j, 1, k);
+			counter[kmer]++;
+		}
+		start = eg->len > 2 * k ? (eg->len - 2 * k) : 0;
+		for (j = start; j < eg->len - k; j++) {
+			kmer = get_kmer_int(eg->ctg->seq, j, 1, k);
+			counter[kmer]++;
+		}
+	}
+	for (mer_counter::iterator it = counter.begin(); it != counter.end(); ++it) {
+		kmer_freq = (uint64_t*) calloc(it->second + 1, sizeof(uint64_t));
+		hash[it->first] = kmer_freq;
+	}
+	for (i = 0; i < tpls->len; i++) {
+		eg = (edge*)g_ptr_array_index(tpls, i);
+		if (eg->len < k)
+			continue;
+		end = eg->len > 2 * k ? k : (eg->len - k);
+		for (j = 0; j < end; j++) {
+			kmer = get_kmer_int(eg->ctg->seq, j, 1, k);
+			kmer_freq = hash[kmer];
+			kmer_freq[++kmer_freq[0]] = get_hash_value(eg->id, j);
+		}
+		start = eg->len > 2 * k ? (eg->len - 2 * k) : 0;
+		for (j = start; j < eg->len - k; j++) {
+			kmer = get_kmer_int(eg->ctg->seq, j, 1, k);
+			kmer_freq = hash[kmer];
+			kmer_freq[++kmer_freq[0]] = get_hash_value(eg->id, j);
+		}
+	}
 }
 
 hash_map *load_hash_map(const char *fa_fn, const int with_reads,

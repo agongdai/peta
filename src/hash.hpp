@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <stdint.h>
 #include <inttypes.h>
+#include <glib.h>
 #include "bwtaln.h"
 #include "utils.h"
 
@@ -60,6 +61,7 @@ extern "C" {
 	void read_hash_value(index64 *seq_id, int *pos_start, hash_value value);
 	void destroy_hm(hash_map *hm);
 	void build_kmers_hash(const char *fa_fn, const int k, const int with_reads);
+	void build_tpl_hash(mer_hash& hash, GPtrArray *tpls, const int k);
 	hash_map *load_hash_map(const char *fa_fn, const int with_reads, mer_hash& kmers);
 	void test_kmer_hash(const char *fa_fn);
 	int build_kmer_hash(int argc, char *argv[]);

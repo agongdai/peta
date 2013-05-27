@@ -135,10 +135,9 @@ int kmer_is_used(const uint64_t kmer_int, hash_map *hm) {
 /**
  * Read the teamplate id and locus using some kmer
  */
-void read_tpl_using_kmer(const uint64_t kmer_int, const hash_map *hm,
+void read_tpl_using_kmer(const uint64_t kmer_int, mer_hash *hash,
 		int *tpl_id, int *locus, uint64_t *value) {
 	uint64_t *freq = NULL, count = 0, count_copy = 0;
-	mer_hash *hash = hm->hash;
 	mer_hash::iterator it = hash->find(kmer_int);
 	if (it != hash->end()) {
 		freq = it->second;

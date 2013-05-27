@@ -225,7 +225,7 @@ class BlastHit(object):
 		repr += '] ['
 		for s in self.q_block_starts:
 			repr += str(s) + ','
-		repr += ']\t Ref %s: %d->%d\t [' % (self.rname, self.rstart, self.rend)
+		repr += ']\t Ref [%s, %d]: %d->%d\t [' % (self.rname, self.rlen, self.rstart, self.rend)
 		for s in self.r_block_starts:
 			repr += str(s) + ','
 		repr += ']\t'

@@ -192,7 +192,7 @@ edge *get_right_con_tpl(hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 
 	next_c = next_char_by_kmers(hm, query_int, 0, ori);
 	query_int = shift_bit(query_int, next_c, hm->o->k, ori);
-	read_tpl_using_kmer(query_int, hm, &eg_id, locus, &value);
+	read_tpl_using_kmer(query_int, hm->hash, &eg_id, locus, &value);
 
 	tpl_hash::iterator it = all_tpls->find(eg_id);
 	if (it != all_tpls->end()) {
@@ -278,7 +278,7 @@ int existing_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
 		if (counters[i] < MIN_WEIGHT)
 			continue;
 		query_int = shift_bit(query_copy, i, hm->o->k, ori);
-		read_tpl_using_kmer(query_int, hm, &eg_id, &locus, &value);
+		read_tpl_using_kmer(query_int, hm->hash, &eg_id, &locus, &value);
 
 		tpl_hash::iterator it = all_tpls->find(eg_id);
 		if (it != all_tpls->end()) {
