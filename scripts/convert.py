@@ -56,5 +56,7 @@ def count_not_align(psl):
 #psl2gene('/home/carl/Projects/peta/rnaseq/Spombe/genome/tx.rev.genome.psl')
 #psl2gene('/home/carl/Projects/peta_dev/scripts/spombe_630.genome.psl')
 #psl2gene('/home/carl/Projects/peta/rnaseq/Spombe/genome/tx.630.oracle.genome.psl')
+#psl2gene('/home/carl/Projects/peta_dev/spombe_630/paired.630.oracle.psl')
+psl2gene('/home/carl/Projects/peta_dev/SRR097897_out/paired.genome.psl')
 
-count_not_align('/home/carl/Projects/peta/rnaseq/Spombe/630.tx.rev.psl')
+#count_not_align('/home/carl/Projects/peta/rnaseq/Spombe/630.tx.rev.psl')

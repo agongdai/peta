@@ -708,6 +708,38 @@ def bedgraph(args):
                 for b in range(h.n_blocks):
                     print '%s\t%d\t%d\t1' % (chr, h.r_block_starts[b], h.r_block_starts[b] + h.block_sizes[b])
 #        break
+
+def read_id_list(fn):
+    ids = []
+    with open(fn) as f:
+        for line in f:
+            line = line.strip()
+            fs = line.split('\t')
+            ids.append(fs[0])
+    return ids
+
+def intersect(args):
+    ids_1 = read_id_list(args.list_1)
+    ids_2 = read_id_list(args.list_2)
+    common = list(set(ids_1) & set(ids_2))
+    n_1 = n_2 = n_both = 0
+    with open(args.list_1 + '.only', 'w') as only_1:
+        for id in ids_1:
+            if not id in common:
+                only_1.write(id + '\n')
+                n_1 += 1
+    with open(args.list_2 + '.only', 'w') as only_2:
+        for id in ids_2:
+            if not id in common:
+                only_2.write(id + '\n')
+                n_2 += 1
+    with open(args.list_1 + '.both', 'w') as both:
+        for id in common:
+            both.write(id + '\n')
+    n_both = len(common)
+    print 'Check file %s.only: %d' % (args.list_1, n_1)
+    print 'Check file %s.only: %d' % (args.list_2, n_2)
+    print 'Check file %s.both: %d' % (args.list_1, n_both)
                 
 def main():
     parser = ArgumentParser()
@@ -782,6 +814,11 @@ def main():
     parset_coverage = subparsers.add_parser('coverage', help='Prepare bedgraph file for PSL hits')
     parset_coverage.add_argument('psl', help='PSL file')
     parset_coverage.set_defaults(func=bedgraph)
+    
+    parset_set = subparsers.add_parser('set', help='Intersect two files with ids')
+    parset_set.add_argument('list_1', help='File with list of ids')
+    parset_set.add_argument('list_2', help='File with list of ids')
+    parset_set.set_defaults(func=intersect)    
     
     args = parser.parse_args()
     args.func(args)

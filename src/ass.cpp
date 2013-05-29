@@ -434,7 +434,7 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			}
 			// If the branch can be merged into main template, erase the branch
 			if (branch_on_main(eg->ctg, branch->ctg, con_pos, (branch->len
-					/ hm->o->k + 1) * 3, ori)) {
+					/ hm->o->k + 2) * 3, ori)) {
 				show_debug_msg(__func__, "Branch is not valid: [%d, %d] \n",
 						branch->id, branch->len);
 				// Remove the branch from the global hash table
