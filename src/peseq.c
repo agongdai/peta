@@ -673,17 +673,17 @@ int share_subseq_byte(const ubyte_t *seq_1, const int len,
  *                         ---------
  */
 int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
-		const int shift, const int mismatches, const int ori) {
+		const int pos, const int mismatches, const int ori) {
 	bwa_seq_t *sub = NULL;
 	int similar = 0;
 	if (ori) {
-		if (shift < branch->len)
+		if (pos < branch->len)
 			return 0;
-		sub = new_seq(main, branch->len, shift - branch->len);
+		sub = new_seq(main, branch->len, pos - branch->len);
 	} else {
-		if ((main->len - shift) < branch->len)
+		if ((main->len - pos) < branch->len)
 			return 0;
-		sub = new_seq(main, branch->len, shift);
+		sub = new_seq(main, branch->len, pos);
 	}
 	p_ctg_seq(__func__, sub);
 	p_ctg_seq(__func__, branch);

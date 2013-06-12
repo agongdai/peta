@@ -1,5 +1,6 @@
 from eva import *
 from zoom import *
+from merge import *
 from argparse import ArgumentParser
 import operator
 
@@ -45,16 +46,26 @@ def get_junction_dict(junctions):
         my_junctions[j.branch].append(j.main)
     return my_junctions
 
-def exons_are_connected(exon_1, exon_2, j_dict):
+visited = []
+
+def exons_are_connected(exon_1, exon_2, j_dict, level = 0):
+    if level > 10:
+        return False
     if not exon_1 in j_dict or not exon_2 in j_dict:
         return False
+    if len(visited) == 0:
+        visited.append(exon_1)
     connected_1 = j_dict[exon_1]
-    connected_2 = j_dict[exon_2]
-    if exon_2 in connected_1 or exon_1 in connected_2:
+    if exon_2 in connected_1:
         return True
-    intersect = list(set(connected_1) & set(connected_2))
-    if len(intersect) > 0:
-        return True
+    for e in connected_1:
+        if e in visited:
+            continue
+        visited.append(e)
+        # print exon_1, e, exon_2
+        if exons_are_connected(e, exon_2, j_dict, level + 1):
+            return True
+    return False
     
 def exam_junctions(args):
     junctions = read_junctions(args.junction)
@@ -104,6 +115,7 @@ def exam_junctions(args):
                 if h.rend < back_bone_h.rend:
                     continue
                 if h.rstart < back_bone_h.rend + 10:
+                    visited = []
                     if exons_are_connected(back_bone_h.qname, h.qname, j_dict):
                         back_bone_h = h
                         max_cover_hits.append(h)
@@ -124,6 +136,7 @@ def exam_junctions(args):
             full.write(tx_name + '\n')
     
     full.close()    
+    print 'Check file %s.full' % args.junction
     print 'n_one_contig_full_length: %d' % n_one_contig_full_length
     print 'n_covered_by_connected_graph: %d' % n_covered_by_connected_graph
 
@@ -165,13 +178,145 @@ def split_exons(args):
         weight /= exon_end - exon_start
         print '%s\t%d\t%d\t%.2f' % (chr, exon_start, exon_end, weight)
 
+def reads_from_genome(args):
+    ref = FastaFile(args.ref)
+    out = args.ref[:-3] + '.25.fa'
+    with open(out, 'w') as reads:
+        id = 0
+        for chr, seq in ref.seqs.iteritems():
+            seq = seq.upper()
+            #id = 0
+            print chr
+            for i in range(len(seq) - 24):
+                #head = '>%s:%d\n' % (chr, id)
+                head = '>%d\n' % (chr, id)
+                reads.write(head)
+                reads.write(seq[i:i+25] + '\n')
+                id += 1
+    print 'Check file %s' % out
+
+def read_grep_lines(lines, sub):
+    ls = lines.split('\n')
+    if len(ls) < 3:
+        return ''
+    line_no = 0
+    id = ''
+    seq = ''
+    l = ls[1]
+    readable = ' ' * (len(l) - len(sub)) + sub + '\n'
+    for l in ls:
+        line_no += 1
+        l = l.strip()
+        if line_no % 3 == 1:
+            id = l[1:]
+        if line_no % 3 == 2:
+            seq = l
+            index = seq.find(sub)
+            seq = ' ' * (len(seq) - len(sub) - index) + seq + ' ' * index
+            readable += '%s\t%s\n' % (seq, id)
+    return readable
+
+def grep_kmer(args):
+    fa25 = args.ref
+    print '--------- %s ---------' % args.kmer
+    cmd = 'grep -B 1 %s %s' % (args.kmer, fa25)
+    print read_grep_lines(runInShell(cmd), args.kmer)
+    if args.ori == 'right':
+        print '>>>>>>>>> To the right >>>>>>>>>'
+        first_24 = args.kmer[1:25]
+        
+        next = first_24 + 'A'
+        print '--------- KMER: %s ---------' % args.kmer
+        print '--------- NEXT:  %s ---------' % next
+        cmd = 'grep -B 1 %s %s' % (next, fa25)
+        print read_grep_lines(runInShell(cmd), next)
+        
+        next = first_24 + 'C'
+        print '--------- KMER: %s ---------' % args.kmer
+        print '--------- NEXT:  %s ---------' % next
+        cmd = 'grep -B 1 %s %s' % (next, fa25)
+        print read_grep_lines(runInShell(cmd), next)
+        
+        next = first_24 + 'G'
+        print '--------- KMER: %s ---------' % args.kmer
+        print '--------- NEXT:  %s ---------' % next
+        cmd = 'grep -B 1 %s %s' % (next, fa25)
+        print read_grep_lines(runInShell(cmd), next)
+        
+        next = first_24 + 'T'
+        print '--------- KMER: %s ---------' % args.kmer
+        print '--------- NEXT:  %s ---------' % next
+        cmd = 'grep -B 1 %s %s' % (next, fa25)
+        print read_grep_lines(runInShell(cmd), next)
+        
+    else:
+        print '<<<<<<<<< To the left <<<<<<<<<'
+        last_24 = args.kmer[0:24]        
+        
+        next = 'A' + last_24
+        print '--------- KMER:  %s ---------' % args.kmer
+        print '--------- NEXT: %s ---------' % next
+        cmd = 'grep -B 1 %s %s' % (next, fa25)
+        print read_grep_lines(runInShell(cmd), next)
+        
+        next = 'C' + last_24
+        print '--------- KMER:  %s ---------' % args.kmer
+        print '--------- NEXT: %s ---------' % next
+        cmd = 'grep -B 1 %s %s' % (next, fa25)
+        print read_grep_lines(runInShell(cmd), next)
+        
+        next = 'G' + last_24
+        print '--------- KMER:  %s ---------' % args.kmer
+        print '--------- NEXT: %s ---------' % next
+        cmd = 'grep -B 1 %s %s' % (next, fa25)
+        print read_grep_lines(runInShell(cmd), next)
+        
+        next = 'T' + last_24
+        print '--------- KMER:  %s ---------' % args.kmer
+        print '--------- NEXT: %s ---------' % next
+        cmd = 'grep -B 1 %s %s' % (next, fa25)
+        print read_grep_lines(runInShell(cmd), next)    
+    
+def find_kmer(args):
+    grep_kmer(args)
+    print '==================== Reverse complement ====================='
+    args.kmer = rev_comp(args.kmer)
+    if args.ori == 'right':
+        args.ori = 'left'
+    else:
+        args.ori = 'right'
+    grep_kmer(args)
+
+def fa2single(args):
+    out = args.fa[:-3] + '.single.fa'
+    fa = FastaFile(args.fa)
+    with open(out, 'w') as single:
+        for name, seq in fa.seqs.iteritems():
+            single.write('>%s\n' % name)
+            single.write('%s\n' % seq)
+    print 'Check file %s' % out
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
     
-    parser_exon = subparsers.add_parser('splice', help='Split exons from PSL file')
-    parser_exon.set_defaults(func=split_exons)
-    parser_exon.add_argument('psl', help='transcript/contigs-to-genome PSL file')
+    parser_splice = subparsers.add_parser('splice', help='Split exons from PSL file')
+    parser_splice.set_defaults(func=split_exons)
+    parser_splice.add_argument('psl', help='transcript/contigs-to-genome PSL file')
+    
+    parser_g2r = subparsers.add_parser('g2r', help='Split the genome to 25bp reads')
+    parser_g2r.set_defaults(func=reads_from_genome)
+    parser_g2r.add_argument('ref', help='genome Fasta file')
+    
+    parser_kmer = subparsers.add_parser('kmer', help='Find kmers in RNA-seq library')
+    parser_kmer.set_defaults(func=find_kmer)
+    parser_kmer.add_argument('-r', '--ref', required=False, default='/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa', help='single line Fasta file to grep kmer')
+    parser_kmer.add_argument('kmer', help='kmer sequence')
+    parser_kmer.add_argument('ori', help='left or right')
+    
+    parser_single = subparsers.add_parser('f2s', help='Convert fasta file to single line sequences')
+    parser_single.set_defaults(func=fa2single)
+    parser_single.add_argument('fa', help='Fasta file')
     
     parser_exon = subparsers.add_parser('junction', help='Exam junctions from PSL file')
     parser_exon.set_defaults(func=exam_junctions)

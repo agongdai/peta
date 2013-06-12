@@ -14,7 +14,7 @@
 #include "edge.h"
 
 #define		SHORT_BRANCH_SHIFT	4
-#define 	MIN_WEIGHT			2
+#define 	MIN_WEIGHT			1
 #define		ERROR_RATE			0.02
 #define		BRANCH_THRE			0.1
 

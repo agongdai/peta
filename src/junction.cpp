@@ -36,9 +36,6 @@ junction *new_junction(edge *main_tpl, edge *branch_tpl, uint64_t kmer, int locu
 	return j;
 }
 
-/**
- * Check whether there are reads in the junction area
- */
 int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 		const int max_len, int *weight) {
 	int left_len = 0, right_len = 0, n_reads = 0;
@@ -53,6 +50,8 @@ int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 			* right_len);
 	junction_seq->len = left_len + right_len;
 	set_rev_com(junction_seq);
+	//p_query("Left  seq", left);
+	//p_query("Right seq", right);
 	// p_query("Junction seq", junction_seq);
 	reads = kmer_find_reads(junction_seq, hm, 0, 0);
 	n_reads = reads->len;
@@ -66,12 +65,24 @@ int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 	return 0;
 }
 
-int find_junc_reads_w_tails(hash_map *hm, edge *left, edge *right,
-		const int r_shift, const int max_len, int *weight) {
+int find_junc_reads_w_tails(hash_map *hm, edge *main_tpl, edge *branch_tpl,
+		const int pos, const int max_len, const int ori, int *weight) {
 	bwa_seq_t *left_seq = NULL, *right_seq = NULL;
-	int is_valid = 0;
-	left_seq = cut_edge_tail(left, left->len, max_len / 2, 0);
-	right_seq = cut_edge_tail(right, r_shift, max_len / 2, 1);
+	edge *left_eg = branch_tpl, *right_eg = main_tpl;
+	int is_valid = 0, l_pos = branch_tpl->len, r_pos = pos - 1;
+	if (ori) {
+		left_eg = main_tpl;
+		l_pos = pos;
+		right_eg = branch_tpl;
+		r_pos = 0;
+	}
+	//show_debug_msg(__func__, "left pos: %d; right pos: %d\n", l_pos, r_pos);
+	left_seq = cut_edge_tail(left_eg, l_pos, max_len / 2, 0);
+	//p_query("Left  seq", left_eg->ctg);
+	//p_query("Left tail", left_seq);
+	right_seq = cut_edge_tail(right_eg, r_pos, max_len / 2, 1);
+	//p_query("Right  seq", right_eg->ctg);
+	//p_query("Right tail", right_seq);
 	is_valid = find_junc_reads(hm, left_seq, right_seq, max_len, weight);
 	bwa_free_read_seq(1, left_seq);
 	bwa_free_read_seq(1, right_seq);

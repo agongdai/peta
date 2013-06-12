@@ -59,7 +59,7 @@ extern "C" {
 	void reset_tid(edge *eg);
 	void destroy_eg(edge *eg);
 	void free_eg_seq(edge *eg);
-	bwa_seq_t *cut_edge_tail(edge *eg, const int tail_len, const int shift, const int ori);
+	bwa_seq_t *cut_edge_tail(edge *eg, const int tail_len, const int pos, const int ori);
 	void set_tail(edge *branch, edge *parent_eg, const int shift, const int tail_len, const int ori);
 	void save_edges(edgearray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 			const int p_all, const int min_len);

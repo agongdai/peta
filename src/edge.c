@@ -68,17 +68,17 @@ void free_readarray(readarray *ra) {
  * Return:                      ==========++++
  * '++++' is the partial virtual tail of current edge
  */
-bwa_seq_t *cut_edge_tail(edge *eg, const int shift, const int tail_len,
+bwa_seq_t *cut_edge_tail(edge *eg, const int pos, const int tail_len,
 		const int ori) {
 	bwa_seq_t *tail = NULL, *partial = NULL, *main_tail = NULL;
 	int v_tail_len = 0;
-	if (eg->len < shift)
+	if (eg->len < pos)
 		return new_seq(eg->ctg, eg->len, 0);
 	if (ori) {
-		partial = new_seq(eg->ctg, eg->len - shift, shift);
+		partial = new_seq(eg->ctg, eg->len - pos, pos);
 		main_tail = eg->r_tail;
 	} else {
-		partial = new_seq(eg->ctg, shift, 0);
+		partial = new_seq(eg->ctg, pos, 0);
 		main_tail = eg->l_tail;
 	}
 	// If the edge is long, cut the tail directly

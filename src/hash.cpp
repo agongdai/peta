@@ -17,6 +17,7 @@
 #include "utils.h"
 #include "rnaseq.h"
 #include "edge.h"
+#include "kmers.hpp"
 
 uint64_t get_kmer_int(const ubyte_t *seq, const int start,
 		const int interleaving, const int len) {
@@ -260,7 +261,31 @@ hash_map *load_hash_map(const char *fa_fn, const int with_reads,
 	return hm;
 }
 
+void export_frequency() {
+	uint32_t n_ctgs = 0;
+	uint64_t kmer = 0;
+	int count = 0, i = 0, j = 0;
+	mer_hash map;
+	bwa_seq_t *contigs = load_reads("/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.fa", &n_ctgs);
+	bwa_seq_t *r = NULL;
+	hash_map *hm = load_hash_map("/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.25.fa", 1, map);
+	FILE *freq = xopen("/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.25.fa.bedgraph", "w");
+	char entry[BUFSIZE];
+	for (i = 0; i < n_ctgs; i++) {
+		r = &contigs[i];
+		show_msg(__func__, "Processing %s...\n", r->name);
+		for (j = 0; j <= r->len - 25; j++) {
+			kmer = get_kmer_int(r->seq, j, 1, 25);
+			count = get_kmer_count(kmer, hm, 0);
+			sprintf(entry, "%s\t%d\t%d\t%d\n", r->name, j, j + 25, count);
+			fputs(entry, freq);
+		}
+	}
+	fclose(freq);
+}
+
 int build_kmer_hash(int argc, char *argv[]) {
-	build_kmers_hash(argv[optind], atoi(argv[optind + 1]), 1);
+//	build_kmers_hash(argv[optind], atoi(argv[optind + 1]), 1);
+	export_frequency();
 	return 0;
 }

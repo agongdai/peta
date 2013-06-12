@@ -33,7 +33,7 @@ extern "C" {
 	int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 			const int max_len, int *weight);
 	int find_junc_reads_w_tails(hash_map *hm, edge *left, edge *right,
-			const int r_shift, const int max_len, int *weight);
+			const int shift, const int max_len, const int ori, int *weight);
 	void upd_tpl_jun_locus(edge *eg, GPtrArray *branching_events,
 			const int kmer_len);
 	void store_junctions(char *name, GPtrArray *branching_events);

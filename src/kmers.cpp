@@ -135,8 +135,8 @@ int kmer_is_used(const uint64_t kmer_int, hash_map *hm) {
 /**
  * Read the teamplate id and locus using some kmer
  */
-void read_tpl_using_kmer(const uint64_t kmer_int, mer_hash *hash,
-		int *tpl_id, int *locus, uint64_t *value) {
+void read_tpl_using_kmer(const uint64_t kmer_int, mer_hash *hash, int *tpl_id,
+		int *locus, uint64_t *value) {
 	uint64_t *freq = NULL, count = 0, count_copy = 0;
 	mer_hash::iterator it = hash->find(kmer_int);
 	if (it != hash->end()) {
@@ -220,9 +220,14 @@ void parse_hit_ints(const uint64_t *occs, const int query_i,
 			//            i        kmer
 			// Read:     -----|-----------|---
 			//            pos
-			//p_query(__func__, r);
-			//show_debug_msg(__func__, "query_i: %d; pos: %d; r->len: %d \n",
-			//		query_i, pos, r->len);
+			/**
+			if (strcmp(r->name, "1484814") == 0) {
+				p_query(__func__, r);
+				show_debug_msg(__func__,
+						"query_i: %d; pos: %d; r->len: %d; ori: %d \n",
+						query_i, pos, r->len, ori);
+			}
+			**/
 			if (r->pos == -1) { // To avoid adding the same read repeatly.
 				if (query_is_part || (query_i - pos >= 0 && (query_i - pos
 						+ r->len) <= query_len)) {
@@ -281,27 +286,45 @@ void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm,
 	map_opt *opt = hm->o;
 	mer_hash *hash = hm->hash;
 	mer_hash::iterator it;
+	bwa_seq_t *rev_query = NULL;
 
 	for (i = 0; i <= query->len - opt->k; i++) {
 		kmer_int = get_kmer_int(query->seq, i, 1, opt->k);
+
+		//show_debug_msg(__func__, "Kmer at %d\n", i);
+		//bwa_seq_t *debug = get_kmer_seq(kmer_int, 25);
+		//p_query(__func__, debug);
+		//bwa_free_read_seq(1, debug);
+
 		//show_debug_msg(__func__, "Kmer int: %" ID64 "\n", kmer_int);
 		it = hash->find(kmer_int);
 		if (it != hash->end()) {
 			occs = it->second;
-			//show_debug_msg(__func__, "Kmer count: %" ID64 "\n", occs[0]);
+			//show_debug_msg(__func__, "%d: Kmer count: %" ID64 "\n", i, occs[0]);
 			parse_hit_ints(occs, i, query_is_part, query->len, hits, hm->seqs,
 					0);
 		}
-		kmer_int = get_kmer_int(query->rseq, i, 1, opt->k);
+	}
+	rev_query = new_seq(query, query->len, 0);
+	switch_fr(rev_query);
+	for (i = 0; i <= rev_query->len - opt->k; i++) {
+		kmer_int = get_kmer_int(rev_query->seq, i, 1, opt->k);
+
+		//show_debug_msg(__func__, "Kmer at %d\n", i);
+		//bwa_seq_t *debug = get_kmer_seq(kmer_int, 25);
+		//p_query(__func__, debug);
+		//bwa_free_read_seq(1, debug);
+
 		//show_debug_msg(__func__, "Kmer int: %" ID64 "\n", kmer_int);
 		it = hash->find(kmer_int);
 		if (it != hash->end()) {
 			occs = it->second;
-			//show_debug_msg(__func__, "Kmer count: %" ID64 "\n", occs[0]);
+			//show_debug_msg(__func__, "%d: Kmer count: %" ID64 "\n", i, occs[0]);
 			parse_hit_ints(occs, i, query_is_part, query->len, hits, hm->seqs,
 					1);
 		}
 	}
+	bwa_free_read_seq(1, rev_query);
 }
 
 /**
@@ -370,18 +393,21 @@ GPtrArray *align_full_seq(const bwa_seq_t *query, const hash_map *hm,
 GPtrArray *kmer_find_reads(const bwa_seq_t *query, const hash_map *hm,
 		const int mismatch, const uint32_t n_part_only) {
 	GPtrArray *hits = NULL, *part_hits = NULL;
-	bwa_seq_t *read = NULL, *part = NULL, *r = NULL;
+	bwa_seq_t *read = NULL, *part = NULL, *r = NULL, *rev_query = NULL;
 	uint32_t i = 0;
 	hits = g_ptr_array_sized_new(64);
 	if (n_part_only)
 		part_hits = g_ptr_array_sized_new(n_part_only);
+	rev_query = new_seq(query, query->len, 0);
+	switch_fr(rev_query);
 	kmer_aln_query(query, hm, 0, hits);
 	for (i = 0; i < hits->len; i++) {
 		read = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		part = new_seq(query, read->len, read->pos);
-		//show_debug_msg(__func__, "pos: %d \n", read->pos);
 		if (read->rev_com)
-			switch_fr(part);
+			part = new_seq(rev_query, read->len, read->pos);
+		else
+			part = new_seq(query, read->len, read->pos);
+		//show_debug_msg(__func__, "pos: %d \n", read->pos);
 		//p_query(__func__, read);
 		//p_query(__func__, part);
 		//show_debug_msg(__func__, "---\n");
@@ -404,6 +430,7 @@ GPtrArray *kmer_find_reads(const bwa_seq_t *query, const hash_map *hm,
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
 		r->pos = -1;
 	}
+	bwa_free_read_seq(1, rev_query);
 	if (n_part_only) {
 		g_ptr_array_free(hits, TRUE);
 		return part_hits;
