@@ -2,7 +2,7 @@ from eva import *
 from zoom import *
 from merge import *
 from argparse import ArgumentParser
-import operator
+import operator, random
 
 class Junction(object):
     def __init__(self, main_id, branch_id, locus = 0, weight = 0, ori = 0):
@@ -295,6 +295,19 @@ def fa2single(args):
             single.write('>%s\n' % name)
             single.write('%s\n' % seq)
     print 'Check file %s' % out
+    
+def simu(args):
+    annotated = FastaFile(args.annotated)
+    reads = FastaFile()
+    read_id = 0
+    for tx in args.transcripts:
+        seq = annotated.seqs[tx]
+        for i in range(len(seq) - args.read_len):
+            reads.seqs[read_id] = seq[i:i+args.read_len]
+            read_id += 1
+            reads.seqs[read_id] = seq[i:i+args.read_len]
+            read_id += 1
+    reads.save_to_disk('/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/simu.fa')
 
 def main():
     parser = ArgumentParser()
@@ -322,6 +335,12 @@ def main():
     parser_exon.set_defaults(func=exam_junctions)
     parser_exon.add_argument('junction', help='PETA junction file')
     parser_exon.add_argument('psl', help='transcript/contigs-to-annotation PSL file')
+    
+    parser_exon = subparsers.add_parser('simu', help='simulate reads from specific contigs for small debugging')
+    parser_exon.set_defaults(func=simu)
+    parser_exon.add_argument('transcripts', nargs='+', help='transcript names')
+    parser_exon.add_argument('-t', '--annotated', help='annotated transcript file')
+    parser_exon.add_argument('-l', '--read_len', type=int, help='read length')
 
     args = parser.parse_args()
     args.func(args)

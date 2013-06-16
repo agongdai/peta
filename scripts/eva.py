@@ -82,9 +82,9 @@ class FastaFile(object):
 				for c in seq:
 					out.write(c)
 					l += 1
-					if l % 50 == 0:
+					if l % 100 == 0:
 						out.write('\n')
-				if not l % 50 == 0:
+				if not l % 100 == 0:
 					out.write('\n')
 
 	def read_seqs(self):

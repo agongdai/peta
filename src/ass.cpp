@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <stdint.h>
 #include <glib.h>
+#include <cstdio>
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
@@ -434,7 +435,7 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 					ori);
 			// Insert first, in case it connects to itself during extension
 			g_mutex_lock(kmer_id_mutex);
-			all_tpls->insert(make_pair<int, edge*> (branch->id, branch));
+			all_tpls->insert(make_pair<int, edge*> ((int) branch->id, (edge*) branch));
 			g_mutex_unlock(kmer_id_mutex);
 			con_existing = kmer_ext_edge(branch, branch_query, hm, all_tpls,
 					ori);
@@ -483,6 +484,7 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 int kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 		tpl_hash *all_tpls, const int ori) {
 	int max_c = 0, *counters = NULL, weight = 0, con_existing = 0;
+	int max_c_all = 0, *counters_all = NULL;
 
 	show_debug_msg(__func__, "------ Started extending edge %d to ori %d...\n",
 			eg->id, ori);
@@ -495,6 +497,8 @@ int kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 		weight = 0;
 		counters = count_next_kmers(hm, query_int, 1, ori);
 		max_c = get_max_index(counters);
+		counters_all = count_next_kmers(hm, query_int, 0, ori);
+		max_c_all = get_max_index(counters_all);
 
 		/**
 		 if (ori)
@@ -512,6 +516,14 @@ int kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 		 seq_reverse(eg->len, eg->ctg->seq, 0);
 		 **/
 
+		if (max_c_all != max_c) {
+			if (existing_connect(eg, hm, all_tpls, query_int, ori)) {
+				con_existing = 1;
+				free(counters_all);
+				break;
+			}
+		}
+
 		if (max_c == -1) {
 			if (!existing_connect(eg, hm, all_tpls, query_int, ori))
 				show_debug_msg(__func__, "[%d, %d] No hits, stop here. \n",
@@ -524,6 +536,7 @@ int kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 		}
 		eg->kmer_freq += counters[max_c];
 		free(counters);
+		free(counters_all);
 		ext_con(eg->ctg, max_c, 0);
 		eg->len = eg->ctg->len;
 		// In case the template has repeats, so mark kmers used TEMPERARIALY. The locus is incorrect.
@@ -565,7 +578,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	eg->kmer_freq = get_kmer_count(kmer_int, params->hm, 1);
 	// Insert first, in case it connects to itself during extension
 	g_mutex_lock(kmer_id_mutex);
-	all_tpls->insert(make_pair<int, edge*> (eg->id, eg));
+	all_tpls->insert(make_pair<int, edge*> ((int) eg->id, (edge*) eg));
 	g_mutex_unlock(kmer_id_mutex);
 
 	kmer_ext_edge(eg, kmer_int, params->hm, all_tpls, 0);
@@ -655,7 +668,7 @@ void test_kmer_ext(kmer_t_meta *params) {
 	tpl_hash *all_tpls = params->all_tpls;
 
 	eg = blank_edge(kmer_int, 25, 25, 0);
-	all_tpls->insert(make_pair<int, edge*> (eg->id, eg));
+	all_tpls->insert(make_pair<int, edge*> ((int) eg->id, (edge*) eg));
 	kmer_ext_edge(eg, kmer_int, params->hm, params->all_tpls, 0);
 	round_1_len = eg->len;
 	show_debug_msg(__func__, "Extending to the right: [%d, %d]... \n", eg->id,
@@ -671,7 +684,7 @@ void test_kmer_ext(kmer_t_meta *params) {
 
 	kmer_int = 502458011902035;
 	eg = blank_edge(kmer_int, 25, 25, 0);
-	all_tpls->insert(make_pair<int, edge*> (eg->id, eg));
+	all_tpls->insert(make_pair<int, edge*> ((int) eg->id, (edge*) eg));
 	kmer_ext_edge(eg, kmer_int, params->hm, params->all_tpls, 0);
 	round_1_len = eg->len;
 	show_debug_msg(__func__, "Extending to the right: [%d, %d]... \n", eg->id,

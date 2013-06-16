@@ -285,7 +285,7 @@ void export_frequency() {
 }
 
 int build_kmer_hash(int argc, char *argv[]) {
-//	build_kmers_hash(argv[optind], atoi(argv[optind + 1]), 1);
-	export_frequency();
+	build_kmers_hash(argv[optind], atoi(argv[optind + 1]), 1);
+	//	export_frequency();
 	return 0;
 }
