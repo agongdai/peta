@@ -286,7 +286,7 @@ int existing_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
 		tpl_hash::iterator it = all_tpls->find(eg_id);
 		if (it != all_tpls->end()) {
 			existing = (edge*) it->second;
-			con_pos = ori ? (locus + 1) : (locus + hm->o->k);
+			con_pos = ori ? (locus + 1) : (locus + hm->o->k - 1);
 
 			bwa_seq_t *debug = get_kmer_seq(query_int, 25);
 			p_query(__func__, debug);
@@ -300,12 +300,29 @@ int existing_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
 				show_debug_msg(__func__,
 						"Connect to existing [%d, %d] to [%d, %d] at %d. \n",
 						branch->id, branch->len, existing->id, existing->len,
-						locus);
+						con_pos);
 				// This locus is not correct if connect to itself.
 				// The locus is always at the left
 				exist_ori = ori ? 0 : 1;
+				// Make the branch not sharing a 24-mer with the main
+				if (exist_ori) {
+					con_pos -= (hm->o->k - 1);
+					branch->len -= (hm->o->k - 1);
+					branch->ctg->len = branch->len;
+					set_rev_com(branch->ctg);
+				} else {
+					con_pos += (hm->o->k - 1);
+					memmove(branch->ctg->seq,
+							branch->ctg->seq + (hm->o->k - 1), sizeof(ubyte_t)
+									* (branch->len - (hm->o->k - 1)));
+					branch->len -= (hm->o->k - 1);
+					branch->ctg->len = branch->len;
+					set_rev_com(branch->ctg);
+				}
 				set_tail(branch, existing, con_pos, hm->o->read_len
 						- SHORT_BRANCH_SHIFT, exist_ori);
+				p_ctg_seq("Right tail", branch->r_tail);
+				p_ctg_seq("Left  tail", branch->l_tail);
 				add_a_junction(existing, branch, query_int, con_pos, exist_ori,
 						weight);
 				connected = 1;
@@ -408,16 +425,16 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 				continue;
 
 			/**
-			bwa_seq_t *debug = get_kmer_seq(query_int, 25);
-			p_query(__func__, debug);
-			bwa_free_read_seq(1, debug);
-			show_debug_msg(__func__,
-					"[%d, %d] %d pos counters ori %d: [%d, %d, %d, %d]\n",
-					eg->id, eg->len, i, ori, counters[0], counters[1],
-					counters[2], counters[3]);
-			show_debug_msg(__func__, "Counters[]: %d, Max frequency: %d \n",
-					counters[j], max_freq);
-			**/
+			 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
+			 p_query(__func__, debug);
+			 bwa_free_read_seq(1, debug);
+			 show_debug_msg(__func__,
+			 "[%d, %d] %d pos counters ori %d: [%d, %d, %d, %d]\n",
+			 eg->id, eg->len, i, ori, counters[0], counters[1],
+			 counters[2], counters[3]);
+			 show_debug_msg(__func__, "Counters[]: %d, Max frequency: %d \n",
+			 counters[j], max_freq);
+			 **/
 
 			weight = 0;
 			branch_query = shift_bit(query_int, j, kmer_len, ori);
@@ -435,7 +452,8 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 					ori);
 			// Insert first, in case it connects to itself during extension
 			g_mutex_lock(kmer_id_mutex);
-			all_tpls->insert(make_pair<int, edge*> ((int) branch->id, (edge*) branch));
+			all_tpls->insert(make_pair<int, edge*> ((int) branch->id,
+					(edge*) branch));
 			g_mutex_unlock(kmer_id_mutex);
 			con_existing = kmer_ext_edge(branch, branch_query, hm, all_tpls,
 					ori);
@@ -515,7 +533,6 @@ int kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 		 if (ori)
 		 seq_reverse(eg->len, eg->ctg->seq, 0);
 		 **/
-
 		if (max_c_all != max_c) {
 			if (existing_connect(eg, hm, all_tpls, query_int, ori)) {
 				con_existing = 1;
@@ -572,8 +589,9 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	if (kmer_int < 64 || rev_kmer_int < 64 || get_kmer_count(kmer_int,
 			params->hm, 0) <= 1 || kmer_is_used(kmer_int, params->hm)) {
 		return NULL;
-	}show_debug_msg(__func__, "============= %" ID64 ": %" ID64 " ============ \n",
-			kmer_int, c);
+	}
+	show_debug_msg(__func__,
+			"============= %" ID64 ": %" ID64 " ============ \n", kmer_int, c);
 	eg = blank_edge(kmer_int, opt->k, opt->k, 0);
 	eg->kmer_freq = get_kmer_count(kmer_int, params->hm, 1);
 	// Insert first, in case it connects to itself during extension
@@ -646,7 +664,7 @@ void kmer_threads(kmer_t_meta *params) {
 			NULL);
 	for (i = 0; i < start_kmers->len; i++) {
 		if (i % 10000 == 0)
-		show_debug_msg(__func__, "Extending %" ID64 "-th kmer... \n ", i);
+			show_debug_msg(__func__, "Extending %" ID64 "-th kmer... \n ", i);
 		counter = (kmer_counter*) g_ptr_array_index(start_kmers, i);
 		kmer_ext_thread(counter, params);
 		free(counter);

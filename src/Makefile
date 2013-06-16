@@ -1,7 +1,7 @@
 VERSION=	0.1
 CC=			gcc
 CXX=		g++
-CFLAGS=		-ggdb -g -Wall -O2 $(shell pkg-config --libs gthread-2.0 --cflags glib-2.0)
+CFLAGS=		-ggdb -g -Wall -O2 $(shell pkg-config --libs glib-2.0 gthread-2.0 --cflags glib-2.0)
 CXXFLAGS=	-std=c++0x $(CFLAGS)
 DFLAGS=		-DHAVE_PTHREAD #-D_FILE_OFFSET_BITS=64
 OBJS=		utils.o edge.o rnaseq.o oracle.o \
@@ -11,7 +11,7 @@ OBJS=		utils.o edge.o rnaseq.o oracle.o \
 			kstring.o 
 PROG=		peta
 INCLUDES=	
-LIBS=		-lm -lrt -lz -lpthread $(shell pkg-config --libs glib-2.0)
+LIBS=		-lm -lrt -lz -lpthread $(shell pkg-config --libs glib-2.0 gthread-2.0)
 SUBDIRS=	
 
 ROOTDIR=	peta_dev
