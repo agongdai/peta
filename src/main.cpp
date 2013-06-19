@@ -47,6 +47,8 @@ int main(int argc, char *argv[]) {
 		return oracle_set(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "exon") == 0)
 		return genome_splicings(argc - 1, argv + 1);
+	else if (strcmp(argv[1], "freq") == 0)
+		return export_frequency(argc - 1, argv + 1);
 	else {
 		fprintf(stderr, "[main] unrecognized command '%s'\n", argv[1]);
 		return 1;

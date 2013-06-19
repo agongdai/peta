@@ -60,7 +60,9 @@ bwa_seq_t *get_kmer_seq(uint64_t kmer, const int k) {
 }
 
 /**
- * Set the upper 40~64 bits to be template id, 24~40 bits to be locus
+ * 64bits:
+ * ----------------------------------------------------------------
+ * |<-  24bits: tpl id  ->||<-   locus  ->||<-  24bits: count   ->|
  */
 void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm,
 		const int tpl_id, const int locus) {
@@ -167,8 +169,8 @@ uint64_t get_kmer_count(const uint64_t kmer_int, hash_map *hm,
 		freq = it->second;
 		count = freq[0];
 		count_copy = freq[0];
-		// The upper 32 bits stores the template using this kmer,
-		//	reset the upper 32 bits to be 0, to get the frequency
+		// The upper 24 bits stores the template using this kmer,
+		//	reset the upper 24 bits to be 0, to get the frequency
 		if (fresh_only) {
 			count_copy >>= 24;
 			if (count_copy > 0)
@@ -182,6 +184,14 @@ uint64_t get_kmer_count(const uint64_t kmer_int, hash_map *hm,
 	return 0;
 }
 
+uint64_t get_kmer_rf_count(const uint64_t query, hash_map *hm, const int fresh_only) {
+	uint64_t rev = 0;
+	uint64_t count = get_kmer_count(query, hm, fresh_only);
+	rev = rev_comp_kmer(query, hm->o->k);
+	count += get_kmer_count(rev, hm, fresh_only);
+	return count;
+}
+
 int *count_next_kmers(hash_map *hm, uint64_t query, const int fresh_only,
 		const int ori) {
 	int *counters = (int*) calloc(4, sizeof(int)), i = 0;
@@ -189,6 +199,12 @@ int *count_next_kmers(hash_map *hm, uint64_t query, const int fresh_only,
 	for (i = 0; i < 4; i++) {
 		counters[i] = 0;
 		next_probable_kmer = shift_bit(query, i, hm->o->k, ori);
+		/**
+		show_debug_msg(__func__, "next_probable_kmer: %" ID64 "\n", next_probable_kmer);
+		bwa_seq_t *debug = get_kmer_seq(next_probable_kmer, 25);
+		p_query(__func__, debug);
+		bwa_free_read_seq(1, debug);
+		**/
 		counters[i] = get_kmer_count(next_probable_kmer, hm, fresh_only);
 		// Get its reverse complement as well
 		next_probable_kmer = rev_comp_kmer(next_probable_kmer, hm->o->k);
@@ -221,13 +237,13 @@ void parse_hit_ints(const uint64_t *occs, const int query_i,
 			// Read:     -----|-----------|---
 			//            pos
 			/**
-			if (strcmp(r->name, "1484814") == 0) {
-				p_query(__func__, r);
-				show_debug_msg(__func__,
-						"query_i: %d; pos: %d; r->len: %d; ori: %d \n",
-						query_i, pos, r->len, ori);
-			}
-			**/
+			 if (strcmp(r->name, "1484814") == 0) {
+			 p_query(__func__, r);
+			 show_debug_msg(__func__,
+			 "query_i: %d; pos: %d; r->len: %d; ori: %d \n",
+			 query_i, pos, r->len, ori);
+			 }
+			 **/
 			if (r->pos == -1) { // To avoid adding the same read repeatly.
 				if (query_is_part || (query_i - pos >= 0 && (query_i - pos
 						+ r->len) <= query_len)) {

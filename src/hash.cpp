@@ -18,6 +18,7 @@
 #include "rnaseq.h"
 #include "edge.h"
 #include "kmers.hpp"
+#include "peseq.h"
 
 uint64_t get_kmer_int(const ubyte_t *seq, const int start,
 		const int interleaving, const int len) {
@@ -261,23 +262,38 @@ hash_map *load_hash_map(const char *fa_fn, const int with_reads,
 	return hm;
 }
 
-void export_frequency() {
+void export_frequency(const char *kmer_fa, const char *contigs_fn, const int k) {
 	uint32_t n_ctgs = 0;
 	uint64_t kmer = 0;
-	int count = 0, i = 0, j = 0;
+	uint64_t count = 0, i = 0, j = 0, x = 0;
 	mer_hash map;
-	bwa_seq_t *contigs = load_reads("/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.fa", &n_ctgs);
-	bwa_seq_t *r = NULL;
-	hash_map *hm = load_hash_map("/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.25.fa", 1, map);
-	FILE *freq = xopen("/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.25.fa.bedgraph", "w");
+	bwa_seq_t *contigs = load_reads(contigs_fn, &n_ctgs);
+	bwa_seq_t *r = NULL, *h = NULL;
+	hash_map *hm = load_hash_map(kmer_fa, 1, map);
+	GPtrArray *hits = NULL;
 	char entry[BUFSIZE];
+	sprintf(entry, "%s.bedgraph", kmer_fa);
+	FILE *freq = xopen(entry, "w");
 	for (i = 0; i < n_ctgs; i++) {
 		r = &contigs[i];
 		show_msg(__func__, "Processing %s...\n", r->name);
-		for (j = 0; j <= r->len - 25; j++) {
-			kmer = get_kmer_int(r->seq, j, 1, 25);
-			count = get_kmer_count(kmer, hm, 0);
-			sprintf(entry, "%s\t%d\t%d\t%d\n", r->name, j, j + 25, count);
+		for (j = 12157; j <= r->len - k; j++) {
+			kmer = get_kmer_int(r->seq, j, 1, k);
+			count = get_kmer_rf_count(kmer, hm, 0);
+
+			bwa_seq_t *debug = get_kmer_seq(kmer, k);
+			//p_query(__func__, debug);
+			hits = kmer_find_reads(debug, hm, 0, 0);
+			printf("%s\t%d\t%d\t%" ID64 "\t", r->name, j, j + k, count);
+			for (x = 0; x < hits->len; x++) {
+				h = (bwa_seq_t*) g_ptr_array_index(hits, x);
+				printf("%s,", h->name);
+			}
+			printf("\n");
+			bwa_free_read_seq(1, debug);
+			g_ptr_array_free(hits, TRUE);
+
+			sprintf(entry, "%s\t%d\t%d\t%" ID64 "\n", r->name, j, j + k, count);
 			fputs(entry, freq);
 		}
 	}
@@ -286,6 +302,10 @@ void export_frequency() {
 
 int build_kmer_hash(int argc, char *argv[]) {
 	build_kmers_hash(argv[optind], atoi(argv[optind + 1]), 1);
-	//	export_frequency();
+	return 0;
+}
+
+int export_frequency(int argc, char *argv[]) {
+	export_frequency(argv[optind], argv[optind + 1], atoi(argv[optind + 2]));
 	return 0;
 }

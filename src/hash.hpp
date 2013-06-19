@@ -65,6 +65,7 @@ extern "C" {
 	hash_map *load_hash_map(const char *fa_fn, const int with_reads, mer_hash& kmers);
 	void test_kmer_hash(const char *fa_fn);
 	int build_kmer_hash(int argc, char *argv[]);
+	int export_frequency(int argc, char *argv[]);
 
 
 #ifdef __cplusplus
