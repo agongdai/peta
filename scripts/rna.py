@@ -178,20 +178,20 @@ def split_exons(args):
         weight /= exon_end - exon_start
         print '%s\t%d\t%d\t%.2f' % (chr, exon_start, exon_end, weight)
 
-def reads_from_genome(args):
-    ref = FastaFile(args.ref)
-    out = args.ref[:-3] + '.25.fa'
+def reads_from_contigs(args):
+    ref = FastaFile(args.contigs)
+    out = '%s.%d.fa' % (args.contigs[:-3], args.read_len)
     with open(out, 'w') as reads:
         id = 0
         for chr, seq in ref.seqs.iteritems():
             seq = seq.upper()
             #id = 0
             print chr
-            for i in range(len(seq) - 24):
+            for i in range(len(seq) - (args.read_len - 1)):
                 #head = '>%s:%d\n' % (chr, id)
-                head = '>%d\n' % (chr, id)
+                head = '>%d %s\n' % (id, chr)
                 reads.write(head)
-                reads.write(seq[i:i+25] + '\n')
+                reads.write(seq[i:i+args.read_len] + '\n')
                 id += 1
     print 'Check file %s' % out
 
@@ -302,7 +302,7 @@ def simu(args):
     read_id = 0
     for tx in args.transcripts:
         seq = annotated.seqs[tx]
-        for i in range(len(seq) - args.read_len):
+        for i in range(len(seq) - args.read_len + 1):
             reads.seqs[read_id] = seq[i:i+args.read_len]
             read_id += 1
             reads.seqs[read_id] = seq[i:i+args.read_len]
@@ -317,9 +317,10 @@ def main():
     parser_splice.set_defaults(func=split_exons)
     parser_splice.add_argument('psl', help='transcript/contigs-to-genome PSL file')
     
-    parser_g2r = subparsers.add_parser('g2r', help='Split the genome to 25bp reads')
-    parser_g2r.set_defaults(func=reads_from_genome)
-    parser_g2r.add_argument('ref', help='genome Fasta file')
+    parser_g2r = subparsers.add_parser('c2r', help='Split the contigs to kmers')
+    parser_g2r.set_defaults(func=reads_from_contigs)
+    parser_g2r.add_argument('contigs', help='contigs Fasta file')
+    parser_g2r.add_argument('read_len', type=int, help='read length')
     
     parser_kmer = subparsers.add_parser('kmer', help='Find kmers in RNA-seq library')
     parser_kmer.set_defaults(func=find_kmer)
