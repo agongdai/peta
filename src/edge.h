@@ -36,6 +36,7 @@ struct edge {
 	int8_t alive;			// Whether alive
 	int8_t is_root;			// Whether it's a root node in the graph
 	int8_t ori;				// Orientation
+	int8_t in_connect;		// Indicates whether some template connects to it already
 	uint64_t tid;			// Thread id
 	int32_t comp_id;		// Component id
 	uint64_t start_kmer;	// The starting kmer

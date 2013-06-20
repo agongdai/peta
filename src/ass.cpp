@@ -40,6 +40,9 @@ struct timespec kmer_start_time, kmer_finish_time;
 
 void add_a_junction(edge *main_tpl, edge *branch_tpl, uint64_t kmer, int locus,
 		int ori, int weight) {
+	// Indicating the templates are in-connect, cannot be reverse-complement
+	main_tpl->in_connect = 1;
+	branch_tpl->in_connect = 1;
 	junction *new_j = new_junction(main_tpl, branch_tpl, kmer, locus, ori,
 			weight);
 	g_mutex_lock(kmer_id_mutex);
@@ -268,23 +271,21 @@ int val_branching(hash_map *hm, edge *main_tpl, tpl_hash *all_tpls,
 /**
  * If the template reaches some kmer which is used, stop the extension and add a branching event
  */
-int existing_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
-		uint64_t query_int, const int ori) {
+int connect(edge *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
+		const int ori) {
 	int *counters = NULL, locus = 0, i = 0, connected = 0, eg_id = 0,
 			valid = 0, weight = 0, con_pos = 0, exist_ori = 0;
 	uint64_t value = 0, query_copy = query_int;
 	edge *existing = NULL;
-	if (ori)
-		seq_reverse(branch->len, branch->ctg->seq, 0);
 
-	//show_debug_msg(__func__, "Connecting to existing, ori %d \n", ori);
-	//p_ctg_seq(__func__, branch->ctg);
+	show_debug_msg(__func__, "---------- Connecting to existing, ori %d ----------\n", ori);
+	p_ctg_seq(__func__, branch->ctg);
 	counters = count_next_kmers(hm, query_int, 0, ori);
-	//bwa_seq_t *debug = get_kmer_seq(query_int, 25);
-	//p_query(__func__, debug);
-	//bwa_free_read_seq(1, debug);
-	//show_debug_msg(__func__, "Counters: %d,%d,%d,%d\n", counters[0],
-	//		counters[1], counters[2], counters[3]);
+	bwa_seq_t *debug = get_kmer_seq(query_int, 25);
+	p_query(__func__, debug);
+	bwa_free_read_seq(1, debug);
+	show_debug_msg(__func__, "Counters: %d,%d,%d,%d\n", counters[0],
+			counters[1], counters[2], counters[3]);
 
 	// In case connecting to the template itself
 	mark_tpl_kmers_used(branch, hm, hm->o->k, 0);
@@ -303,13 +304,13 @@ int existing_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
 				continue;
 			con_pos = ori ? (locus + 1) : (locus + hm->o->k - 1);
 
-			/**
-			bwa_seq_t *debug = get_kmer_seq(query_int, 25);
-			p_query(__func__, debug);
-			bwa_free_read_seq(1, debug);
-			show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
-					locus);
-			**/
+
+			 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
+			 p_query(__func__, debug);
+			 bwa_free_read_seq(1, debug);
+			 show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
+			 locus);
+
 			valid = find_junc_reads_w_tails(hm, existing, branch, con_pos,
 					(hm->o->read_len - SHORT_BRANCH_SHIFT) * 2, ori, &weight);
 			if (valid) {
@@ -352,9 +353,31 @@ int existing_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
 			}
 		}
 	}
+	free(counters);
+	return connected;
+}
+
+int existing_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
+		uint64_t query_int, int ori) {
+	int connected = 0, rev_ori = 0;
+	// During extension, the sequence is actually reversed, here reverse back temp
 	if (ori)
 		seq_reverse(branch->len, branch->ctg->seq, 0);
-	free(counters);
+	set_rev_com(branch->ctg);
+	connected = connect(branch, hm, all_tpls, query_int, ori);
+	// Try the reverse complement of the branch and connect
+	//	, if there is no other template connecting to it currently
+	if (!connected && !branch->in_connect) {
+		switch_fr(branch->ctg);
+		rev_ori = ori ? 0 : 1;
+		query_int = rev_comp_kmer(query_int, hm->o->k);
+		connected = connect(branch, hm, all_tpls, query_int, rev_ori);
+		// If connected, no need to reverse back, because the extending will be always stopped
+		if (!connected)
+			switch_fr(branch->ctg);
+	}
+	if (ori)
+		seq_reverse(branch->len, branch->ctg->seq, 0);
 	return connected;
 }
 
@@ -481,9 +504,6 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			con_existing = kmer_ext_edge(branch, branch_query, hm, all_tpls,
 					ori);
 			cal_coverage(branch, hm);
-			if (!con_existing) {
-				trim_weak_tails(branch, hm, ori);
-			}
 			// If the branch can be merged into main template, erase the branch
 			if (branch_on_main(eg->ctg, branch->ctg, con_pos, (branch->len
 					/ hm->o->k + 2) * 3, ori)) {
@@ -609,12 +629,13 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	counter = (kmer_counter*) data;
 	kmer_int = counter->kmer;
 	rev_kmer_int = rev_comp_kmer(kmer_int, opt->k);
-	c = get_kmer_count(kmer_int, params->hm, 0);
+	c = get_kmer_rf_count(kmer_int, params->hm, 0);
 
-	if (kmer_int < 64 || rev_kmer_int < 64 || get_kmer_count(kmer_int,
-			params->hm, 0) <= 1 || kmer_is_used(kmer_int, params->hm)) {
+	if (kmer_int < 64 || rev_kmer_int < 64 || c <= 1
+			|| kmer_is_used(kmer_int, params->hm)) {
 		return NULL;
-	} show_debug_msg(__func__,
+	}
+	show_debug_msg(__func__,
 			"============= %" ID64 ": %" ID64 " ============ \n", kmer_int, c);
 	eg = blank_edge(kmer_int, opt->k, opt->k, 0);
 	eg->kmer_freq = get_kmer_count(kmer_int, params->hm, 1);
@@ -677,7 +698,7 @@ void kmer_threads(kmer_t_meta *params) {
 				> 64) {
 			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
 			counter->kmer = it->first;
-			counter->count = count;
+			counter->count = get_kmer_rf_count(it->first, hm, 0);
 			g_ptr_array_add(start_kmers, counter);
 		}
 	}
@@ -701,7 +722,7 @@ void kmer_threads(kmer_t_meta *params) {
 }
 
 void test_kmer_ext(kmer_t_meta *params) {
-	uint64_t kmer_int = 1047455639450174;
+	uint64_t kmer_int = 957139786396488;
 	int round_1_len = 0, round_2_len = 0;
 	edge *eg = new_eg();
 	FILE *contigs = NULL;

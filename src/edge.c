@@ -45,6 +45,7 @@ edge *new_eg() {
 	eg->tid = 0;
 	eg->coverage = 0.0;
 	eg->kmer_freq = 0;
+	eg->in_connect = 0;
 	return eg;
 }
 

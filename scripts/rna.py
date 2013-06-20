@@ -300,6 +300,8 @@ def simu(args):
     annotated = FastaFile(args.annotated)
     reads = FastaFile()
     read_id = 0
+    out = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/simu.fa'
+    ref = '/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta.rev'
     for tx in args.transcripts:
         seq = annotated.seqs[tx]
         for i in range(len(seq) - args.read_len + 1):
@@ -307,7 +309,11 @@ def simu(args):
             read_id += 1
             reads.seqs[read_id] = seq[i:i+args.read_len]
             read_id += 1
-    reads.save_to_disk('/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/simu.fa')
+    reads.save_to_disk(out)
+    cmd = 'blat %s %s %s.psl' % (ref, out, out)
+    print cmd
+    print runInShell(cmd)
+    print 'Check file %s' % out
 
 def main():
     parser = ArgumentParser()
@@ -340,8 +346,8 @@ def main():
     parser_exon = subparsers.add_parser('simu', help='simulate reads from specific contigs for small debugging')
     parser_exon.set_defaults(func=simu)
     parser_exon.add_argument('transcripts', nargs='+', help='transcript names')
-    parser_exon.add_argument('-t', '--annotated', help='annotated transcript file')
-    parser_exon.add_argument('-l', '--read_len', type=int, help='read length')
+    parser_exon.add_argument('-t', '--annotated', default='/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta.rev', help='annotated transcript file')
+    parser_exon.add_argument('-l', '--read_len', default=68, type=int, help='read length')
 
     args = parser.parse_args()
     args.func(args)
