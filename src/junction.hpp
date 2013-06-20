@@ -38,6 +38,9 @@ extern "C" {
 			const int kmer_len);
 	void store_junctions(char *name, GPtrArray *branching_events);
 	gint cmp_junctions_by_id(gpointer a, gpointer b);
+	void clean_junctions(GPtrArray *junctions);
+	int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
+			const int pos, const int mismatches, const int ori);
 
 #ifdef __cplusplus
 }

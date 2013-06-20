@@ -89,8 +89,23 @@ int find_junc_reads_w_tails(hash_map *hm, edge *main_tpl, edge *branch_tpl,
 }
 
 /**
- * Update the junction locus for those edges right connected to itself.
+ * Update the junction locus for those edges connected to itself.
  * Because the locus is not correct when the junction is recorded.
+ * Example:
+ * Firstly extending to the right and connect to itself:
+ *           <<<<<
+ *          /     \
+ *         /       \
+ *         |        ^
+ * ------------------
+ * Locus:  ^ (value 8)
+ * But, later it extends to the left:
+ *               <<<<<
+ *              /     \
+ *             /       \
+ *             |        ^
+ * ====------------------
+ * Locus should be 8 + 4
  */
 void upd_tpl_jun_locus(edge *eg, GPtrArray *branching_events,
 		const int kmer_len) {
@@ -134,4 +149,82 @@ void store_junctions(char *name, GPtrArray *branching_events) {
 		fputs(entry, f);
 	}
 	fclose(f);
+}
+
+/**
+ * Remove duplicate junctions and junctions with dead templates
+ */
+void clean_junctions(GPtrArray *junctions) {
+	junction *junc = NULL, *pre = NULL;
+	uint32_t i = 0;
+	int not_alive = 0;
+	tpl_hash dead_tpls;
+	edge *eg = NULL;
+	for (i = 0; i < junctions->len; i++) {
+		not_alive = 0;
+		junc = (junction*) g_ptr_array_index(junctions, i);
+		if (!junc->main_tpl->alive) {
+			dead_tpls[junc->main_tpl->id] = junc->main_tpl;
+			not_alive = 1;
+		}
+		if (!junc->branch_tpl->alive) {
+			dead_tpls[junc->branch_tpl->id] = junc->branch_tpl;
+			not_alive = 1;
+		}
+		if (not_alive) {
+			free(junc);
+			g_ptr_array_remove_index_fast(junctions, i);
+			i--;
+			continue;
+		}
+		if (pre) {
+			if (pre->branch_tpl == junc->branch_tpl && pre->main_tpl
+					== junc->main_tpl && pre->kmer == junc->kmer && pre->locus
+					== junc->locus && pre->ori == junc->ori && pre->weight
+					== junc->weight) {
+				g_ptr_array_remove_index_fast(junctions, i);
+				i--;
+				continue;
+			}
+		}
+		pre = junc;
+	}
+	//	for (tpl_hash::iterator m = dead_tpls.begin(); m != dead_tpls.end(); ++m) {
+	//		eg = (edge*) m->second;
+	//		destroy_eg(eg);
+	//	}
+	dead_tpls.clear();
+}
+
+/**
+ * Main:  ================================
+ * Shift:                 ^
+ * Ori: 0 (to the right)
+ * Branch:                 ---------
+ * Check:                  =========
+ *                         |||||||||
+ *                         ---------
+ */
+int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
+		const int pos, const int mismatches, const int ori) {
+	bwa_seq_t *sub = NULL;
+	int similar = 0;
+	if (ori) {
+		if (pos < branch->len)
+			return 0;
+		sub = new_seq(main, branch->len, pos - branch->len);
+	} else {
+		if ((main->len - pos) < branch->len)
+			return 0;
+		sub = new_seq(main, branch->len, pos);
+	}
+	p_ctg_seq(__func__, sub);
+	p_ctg_seq(__func__, branch);
+	//similar = similar_seqs(sub, branch, mismatches, 1, MATCH_SCORE,
+	//		MISMATCH_SCORE, INDEL_SCORE);
+	similar = seq_ol(sub, branch, branch->len, mismatches);
+	free_read_seq(sub);
+	show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,
+			similar);
+	return similar;
 }

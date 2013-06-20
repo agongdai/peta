@@ -57,8 +57,8 @@ void free_readarray(readarray *ra) {
 
 /**
  * Get virtual tail of an edge.
- * This is used when a branch edge is connectted to the locus of '^'.
- * When another third-layer branch edge is connectted to this branch edge,
+ * This is used when a branch edge is connected to the locus of '^'.
+ * When another third-layer branch edge is connected to this branch edge,
  * 	its own length may be not long enough, then it cuts some length from the main template.
  * If the length of the branch edge is long enough, the virtual tail is not used.
  *

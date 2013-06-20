@@ -49,7 +49,7 @@ def get_junction_dict(junctions):
 visited = []
 
 def exons_are_connected(exon_1, exon_2, j_dict, level = 0):
-    if level > 10:
+    if level > 5:
         return False
     if not exon_1 in j_dict or not exon_2 in j_dict:
         return False
@@ -128,7 +128,7 @@ def exam_junctions(args):
         n_covered = 0
         for c in bases_covered:
             n_covered += c
-        if n_covered >= tx_len - 10:
+        if n_covered >= tx_len - 10 and len(max_cover_hits) > 1:
             print 'Transcript %s is recovered by connected graph' % tx_name 
             print max_cover_hits
             print '--------------------------------------------------------'

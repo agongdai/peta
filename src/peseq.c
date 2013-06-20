@@ -664,39 +664,6 @@ int share_subseq_byte(const ubyte_t *seq_1, const int len,
 }
 
 /**
- * Main:  ================================
- * Shift:                 ^
- * Ori: 0 (to the right)
- * Branch:                 ---------
- * Check:                  =========
- *                         |||||||||
- *                         ---------
- */
-int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
-		const int pos, const int mismatches, const int ori) {
-	bwa_seq_t *sub = NULL;
-	int similar = 0;
-	if (ori) {
-		if (pos < branch->len)
-			return 0;
-		sub = new_seq(main, branch->len, pos - branch->len);
-	} else {
-		if ((main->len - pos) < branch->len)
-			return 0;
-		sub = new_seq(main, branch->len, pos);
-	}
-	p_ctg_seq(__func__, sub);
-	p_ctg_seq(__func__, branch);
-	//similar = similar_seqs(sub, branch, mismatches, 1, MATCH_SCORE,
-	//		MISMATCH_SCORE, INDEL_SCORE);
-	similar = seq_ol(sub, branch, branch->len, mismatches);
-	free_read_seq(sub);
-	show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,
-			similar);
-	return similar;
-}
-
-/**
  * Check whether two sequences share similar regions (length 'ol') with max 'mismatches'.
  */
 int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,

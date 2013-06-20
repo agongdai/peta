@@ -81,48 +81,6 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 	return tpls;
 }
 
-void clean_junctions(GPtrArray *junctions) {
-	junction *junc = NULL, *pre = NULL;
-	uint32_t i = 0;
-	int not_alive = 0;
-	tpl_hash dead_tpls;
-	edge *eg = NULL;
-	for (i = 0; i < junctions->len; i++) {
-		not_alive = 0;
-		junc = (junction*) g_ptr_array_index(junctions, i);
-		if (!junc->main_tpl->alive) {
-			dead_tpls[junc->main_tpl->id] = junc->main_tpl;
-			not_alive = 1;
-		}
-		if (!junc->branch_tpl->alive) {
-			dead_tpls[junc->branch_tpl->id] = junc->branch_tpl;
-			not_alive = 1;
-		}
-		if (not_alive) {
-			free(junc);
-			g_ptr_array_remove_index_fast(junctions, i);
-			i--;
-			continue;
-		}
-		if (pre) {
-			if (pre->branch_tpl == junc->branch_tpl && pre->main_tpl
-					== junc->main_tpl && pre->kmer == junc->kmer && pre->locus
-					== junc->locus && pre->ori == junc->ori && pre->weight
-					== junc->weight) {
-				g_ptr_array_remove_index_fast(junctions, i);
-				i--;
-				continue;
-			}
-		}
-		pre = junc;
-	}
-	//	for (tpl_hash::iterator m = dead_tpls.begin(); m != dead_tpls.end(); ++m) {
-	//		eg = (edge*) m->second;
-	//		destroy_eg(eg);
-	//	}
-	dead_tpls.clear();
-}
-
 gint cmp_kmers_by_count(gpointer a, gpointer b) {
 	kmer_counter *c_a = *((kmer_counter**) a);
 	kmer_counter *c_b = *((kmer_counter**) b);
@@ -169,26 +127,34 @@ void cal_coverage(edge *eg, hash_map *hm) {
  * If the edge after short extension is too short but right connected,
  * 	borrow some sequence from the right connected edge.
  */
-void borrow_right_seq(bwa_seq_t *short_seq, edge *right_tpl, const int shift,
-		const int max_len) {
-	bwa_seq_t *right_tail = NULL;
-	int borrow_len = 0;
+void borrow_existing_seq(bwa_seq_t *short_seq, edge *connected_tpl,
+		const int shift, const int kmer_len, const int max_len, const int ori) {
+	bwa_seq_t *tail = NULL;
+	int borrow_len = 0, existing_ori = 0, existing_shift = 0;
 	if (short_seq->len >= max_len)
 		return;
-	right_tail = cut_edge_tail(right_tpl, shift, max_len, 1);
+	existing_ori = ori ? 0 : 1;
+	existing_shift = existing_ori ? (shift + kmer_len - 1) : shift;
+	tail = cut_edge_tail(connected_tpl, existing_shift, max_len, existing_ori);
 	borrow_len = max_len - short_seq->len;
-	borrow_len = borrow_len > right_tail->len ? right_tail->len : borrow_len;
+	borrow_len = borrow_len > tail->len ? tail->len : borrow_len;
 	// The space has be allocated to max_len in try_short_tpl_byte_ext already.
-	memcpy(short_seq->seq + short_seq->len, right_tail->seq, borrow_len
-			* sizeof(ubyte_t));
+	if (existing_ori)
+		memcpy(short_seq->seq + short_seq->len, tail->seq, borrow_len
+				* sizeof(ubyte_t));
+	else {
+		memmove(short_seq->seq + borrow_len, short_seq->seq, short_seq->len);
+		memcpy(short_seq->seq, tail->seq, borrow_len * sizeof(ubyte_t));
+	}
+
 	short_seq->len += borrow_len;
-	free_read_seq(right_tail);
+	free_read_seq(tail);
 }
 
 /**
  * Try to get the right connected
  */
-edge *get_right_con_tpl(hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
+edge *get_connected_tpl(hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 		int *locus, const int ori) {
 	int next_c = 0, eg_id = 0;
 	uint64_t value = 0;
@@ -232,24 +198,25 @@ bwa_seq_t *try_short_tpl_byte_ext(hash_map *hm, uint64_t *query, int first_c,
 }
 
 /**
- * Validate the branching event on 'main_tpl' at locus 'shift' with orientation 'ori'
- * The parameter c is the first char of the candidate branch
+ * Validate a branching is valid or not.
+ * Need to tailor and extend the two templates if they are not long enough
  **/
 int val_branching(hash_map *hm, edge *main_tpl, tpl_hash *all_tpls,
 		const int shift, uint64_t query_int, int c, const int ori, int *weight,
 		const int max_len) {
 	uint64_t query = 0;
-	int n_reads = 0, right_con_shift = 0;
+	int n_reads = 0, existing_shift = 0;
 	bwa_seq_t *branch_seq = NULL, *main_seq = NULL;
-	edge *right_tpl = NULL;
+	edge *connected_tpl = NULL;
 
 	query = shift_bit(query_int, c, hm->o->k, ori);
 	branch_seq = try_short_tpl_byte_ext(hm, &query, c, ori, max_len / 2);
-	right_tpl = get_right_con_tpl(hm, all_tpls, query, &right_con_shift, ori);
+	connected_tpl
+			= get_connected_tpl(hm, all_tpls, query, &existing_shift, ori);
 	// If the branch is right connected.
-	if (right_tpl) {
-		right_con_shift += hm->o->k - 1;
-		borrow_right_seq(branch_seq, right_tpl, right_con_shift, max_len / 2);
+	if (connected_tpl && branch_seq->len < max_len / 2) {
+		borrow_existing_seq(branch_seq, connected_tpl, existing_shift,
+				hm->o->k, max_len / 2, ori);
 	}
 
 	if (ori) {
@@ -310,12 +277,10 @@ int connect(edge *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 			 bwa_free_read_seq(1, debug);
 			 show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
 			 locus);
-			**/
+			 **/
 			valid = find_junc_reads_w_tails(hm, existing, branch, con_pos,
 					(hm->o->read_len - SHORT_BRANCH_SHIFT) * 2, ori, &weight);
 			if (valid) {
-				// This locus is not correct if connect to itself.
-				// The locus is always at the left
 				exist_ori = ori ? 0 : 1;
 				if (branch->len < hm->o->k - 1) {
 					if (exist_ori)
@@ -575,7 +540,7 @@ int kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 		 p_ctg_seq("Contig", eg->ctg);
 		 if (ori)
 		 seq_reverse(eg->len, eg->ctg->seq, 0);
-		**/
+		 **/
 
 		// If the max direction is taken already, connect to it.
 		if (max_c_all != max_c) {
@@ -633,9 +598,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	c = get_kmer_rf_count(kmer_int, params->hm, 0);
 	query = get_kmer_seq(kmer_int, opt->k);
 
-	if (kmer_int < 64 || rev_kmer_int < 64 || c <= 1
-			|| is_repetitive_q(query) || is_biased_q(query)
-			|| kmer_is_used(kmer_int, params->hm)) {
+	if (kmer_int < 64 || rev_kmer_int < 64 || c <= 1 || is_repetitive_q(query)
+			|| is_biased_q(query) || kmer_is_used(kmer_int, params->hm)) {
 		bwa_free_read_seq(1, query);
 		return NULL;
 	}
@@ -679,8 +643,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		mark_tpl_kmers_used(eg, params->hm, opt->k, 0);
 		upd_tpl_jun_locus(eg, branching_events, opt->k);
 		cal_coverage(eg, params->hm);
-		//kmer_ext_branch(eg, params->hm, all_tpls, 0);
-		//kmer_ext_branch(eg, params->hm, all_tpls, 1);
+		kmer_ext_branch(eg, params->hm, all_tpls, 0);
+		kmer_ext_branch(eg, params->hm, all_tpls, 1);
 		eg->start_kmer = *((uint64_t*) data);
 	}
 	return NULL;
@@ -818,7 +782,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	//exit(1);
 	kmer_threads(params);
 	// Start branching after the frequent kmers are consumed already.
-	start_branching(&all_tpls, params);
+	//start_branching(&all_tpls, params);
 
 	show_msg(__func__, "Saving contigs: %.2f sec\n",
 			(float) (kmer_finish_time.tv_sec - kmer_start_time.tv_sec));
