@@ -278,14 +278,14 @@ int connect(edge *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 	uint64_t value = 0, query_copy = query_int;
 	edge *existing = NULL;
 
-	show_debug_msg(__func__, "---------- Connecting to existing, ori %d ----------\n", ori);
-	p_ctg_seq(__func__, branch->ctg);
+	//show_debug_msg(__func__, "---------- Connecting to existing, ori %d ----------\n", ori);
+	//p_ctg_seq(__func__, branch->ctg);
 	counters = count_next_kmers(hm, query_int, 0, ori);
-	bwa_seq_t *debug = get_kmer_seq(query_int, 25);
-	p_query(__func__, debug);
-	bwa_free_read_seq(1, debug);
-	show_debug_msg(__func__, "Counters: %d,%d,%d,%d\n", counters[0],
-			counters[1], counters[2], counters[3]);
+	//bwa_seq_t *debug = get_kmer_seq(query_int, 25);
+	//p_query(__func__, debug);
+	//bwa_free_read_seq(1, debug);
+	//show_debug_msg(__func__, "Counters: %d,%d,%d,%d\n", counters[0],
+	//		counters[1], counters[2], counters[3]);
 
 	// In case connecting to the template itself
 	mark_tpl_kmers_used(branch, hm, hm->o->k, 0);
@@ -304,13 +304,13 @@ int connect(edge *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 				continue;
 			con_pos = ori ? (locus + 1) : (locus + hm->o->k - 1);
 
-
+			/**
 			 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
 			 p_query(__func__, debug);
 			 bwa_free_read_seq(1, debug);
 			 show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
 			 locus);
-
+			**/
 			valid = find_junc_reads_w_tails(hm, existing, branch, con_pos,
 					(hm->o->read_len - SHORT_BRANCH_SHIFT) * 2, ori, &weight);
 			if (valid) {
@@ -457,8 +457,8 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 	edge *branch = NULL;
 	if (eg->len <= kmer_len)
 		return;
-	show_debug_msg(__func__, "^^^^^ Branching [%d, %d] to ori %d ^^^^^^\n",
-			eg->id, eg->len, ori);
+	//show_debug_msg(__func__, "^^^^^ Branching [%d, %d] to ori %d ^^^^^^\n",
+	//		eg->id, eg->len, ori);
 	for (i = 0; i < eg->len - kmer_len; i++) {
 		query_int = get_kmer_int(eg->ctg->seq, i, 1, kmer_len);
 		counters = count_next_kmers(hm, query_int, 1, ori);
@@ -622,6 +622,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	uint64_t kmer_int = 0, rev_kmer_int = 0, c = 0;
 	map_opt *opt = NULL;
 	kmer_counter *counter = NULL;
+	bwa_seq_t *query = NULL;
 	kmer_t_meta *params = (kmer_t_meta*) thread_params;
 	tpl_hash *all_tpls = params->all_tpls;
 	opt = params->hm->o;
@@ -630,11 +631,15 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	kmer_int = counter->kmer;
 	rev_kmer_int = rev_comp_kmer(kmer_int, opt->k);
 	c = get_kmer_rf_count(kmer_int, params->hm, 0);
+	query = get_kmer_seq(kmer_int, opt->k);
 
 	if (kmer_int < 64 || rev_kmer_int < 64 || c <= 1
+			|| is_repetitive_q(query) || is_biased_q(query)
 			|| kmer_is_used(kmer_int, params->hm)) {
+		bwa_free_read_seq(1, query);
 		return NULL;
 	}
+	bwa_free_read_seq(1, query);
 	show_debug_msg(__func__,
 			"============= %" ID64 ": %" ID64 " ============ \n", kmer_int, c);
 	eg = blank_edge(kmer_int, opt->k, opt->k, 0);
