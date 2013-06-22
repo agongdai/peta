@@ -322,6 +322,12 @@ int connect(edge *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 	return connected;
 }
 
+/**
+ * If next kmer is used by another template, try to connect to it.
+ * Return: 0: cannot be connected
+ *         1: forward connected
+ *         2: reverse complement connected
+**/
 int existing_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
 		uint64_t query_int, int ori) {
 	int connected = 0, rev_ori = 0;
@@ -334,6 +340,7 @@ int existing_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
 	// Try the reverse complement of the branch and connect
 	//	, if there is no other template connecting to it currently
 	if (!connected && !branch->in_connect) {
+		show_debug_msg(__func__, "ATTENTION: going to connect reverse complement\n");
 		switch_fr(branch->ctg);
 		rev_ori = ori ? 0 : 1;
 		rev_query = rev_comp_kmer(query_int, hm->o->k);
@@ -341,6 +348,10 @@ int existing_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
 		// If connected, no need to reverse back, because the extending will be always stopped
 		if (!connected)
 			switch_fr(branch->ctg);
+		else {
+			connected = 2; // Indicates that its rev-comp connectes to existing template
+			show_debug_msg(__func__, "ATTENTION: connected reverse complement\n");
+		}
 	}
 	if (ori)
 		seq_reverse(branch->len, branch->ctg->seq, 0);
@@ -584,7 +595,7 @@ int kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
  */
 void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	edge *eg = NULL;
-	int round_1_len = 0, round_2_len = 0, connected = 0;
+	int round_1_len = 0, round_2_len = 0, connected = 0, ori = 1, flag = 0;
 	uint64_t kmer_int = 0, rev_kmer_int = 0, c = 0;
 	map_opt *opt = NULL;
 	kmer_counter *counter = NULL;
@@ -618,14 +629,19 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	round_1_len = eg->len;
 	show_debug_msg(__func__, "Edge %d with length: %d \n", eg->id, eg->len);
 
-	// The query int is not changed, just the direction is changed.
-	connected |= kmer_ext_edge(eg, kmer_int, params->hm, all_tpls, 1);
+	// Its reverse complement is connected to an existing template
+	if (connected == 2) {
+		ori = 0;
+		kmer_int = rev_kmer_int;
+	}
+	connected |= kmer_ext_edge(eg, kmer_int, params->hm, all_tpls, ori);
 	show_debug_msg(__func__, "Edge %d with length: %d \n", eg->id, eg->len);
 
+	/**
 	if (!connected && eg->len - round_1_len > 2) {
 		kmer_int = get_kmer_int(eg->ctg->seq, eg->len - opt->k, 1, opt->k);
 		round_2_len = eg->len;
-		connected |= kmer_ext_edge(eg, kmer_int, params->hm, all_tpls, 0);
+		flag = kmer_ext_edge(eg, kmer_int, params->hm, all_tpls, 0);
 		show_debug_msg(__func__, "Edge %d with length: %d \n", eg->id, eg->len);
 		if (eg->len - round_2_len > 2) {
 			kmer_int = get_kmer_int(eg->ctg->seq, 0, 1, opt->k);
@@ -634,6 +650,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 					eg->len);
 		}
 	}
+	**/
 
 	if (!connected && eg->len <= opt->k) {
 		g_mutex_lock(kmer_id_mutex);

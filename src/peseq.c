@@ -367,11 +367,16 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	return p;
 }
 
+/**
+ * Noted: to avoid segfault when calling realloc, 
+ * 			here use memcpy, do not simply swap the address
+**/
 void switch_fr(bwa_seq_t *s) {
-	ubyte_t *b = NULL;
-	b = s->seq;
-	s->seq = s->rseq;
-	s->rseq = b;
+	ubyte_t *b = (ubyte_t*) malloc(sizeof(ubyte_t) * s->len);
+	memcpy(b, s->seq, sizeof(ubyte_t) * s->len);
+	memcpy(s->seq, s->rseq, sizeof(ubyte_t) * s->len);
+	memcpy(s->rseq, b, sizeof(ubyte_t) * s->len);
+	free(b);
 }
 
 void set_rev_com(bwa_seq_t *s) {

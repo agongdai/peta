@@ -186,7 +186,7 @@ def rev(args):
     with open(args.out, 'w') as output:
         with open(args.input) as input:
             for line in input:
-                if line_no % every_n_line == 0:
+                if not line_no % every_n_line == 1:
                     output.write(line)
                 else:
                     line = line.strip()
@@ -261,7 +261,7 @@ def main():
     parser_app_pair_suffix.add_argument('-o', required=True, help='output file', dest='fq_with_tag', metavar='FILE')
     parser_app_pair_suffix.add_argument('-d', required=True, default='left', help='left or right', dest='ori')
 
-    parser_rev = subparsers.add_parser('rev', help='reverse complement fasta/fastq')
+    parser_rev = subparsers.add_parser('reverse', help='reverse complement fasta/fastq')
     parser_rev.set_defaults(func=rev)
     parser_rev.add_argument('-t', required=True, help='fq or fa', dest='type', default='fq')
     parser_rev.add_argument('-f', required=True, help='file', dest='input', metavar='FILE')

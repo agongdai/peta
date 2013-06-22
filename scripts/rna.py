@@ -90,6 +90,9 @@ def exam_junctions(args):
         if tx_name in existing:
             continue
         
+        for h in tx_hits:
+            tx_len = h.rlen
+        
         # If the transcript is not expressed, ignore
         bases_covered = [0 for _ in range(tx_len)]
         for h in tx_hits:
@@ -137,7 +140,7 @@ def exam_junctions(args):
     
     full.close()    
     print 'Check file %s.full' % args.junction
-    print 'n_one_contig_full_length: %d' % n_one_contig_full_length
+    print 'n_one_contig_full_length: %d' % len(existing)
     print 'n_covered_by_connected_graph: %d' % n_covered_by_connected_graph
 
 def split_exons(args):
