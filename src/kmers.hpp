@@ -34,7 +34,7 @@ extern "C" {
 			const int ori);
 	uint64_t get_kmer_count(const uint64_t kmer_int, hash_map *hm, const int fresh);
 	uint64_t get_kmer_rf_count(const uint64_t query, hash_map *hm, const int fresh_only);
-	void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm, const int tpl_id, const int locus);
+	void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm, const int tpl_id, const int locus, const int tpl_len);
 	void mark_kmer_not_used(const uint64_t kmer_int, const hash_map *hm);
 	int kmer_is_used(const uint64_t kmer_int, hash_map *hm);
 	void read_tpl_using_kmer(const uint64_t kmer_int, mer_hash *hash,

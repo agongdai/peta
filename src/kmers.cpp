@@ -65,7 +65,7 @@ bwa_seq_t *get_kmer_seq(uint64_t kmer, const int k) {
  * |<-  24bits: tpl id  ->||<-   locus  ->||<-  24bits: count   ->|
  */
 void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm,
-		const int tpl_id, const int locus) {
+		const int tpl_id, const int locus, const int tpl_len) {
 	uint64_t *freq = NULL, rev_kmer_int = 0, count = 0;
 	mer_hash *hash = hm->hash;
 	mer_hash::iterator it = hash->find(kmer_int);
@@ -86,7 +86,7 @@ void mark_kmer_used(const uint64_t kmer_int, const hash_map *hm,
 		freq = it->second;
 		count = tpl_id;
 		count <<= 16;
-		count += locus;
+		count += tpl_len - locus - hm->o->k;
 		count <<= 24;
 		// Reset the used template to be none
 		freq[0] <<= 40;

@@ -70,6 +70,13 @@ def exons_are_connected(exon_1, exon_2, j_dict, level = 0):
 def exam_junctions(args):
     junctions = read_junctions(args.junction)
     j_dict = get_junction_dict(junctions)
+    existing = []
+    with open(args.full) as full:
+        for line in full:
+            line = line.strip()
+            if not line == '':
+                existing.append(line)
+    print 'Existing full length: %d' % (len(existing))
     
     hits = read_blat_hits(args.psl, 'ref')
     n_one_contig_full_length = 0
@@ -79,15 +86,8 @@ def exam_junctions(args):
         tx_hits.sort(key=lambda x: x.rstart)
         stop_here = False
         tx_len = 0
-        # If the transcript is covered by some contig as a whole, count separately
-        for h in tx_hits:
-            tx_len = h.rlen
-            if h.n_match >= h.rlen - 10:
-                # print 'Full length: %s' % tx_name
-                n_one_contig_full_length += 1
-                stop_here = True
-                break
-        if stop_here:
+        
+        if tx_name in existing:
             continue
         
         # If the transcript is not expressed, ignore
@@ -340,6 +340,7 @@ def main():
     
     parser_exon = subparsers.add_parser('junction', help='Exam junctions from PSL file')
     parser_exon.set_defaults(func=exam_junctions)
+    parser_exon.add_argument('full', help='Existing full length list (would be skipped)')
     parser_exon.add_argument('junction', help='PETA junction file')
     parser_exon.add_argument('psl', help='transcript/contigs-to-annotation PSL file')
     

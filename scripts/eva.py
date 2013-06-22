@@ -3,8 +3,8 @@ import sys, os, pysam
 from argparse import ArgumentParser
 import collections
 
-bad_bases_thre = 50
-full_length_perc = 0.95
+bad_bases_thre = 10
+full_length_perc = 0.99
 near_full_length = 0.9
 
 class ResultSummary(object):

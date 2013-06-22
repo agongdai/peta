@@ -95,7 +95,7 @@ void mark_tpl_kmers_used(edge *eg, hash_map *hm, const int kmer_len,
 		return;
 	for (i = 0; i <= eg->len - kmer_len; i++) {
 		query_int = get_kmer_int(eg->ctg->seq, i, 1, kmer_len);
-		mark_kmer_used(query_int, hm, eg->id, i + shift);
+		mark_kmer_used(query_int, hm, eg->id, i + shift, eg->len);
 	}
 }
 
@@ -144,7 +144,7 @@ void borrow_existing_seq(bwa_seq_t *short_seq, edge *connected_tpl,
 				* sizeof(ubyte_t));
 	else {
 		memmove(short_seq->seq + borrow_len, short_seq->seq, short_seq->len);
-		memcpy(short_seq->seq, tail->seq, borrow_len * sizeof(ubyte_t));
+		memcpy(short_seq->seq, tail->seq + (tail->len - borrow_len), borrow_len * sizeof(ubyte_t));
 	}
 
 	short_seq->len += borrow_len;
@@ -310,8 +310,8 @@ int connect(edge *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 						con_pos);
 				set_tail(branch, existing, con_pos, hm->o->read_len
 						- SHORT_BRANCH_SHIFT, exist_ori);
-				//p_ctg_seq("Right tail", branch->r_tail);
-				//p_ctg_seq("Left  tail", branch->l_tail);
+				p_ctg_seq("Right tail", branch->r_tail);
+				p_ctg_seq("Left  tail", branch->l_tail);
 				add_a_junction(existing, branch, query_int, con_pos, exist_ori,
 						weight);
 				connected = 1;
@@ -325,6 +325,7 @@ int connect(edge *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 int existing_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
 		uint64_t query_int, int ori) {
 	int connected = 0, rev_ori = 0;
+	uint64_t rev_query = 0;
 	// During extension, the sequence is actually reversed, here reverse back temp
 	if (ori)
 		seq_reverse(branch->len, branch->ctg->seq, 0);
@@ -335,8 +336,8 @@ int existing_connect(edge *branch, hash_map *hm, tpl_hash *all_tpls,
 	if (!connected && !branch->in_connect) {
 		switch_fr(branch->ctg);
 		rev_ori = ori ? 0 : 1;
-		query_int = rev_comp_kmer(query_int, hm->o->k);
-		connected = connect(branch, hm, all_tpls, query_int, rev_ori);
+		rev_query = rev_comp_kmer(query_int, hm->o->k);
+		connected = connect(branch, hm, all_tpls, rev_query, rev_ori);
 		// If connected, no need to reverse back, because the extending will be always stopped
 		if (!connected)
 			switch_fr(branch->ctg);
@@ -567,7 +568,7 @@ int kmer_ext_edge(edge *eg, uint64_t query_int, hash_map *hm,
 		ext_con(eg->ctg, max_c, 0);
 		eg->len = eg->ctg->len;
 		// In case the template has repeats, so mark kmers used TEMPERARIALY. The locus is incorrect.
-		mark_kmer_used(query_int, hm, eg->id, eg->len);
+		mark_kmer_used(query_int, hm, eg->id, eg->len, eg->len);
 		query_int = shift_bit(query_int, max_c, hm->o->k, ori);
 		if (eg->len % 100 == 0)
 			show_debug_msg(__func__, "Ori %d, Edge %d, length %d \n", ori,
@@ -643,8 +644,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		mark_tpl_kmers_used(eg, params->hm, opt->k, 0);
 		upd_tpl_jun_locus(eg, branching_events, opt->k);
 		cal_coverage(eg, params->hm);
-		kmer_ext_branch(eg, params->hm, all_tpls, 0);
-		kmer_ext_branch(eg, params->hm, all_tpls, 1);
+		//kmer_ext_branch(eg, params->hm, all_tpls, 0);
+		//kmer_ext_branch(eg, params->hm, all_tpls, 1);
 		eg->start_kmer = *((uint64_t*) data);
 	}
 	return NULL;
