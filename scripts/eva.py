@@ -29,6 +29,13 @@ class ResultSummary(object):
 		self.n50_optimal = 0
 		self.base_coverage = 0.0
 		self.similarity_thre = 0
+		
+		self.accuracy = 0.0
+		self.completeness = 0.0
+		self.contiguity = 0.0
+		self.chimerism = 0.0
+		self.variant_resolution = 0.0
+		self.threshold = 0.8
 
 	def set_n_bases(self, n):
 		self.n_bases = n
@@ -46,7 +53,7 @@ class ResultSummary(object):
 		print '\t# of one-on-one:              ' + str(self.n_tx_one_on_one)
 		print '\t# of near full length %.0f%%:   ' % (near_full_length * 100) + ' ' + str(self.n_tx_near_full_length)
 		print '\t# of 70% covered:             ' + str(self.n_tx_covered_70)
-		print '\tCovered by one contig:        ' + str(self.n_tx_one_covered)
+# 		print '\tCovered by one contig:        ' + str(self.n_tx_one_covered)
 # 		print '\t# of fragmented:              ' + str(self.n_fragmented)
 		print '\t# of Ctgs not aligned:        ' + str(self.n_not_aligned)
 		print '\tBases not aligned:            ' + str(self.n_bases_not_aligned)
@@ -55,8 +62,13 @@ class ResultSummary(object):
 		print '\tOptimal N50:                  ' + str(self.n50_optimal)
 		print '\tRaw N50:                      ' + str(self.n50_raw)
 		print '\tAligned N50:                  ' + str(self.n50_aligned)
-		print '\tAligned N50 based on all:     ' + str(self.n50_aligned_on_all)
-		print '\tBase coverage:                %.2f%%' % (self.base_coverage * 100)
+# 		print '\tAligned N50 based on all:     ' + str(self.n50_aligned_on_all)
+# 		print '\tBase coverage:                %.2f%%' % (self.base_coverage * 100)
+		print '\tAccuracy:                     %.2f%%' % (self.accuracy * 100)
+		print '\tCompleteness %.0f%%:             %.2f%%' % (self.threshold * 100, self.completeness * 100)
+		print '\tContiguity %.0f%%:               %.2f%%' % (self.threshold * 100, self.contiguity * 100)
+		print '\tChimerism:                    %.2f%%' % (self.chimerism * 100)
+		print '\tVariant resolution:           %.2f%%' % (self.variant_resolution * 100)
 		print '==================================================================='
 
 class FastaFile(object):
@@ -237,6 +249,79 @@ def find_hit(hits, query, tx):
 		if h.qname == query:
 			return h
 	return None
+
+def cal_base_cover(annotated_tx, hits):
+	base_cover = {}
+	for tx_name, tx_seq in annotated_tx.iteritems():
+		binary_covered = [0 for _ in range(len(tx_seq))]
+		if tx_name in hits:
+			tx_hits = hits[tx_name]
+			for a in tx_hits:
+				for i in range(a.n_blocks):
+					start = a.r_block_starts[i]
+					end = a.r_block_starts[i] + a.block_sizes[i]
+					if end > len(tx_seq):
+						end = len(tx_seq)
+					for i in range(start, end):
+						binary_covered[i] = 1
+		base_cover[tx_name] = binary_covered
+	return base_cover
+
+def cal_accuracy(annotated_tx, hits):
+	covered = 0.0
+	base_cover = cal_base_cover(annotated_tx, hits)
+	for tx_name, binary_covered in base_cover.iteritems():
+		n_covered = 0
+		for i in binary_covered:
+			n_covered += i
+		tx_cover = n_covered / len(annotated_tx[tx_name])
+		#print 'tx: %s, %d / %d = %.2f' % (tx_name, n_covered, len(tx_seq), tx_cover)
+		covered += tx_cover
+	covered /= len(annotated_tx)
+	return covered
+
+def cal_completeness(annotated_tx, hits, threshold=0.99):
+	base_cover = cal_base_cover(annotated_tx, hits)
+	covered = 0.0
+	for tx_name, binary_covered in base_cover.iteritems():
+		n_covered = 0
+		for i in binary_covered:
+			n_covered += i
+		tx_cover = n_covered / len(annotated_tx[tx_name])
+		if tx_cover >= threshold:
+			covered += 1
+	covered /= len(annotated_tx)
+	return covered
+
+def cal_contiguity(annotated_tx, hits, threshold=0.99):
+	covered = 0.0
+	for tx_name, tx_seq in annotated_tx.iteritems():
+		if tx_name in hits:
+			max_block = 0
+			tx_hits = hits[tx_name]
+			for a in tx_hits:
+				for i in range(a.n_blocks):
+					if a.block_sizes[i] > max_block:
+						max_block = a.block_sizes[i]
+			if max_block >= len(annotated_tx[tx_name]) * threshold:
+				covered += 1
+	covered /= len(annotated_tx)
+	return covered
+
+def cal_continuous_n50(annotated_tx, hits):
+	n50 = 0
+	max_blocks = []
+	for tx_name, tx_seq in annotated_tx.iteritems():
+		if tx_name in hits:
+			max = 0
+			tx_hits = hits[tx_name]
+			for a in tx_hits:
+				for i in range(a.n_blocks):
+					if a.block_sizes[i] > max:
+						max = a.block_sizes[i]
+			max_blocks.append(max)
+	n50 = get_n50(max_blocks)
+	return n50
 		
 def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	file_full_length = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_full_length.txt'), 'w')
@@ -315,15 +400,24 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 				for i in range(len(binary_covered)):
 					if binary_covered[i] == 0:
 						file_partial.write('%d\n' % i)
+
+	file_one_covered.close()
+	file_full_length.close()
+	file_near_full_length.close()
+	file_covered_70.close()
+	file_one_on_one.close()
+	file_not_aligned.close()
 				
 	summary.n_bases = contigs.n_bases
 	summary.n_contigs = contigs.n_seqs
 	summary.n_fragmented = summary.n_contigs - summary.n_tx_full_length - summary.n_tx_one_on_one - summary.n_tx_covered_70 - summary.n_not_aligned
-	summary.n50_aligned = get_n50(aligned_lengths)
-	summary.n50_aligned_on_all = get_n50(aligned_lengths, summary.n_bases)
+	summary.n50_aligned = cal_continuous_n50(ref.seqs, r_hits)
 	summary.base_coverage = n_obtained_bases / ref.n_bases
 	summary.n50_raw = contigs.n50
 	summary.n50_optimal = ref.n50
+	summary.accuracy = cal_accuracy(ref.seqs, r_hits)
+ 	summary.completeness = cal_completeness(ref.seqs, r_hits, summary.threshold)
+ 	summary.contiguity = cal_contiguity(ref.seqs, r_hits, summary.threshold)
 	summary.report()
 
 	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_full_length.txt')
@@ -334,13 +428,6 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_not_aligned.txt')
 	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_partial.txt')
 
-	file_one_covered.close()
-	file_full_length.close()
-	file_near_full_length.close()
-	file_covered_70.close()
-	file_one_on_one.close()
-	file_not_aligned.close()
-	
 def rm_self(hits):
 	for key, h in hits.iteritems():
 		clean_hits = []

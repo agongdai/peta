@@ -53,19 +53,19 @@ def exons_are_connected(exon_1, exon_2, j_dict, level = 0):
         return False
     if not exon_1 in j_dict or not exon_2 in j_dict:
         return False
-    if len(visited) == 0:
-        visited.append(exon_1)
+#     if len(visited) == 0:
+#         visited.append(exon_1)
     connected_1 = j_dict[exon_1]
     if exon_2 in connected_1:
         return True
-    for e in connected_1:
-        if e in visited:
-            continue
-        visited.append(e)
-        # print exon_1, e, exon_2
-        if exons_are_connected(e, exon_2, j_dict, level + 1):
-            return True
-    return False
+#     for e in connected_1:
+#         if e in visited:
+#             continue
+#         visited.append(e)
+#         # print exon_1, e, exon_2
+#         if exons_are_connected(e, exon_2, j_dict, level + 1):
+#             return True
+    return True
     
 def exam_junctions(args):
     junctions = read_junctions(args.junction)

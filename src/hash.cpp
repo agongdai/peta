@@ -277,7 +277,7 @@ void export_frequency(const char *kmer_fa, const char *contigs_fn, const int k) 
 	for (i = 0; i < n_ctgs; i++) {
 		r = &contigs[i];
 		show_msg(__func__, "Processing %s...\n", r->name);
-		for (j = 12157; j <= r->len - k; j++) {
+		for (j = 0; j <= r->len - k; j++) {
 			kmer = get_kmer_int(r->seq, j, 1, k);
 			count = get_kmer_rf_count(kmer, hm, 0);
 
@@ -301,7 +301,7 @@ void export_frequency(const char *kmer_fa, const char *contigs_fn, const int k) 
 }
 
 int build_kmer_hash(int argc, char *argv[]) {
-	build_kmers_hash(argv[optind], atoi(argv[optind + 1]), 1);
+	build_kmers_hash(argv[optind], atoi(argv[optind + 1]), 0);
 	return 0;
 }
 
