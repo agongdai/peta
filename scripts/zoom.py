@@ -694,20 +694,21 @@ def oracle(args):
     print 'Check file oracle.fa'
             
 def bedgraph(args):
-    cmd = 'tail -n +6 %s' % args.psl
-    lines = runInShell(cmd)
-    hit_lines = lines.split('\n')
-    for i in range(len(hit_lines) / 10000 + 1):
-        start_index = i*10000
-        end_index = (start_index + 10000)
-        if (start_index + 10000) > len(hit_lines):
-            end_index = len(hit_lines) 
-        hits = eva.read_psl_hits(hit_lines[start_index:end_index], 'ref')
-        for chr, chr_hits in hits.iteritems():
-            for h in chr_hits:
-                for b in range(h.n_blocks):
-                    print '%s\t%d\t%d\t1' % (chr, h.r_block_starts[b], h.r_block_starts[b] + h.block_sizes[b])
-#        break
+    with open(args.psl) as psl:
+        hit_lines = []
+        line_no = 0
+        for line in psl:
+            line_no += 1
+            if line_no <= 5:
+                continue
+            hit_lines.append(line)
+            if line_no % 10000 == 0:
+                hits = eva.read_psl_hits(hit_lines, 'ref')
+                for chr, chr_hits in hits.iteritems():
+                    for h in chr_hits:
+                        for b in range(h.n_blocks):
+                            print '%s\t%d\t%d\t1' % (chr, h.r_block_starts[b], h.r_block_starts[b] + h.block_sizes[b])
+                hit_lines = []
 
 def read_id_list(fn):
     ids = []

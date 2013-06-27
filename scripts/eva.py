@@ -23,6 +23,7 @@ class ResultSummary(object):
 		self.n_bases_not_aligned = 0
 		self.n_not_reached = 0
 		self.n_bases_not_reached = 0
+		self.n_chimaeras = 0
 		self.n50_aligned = 0
 		self.n50_aligned_on_all = 0
 		self.n50_raw = 0
@@ -49,10 +50,9 @@ class ResultSummary(object):
 		print '\tAssembled base:               ' + str(self.n_bases)
 		print '\tBases aligned:                ' + str(self.n_aligned_bases)
 		print '\t# of contigs:                 ' + str(self.n_contigs)
-		print '\t# of Full length:             ' + str(self.n_tx_full_length)
-		print '\t# of one-on-one:              ' + str(self.n_tx_one_on_one)
-		print '\t# of near full length %.0f%%:   ' % (near_full_length * 100) + ' ' + str(self.n_tx_near_full_length)
-		print '\t# of 70% covered:             ' + str(self.n_tx_covered_70)
+		print '\t# of Full length:             ' + str(self.n_tx_full_length + self.n_tx_one_on_one)
+# 		print '\t# of near full length %.0f%%:   ' % (near_full_length * 100) + ' ' + str(self.n_tx_near_full_length)
+# 		print '\t# of 70% covered:             ' + str(self.n_tx_covered_70)
 # 		print '\tCovered by one contig:        ' + str(self.n_tx_one_covered)
 # 		print '\t# of fragmented:              ' + str(self.n_fragmented)
 		print '\t# of Ctgs not aligned:        ' + str(self.n_not_aligned)
@@ -67,6 +67,7 @@ class ResultSummary(object):
 		print '\tAccuracy:                     %.2f%%' % (self.accuracy * 100)
 		print '\tCompleteness %.0f%%:             %.2f%%' % (self.threshold * 100, self.completeness * 100)
 		print '\tContiguity %.0f%%:               %.2f%%' % (self.threshold * 100, self.contiguity * 100)
+		print '\t# of chimaeras:               ' + str(self.n_chimaeras)
 		print '\tChimerism:                    %.2f%%' % (self.chimerism * 100)
 		print '\tVariant resolution:           %.2f%%' % (self.variant_resolution * 100)
 		print '==================================================================='
@@ -322,15 +323,66 @@ def cal_continuous_n50(annotated_tx, hits):
 			max_blocks.append(max)
 	n50 = get_n50(max_blocks)
 	return n50
+
+'''
+	Two regions: [s1, e1] and [s2, e2]
+	Get their shared region size
+'''
+def share_region(s1, e1, s2, e2):
+	smaller_s = s1
+	first_end = e1
+	larger_s = s2
+	second_end = e2
+	if s1 > s2:
+		smaller_s = s2
+		first_end = e2
+		larger_s = s1
+		second_end = e1
+	if larger_s >= first_end:
+		return 0
+	if second_end <= first_end:
+		return second_end - larger_s
+	else:
+		return first_end - smaller_s
+
+def cal_chimerism(hits):
+	n_chimaeras = 0
+	for contig, ctg_hits in hits.iteritems():
+		tx = {}
+		for h in ctg_hits:
+			if h.n_match > 50:
+				bydot = h.rname.split('.')
+				gene = bydot[0]
+				if not gene in tx:
+					tx[gene] = []
+				tx[gene].append((h.qstart, h.qend))
+		stop = False
+		if len(tx) > 1:
+			for gene, regions in tx.iteritems():
+				if stop: break
+				for gene2, regions2 in tx.iteritems():
+					if stop: break
+					if gene == gene2:
+						continue
+					for (start, end) in regions:
+						if stop: break
+						for (start2, end2) in regions2:
+							if stop: break
+							if share_region(start, end, start2, end2) < 50:
+								#print contig
+								n_chimaeras += 1
+								stop = True
+	return n_chimaeras
 		
 def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
-	file_full_length = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_full_length.txt'), 'w')
-	file_one_on_one = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_one_on_one.txt'), 'w')
-	file_near_full_length = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_near_full_length.txt'), 'w')
-	file_covered_70 = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_covered_70.txt'), 'w')
-	file_one_covered = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_one_covered.txt'), 'w')
-	file_not_aligned = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_not_aligned.txt'), 'w')
-	file_partial = open(os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_partial.txt'), 'w')
+	prefix = os.path.join(args.out_dir, os.path.basename(contigs.filename))
+	file_full_length = open(prefix + '_full_length.txt', 'w')
+	file_one_on_one = open(prefix + '_one_on_one.txt', 'w')
+	file_near_full_length = open(prefix + '_near_full_length.txt', 'w')
+	file_covered_70 = open(prefix + '_covered_70.txt', 'w')
+	file_one_covered = open(prefix + '_one_covered.txt', 'w')
+	file_not_aligned = open(prefix + '_not_aligned.txt', 'w')
+	file_partial = open(prefix + '_partial.txt', 'w')
 	similarity = float(args.similarity)
 
 	for tx_name, tx_seq in ref.seqs.iteritems():
@@ -418,6 +470,8 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	summary.accuracy = cal_accuracy(ref.seqs, r_hits)
  	summary.completeness = cal_completeness(ref.seqs, r_hits, summary.threshold)
  	summary.contiguity = cal_contiguity(ref.seqs, r_hits, summary.threshold)
+ 	summary.n_chimaeras = cal_chimerism(hits)
+ 	summary.chimerism = summary.n_chimaeras / len(contigs.seqs)
 	summary.report()
 
 	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_full_length.txt')

@@ -19,7 +19,7 @@ def add_file(fq_file, combined, counter):
     line_no = 0
     for line in openf:
         if line_no % 4 == 0:
-            combined.write('@' + str(counter) + '\n')
+            combined.write('@' + str(counter) + '\1\n')
             counter += 1
         else:
             combined.write(line)
@@ -218,6 +218,30 @@ def merge_peta_fa(args):
                     line = left.readline()
     print 'Check file %s' % args.out
 
+def split2(args):
+    left = args.fa[:-3] + '.left.fa'
+    right = args.fa[:-3] + '.right.fa'
+    with open(args.fa) as fa:
+        with open(left, 'w') as l:
+            with open(right, 'w') as r:
+                line_no = 0
+                left_id = 0
+                right_id = 0
+                for line in fa:
+                    line_no += 1
+                    if line_no % 4 == 1:
+                        l.write('>%d\n' % left_id)
+                    if line_no % 4 == 2:
+                        l.write(line)
+                        left_id += 1
+                    if line_no % 4 == 3:
+                        r.write('>%d\n' % right_id)
+                    if line_no % 4 == 0:
+                        r.write(line)
+                        right_id += 1
+    print 'Check left file %s' % left
+    print 'Check right file %s' % right
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -276,6 +300,10 @@ def main():
     parser_rev_comp = subparsers.add_parser('rev', help='simply get the reverse complement')
     parser_rev_comp.set_defaults(func=simple_rev)
     parser_rev_comp.add_argument('seq', help='ACGTN seq')
+    
+    parser_split2 = subparsers.add_parser('split', help='split the left and right mates')
+    parser_split2.set_defaults(func=split2)
+    parser_split2.add_argument('fa', help='FASTA file')    
 
     args = parser.parse_args()
     args.func(args)

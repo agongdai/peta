@@ -301,7 +301,7 @@ void export_frequency(const char *kmer_fa, const char *contigs_fn, const int k) 
 }
 
 int build_kmer_hash(int argc, char *argv[]) {
-	build_kmers_hash(argv[optind], atoi(argv[optind + 1]), 0);
+	build_kmers_hash(argv[optind], atoi(argv[optind + 1]), 1);
 	return 0;
 }
 
