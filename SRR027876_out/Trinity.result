@@ -1,0 +1,49 @@
+python /home/ariyaratnep/shaojiang//peta_copies/peta_dev/scripts/eva.py blat -t /home/ariyaratnep/shaojiang//peta/rnaseq/hg19/ensembl.genes.fa -c /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa -p /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa.psl -o /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/ -s 0.99
+===================================================================
+Summary of /home/ariyaratnep/shaojiang//peta/rnaseq/hg19/ensembl.genes.fa
+        Total base:             297082231
+        # of transcripts:       192628
+        Longest length:         109224
+        Shortest length:        3
+        Average length:         1542.26
+        N50 value:              2503
+===================================================================
+===================================================================
+Summary of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa
+        Total base:             9066679
+        # of transcripts:       42897
+        Longest length:         7051
+        Shortest length:        101
+        Average length:         211.36
+        N50 value:              222
+===================================================================
+===================================================================
+Evaluation result of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa
+[similarity threshold: 0.99]
+[full length threshold: 0.99]
+[n_mismatches + n_indels < 10]
+        Assembled base:               9066679
+        Bases aligned:                50133918
+        # of contigs:                 42897
+        # of Full length:             297
+        # of Ctgs not aligned:        1319
+        Bases not aligned:            210521
+        # of Ctgs not reached:        117871
+        Bases not reached:            172748912
+        Optimal N50:                  2503
+        Raw N50:                      222
+        Aligned N50:                  384
+        Accuracy:                     18.20%
+        Completeness 80%:             8.00%
+        Contiguity 80%:               1.61%
+        # of chimaeras:               1776
+        Chimerism:                    4.14%
+        Variant resolution:           0.00%
+===================================================================
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_full_length.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_one_on_one.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_near_full_length.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_covered_70.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_one_covered.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_not_aligned.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_partial.txt

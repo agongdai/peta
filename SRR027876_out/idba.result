@@ -1,0 +1,49 @@
+python /home/ariyaratnep/shaojiang//peta_copies/peta_dev/scripts/eva.py blat -t /home/ariyaratnep/shaojiang//peta/rnaseq/hg19/ensembl.genes.fa -c /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/idba-60.fa -p /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/idba-60.fa.psl -o /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/ -s 0.99
+===================================================================
+Summary of /home/ariyaratnep/shaojiang//peta/rnaseq/hg19/ensembl.genes.fa
+        Total base:             297082231
+        # of transcripts:       192628
+        Longest length:         109224
+        Shortest length:        3
+        Average length:         1542.26
+        N50 value:              2503
+===================================================================
+===================================================================
+Summary of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/idba-60.fa
+        Total base:             6691623
+        # of transcripts:       8095
+        Longest length:         8885
+        Shortest length:        300
+        Average length:         826.64
+        N50 value:              1049
+===================================================================
+===================================================================
+Evaluation result of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/idba-60.fa
+[similarity threshold: 0.99]
+[full length threshold: 0.99]
+[n_mismatches + n_indels < 10]
+        Assembled base:               6691623
+        Bases aligned:                43510015
+        # of contigs:                 8095
+        # of Full length:             507
+        # of Ctgs not aligned:        114
+        Bases not aligned:            66859
+        # of Ctgs not reached:        145074
+        Bases not reached:            221678652
+        Optimal N50:                  2503
+        Raw N50:                      1049
+        Aligned N50:                  692
+        Accuracy:                     14.02%
+        Completeness 80%:             7.33%
+        Contiguity 80%:               2.87%
+        # of chimaeras:               2392
+        Chimerism:                    29.55%
+        Variant resolution:           0.00%
+===================================================================
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/idba-60.fa_full_length.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/idba-60.fa_one_on_one.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/idba-60.fa_near_full_length.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/idba-60.fa_covered_70.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/idba-60.fa_one_covered.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/idba-60.fa_not_aligned.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/idba-60.fa_partial.txt

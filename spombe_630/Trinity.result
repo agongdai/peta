@@ -1,0 +1,49 @@
+python /home/ariyaratnep/shaojiang//peta_copies/peta_dev/scripts/eva.py blat -t /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.fa -c /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/Trinity.fa -p /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/Trinity.fa.psl -o /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/ -s 0.99
+===================================================================
+Summary of /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.fa
+        Total base:             7012307
+        # of transcripts:       5063
+        Longest length:         9015
+        Shortest length:        78
+        Average length:         1385.01
+        N50 value:              1752
+===================================================================
+===================================================================
+Summary of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/Trinity.fa
+        Total base:             22129838
+        # of transcripts:       11886
+        Longest length:         15877
+        Shortest length:        101
+        Average length:         1861.84
+        N50 value:              3486
+===================================================================
+===================================================================
+Evaluation result of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/Trinity.fa
+[similarity threshold: 0.99]
+[full length threshold: 0.99]
+[n_mismatches + n_indels < 10]
+        Assembled base:               22129838
+        Bases aligned:                15782733
+        # of contigs:                 11886
+        # of Full length:             4509
+        # of Ctgs not aligned:        3998
+        Bases not aligned:            1034379
+        # of Ctgs not reached:        6
+        Bases not reached:            8753
+        Optimal N50:                  1752
+        Raw N50:                      3486
+        Aligned N50:                  1707
+        Accuracy:                     99.40%
+        Completeness 80%:             99.25%
+        Contiguity 80%:               93.32%
+        # of chimaeras:               468
+        Chimerism:                    3.94%
+        Variant resolution:           0.00%
+===================================================================
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/Trinity.fa_full_length.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/Trinity.fa_one_on_one.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/Trinity.fa_near_full_length.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/Trinity.fa_covered_70.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/Trinity.fa_one_covered.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/Trinity.fa_not_aligned.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/Trinity.fa_partial.txt

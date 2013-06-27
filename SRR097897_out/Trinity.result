@@ -1,0 +1,50 @@
+python /home/ariyaratnep/shaojiang//peta_copies/peta_dev/scripts/eva.py blat -t /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.fa -c /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/Trinity.fa -p /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/Trinity.fa.psl -o /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/ -s 0.99
+===================================================================
+Summary of /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.fa
+        Total base:             7012307
+        # of transcripts:       5063
+        Longest length:         9015
+        Shortest length:        78
+        Average length:         1385.01
+        N50 value:              1752
+===================================================================
+===================================================================
+Summary of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/Trinity.fa
+        Total base:             9354552
+        # of transcripts:       13856
+        Longest length:         7048
+        Shortest length:        101
+        Average length:         675.13
+        N50 value:              1538
+===================================================================
+===================================================================
+Evaluation result of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/Trinity.fa
+[similarity threshold: 0.99]
+[full length threshold: 0.99]
+[n_mismatches + n_indels < 10]
+        Assembled base:               9354552
+        Bases aligned:                7123821
+        # of contigs:                 13856
+        # of Full length:             2675
+        # of one-on-one:              341
+        # of near full length 90%:    401
+        # of 70% covered:             359
+        Covered by one contig:        43
+        # of Ctgs not aligned:        4095
+        Bases not aligned:            804666
+        # of Ctgs not reached:        87
+        Bases not reached:            51848
+        Optimal N50:                  1752
+        Raw N50:                      1538
+        Aligned N50:                  1437
+        Aligned N50 based on all:     774
+        Base coverage:                94.86%
+===================================================================
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/Trinity.fa_full_length.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/Trinity.fa_one_on_one.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/Trinity.fa_near_full_length.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/Trinity.fa_covered_70.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/Trinity.fa_one_covered.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/Trinity.fa_not_aligned.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/Trinity.fa_partial.txt
+=======================================

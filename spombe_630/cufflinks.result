@@ -1,0 +1,49 @@
+python /home/ariyaratnep/shaojiang//peta_copies/peta_dev/scripts/eva.py blat -t /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.fa -c /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/cufflinks.fa -p /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/cufflinks.fa.psl -o /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/ -s 0.99
+===================================================================
+Summary of /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.fa
+        Total base:             7012307
+        # of transcripts:       5063
+        Longest length:         9015
+        Shortest length:        78
+        Average length:         1385.01
+        N50 value:              1752
+===================================================================
+===================================================================
+Summary of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/cufflinks.fa
+        Total base:             11838594
+        # of transcripts:       3248
+        Longest length:         23421
+        Shortest length:        84
+        Average length:         3644.89
+        N50 value:              5255
+===================================================================
+===================================================================
+Evaluation result of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/cufflinks.fa
+[similarity threshold: 0.99]
+[full length threshold: 0.99]
+[n_mismatches + n_indels < 10]
+        Assembled base:               11838594
+        Bases aligned:                8247533
+        # of contigs:                 3248
+        # of Full length:             3411
+        # of Ctgs not aligned:        170
+        Bases not aligned:            194906
+        # of Ctgs not reached:        171
+        Bases not reached:            222486
+        Optimal N50:                  1752
+        Raw N50:                      5255
+        Aligned N50:                  1685
+        Accuracy:                     95.12%
+        Completeness 80%:             94.35%
+        Contiguity 80%:               81.22%
+        # of chimaeras:               301
+        Chimerism:                    9.27%
+        Variant resolution:           0.00%
+===================================================================
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/cufflinks.fa_full_length.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/cufflinks.fa_one_on_one.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/cufflinks.fa_near_full_length.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/cufflinks.fa_covered_70.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/cufflinks.fa_one_covered.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/cufflinks.fa_not_aligned.txt
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/cufflinks.fa_partial.txt
