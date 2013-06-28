@@ -112,6 +112,6 @@ def count_not_align(psl):
 #psl2gene('/home/carl/Projects/peta_dev/scripts/spombe_630.genome.psl')
 #psl2gene('/home/carl/Projects/peta/rnaseq/Spombe/genome/tx.630.oracle.genome.psl')
 #psl2gene('/home/carl/Projects/peta_dev/spombe_630/paired.630.oracle.psl')
-psl2gene('/home/ariyaratnep/shaojiang/peta_copies/peta_dev/spombe_630/idba-60.fa.psl', 'hg19')
+psl2gene('/home/ariyaratnep/shaojiang/peta_copies/peta_dev/SRX011545_out/idba-60.hg19.psl', 'hg19')
 #bed2gene('/home/ariyaratnep/shaojiang/peta/rnaseq/hg19/ensembl.genes.bed')
 #count_not_align('/home/carl/Projects/peta/rnaseq/Spombe/630.tx.rev.psl')

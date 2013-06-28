@@ -49,11 +49,12 @@ float tx_is_expressed(bwa_seq_t *transcript, hash_map *hm) {
 			n_reads += hits->len;
 		}
 		g_ptr_array_free(hits, TRUE);
-		if (n_ctu_blank >= hm->o->read_len * 2 - 5) {
+		if (n_ctu_blank >= hm->o->k * 2 - 10) {
 			show_debug_msg(__func__, "Transcript %s is not expressed! \n",
 					transcript->name);
 			return -1;
 		}
+		bwa_free_read_seq(1, part);
 	}
 	show_debug_msg(__func__, "n_reads: %f; total reads: %d; tx len: %d\n",
 			n_reads, hm->n_reads, transcript->len);
@@ -85,7 +86,7 @@ int oracle_set(int argc, char *argv[]) {
 	for (i = 0; i < n_tx; i++) {
 		tx = &transcripts[i];
 		rpkm = tx_is_expressed(tx, hm);
-		p_query(__func__, tx);
+		show_debug_msg(__func__, "%d/%d ============ \n", i, n_tx);
 		if (rpkm > 0) {
 			sprintf(header, ">%s rpkm:%.2f length:%d\n", tx->name, rpkm,
 					tx->len);

@@ -342,9 +342,9 @@ int has_n(const bwa_seq_t *read, int max) {
  * Create a 'sudo-read' for overlapping alignment
  */
 bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
-	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
 	if (ol + shift > query->len)
-		return 0;
+		return blank_seq(ol);
+	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
 	p->status = query->status;
 	p->contig_id = query->contig_id;
 	p->full_len = p->len = ol;

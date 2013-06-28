@@ -381,7 +381,7 @@ GPtrArray *align_full_seq(const bwa_seq_t *query, const hash_map *hm,
 	uint32_t i = 0, j = 0;
 	bwa_seq_t *read = NULL, *part = NULL;
 	if (query->len < hm->o->read_len)
-		return g_ptr_array_sized_new(0);
+		return hits;
 	for (i = 0; i <= query->len - hm->o->read_len; i++) {
 		part = new_seq(query, hm->o->read_len, i);
 		head_tail_kmer_reads(query, hm, hits);
