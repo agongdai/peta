@@ -108,6 +108,30 @@ void mark_tpl_kmers_fresh(edge *eg, hash_map *hm, const int kmer_len) {
 	}
 }
 
+void mark_tpl_mismatches(edge *eg, hash_map *hm) {
+	int i = 0, j = 0, k = 0;
+	uint64_t kmer_int = 0;
+	bwa_seq_t *seq = NULL, *read = NULL;
+	GPtrArray *hits = NULL;
+	int kmer_len = hm->o->k, read_len = hm->o->read_len;
+	if (eg->len < read_len)
+		return;
+	for (i = 0; i <= eg->len - read_len; i++) {
+		seq = new_seq(eg->ctg, read_len, i);
+		hits = align_full_seq(seq, hm, 2);
+		for (j = 0; j < hits->len; j++) {
+			read = (bwa_seq_t*) g_ptr_array_index(hits, j);
+			//p_query(__func__, read);
+			for (k = 0; k <= read->len - kmer_len; k++) {
+				kmer_int = get_kmer_int(read->seq, k, 1, kmer_len);
+				mark_kmer_used(kmer_int, hm, eg->id, i + k, eg->len);
+			}
+		}
+		g_ptr_array_free(hits, TRUE);
+		bwa_free_read_seq(1, seq);
+	}
+}
+
 void cal_coverage(edge *eg, hash_map *hm) {
 	int i = 0, *counters = NULL;
 	uint64_t query_int = 0;
@@ -507,6 +531,7 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			} else {
 				add_a_junction(eg, branch, query_int, con_pos, ori, weight);
 				mark_tpl_kmers_used(branch, hm, kmer_len, 0);
+				mark_tpl_mismatches(branch, hm);
 				upd_tpl_jun_locus(branch, branching_events, kmer_len);
 				// Try to extend branches of current branch
 				kmer_ext_branch(branch, hm, all_tpls, 0);
@@ -659,6 +684,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		destroy_eg(eg);
 	} else {
 		mark_tpl_kmers_used(eg, params->hm, opt->k, 0);
+		mark_tpl_mismatches(eg, params->hm);
 		upd_tpl_jun_locus(eg, branching_events, opt->k);
 		cal_coverage(eg, params->hm);
 		//kmer_ext_branch(eg, params->hm, all_tpls, 0);

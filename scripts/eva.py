@@ -376,6 +376,7 @@ def cal_chimerism(hits):
 		
 def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 	prefix = os.path.join(args.out_dir, os.path.basename(contigs.filename))
+	file_full = open(prefix + '.full', 'w')
 	file_full_length = open(prefix + '_full_length.txt', 'w')
 	file_one_on_one = open(prefix + '_one_on_one.txt', 'w')
 	file_near_full_length = open(prefix + '_near_full_length.txt', 'w')
@@ -401,6 +402,7 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 				if a.similarity >= similarity and abs(a.rend - a.rstart) >= len(tx_seq) * full_length_perc and a.alen >= contigs.get_seq_len(a.qname) * 0.9 and (a.n_query_gap_bases + a.n_bad_bases <= bad_bases_thre or a.n_blocks == 1):
 					summary.n_tx_one_on_one += 1
 					file_one_on_one.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
+					file_full.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 					is_set = True
 					break
 			if not is_set:
@@ -410,6 +412,7 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 						summary.n_tx_full_length += 1
 						is_set = True
 						file_full_length.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
+						file_full.write(tx_name + '\t' + str(a.similarity) + '\t' + str(a.alen) + '\n')
 						break
 			if not is_set:
 				for a in r_hits[tx_name]:
@@ -453,6 +456,7 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
 					if binary_covered[i] == 0:
 						file_partial.write('%d\n' % i)
 
+	file_full.close()
 	file_one_covered.close()
 	file_full_length.close()
 	file_near_full_length.close()
@@ -474,6 +478,7 @@ def eva_hits(args, ref, contigs, summary, hits, r_hits, aligned_lengths):
  	summary.chimerism = summary.n_chimaeras / len(contigs.seqs)
 	summary.report()
 
+	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '.full')
 	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_full_length.txt')
 	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_one_on_one.txt')
 	print 'Check %s' % os.path.join(args.out_dir, os.path.basename(contigs.filename) + '_near_full_length.txt')
