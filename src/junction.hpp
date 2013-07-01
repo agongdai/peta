@@ -37,7 +37,7 @@ extern "C" {
 			const int shift, const int max_len, const int ori, int *weight);
 	void upd_tpl_jun_locus(edge *eg, GPtrArray *branching_events,
 			const int kmer_len);
-	void store_junctions(char *name, GPtrArray *branching_events);
+	void store_features(char *name, GPtrArray *branching_events, GPtrArray *all_tpls);
 	gint cmp_junctions_by_id(gpointer a, gpointer b);
 	void clean_junctions(GPtrArray *junctions);
 	int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,

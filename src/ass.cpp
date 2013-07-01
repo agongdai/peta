@@ -69,6 +69,12 @@ edge *blank_edge(uint64_t query_int, int kmer_len, int init_len, int ori) {
 	return eg;
 }
 
+gint cmp_tpl_by_id(gpointer a, gpointer b) {
+	edge *c_a = *((edge**) a);
+	edge *c_b = *((edge**) b);
+	return ((c_a->id) - c_b->id);
+}
+
 GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 	uint64_t id = 0;
 	edge *eg = NULL;
@@ -78,6 +84,7 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 		eg = (edge*) m->second;
 		g_ptr_array_add(tpls, eg);
 	}
+	g_ptr_array_sort(tpls, (GCompareFunc)cmp_tpl_by_id);
 	return tpls;
 }
 
@@ -108,7 +115,7 @@ void mark_tpl_kmers_fresh(edge *eg, hash_map *hm, const int kmer_len) {
 	}
 }
 
-void mark_tpl_mismatches(edge *eg, hash_map *hm) {
+void mark_reads_on_tpl(edge *eg, hash_map *hm) {
 	int i = 0, j = 0, k = 0;
 	uint64_t kmer_int = 0;
 	bwa_seq_t *seq = NULL, *read = NULL;
@@ -534,7 +541,7 @@ void kmer_ext_branch(edge *eg, hash_map *hm, tpl_hash *all_tpls, const int ori) 
 			} else {
 				add_a_junction(eg, branch, query_int, con_pos, ori, weight);
 				mark_tpl_kmers_used(branch, hm, kmer_len, 0);
-				mark_tpl_mismatches(branch, hm);
+				mark_reads_on_tpl(branch, hm);
 				upd_tpl_jun_locus(branch, branching_events, kmer_len);
 				// Try to extend branches of current branch
 				kmer_ext_branch(branch, hm, all_tpls, 0);
@@ -687,7 +694,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		destroy_eg(eg);
 	} else {
 		mark_tpl_kmers_used(eg, params->hm, opt->k, 0);
-		mark_tpl_mismatches(eg, params->hm);
+		mark_reads_on_tpl(eg, params->hm);
 		upd_tpl_jun_locus(eg, branching_events, opt->k);
 		cal_coverage(eg, params->hm);
 		//kmer_ext_branch(eg, params->hm, all_tpls, 0);
@@ -785,8 +792,8 @@ void test_kmer_ext(kmer_t_meta *params) {
 
 	clean_junctions(branching_events);
 	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junctions_by_id);
-	store_junctions(get_output_file("single.junctions", kmer_out),
-			branching_events);
+	store_features(get_output_file("single.junctions", kmer_out),
+			branching_events, all_edges);
 }
 
 /**
@@ -841,8 +848,8 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 
 	clean_junctions(branching_events);
 	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junctions_by_id);
-	store_junctions(get_output_file("paired.junctions", kmer_out),
-			branching_events);
+	store_features(get_output_file("paired.junctions", kmer_out),
+			branching_events, kmer_edges);
 	//	reset_edge_ids(all_kmer_edges);
 	//	merge_ol_edges(all_kmer_edges, ins_size, sd_ins_size, hm->seqs,
 	//			kmer_n_threads);

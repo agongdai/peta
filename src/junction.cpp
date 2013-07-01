@@ -23,8 +23,8 @@
 #include "peseq.h"
 #include "junction.hpp"
 
-junction *new_junction(edge *main_tpl, edge *branch_tpl, uint64_t kmer, int locus,
-		int ori, int weight) {
+junction *new_junction(edge *main_tpl, edge *branch_tpl, uint64_t kmer,
+		int locus, int ori, int weight) {
 	junction *j = (junction*) malloc(sizeof(junction));
 	j->main_tpl = main_tpl;
 	j->branch_tpl = branch_tpl;
@@ -143,13 +143,21 @@ gint cmp_junctions_by_id(gpointer a, gpointer b) {
 	return ((c_a->main_tpl->id) - c_b->main_tpl->id);
 }
 
-void store_junctions(char *name, GPtrArray *branching_events) {
+void store_features(char *name, GPtrArray *branching_events,
+		GPtrArray *all_tpls) {
 	junction *jun = NULL;
 	uint64_t i = 0;
+	edge *eg = NULL;
 	char entry[BUFSIZE];
 	FILE *f = xopen(name, "w");
 	sprintf(entry, "Main\tBranch\tLocus\tWeight\tDirection\n");
 	fputs(entry, f);
+	for (i = 0; i < all_tpls->len; i++) {
+		eg = (edge*) g_ptr_array_index(all_tpls, i);
+		sprintf(entry, "[%d, %d]\t[%d, %d]\t0\t%d\t-1\n", eg->id, eg->len,
+				eg->id, eg->len, eg->reads->len);
+		fputs(entry, f);
+	}
 	for (i = 0; i < branching_events->len; i++) {
 		jun = (junction*) g_ptr_array_index(branching_events, i);
 		sprintf(entry, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\n", jun->main_tpl->id,

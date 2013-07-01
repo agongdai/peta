@@ -31,6 +31,8 @@ def read_junctions(junction_file):
             if line_no <= 1 or line == '':
                 continue
             f = line.split('\t')
+            if f[-1] == '-1':
+                continue
             new_j = Junction(read_tpl(f[0]), read_tpl(f[1]), int(f[2]), int(f[3]), int(f[4]))
             junctions.append(new_j)
     return junctions
