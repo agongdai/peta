@@ -41,4 +41,30 @@ void assign_reads2tpl(edge *eg, hash_map *hm) {
 	}
 }
 
+gint cmp_junc_by_locus(gpointer a, gpointer b) {
+	junction *c_a = *((junction**) a);
+	junction *c_b = *((junction**) b);
+	return ((c_a->locus) - c_b->locus);
+}
 
+void break_tpls(GPtrArray *all_tpls, GPtrArray *junctions) {
+	edge *eg = NULL;
+	junction *junc = NULL;
+	uint64_t i = 0, j = 0;
+	GPtrArray *eg_junc = NULL;
+	for (i = 0; i < all_tpls->len; i++) {
+		eg = (edge*) g_ptr_array_index(all_tpls, i);
+		eg_junc = g_ptr_array_sized_new(4);
+		for (j = 0; j < junctions->len; j++) {
+			junc = (junction*) g_ptr_array_index(junctions, j);
+			if (junc->main_tpl == eg)
+				g_ptr_array_add(eg_junc, junc);
+		}
+		g_ptr_array_sort(eg_junc, (GCompareFunc) cmp_junc_by_locus);
+		for (j = 0; j < eg_junc->len; j++) {
+			junc = (junction*) g_ptr_array_index(eg_junc, j);
+
+		}
+		g_ptr_array_free(eg_junc, TRUE);
+	}
+}

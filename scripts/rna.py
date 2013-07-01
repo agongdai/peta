@@ -5,20 +5,26 @@ from argparse import ArgumentParser
 import operator, random
 
 class Junction(object):
-    def __init__(self, main_id, branch_id, locus = 0, weight = 0, ori = 0):
+    def __init__(self, main_id, branch_id, main_len = 0, branch_len = 0, locus = 0, weight = 0, ori = 0):
         self.main = main_id
+        self.main_len = main_len
         self.branch = branch_id
+        self.branch_len = branch_len
         self.locus = locus
         self.weight = weight
         self.ori = ori
+        
+    def __repr__(self):
+        s = '[%s,%d]\t[%s,%d]\t%d\t%d\t%d\n' % (self.main, self.main_len, self.branch, self.branch_len, self.locus, self.weight, self.ori)
+        return s
 
 # Split string like '[1, 233]'        
-def read_tpl(tpl_str):
+def read_tpl_info(tpl_str):
     tpl_str = tpl_str[1:-1]
     f = tpl_str.split(',')
-    id = f[0].strip()
+    tpl_id = f[0].strip()
     length = int(f[1].strip())
-    return id
+    return tpl_id, length
 
 # Read junctions in format of: [main_id, main_length]    [branch_id, branch_length]    locus    weight    orientation
 def read_junctions(junction_file):
@@ -33,7 +39,9 @@ def read_junctions(junction_file):
             f = line.split('\t')
             if f[-1] == '-1':
                 continue
-            new_j = Junction(read_tpl(f[0]), read_tpl(f[1]), int(f[2]), int(f[3]), int(f[4]))
+            main_id, main_len = read_tpl_info(f[0])
+            branch_id, branch_len = read_tpl_info(f[1])
+            new_j = Junction(main_id, branch_id, main_len, branch_len, int(f[2]), int(f[3]), int(f[4]))
             junctions.append(new_j)
     return junctions
 

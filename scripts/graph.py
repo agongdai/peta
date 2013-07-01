@@ -6,19 +6,28 @@ from argparse import ArgumentParser
 import operator, random
 
 class Vertex(object):
-    def __init__(self, id=0, len=0, n_reads=0):
-        self.id = id
+    def __init__(self, tpl_id='-1', length=0, n_reads=0, seq=''):
+        self.tpl_id = tpl_id
         self.n_reads = n_reads
-        self.len = len
-        self.seq = ''
+        self.length = length
+        self.seq = seq
+        
+    def __repr__(self):
+        s = 'Template [%s, %d]\n' % (self.tpl_id, self.length)
+        s += '%d reads: %s\n' % (self.n_reads, self.seq)
+        return s
 
 class Graph(object):
-    def __init__(self):
+    def __init__(self, junction_file='', contigs_file=''):
         self.vertexes = []
         self.junctions = []
+        self.contigs = FastaFile(contigs_file)
+        if not junction_file == '':
+            self.read_from_file(junction_file)
     
     def read_from_file(self, junction_file):
-        junctions = []
+        if self.contigs.seqs:
+            seqs = self.contigs.seqs
         with open(junction_file) as jf:
             line_no = 0
             for line in jf:
@@ -28,20 +37,29 @@ class Graph(object):
                     continue
                 f = line.split('\t')
                 if f[-1] == '-1':
-                    id, len = read_tpl_info(f[0])
-                    new_tpl = Vertex(id, len, int(f[3]))
+                    tpl_id, length = read_tpl_info(f[0])
+                    seq = ''
+                    if seqs:
+                        seq = seqs[tpl_id]
+                    new_tpl = Vertex(tpl_id, length, int(f[3]), seq)
                     self.vertexes.append(new_tpl)
                 else:
-                    new_j = Junction(read_tpl(f[0]), read_tpl(f[1]), int(f[2]), int(f[3]), int(f[4]))
+                    main_id, main_len = read_tpl_info(f[0])
+                    branch_id, branch_len = read_tpl_info(f[1])
+                    new_j = Junction(main_id, branch_id, main_len, branch_len, int(f[2]), int(f[3]), int(f[4]))
                     self.junctions.append(new_j)
-
-# Split string like '[1, 233]'        
-def read_tpl_info(tpl_str):
-    tpl_str = tpl_str[1:-1]
-    f = tpl_str.split(',')
-    id = int(f[0].strip())
-    length = int(f[1].strip())
-    return id, length
+                    
+    def break_by_exons(self):
+        pass
+                    
+    def __repr__(self):
+        s = '================ Templates ================\n'
+        for c in self.vertexes:
+            s += '> %s \n' % str(c)
+        s += '================ Junctions =================\n'
+        for j in self.junctions:
+            s += '> %s' % str(j)
+        return s
 
 def main():
     parser = ArgumentParser()
@@ -55,4 +73,6 @@ def main():
     args.func(args)
                 
 if __name__ == '__main__':
-    sys.exit(main())
+    g = Graph('/home/carl/Projects/peta_dev/SRR097897_part/paired.junctions', '/home/carl/Projects/peta_dev/SRR097897_part/paired.fa')
+    print g
+#    sys.exit(main())
