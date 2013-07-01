@@ -46,7 +46,15 @@ edge *new_eg() {
 	eg->coverage = 0.0;
 	eg->kmer_freq = 0;
 	eg->in_connect = 0;
+	eg->reads = g_ptr_array_sized_new(0);
 	return eg;
+}
+
+void add_read2edge(edge *eg, bwa_seq_t *read) {
+	if (read->status == FRESH) {
+		g_ptr_array_add(eg->reads, read);
+		read->status = USED;
+	}
 }
 
 void free_readarray(readarray *ra) {
@@ -163,6 +171,8 @@ void destroy_eg(edge *eg) {
 			g_ptr_array_free(eg->in_egs, TRUE);
 		if (eg->out_egs)
 			g_ptr_array_free(eg->out_egs, TRUE);
+		if (eg->reads)
+			g_ptr_array_free(eg->reads, TRUE);
 		free(eg);
 	}
 }

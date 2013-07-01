@@ -22,5 +22,23 @@
 #include "utils.h"
 #include "peseq.h"
 #include "junction.hpp"
+#include "hash.hpp"
+
+void assign_reads2tpl(edge *eg, hash_map *hm) {
+	int j = 0, i = 0, read_len = hm->o->read_len;
+	bwa_seq_t *seq = NULL, *read = NULL;
+	GPtrArray *hits = NULL;
+
+	for (i = 0; i <= eg->len - read_len; i++) {
+		seq = new_seq(eg->ctg, read_len, i);
+		hits = align_full_seq(seq, hm, 2);
+		for (j = 0; j < hits->len; j++) {
+			read = (bwa_seq_t*) g_ptr_array_index(hits, j);
+			add_read2edge(eg, read);
+		}
+		bwa_free_read_seq(1, seq);
+		g_ptr_array_free(hits, TRUE);
+	}
+}
 
 

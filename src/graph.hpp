@@ -8,6 +8,9 @@
 #ifndef GRAPH_HPP_
 #define GRAPH_HPP_
 
+#include "edge.h"
+#include "hash.hpp"
 
+void assign_reads2tpl(edge *eg, hash_map *hm);
 
 #endif /* GRAPH_HPP_ */

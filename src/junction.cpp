@@ -33,7 +33,16 @@ junction *new_junction(edge *main_tpl, edge *branch_tpl, uint64_t kmer, int locu
 	j->locus = locus;
 	j->weight = weight;
 	j->kmer = kmer;
+	j->reads = g_ptr_array_sized_new(0);
 	return j;
+}
+
+void destroy_junction(junction *j) {
+	if (j) {
+		if (j->reads)
+			g_ptr_array_free(j->reads, TRUE);
+		free(j);
+	}
 }
 
 int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
@@ -172,7 +181,7 @@ void clean_junctions(GPtrArray *junctions) {
 			not_alive = 1;
 		}
 		if (not_alive) {
-			free(junc);
+			destroy_junction(junc);
 			g_ptr_array_remove_index_fast(junctions, i);
 			i--;
 			continue;

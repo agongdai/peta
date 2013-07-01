@@ -124,8 +124,10 @@ void mark_tpl_mismatches(edge *eg, hash_map *hm) {
 			//p_query(__func__, read);
 			for (k = 0; k <= read->len - kmer_len; k++) {
 				kmer_int = get_kmer_int(read->seq, k, 1, kmer_len);
-				mark_kmer_used(kmer_int, hm, eg->id, i + k, eg->len);
+				if (get_kmer_count(kmer_int, hm, 0) <= 2)
+					mark_kmer_used(kmer_int, hm, eg->id, i + k, eg->len);
 			}
+			add_read2edge(eg, read);
 		}
 		g_ptr_array_free(hits, TRUE);
 		bwa_free_read_seq(1, seq);
@@ -142,6 +144,7 @@ void cal_coverage(edge *eg, hash_map *hm) {
 		query_int = get_kmer_int(eg->ctg->seq, i, 1, kmer_len);
 		counters = count_next_kmers(hm, query_int, 1, 0);
 		sum += counters[get_max_index(counters)];
+		free(counters);
 	}
 	eg->coverage = sum / eg->len;
 }

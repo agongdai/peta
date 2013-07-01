@@ -22,6 +22,7 @@ typedef struct {
 	int weight;
 	uint8_t ori;
 	uint64_t kmer;	// Kmer when branching
+	GPtrArray *reads;
 } junction;
 
 #ifdef __cplusplus
@@ -41,6 +42,7 @@ extern "C" {
 	void clean_junctions(GPtrArray *junctions);
 	int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
 			const int pos, const int mismatches, const int ori);
+	void destroy_junction(junction *j);
 
 #ifdef __cplusplus
 }
