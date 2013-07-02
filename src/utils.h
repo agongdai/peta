@@ -29,6 +29,7 @@
 #define	MATCH_SCORE				2
 #define	MISMATCH_SCORE			-1
 #define	INDEL_SCORE				-2
+#define N_MISMATCHES			2
 
 typedef uint64_t index64;
 

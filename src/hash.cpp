@@ -16,7 +16,7 @@
 #include "hash.hpp"
 #include "utils.h"
 #include "rnaseq.h"
-#include "edge.h"
+#include "tpl.h"
 #include "kmers.hpp"
 #include "peseq.h"
 
@@ -175,10 +175,10 @@ void build_kmers_hash(const char *fa_fn, const int k, const int with_reads) {
 void build_tpl_hash(mer_hash& hash, GPtrArray *tpls, const int k) {
 	uint32_t i = 0, j = 0, start = 0, end = 0;
 	uint64_t kmer = 0, *kmer_freq = NULL;
-	edge *eg = NULL;
+	tpl *eg = NULL;
 	mer_counter counter;
 	for (i = 0; i < tpls->len; i++) {
-		eg = (edge*)g_ptr_array_index(tpls, i);
+		eg = (tpl*)g_ptr_array_index(tpls, i);
 		if (eg->len < k)
 			continue;
 		end = eg->len > 2 * k ? k : (eg->len - k);
@@ -197,7 +197,7 @@ void build_tpl_hash(mer_hash& hash, GPtrArray *tpls, const int k) {
 		hash[it->first] = kmer_freq;
 	}
 	for (i = 0; i < tpls->len; i++) {
-		eg = (edge*)g_ptr_array_index(tpls, i);
+		eg = (tpl*)g_ptr_array_index(tpls, i);
 		if (eg->len < k)
 			continue;
 		end = eg->len > 2 * k ? k : (eg->len - k);

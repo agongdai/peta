@@ -14,7 +14,7 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include "bwtaln.h"
-#include "edge.h"
+#include "tpl.h"
 #include "kmers.hpp"
 #include "ass.hpp"
 #include "rnaseq.h"
@@ -23,7 +23,7 @@
 #include "peseq.h"
 #include "junction.hpp"
 
-junction *new_junction(edge *main_tpl, edge *branch_tpl, uint64_t kmer,
+junction *new_junction(tpl *main_tpl, tpl *branch_tpl, uint64_t kmer,
 		int locus, int ori, int weight) {
 	junction *j = (junction*) malloc(sizeof(junction));
 	j->main_tpl = main_tpl;
@@ -73,10 +73,26 @@ int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 	return 0;
 }
 
-int find_junc_reads_w_tails(hash_map *hm, edge *main_tpl, edge *branch_tpl,
+bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
+		int r_pos, int *right_len, int max_len) {
+	bwa_seq_t *junc_seq = blank_seq(max_len);
+	bwa_seq_t *left_seq = NULL, *right_seq = NULL;
+	left_seq = cut_tpl_tail(left, l_pos, max_len / 2, 0);
+	right_seq = cut_tpl_tail(right, r_pos, max_len / 2, 1);
+	*left_len = left_seq->len;
+	*right_len = right_seq->len;
+	memcpy(junc_seq->seq, left_seq->seq, left_seq->len);
+	memcpy(junc_seq->seq + left_seq->len, right_seq->seq, right_seq->len);
+	junc_seq->len = left_seq->len + right_seq->len;
+	bwa_free_read_seq(1, left_seq);
+	bwa_free_read_seq(1, right_seq);
+	return junc_seq;
+}
+
+int find_junc_reads_w_tails(hash_map *hm, tpl *main_tpl, tpl *branch_tpl,
 		const int pos, const int max_len, const int ori, int *weight) {
 	bwa_seq_t *left_seq = NULL, *right_seq = NULL;
-	edge *left_eg = branch_tpl, *right_eg = main_tpl;
+	tpl *left_eg = branch_tpl, *right_eg = main_tpl;
 	int is_valid = 0, l_pos = branch_tpl->len, r_pos = pos;
 	if (ori) {
 		left_eg = main_tpl;
@@ -85,10 +101,10 @@ int find_junc_reads_w_tails(hash_map *hm, edge *main_tpl, edge *branch_tpl,
 		r_pos = 0;
 	}
 	//show_debug_msg(__func__, "left pos: %d; right pos: %d\n", l_pos, r_pos);
-	left_seq = cut_edge_tail(left_eg, l_pos, max_len / 2, 0);
+	left_seq = cut_tpl_tail(left_eg, l_pos, max_len / 2, 0);
 	//p_query("Left  seq", left_eg->ctg);
 	//p_query("Left tail", left_seq);
-	right_seq = cut_edge_tail(right_eg, r_pos, max_len / 2, 1);
+	right_seq = cut_tpl_tail(right_eg, r_pos, max_len / 2, 1);
 	//p_query("Right  seq", right_eg->ctg);
 	//p_query("Right tail", right_seq);
 	is_valid = find_junc_reads(hm, left_seq, right_seq, max_len, weight);
@@ -98,7 +114,7 @@ int find_junc_reads_w_tails(hash_map *hm, edge *main_tpl, edge *branch_tpl,
 }
 
 /**
- * Update the junction locus for those edges connected to itself.
+ * Update the junction locus for those tpls connected to itself.
  * Because the locus is not correct when the junction is recorded.
  * Example:
  * Firstly extending to the right and connect to itself:
@@ -116,18 +132,17 @@ int find_junc_reads_w_tails(hash_map *hm, edge *main_tpl, edge *branch_tpl,
  * ====------------------
  * Locus should be 8 + 4
  */
-void upd_tpl_jun_locus(edge *eg, GPtrArray *branching_events,
-		const int kmer_len) {
+void upd_tpl_jun_locus(tpl *t, GPtrArray *branching_events, const int kmer_len) {
 	int i = 0;
 	uint64_t query_int = 0, k = 0;
 	junction *jun = NULL;
-	if (eg->len < kmer_len)
+	if (t->len < kmer_len)
 		return;
 	for (k = 0; k < branching_events->len; k++) {
 		jun = (junction*) g_ptr_array_index(branching_events, k);
-		if (jun->main_tpl == eg && jun->branch_tpl == eg) {
-			for (i = 0; i < eg->len - kmer_len; i++) {
-				query_int = get_kmer_int(eg->ctg->seq, i, 1, kmer_len);
+		if (jun->main_tpl == t && jun->branch_tpl == t) {
+			for (i = 0; i < t->len - kmer_len; i++) {
+				query_int = get_kmer_int(t->ctg->seq, i, 1, kmer_len);
 				if (query_int == jun->kmer) {
 					jun->locus = i;
 					break;
@@ -147,17 +162,17 @@ void store_features(char *name, GPtrArray *branching_events,
 		GPtrArray *all_tpls) {
 	junction *jun = NULL;
 	uint64_t i = 0;
-	edge *eg = NULL;
+	tpl *t = NULL;
 	char entry[BUFSIZE];
 	FILE *f = xopen(name, "w");
 	sprintf(entry, "Main\tBranch\tLocus\tWeight\tDirection\n");
 	fputs(entry, f);
-	for (i = 0; i < all_tpls->len; i++) {
-		eg = (edge*) g_ptr_array_index(all_tpls, i);
-		sprintf(entry, "[%d, %d]\t[%d, %d]\t0\t%d\t-1\n", eg->id, eg->len,
-				eg->id, eg->len, eg->reads->len);
-		fputs(entry, f);
-	}
+//	for (i = 0; i < all_tpls->len; i++) {
+//		t = (tpl*) g_ptr_array_index(all_tpls, i);
+//		sprintf(entry, "[%d, %d]\t[%d, %d]\t0\t%d\t-1\n", t->id, t->len, t->id,
+//				t->len, t->kmer_freq);
+//		fputs(entry, f);
+//	}
 	for (i = 0; i < branching_events->len; i++) {
 		jun = (junction*) g_ptr_array_index(branching_events, i);
 		sprintf(entry, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\n", jun->main_tpl->id,
@@ -176,7 +191,7 @@ void clean_junctions(GPtrArray *junctions) {
 	uint32_t i = 0;
 	int not_alive = 0;
 	tpl_hash dead_tpls;
-	edge *eg = NULL;
+	tpl *t = NULL;
 	for (i = 0; i < junctions->len; i++) {
 		not_alive = 0;
 		junc = (junction*) g_ptr_array_index(junctions, i);
@@ -207,8 +222,8 @@ void clean_junctions(GPtrArray *junctions) {
 		pre = junc;
 	}
 	//	for (tpl_hash::iterator m = dead_tpls.begin(); m != dead_tpls.end(); ++m) {
-	//		eg = (edge*) m->second;
-	//		destroy_eg(eg);
+	//		t = (tpl*) m->second;
+	//		destroy_eg(t);
 	//	}
 	dead_tpls.clear();
 }
