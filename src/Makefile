@@ -8,7 +8,7 @@ OBJS=		utils.o tpl.o rnaseq.o oracle.o \
 			bwtaln.o hash.o junction.o \
 			pechar.o peseq.o \
 			bwaseqio.o kmers.o ass.o \
-			kstring.o graph.o
+			kstring.o graph.o path.o
 PROG=		peta
 INCLUDES=	
 LIBS=		-lm -lrt -lz -lpthread $(shell pkg-config --libs glib-2.0 gthread-2.0)

@@ -21,6 +21,7 @@ typedef struct {
 	GPtrArray *ins;			// Incoming edges
 	GPtrArray *outs;		// Outgoing edges
 	GPtrArray *reads;		// Reads on it, for paired-end tracking
+	int status;				// 0 means good.
 } vertex;
 
 typedef struct {
@@ -32,14 +33,8 @@ typedef struct {
 	vertex *right;			// Right vertex
 	float weight;			// Likely to be # of reads
 	GPtrArray *reads;		// Reads on it, for paired-end tracking
+	int status;				// 0 means good.
 } edge;
-
-typedef struct {
-	GPtrArray *vertexes;	// Vertexes
-	GPtrArray *edges;		// Edges
-	bwa_seq_t *ctg;			// Contig sequence
-	int len;				// Length of path
-} path;
 
 typedef struct {
 	GPtrArray *vertexes;
@@ -49,5 +44,7 @@ typedef struct {
 void assign_reads2tpl(tpl *eg, hash_map *hm);
 void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 		hash_map *hm);
+void p_vertex(vertex *v);
+GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_map *hm, const int n_mismatch);
 
 #endif /* GRAPH_HPP_ */

@@ -327,6 +327,19 @@ def simu(args):
     print cmd
     print runInShell(cmd)
     print 'Check file %s' % out
+    
+def match(args):
+    fa = FastaFile(args.fa)
+    count = 0
+    print args.seq
+    for name, seq in fa.seqs.iteritems():
+        try:
+            index = args.seq.index(seq)
+            print ' ' * index + '%s\t%s' % (seq, name)
+            count += 1
+        except:
+            pass
+    print '==== HITS: %d ====' % count
 
 def main():
     parser = ArgumentParser()
@@ -351,11 +364,16 @@ def main():
     parser_single.set_defaults(func=fa2single)
     parser_single.add_argument('fa', help='Fasta file')
     
-    parser_exon = subparsers.add_parser('junction', help='Exam junctions from PSL file')
-    parser_exon.set_defaults(func=exam_junctions)
-    parser_exon.add_argument('full', help='Existing full length list (would be skipped)')
-    parser_exon.add_argument('junction', help='PETA junction file')
-    parser_exon.add_argument('psl', help='transcript/contigs-to-annotation PSL file')
+    parser_match = subparsers.add_parser('match', help='simply reads to a short sequence')
+    parser_match.set_defaults(func=match)
+    parser_match.add_argument('fa', help='Fasta read file')
+    parser_match.add_argument('seq', help='Sequence')
+    
+    parser_junction = subparsers.add_parser('junction', help='Exam junctions from PSL file')
+    parser_junction.set_defaults(func=exam_junctions)
+    parser_junction.add_argument('full', help='Existing full length list (would be skipped)')
+    parser_junction.add_argument('junction', help='PETA junction file')
+    parser_junction.add_argument('psl', help='transcript/contigs-to-annotation PSL file')
     
     parser_exon = subparsers.add_parser('simu', help='simulate reads from specific contigs for small debugging')
     parser_exon.set_defaults(func=simu)

@@ -24,6 +24,7 @@
 #include "junction.hpp"
 #include "hash.hpp"
 #include "graph.hpp"
+#include "path.hpp"
 
 int edge_id = 0;
 int vertex_id = 0;
@@ -31,7 +32,7 @@ int vertex_id = 0;
 /**
  * Get the reads on a sequence allowing N_MISMATCHES
  */
-GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_map *hm) {
+GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_map *hm, const int n_mismatch) {
 	int j = 0, i = 0, read_len = hm->o->read_len;
 	bwa_seq_t *part = NULL, *r = NULL;
 	GPtrArray *hits = NULL;
@@ -39,7 +40,7 @@ GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_map *hm) {
 
 	for (i = 0; i <= seq->len - read_len; i++) {
 		part = new_seq(seq, read_len, i);
-		hits = align_full_seq(part, hm, N_MISMATCHES);
+		hits = align_full_seq(part, hm, n_mismatch);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
 			g_ptr_array_add(reads, r);
@@ -69,8 +70,9 @@ vertex *new_vertex(tpl *t, int start, int len, hash_map *hm) {
 	v->len = len;
 	v->ins = g_ptr_array_sized_new(0);
 	v->outs = g_ptr_array_sized_new(0);
-	v->reads = reads_on_seq(v->ctg, hm);
+	v->reads = reads_on_seq(v->ctg, hm, N_MISMATCHES);
 	v->weight = (float) v->reads->len;
+	v->status = 0;
 	v->id = vertex_id++;
 	return v;
 }
@@ -89,18 +91,6 @@ void p_edge(edge *e) {
 	//p_readarray(e->reads, 1);
 }
 
-GPtrArray *get_graph_roots(splice_graph *g) {
-	vertex *v = NULL;
-	int i = 0;
-	GPtrArray *roots = g_ptr_array_sized_new(32);
-	for (i = 0; i < g->vertexes->len; i++) {
-		v = (vertex*) g_ptr_array_index(g->vertexes, i);
-		if (!(v->ins) || v->ins->len == 0)
-			g_ptr_array_add(roots, v);
-	}
-	return roots;
-}
-
 void p_graph(splice_graph *g) {
 	edge *e = NULL;
 	vertex *v = NULL, *left = NULL, *right = NULL;
@@ -112,14 +102,21 @@ void p_graph(splice_graph *g) {
 	fputs("graph [rankdir=LR];", dot);
 	for (i = 0; i < g->vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(g->vertexes, i);
-		sprintf(entry, "%d [label=\"%d: %d\" shape=box]; \n", v->id, v->id, v->len);
+		if (v->id == 1 || v->id == 2 || v->id == 3 || v->id == 5 || v->id == 7
+				|| v->id == 8 || v->id == 10)
+			sprintf(entry, "%d [label=\"%d: %d\" shape=box color=blue]; \n",
+					v->id, v->id, v->len);
+		else
+			sprintf(entry, "%d [label=\"%d: %d\" shape=box]; \n", v->id, v->id,
+					v->len);
 		fputs(entry, dot);
 	}
 	for (j = 0; j < g->edges->len; j++) {
 		e = (edge*) g_ptr_array_index(g->edges, j);
 		left = e->left;
 		right = e->right;
-		sprintf(entry, "%d -> %d [label=\"%.0f\"]; \n", left->id, right->id, e->weight);
+		sprintf(entry, "%d -> %d [label=\"%.0f\"]; \n", left->id, right->id,
+				e->weight);
 		fputs(entry, dot);
 	}
 	fputs("}\n", dot);
@@ -133,7 +130,7 @@ void save_vertexes(GPtrArray *vertexes) {
 	FILE *v_fp = xopen("vertexes.fa", "w");
 	for (i = 0; i < vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(vertexes, i);
-		sprintf(entry, ">%d length: %d\n", v->id,	v->len);
+		sprintf(entry, ">%d length: %d\n", v->id, v->len);
 		save_con(entry, v->ctg, v_fp);
 	}
 	fclose(v_fp);
@@ -144,18 +141,12 @@ edge *new_edge(vertex *left, vertex *right) {
 	e->junc_seq = NULL;
 	e->left = left;
 	e->right = right;
-	e->weight = 0;
+	e->weight = -1;
 	e->reads = NULL;
 	e->left_len = e->right_len = 0;
+	e->status = 0;
 	e->id = edge_id++;
 	return e;
-}
-
-path *new_path() {
-	path *p = (path*) malloc(sizeof(path));
-	p->vertexes = g_ptr_array_sized_new(0);
-	p->edges = g_ptr_array_sized_new(0);
-	return p;
 }
 
 void destroy_edge(edge *eg) {
@@ -165,7 +156,6 @@ void destroy_edge(edge *eg) {
 		free(eg);
 	}
 }
-
 void destroy_vertex(vertex *v) {
 	if (v) {
 		bwa_free_read_seq(1, v->ctg);
@@ -253,7 +243,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 		e = new_edge(left, right);
 		e->junc_seq = get_junc_seq(t, j->locus, &e->left_len, t, j->locus,
 				&e->right_len, max_len);
-		e->reads = reads_on_seq(e->junc_seq, hm);
+		e->reads = reads_on_seq(e->junc_seq, hm, N_MISMATCHES);
 		e->weight = (float) e->reads->len;
 		g_ptr_array_add(left->outs, e);
 		g_ptr_array_add(right->ins, e);
@@ -297,8 +287,9 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
 			g_ptr_array_add(left->outs, e);
 			g_ptr_array_add(branch_v->ins, e);
 		}
-		e->reads = reads_on_seq(e->junc_seq, hm);
-		e->weight = (float) e->reads->len;
+		// The weight is not set because of probable alternative paths.
+		//e->reads = reads_on_seq(e->junc_seq, hm);
+		//e->weight = (float) e->reads->len;
 		g_ptr_array_add(g->edges, e);
 	}
 }
@@ -331,4 +322,5 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	g = build_graph(all_tpls, all_juncs, hm);
 	p_graph(g);
 	save_vertexes(g->vertexes);
+	determine_paths(g, hm);
 }
