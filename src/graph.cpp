@@ -55,6 +55,7 @@ splice_graph *new_graph() {
 	splice_graph *g = (splice_graph*) malloc(sizeof(splice_graph));
 	g->edges = g_ptr_array_sized_new(0);
 	g->vertexes = g_ptr_array_sized_new(0);
+	g->len = 0;
 	return g;
 }
 
@@ -144,6 +145,7 @@ edge *new_edge(vertex *left, vertex *right) {
 	e->weight = -1;
 	e->reads = NULL;
 	e->left_len = e->right_len = 0;
+	e->len = 0;
 	e->status = 0;
 	e->id = edge_id++;
 	return e;
@@ -243,6 +245,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 		e = new_edge(left, right);
 		e->junc_seq = get_junc_seq(t, j->locus, &e->left_len, t, j->locus,
 				&e->right_len, max_len);
+		e->len = e->left_len + e->right_len;
 		e->reads = reads_on_seq(e->junc_seq, hm, N_MISMATCHES);
 		e->weight = (float) e->reads->len;
 		g_ptr_array_add(left->outs, e);
@@ -287,6 +290,7 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
 			g_ptr_array_add(left->outs, e);
 			g_ptr_array_add(branch_v->ins, e);
 		}
+		e->len = e->left_len + e->right_len;
 		// The weight is not set because of probable alternative paths.
 		//e->reads = reads_on_seq(e->junc_seq, hm);
 		//e->weight = (float) e->reads->len;
@@ -298,6 +302,7 @@ splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 		hash_map *hm) {
 	splice_graph *g = new_graph();
 	GPtrArray *t_juncs = NULL;
+	vertex *v = NULL;
 	int i = 0;
 	tpl *t = NULL;
 	for (i = 0; i < all_tpls->len; i++) {
@@ -313,6 +318,12 @@ splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 		t_juncs = tpl_junctions(t, all_juncs);
 		connect_tpls(t, t_juncs, g, hm);
 		g_ptr_array_free(t_juncs, TRUE);
+	}
+
+	g->len = 0;
+	for (i = 0; i < g->vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(g->vertexes, i);
+		g->len += v->len;
 	}
 	return g;
 }

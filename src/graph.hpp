@@ -29,6 +29,7 @@ typedef struct {
 	bwa_seq_t *junc_seq;	// Sequence in the junction: max read_len * 2 - 8
 	int left_len;			// The junc_seq is from left vertex and right vertex,
 	int right_len;			//		whose lengths are not always the same
+	int len;				// Length of the edge
 	vertex *left;			// Left vertex
 	vertex *right;			// Right vertex
 	float weight;			// Likely to be # of reads
@@ -39,7 +40,13 @@ typedef struct {
 typedef struct {
 	GPtrArray *vertexes;
 	GPtrArray *edges;
+	int len;
 } splice_graph;
+
+typedef struct {
+	GPtrArray *vertexes;
+	GPtrArray *edges;
+} component;
 
 void assign_reads2tpl(tpl *eg, hash_map *hm);
 void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,

@@ -242,6 +242,21 @@ def split2(args):
     print 'Check left file %s' % left
     print 'Check right file %s' % right
 
+def to_files(args):
+    left = args.fq[:-3] + '.1.fq'
+    right = args.fq[:-3] + '.2.fq'
+    with open(args.fq) as fq:
+        line_no = 0
+        with open(left, 'w') as left_mates:
+            with open(right, 'w') as right_mates:
+                for line in fq:
+                    if line_no % 8 < 4:
+                        left_mates.write(line)
+                    else:
+                        right_mates.write(line)
+                    line_no += 1
+    print 'Check %s and %s' % (left, right)
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -304,6 +319,10 @@ def main():
     parser_split2 = subparsers.add_parser('split', help='split the left and right mates')
     parser_split2.set_defaults(func=split2)
     parser_split2.add_argument('fa', help='FASTA file')    
+    
+    parser_2files = subparsers.add_parser('2files', help='Split shuffled FASTQ file into two')
+    parser_2files.set_defaults(func=to_files)
+    parser_2files.add_argument('fq', help='fastq')
 
     args = parser.parse_args()
     args.func(args)
