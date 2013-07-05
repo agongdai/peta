@@ -5,3 +5,7 @@ Highly similar transcripts (90% similar):
 Small intron 43bp:
 	SPBC1539.09c_T0
 	SPBC1539.09c_T1
+
+66bp gap:
+	ENST00000393295 
+	ENST00000273541

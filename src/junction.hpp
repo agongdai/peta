@@ -47,6 +47,7 @@ extern "C" {
 	void destroy_junction(junction *j);
 	bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
 			int r_pos, int *right_len, int max_len);
+	void p_junction(junction *jun);
 
 #ifdef __cplusplus
 }

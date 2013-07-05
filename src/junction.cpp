@@ -183,6 +183,12 @@ void store_features(char *name, GPtrArray *branching_events,
 	fclose(f);
 }
 
+void p_junction(junction *jun) {
+	show_debug_msg(__func__, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\n", jun->main_tpl->id,
+			jun->main_tpl->len, jun->branch_tpl->id, jun->branch_tpl->len,
+			jun->locus, jun->weight, jun->ori);
+}
+
 /**
  * Remove duplicate junctions and junctions with dead templates
  */
