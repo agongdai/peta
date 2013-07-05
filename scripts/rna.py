@@ -313,20 +313,24 @@ def simu(args):
     annotated = FastaFile(args.annotated)
     reads = FastaFile()
     read_id = 0
-    out = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/simu.fa'
-    ref = '/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta.rev'
+    out = os.path.join(os.path.dirname(args.annotated), 'simu.fa')
+    part = os.path.join(os.path.dirname(args.annotated), 'part.fa')
+    part_fa = FastaFile()
+    # out = '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/simu.fa'
     for tx in args.transcripts:
         seq = annotated.seqs[tx]
+        part_fa.seqs[tx] = seq
         for i in range(len(seq) - args.read_len + 1):
             reads.seqs[read_id] = seq[i:i+args.read_len]
             read_id += 1
             reads.seqs[read_id] = seq[i:i+args.read_len]
             read_id += 1
     reads.save_to_disk(out)
-    cmd = 'blat %s %s %s.psl' % (ref, out, out)
-    print cmd
-    print runInShell(cmd)
-    print 'Check file %s' % out
+    part_fa.save_to_disk(part)
+    cmd = 'blat %s %s %s.psl' % (args.annotated, out, out)
+#    print cmd
+#    print runInShell(cmd)
+    print 'Check %d reads in file %s' % (read_id, out)
     
 def match(args):
     fa = FastaFile(args.fa)

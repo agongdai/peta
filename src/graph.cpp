@@ -103,13 +103,13 @@ void p_graph(splice_graph *g) {
 	fputs("graph [rankdir=LR];", dot);
 	for (i = 0; i < g->vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(g->vertexes, i);
-		if (v->id == 1 || v->id == 2 || v->id == 3 || v->id == 5 || v->id == 7
-				|| v->id == 8 || v->id == 10)
-			sprintf(entry, "%d [label=\"%d: %d\" shape=box color=blue]; \n",
-					v->id, v->id, v->len);
-		else
-			sprintf(entry, "%d [label=\"%d: %d\" shape=box]; \n", v->id, v->id,
-					v->len);
+		//		if (v->id == 1 || v->id == 2 || v->id == 3 || v->id == 5 || v->id == 7
+		//				|| v->id == 8 || v->id == 10)
+		//			sprintf(entry, "%d [label=\"%d: %d\" shape=box color=blue]; \n",
+		//					v->id, v->id, v->len);
+		//		else
+		sprintf(entry, "%d [label=\"%d: %d\" shape=box]; \n", v->id, v->id,
+				v->len);
 		fputs(entry, dot);
 	}
 	for (j = 0; j < g->edges->len; j++) {
@@ -224,26 +224,26 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 	// Break the main template into vertexes
 	for (i = 0; i < main_juncs->len; i++) {
 		j = (junction*) g_ptr_array_index(main_juncs, i);
-		if (j->main_tpl != t || (j->main_tpl == t && j->branch_tpl == t))
+		if (j->main_tpl != t || (j->main_tpl == t && j->branch_tpl == t)
+				|| j->locus == pre_start)
 			continue;
 		v = new_vertex(t, pre_start, j->locus - pre_start, hm);
 		g_ptr_array_add(g->vertexes, v);
 		g_ptr_array_add(this_vs, v);
 		pre_start = j->locus;
 	}
+	// Create the last vertex
 	v = new_vertex(t, pre_start, t->len - pre_start, hm);
 	g_ptr_array_add(g->vertexes, v);
 	g_ptr_array_add(this_vs, v);
 
 	// Create the edges between vertexes
-	for (i = 0; i < main_juncs->len; i++) {
-		j = (junction*) g_ptr_array_index(main_juncs, i);
-		if (j->main_tpl != t || (j->main_tpl == t && j->branch_tpl == t))
-			continue;
+	pre_start = 0;
+	for (i = 0; i < this_vs->len - 1; i++) {
 		left = (vertex*) g_ptr_array_index(this_vs, i);
 		right = (vertex*) g_ptr_array_index(this_vs, i + 1);
 		e = new_edge(left, right);
-		e->junc_seq = get_junc_seq(t, j->locus, &e->left_len, t, j->locus,
+		e->junc_seq = get_junc_seq(t, pre_start, &e->left_len, t, pre_start,
 				&e->right_len, max_len);
 		e->len = e->left_len + e->right_len;
 		e->reads = reads_on_seq(e->junc_seq, hm, N_MISMATCHES);
@@ -251,6 +251,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 		g_ptr_array_add(left->outs, e);
 		g_ptr_array_add(right->ins, e);
 		g_ptr_array_add(g->edges, e);
+		pre_start += left->len;
 	}
 
 	t->vertexes = this_vs;
@@ -261,15 +262,26 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
  */
 void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 	junction *j = NULL;
-	int i = 0;
+	int i = 0, nth_zero = 0, pre_locus = 0;
 	int max_len = (hm->o->read_len - SHORT_BRANCH_SHIFT) * 2;
 	edge *e = NULL;
 	vertex *branch_v = NULL, *left = NULL, *right = NULL;
 	GPtrArray *branch_vs = NULL, *main_vs = NULL;
+	// A special case:
+	// 	Main		Branch	Locus	Weight	Direction
+	//	[1, 3842]	[2, 66]	736		128		1
+	//	[1, 3842]	[2, 66]	736		124		0
 	for (i = 0; i < main_juncs->len; i++) {
 		j = (junction*) g_ptr_array_index(main_juncs, i);
 		if (j->main_tpl != t || (j->main_tpl == t && j->branch_tpl == t))
 			continue;
+		// Here, check how many of the special case
+		if (i > 0) {
+			if (j->locus == pre_locus)
+				nth_zero += 1;
+		}
+		pre_locus = j->locus;
+
 		branch_vs = j->branch_tpl->vertexes;
 		main_vs = j->main_tpl->vertexes;
 		if (j->ori) { // Branch is left, main is right
@@ -283,7 +295,7 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
 			g_ptr_array_add(right->ins, e);
 		} else { // Branch is right, main is left
 			branch_v = (vertex*) g_ptr_array_index(branch_vs, 0);
-			left = (vertex*) g_ptr_array_index(main_vs, i);
+			left = (vertex*) g_ptr_array_index(main_vs, i - nth_zero);
 			e = new_edge(left, branch_v);
 			e->junc_seq = get_junc_seq(t, j->locus, &e->left_len,
 					j->branch_tpl, 0, &e->right_len, max_len);
