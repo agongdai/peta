@@ -39,6 +39,7 @@ path *clone_path(path *p) {
 	uint32_t i = 0;
 	vertex *v = NULL;
 	edge *e = NULL;
+	float *weights = NULL, w = 0.0;
 	for (i = 0; i < p->vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(p->vertexes, i);
 		g_ptr_array_add(clone->vertexes, v);
@@ -106,7 +107,13 @@ void p_p(path *p) {
 	printf("\tEdges: %d \n", p->edges->len);
 	for (i = 0; i < p->edges->len; i++) {
 		e = (edge*) g_ptr_array_index(p->edges, i);
-		printf("\t\tEdeg %d: %d; Weight %.2f\n", e->id, e->len, e->weight);
+		printf("\t\tEdge %d: %d; Weight %.2f\n", e->id, e->len, e->weight);
+	}
+	if (p->weights) {
+		printf("\tWeights: %d \n", p->edges->len + p->vertexes->len);
+		for (i = 0; i < p->edges->len + p->vertexes->len; i++) {
+			printf("\t\tWeight: %.2f \n", p->weights[i]);
+		}
 	}
 }
 
@@ -195,6 +202,12 @@ GPtrArray *get_vertex_levels(splice_graph *g) {
 	uint32_t i = 0, j = 0, has_more = 1, n_level = 0;
 	vertex *v = NULL;
 	edge *e = NULL;
+	/**
+	for (i = 0; i < g->vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(g->vertexes, i);
+		show_debug_msg(__func__, "Vertex [%d, %d] in graph \n", v->id, v->len);
+	}
+	**/
 	while (has_more) {
 		g_ptr_array_add(levels, level_vertexes);
 		has_more = 0;
@@ -202,22 +215,22 @@ GPtrArray *get_vertex_levels(splice_graph *g) {
 		n_level++;
 		for (i = 0; i < level_vertexes->len; i++) {
 			v = (vertex*) g_ptr_array_index(level_vertexes, i);
-			v->status = 1;
+			v->status = n_level;
 			if (v->outs->len > 0) {
 				if (!next_level)
-					next_level = g_ptr_array_sized_new(16);
+					next_level = g_ptr_array_sized_new(level_vertexes->len);
 				for (j = 0; j < v->outs->len; j++) {
 					e = (edge*) g_ptr_array_index(v->outs, j);
 					// If the edge is not visited before
-					if (e->status == 0) {
-						// If the vertex is added before at the same level, ignore
-						if (e->right->status != n_level) {
-							g_ptr_array_add(next_level, e->right);
-							e->right->status = n_level;
-						}
+					//if (e->status == 0) {
+					// If the vertex is added before at the same level, ignore
+					if (e->right->status != n_level) {
+						g_ptr_array_add(next_level, e->right);
+						e->right->status = n_level;
 						e->status = 1;
 						has_more = 1;
 					}
+					//}
 				}
 			}
 		}
@@ -250,15 +263,15 @@ GPtrArray *combinatorial_paths(GPtrArray *levels) {
 	for (i = 1; i < levels->len; i++) {
 		level_vertexes = (GPtrArray*) g_ptr_array_index(levels, i);
 		next_paths = g_ptr_array_sized_new(paths->len * 2);
-		// For each vertex at current level
-		for (j = 0; j < level_vertexes->len; j++) {
-			v = (vertex*) g_ptr_array_index(level_vertexes, j);
-			// For paths with last vertex connected to this vertex
-			for (k = 0; k < paths->len; k++) {
-				p = (path*) g_ptr_array_index(paths, k);
-				new_p = NULL;
-				tail_v = (vertex*) g_ptr_array_index(p->vertexes,
-						p->vertexes->len - 1);
+		// For paths with last vertex connected to this vertex
+		for (k = 0; k < paths->len; k++) {
+			p = (path*) g_ptr_array_index(paths, k);
+			new_p = NULL;
+			tail_v = (vertex*) g_ptr_array_index(p->vertexes, p->vertexes->len
+					- 1);
+			// For each vertex at current level
+			for (j = 0; j < level_vertexes->len; j++) {
+				v = (vertex*) g_ptr_array_index(level_vertexes, j);
 				// Check whether the last vertex of the path is connected to the current vertex
 				for (m = 0; m < tail_v->outs->len; m++) {
 					e = (edge*) g_ptr_array_index(tail_v->outs, m);
@@ -269,21 +282,21 @@ GPtrArray *combinatorial_paths(GPtrArray *levels) {
 						g_ptr_array_add(next_paths, new_p);
 					}
 				}
-				// Since path p is freed later, make a clone and add
-				if (!new_p)
-					g_ptr_array_add(next_paths, clone_path(p));
 			}
+			// Since path p is freed later, make a clone and add
+			if (!new_p)
+				g_ptr_array_add(next_paths, clone_path(p));
 		}
 		// Free the paths from last level, assign next level paths to current one
 		destroy_paths(paths);
 		paths = next_paths;
-		/**
-		 show_debug_msg(__func__, "Paths after level %d\n", i);
-		 for (j = 0; j < paths->len; j++) {
-		 p = (path*) g_ptr_array_index(paths, j);
-		 p_p(p);
-		 }
-		 **/
+
+		show_debug_msg(__func__, "Paths after level %d\n", i);
+		for (j = 0; j < paths->len; j++) {
+			p = (path*) g_ptr_array_index(paths, j);
+			p_p(p);
+		}
+
 	}
 	show_debug_msg(__func__, "%d Paths reported \n", paths->len);
 	return paths;
@@ -306,7 +319,8 @@ void validate_short_exons(GPtrArray *paths, hash_map *hm) {
 		for (j = 0; j < p->edges->len; j++) {
 			w = p->weights[j * 2 + 1];
 			if (w <= 0) {
-				show_debug_msg(__func__, "Path %d is not valid with 0 edge \n", p->id);
+				show_debug_msg(__func__, "Path %d is not valid with 0 edge \n",
+						p->id);
 				destroy_path(p);
 				g_ptr_array_remove_index_fast(paths, i--);
 				break;
@@ -367,7 +381,6 @@ void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 			v = (vertex*) g_ptr_array_index(p->vertexes, j);
 			p->len += v->len;
 		}
-		p_p(p);
 		// Concatenate the vertexes to path
 		p->ctg = blank_seq(p->len);
 		len = 0;
@@ -393,23 +406,26 @@ void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 		// Assign the weights of vertexes and edges
 		p->weights = (float*) malloc(sizeof(float) * (p->edges->len
 				+ p->vertexes->len));
-		for (j = 0; j < p->edges->len; j++) {
+		for (j = 0; j < p->vertexes->len; j++) {
 			v = (vertex*) g_ptr_array_index(p->vertexes, j);
 			p->weights[2 * j] = v->weight;
+		}
+		for (j = 0; j < p->edges->len; j++) {
 			e = (edge*) g_ptr_array_index(p->edges, j);
 			if (e->weight <= 0) {
 				seq = get_breaking_seq(p->ctg, points[j], hm->o->read_len
 						- SHORT_BRANCH_SHIFT);
 				// Stringent in junctions, 0 mismatches.
 				reads = reads_on_seq(seq, hm, 0);
-				/**
+
 				 show_debug_msg(__func__, "=== Path %d, Breaking point: %d ===\n", p->id, points[j]);
 				 p_ctg_seq("PATH", p->ctg);
 				 p_ctg_seq(__func__, seq);
 				 p_readarray(reads, 1);
 				 show_debug_msg(__func__, "=== %d reads. END === \n\n", reads->len);
-				 **/
-				p->weights[2 * j + 1] = reads->len;
+
+				p->weights[2 * j + 1] = (float) reads->len;
+				e->len = seq->len;
 				g_ptr_array_free(reads, TRUE);
 				bwa_free_read_seq(1, seq);
 			} else {
@@ -482,7 +498,7 @@ GPtrArray *calc_features_coverage(GPtrArray *paths, const int read_len,
 		// Calc the coverage of every vertex on this path
 		for (j = 0; j < p->vertexes->len; j++) {
 			v = (vertex*) g_ptr_array_index(p->vertexes, j);
-			weight = v->weight > 0 ? v->weight : 1;
+			weight = v->weight > 0 ? v->weight : 0;
 			f_cov = weight * read_len / v->len;
 			f_p_sum = 0;
 			// Sum path prob of all paths containing this vertex
@@ -499,9 +515,12 @@ GPtrArray *calc_features_coverage(GPtrArray *paths, const int read_len,
 		// Calc the coverage of every edge on this path
 		// The weights are stored in p->weights
 		f_p_sum = 0;
+		//p_p(p);
 		for (j = 0; j < p->edges->len; j++) {
+			//show_debug_msg(__func__, "Path %d, edge %d \n", p->id, j);
+			e = (edge*) g_ptr_array_index(p->edges, j);
 			weight = p->weights[j * 2 + 1];
-			weight = e->weight > 0 ? e->weight : 1;
+			weight = weight > 0 ? weight : 0;
 			f_cov = weight * read_len / e->len;
 			f_p_sum = 0;
 			for (m = 0; m < paths->len; m++) {
@@ -522,7 +541,7 @@ GPtrArray *calc_features_coverage(GPtrArray *paths, const int read_len,
  * 		paths: combinatorial paths
  * 		read_len: read length
  */
-GPtrArray *diffsplic_em(splice_graph *g, GPtrArray *paths,
+GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 		const float read_len, float *paths_p) {
 	int round = 0, n_features = 0;
 	uint32_t i = 0, j = 0, m = 0, n = 0, n_paths = paths->len;
@@ -640,7 +659,6 @@ GPtrArray *diffsplic_em(splice_graph *g, GPtrArray *paths,
 		next_paths_p = (float*) calloc(sizeof(float), n_paths);
 		for (j = 0; j < n_paths; j++) {
 			p = (path*) g_ptr_array_index(paths, j);
-
 			sum_next_f_p = 0.0;
 			for (m = 0; m < n_paths; m++) {
 				p2 = (path*) g_ptr_array_index(paths, m);
@@ -724,8 +742,8 @@ void determine_paths(splice_graph *g, hash_map *hm) {
 	destory_levels(levels);
 	assign_path_attrs(paths, hm);
 	p_paths(paths);
+	save_paths(paths, "paths.fa");
 	validate_short_exons(paths, hm);
 	paths_prob = init_path_prob(g, paths, hm->o->read_len);
-	diffsplic_em(g, paths, hm->o->read_len, paths_prob);
-	save_paths(paths, "paths.fa");
+	diffsplice_em(g, paths, hm->o->read_len, paths_prob);
 }

@@ -86,7 +86,7 @@ vertex *new_vertex(tpl *t, int start, int len, hash_map *hm) {
 
 void p_vertex(vertex *v) {
 	show_debug_msg(__func__, "==== Vertex %d: %.2f ====\n", v->id, v->weight);
-	p_ctg_seq(__func__, v->ctg);
+	//p_ctg_seq(__func__, v->ctg);
 	//p_readarray(v->reads, 1);
 }
 
