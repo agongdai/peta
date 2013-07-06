@@ -279,14 +279,16 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 	uint64_t value = 0, query_copy = query_int;
 	tpl *existing = NULL;
 
-	//show_debug_msg(__func__, "---------- Connecting to existing, ori %d ----------\n", ori);
-	//p_ctg_seq(__func__, branch->ctg);
+	show_debug_msg(__func__, "---------- Connecting to existing, ori %d ----------\n", ori);
+	p_ctg_seq(__func__, branch->ctg);
+
 	counters = count_next_kmers(hm, query_int, 0, ori);
-	//bwa_seq_t *debug = get_kmer_seq(query_int, 25);
-	//p_query(__func__, debug);
-	//bwa_free_read_seq(1, debug);
-	//show_debug_msg(__func__, "Counters: %d,%d,%d,%d\n", counters[0],
-	//		counters[1], counters[2], counters[3]);
+
+	bwa_seq_t *debug = get_kmer_seq(query_int, 25);
+	p_query(__func__, debug);
+	bwa_free_read_seq(1, debug);
+	show_debug_msg(__func__, "Counters: %d,%d,%d,%d\n", counters[0],
+			counters[1], counters[2], counters[3]);
 
 	// In case connecting to the template itself
 	mark_tpl_kmers_used(branch, hm, hm->o->k, 0);
@@ -301,17 +303,20 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 			existing = (tpl*) it->second;
 			// It happens when 'existing' and 'branch' are the same.
 			// And the same template has been trimmed before.
+
+			show_debug_msg(__func__, "Existing tpl %d: %d\n", existing->id, existing->len);
+			show_debug_msg(__func__, "Locus: %d; existing->len: %d; hm->o->k: %d\n", locus, existing->len, hm->o->k);
 			if (locus > existing->len - hm->o->k)
 				continue;
 			con_pos = ori ? (locus + 1) : (locus + hm->o->k - 1);
 
-			/**
+
 			 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
 			 p_query(__func__, debug);
 			 bwa_free_read_seq(1, debug);
 			 show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
 			 locus);
-			 **/
+
 			valid = find_junc_reads_w_tails(hm, existing, branch, con_pos,
 					(hm->o->read_len - SHORT_BRANCH_SHIFT) * 2, ori, &weight);
 			if (valid) {

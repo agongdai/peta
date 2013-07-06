@@ -208,6 +208,10 @@ GPtrArray *get_vertex_levels(splice_graph *g) {
 		show_debug_msg(__func__, "Vertex [%d, %d] in graph \n", v->id, v->len);
 	}
 	**/
+	for (i = 0; i < level_vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(level_vertexes, i);
+		v->status = 0;
+	}
 	while (has_more) {
 		g_ptr_array_add(levels, level_vertexes);
 		has_more = 0;
@@ -215,7 +219,6 @@ GPtrArray *get_vertex_levels(splice_graph *g) {
 		n_level++;
 		for (i = 0; i < level_vertexes->len; i++) {
 			v = (vertex*) g_ptr_array_index(level_vertexes, i);
-			v->status = n_level;
 			if (v->outs->len > 0) {
 				if (!next_level)
 					next_level = g_ptr_array_sized_new(level_vertexes->len);
@@ -588,7 +591,7 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 		printf("\t\t\tProbability: %.2f \n", paths_p[i]);
 	}
 
-	while (round++ < 1000) {
+	while (round++ < 10) {
 		printf("\n\n==== Start Iteration %d ====\n", round);
 		// Expectation step: E-step
 		for (i = 0; i < n_paths; i++) {
