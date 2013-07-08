@@ -591,7 +591,7 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 		printf("\t\t\tProbability: %.2f \n", paths_p[i]);
 	}
 
-	while (round++ < 10) {
+	while (round++ < 1000) {
 		printf("\n\n==== Start Iteration %d ====\n", round);
 		// Expectation step: E-step
 		for (i = 0; i < n_paths; i++) {

@@ -85,7 +85,7 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 		t = (tpl*) m->second;
 		g_ptr_array_add(tpls, t);
 	}
-	g_ptr_array_sort(tpls, (GCompareFunc)cmp_tpl_by_id);
+	g_ptr_array_sort(tpls, (GCompareFunc) cmp_tpl_by_id);
 	return tpls;
 }
 
@@ -178,7 +178,8 @@ void borrow_existing_seq(bwa_seq_t *short_seq, tpl *connected_tpl,
 				* sizeof(ubyte_t));
 	else {
 		memmove(short_seq->seq + borrow_len, short_seq->seq, short_seq->len);
-		memcpy(short_seq->seq, tail->seq + (tail->len - borrow_len), borrow_len * sizeof(ubyte_t));
+		memcpy(short_seq->seq, tail->seq + (tail->len - borrow_len), borrow_len
+				* sizeof(ubyte_t));
 	}
 
 	short_seq->len += borrow_len;
@@ -270,16 +271,99 @@ int val_branching(hash_map *hm, tpl *main_tpl, tpl_hash *all_tpls,
 }
 
 /**
+ * To connect to templates with length smaller than k (25 by default)
+ * The input template short_tpl is supposed to be shorter than k
+ */
+tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
+		tpl *short_tpl, int *parent_locus, int *borrow_bases, int ori) {
+	uint32_t i = 0;
+	uint64_t kmer_int = 0;
+	int max_len = hm->o->k - 1;
+	junction *j = NULL, *left_j = NULL, *right_j = NULL;
+	tpl *left = NULL, *right = NULL, *parent = NULL;
+	bwa_seq_t *left_seq = NULL, *right_seq = NULL, *junc_seq = NULL;
+	GPtrArray *branch_juncs =
+			find_branch_junctions(branching_events, short_tpl);
+	show_debug_msg(__func__, "Branch: [%d, %d] \n", branch_tpl->id,
+			branch_tpl->len);
+	show_debug_msg(__func__, "Short: [%d, %d] \n", short_tpl->id,
+			short_tpl->len);
+	if (branch_juncs->len > 2) {
+		g_ptr_array_free(branch_juncs, TRUE);
+		return NULL;
+	}
+	// Assign the left template  and right template
+	for (i = 0; i < branch_juncs->len; i++) {
+		j = (junction*) g_ptr_array_index(branch_juncs, i);
+		if (j->ori == 0) {
+			left_j = j;
+			p_junction(left_j);
+		} else {
+			right_j = j;
+			p_junction(right_j);
+		}
+	}
+	// Concatenate the three short sequences, to find where the branch_tpl should be connected to
+	left_seq = cut_tpl_tail(left_j->main_tpl, left_j->locus, max_len, 0);
+	right_seq = cut_tpl_tail(right_j->main_tpl, right_j->locus, max_len, 1);
+	junc_seq = blank_seq(left_seq->len + short_tpl->len + right_seq->len);
+	memcpy(junc_seq->seq, left_seq->seq, left_seq->len);
+	memcpy(junc_seq->seq + left_seq->len, short_tpl->ctg->seq, short_tpl->len);
+	memcpy(junc_seq->seq + left_seq->len + short_tpl->len, right_seq->seq,
+			right_seq->len);
+	junc_seq->len = left_seq->len + short_tpl->len + right_seq->len;
+	set_rev_com(junc_seq);
+	p_ctg_seq("JUNCTION", junc_seq);
+
+	for (i = 0; i <= junc_seq->len - hm->o->k; i++) {
+		kmer_int = get_kmer_int(junc_seq->seq, i, 1, hm->o->k);
+		if (kmer_int == query_int) {
+			bwa_free_read_seq(1, junc_seq);
+			if (ori) {
+				if (i > left_seq->len) {
+					*parent_locus = i - left_seq->len;
+					parent = short_tpl;
+				} else {
+					*parent_locus = left_j->locus - (hm->o->k - 1) + i;
+					parent = left_j->main_tpl;
+				}
+			} else {
+				if (i > left_seq->len) {
+					*parent_locus = i - left_seq->len - 1;
+					parent = short_tpl;
+				} else {
+					*parent_locus = right_j->locus + (i + hm->o->k
+							- left_seq->len - short_tpl->len) - 1;
+					*borrow_bases = hm->o->k - right_seq->len;
+					parent = right_j->main_tpl;
+					show_debug_msg(
+							__func__,
+							"Parent locus: %d; borrow bases: %d; parent: [%d, %d]\n",
+							*parent_locus, *borrow_bases, parent->id,
+							parent->len);
+				}
+			}
+		}
+	}
+	bwa_free_read_seq(1, left_seq);
+	bwa_free_read_seq(1, right_seq);
+	g_ptr_array_free(branch_juncs, TRUE);
+	return parent;
+}
+
+/**
  * If the template reaches some kmer which is used, stop the extension and add a branching event
  */
 int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 		const int ori) {
 	int *counters = NULL, locus = 0, i = 0, connected = 0, eg_id = 0,
-			valid = 0, weight = 0, con_pos = 0, exist_ori = 0;
+			valid = 0, weight = 0, con_pos = 0, exist_ori = 0,
+			parent_locus = 0, borrow_bases = 0;
 	uint64_t value = 0, query_copy = query_int;
-	tpl *existing = NULL;
+	tpl *existing = NULL, *parent_existing = NULL;
 
-	show_debug_msg(__func__, "---------- Connecting to existing, ori %d ----------\n", ori);
+	show_debug_msg(__func__,
+			"---------- Connecting to existing, ori %d ----------\n", ori);
 	p_ctg_seq(__func__, branch->ctg);
 
 	counters = count_next_kmers(hm, query_int, 0, ori);
@@ -304,24 +388,34 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 			// It happens when 'existing' and 'branch' are the same.
 			// And the same template has been trimmed before.
 
-			show_debug_msg(__func__, "Existing tpl %d: %d\n", existing->id, existing->len);
-			show_debug_msg(__func__, "Locus: %d; existing->len: %d; hm->o->k: %d\n", locus, existing->len, hm->o->k);
-			if (locus > existing->len - hm->o->k)
-				continue;
+			show_debug_msg(__func__, "Existing tpl %d: %d\n", existing->id,
+					existing->len);
+			show_debug_msg(__func__,
+					"Locus: %d; existing->len: %d; hm->o->k: %d\n", locus,
+					existing->len, hm->o->k);
+			//if (locus > existing->len - hm->o->k)
+			//	continue;
 			con_pos = ori ? (locus + 1) : (locus + hm->o->k - 1);
 
+			bwa_seq_t *debug = get_kmer_seq(query_int, 25);
+			p_query(__func__, debug);
+			bwa_free_read_seq(1, debug);
+			show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
+					locus);
 
-			 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
-			 p_query(__func__, debug);
-			 bwa_free_read_seq(1, debug);
-			 show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
-			 locus);
-
+			if (existing->len < hm->o->k) {
+				parent_existing = connect_to_small_tpl(hm, query_int, branch,
+						existing, &parent_locus, &borrow_bases, ori);
+				if (parent_existing) {
+					existing = parent_existing;
+					con_pos = parent_locus;
+				}
+			}
 			valid = find_junc_reads_w_tails(hm, existing, branch, con_pos,
 					(hm->o->read_len - SHORT_BRANCH_SHIFT) * 2, ori, &weight);
 			if (valid) {
 				exist_ori = ori ? 0 : 1;
-				if (branch->len < hm->o->k - 1) {
+				if (branch->len < hm->o->k) {
 					if (exist_ori)
 						con_pos -= branch->len;
 					else
@@ -332,14 +426,14 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 				} else {
 					// Make the branch not sharing a 24-mer with the main
 					if (exist_ori) {
-						con_pos -= (hm->o->k - 1);
+						con_pos -= (hm->o->k - 1 - borrow_bases);
 					} else {
-						con_pos += (hm->o->k - 1);
+						con_pos += (hm->o->k - 1 - borrow_bases);
 						memmove(branch->ctg->seq, branch->ctg->seq + (hm->o->k
 								- 1), sizeof(ubyte_t) * (branch->len
 								- (hm->o->k - 1)));
 					}
-					branch->len -= (hm->o->k - 1);
+					branch->len -= (hm->o->k - 1 - borrow_bases);
 					branch->ctg->len = branch->len;
 					set_rev_com(branch->ctg);
 				}
@@ -349,8 +443,8 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 						con_pos);
 				set_tail(branch, existing, con_pos, hm->o->read_len
 						- SHORT_BRANCH_SHIFT, exist_ori);
-				p_ctg_seq("Right tail", branch->r_tail);
-				p_ctg_seq("Left  tail", branch->l_tail);
+				//p_ctg_seq("Right tail", branch->r_tail);
+				//p_ctg_seq("Left  tail", branch->l_tail);
 				add_a_junction(existing, branch, query_int, con_pos, exist_ori,
 						weight);
 				connected = 1;
@@ -366,7 +460,7 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
  * Return: 0: cannot be connected
  *         1: forward connected
  *         2: reverse complement connected
-**/
+ **/
 int existing_connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls,
 		uint64_t query_int, int ori) {
 	int connected = 0, rev_ori = 0;
@@ -379,7 +473,7 @@ int existing_connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls,
 	// Try the reverse complement of the branch and connect
 	//	, if there is no other template connecting to it currently
 	if (!connected && !branch->in_connect) {
-		show_debug_msg(__func__, "ATTENTION: going to connect reverse complement\n");
+		//show_debug_msg(__func__, "ATTENTION: going to connect reverse complement\n");
 		switch_fr(branch->ctg);
 		rev_ori = ori ? 0 : 1;
 		rev_query = rev_comp_kmer(query_int, hm->o->k);
@@ -389,7 +483,7 @@ int existing_connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls,
 			switch_fr(branch->ctg);
 		else {
 			connected = 2; // Indicates that its rev-comp connectes to existing template
-			show_debug_msg(__func__, "ATTENTION: connected reverse complement\n");
+			//show_debug_msg(__func__, "ATTENTION: connected reverse complement\n");
 		}
 	}
 	if (ori)
@@ -436,8 +530,8 @@ void trim_weak_tails(tpl *t, hash_map *hm, const int ori) {
 		}
 		if (shift > 0) {
 			//p_ctg_seq(__func__, t->ctg);
-			memcpy(t->ctg->seq, t->ctg->seq + shift, sizeof(ubyte_t)
-					* (t->len - shift));
+			memcpy(t->ctg->seq, t->ctg->seq + shift, sizeof(ubyte_t) * (t->len
+					- shift));
 			t->ctg->len = t->len - shift;
 			t->len = t->ctg->len;
 			t->kmer_freq -= sum_sup;
@@ -517,8 +611,8 @@ void kmer_ext_branch(tpl *t, hash_map *hm, tpl_hash *all_tpls, const int ori) {
 			all_tpls->insert(make_pair<int, tpl*> ((int) branch->id,
 					(tpl*) branch));
 			g_mutex_unlock(kmer_id_mutex);
-			con_existing = kmer_ext_tpl(branch, branch_query, hm, all_tpls,
-					ori);
+			con_existing
+					= kmer_ext_tpl(branch, branch_query, hm, all_tpls, ori);
 			cal_coverage(branch, hm);
 			// If the branch can be merged into main template, erase the branch
 			if (branch_on_main(t->ctg, branch->ctg, con_pos, (branch->len
@@ -559,8 +653,8 @@ void kmer_ext_branch(tpl *t, hash_map *hm, tpl_hash *all_tpls, const int ori) {
 	free(counters);
 }
 
-int kmer_ext_tpl(tpl *t, uint64_t query_int, hash_map *hm,
-		tpl_hash *all_tpls, const int ori) {
+int kmer_ext_tpl(tpl *t, uint64_t query_int, hash_map *hm, tpl_hash *all_tpls,
+		const int ori) {
 	int max_c = 0, *counters = NULL, weight = 0, con_existing = 0;
 	int max_c_all = 0, *counters_all = NULL;
 
@@ -578,21 +672,21 @@ int kmer_ext_tpl(tpl *t, uint64_t query_int, hash_map *hm,
 		counters_all = count_next_kmers(hm, query_int, 0, ori);
 		max_c_all = get_max_index(counters_all);
 
-		/**
-		 if (ori)
-		 seq_reverse(t->len, t->ctg->seq, 0);
-		 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
-		 p_query(__func__, debug);
-		 bwa_free_read_seq(1, debug);
-		 show_debug_msg(__func__, "Next chars: [%d, %d, %d, %d] \n",
-		 counters[0], counters[1], counters[2], counters[3]);
-		 show_debug_msg(__func__,
-		 "Ori %d, tpl %d, length %d, Next char: %d \n", ori, t->id,
-		 t->len, max_c);
-		 p_ctg_seq("Contig", t->ctg);
-		 if (ori)
-		 seq_reverse(t->len, t->ctg->seq, 0);
-		 **/
+		if (t->id == 3) {
+			if (ori)
+				seq_reverse(t->len, t->ctg->seq, 0);
+			bwa_seq_t *debug = get_kmer_seq(query_int, 25);
+			p_query(__func__, debug);
+			bwa_free_read_seq(1, debug);
+			show_debug_msg(__func__, "Next chars: [%d, %d, %d, %d] \n",
+					counters[0], counters[1], counters[2], counters[3]);
+			show_debug_msg(__func__,
+					"Ori %d, tpl %d, length %d, Next char: %d \n", ori, t->id,
+					t->len, max_c);
+			p_ctg_seq("Contig", t->ctg);
+			if (ori)
+				seq_reverse(t->len, t->ctg->seq, 0);
+		}
 
 		// If the max direction is taken already, connect to it.
 		if (max_c_all != max_c) {
@@ -678,19 +772,19 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 
 	/**
-	if (!connected && t->len - round_1_len > 2) {
-		kmer_int = get_kmer_int(t->ctg->seq, t->len - opt->k, 1, opt->k);
-		round_2_len = t->len;
-		flag = kmer_ext_tpl(t, kmer_int, params->hm, all_tpls, 0);
-		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
-		if (t->len - round_2_len > 2) {
-			kmer_int = get_kmer_int(t->ctg->seq, 0, 1, opt->k);
-			connected |= kmer_ext_tpl(t, kmer_int, params->hm, all_tpls, 1);
-			show_debug_msg(__func__, "tpl %d with length: %d \n", t->id,
-					t->len);
-		}
-	}
-	**/
+	 if (!connected && t->len - round_1_len > 2) {
+	 kmer_int = get_kmer_int(t->ctg->seq, t->len - opt->k, 1, opt->k);
+	 round_2_len = t->len;
+	 flag = kmer_ext_tpl(t, kmer_int, params->hm, all_tpls, 0);
+	 show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
+	 if (t->len - round_2_len > 2) {
+	 kmer_int = get_kmer_int(t->ctg->seq, 0, 1, opt->k);
+	 connected |= kmer_ext_tpl(t, kmer_int, params->hm, all_tpls, 1);
+	 show_debug_msg(__func__, "tpl %d with length: %d \n", t->id,
+	 t->len);
+	 }
+	 }
+	 **/
 
 	if (!connected && t->len <= opt->k) {
 		g_mutex_lock(kmer_id_mutex);

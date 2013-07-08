@@ -45,6 +45,18 @@ void destroy_junction(junction *j) {
 	}
 }
 
+GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch) {
+	uint32_t i = 0;
+	junction *j = NULL;
+	GPtrArray *hits = g_ptr_array_sized_new(2);
+	for(i = 0; i < all->len; i++) {
+		j = (junction*) g_ptr_array_index(all, i);
+		if (j->branch_tpl == branch)
+			g_ptr_array_add(hits, j);
+	}
+	return hits;
+}
+
 int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 		const int max_len, int *weight) {
 	int left_len = 0, right_len = 0, n_reads = 0;
