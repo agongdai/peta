@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <zlib.h>
 #include <inttypes.h>
+#include <glib.h>
 
 #define err_fatal_simple(msg) err_fatal_simple_core(__func__, msg)
 #define xopen(fn, mode) err_xopen_core(__func__, fn, mode)
@@ -49,6 +50,7 @@ extern "C" {
 	int get_abs(int a);
 	void trim(char *str);
 	char *get_output_file(const char *file_name, const char *out_root);
+	int find_in_array(GPtrArray *arr, gpointer value);
 
 #ifdef __cplusplus
 }

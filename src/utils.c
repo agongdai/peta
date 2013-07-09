@@ -4,6 +4,7 @@
 #include <string.h>
 #include <zlib.h>
 #include <math.h>
+#include <glib.h>
 #include "utils.h"
 
 FILE *err_xopen_core(const char *func, const char *fn, const char *mode) {
@@ -111,4 +112,15 @@ char *get_output_file(const char *file_name, const char *out_root) {
 	strcat(name, "/");
 	strcat(name, file_name);
 	return name;
+}
+
+int find_in_array(GPtrArray *arr, gpointer value) {
+	uint32_t i = 0;
+	gpointer v = NULL;
+	for (i = 0; i < arr->len; i++) {
+		v = g_ptr_array_index(arr, i);
+		if (v == value)
+			return i;
+	}
+	return -1;
 }

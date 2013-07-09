@@ -22,6 +22,8 @@ typedef struct {
 	GPtrArray *outs;		// Outgoing edges
 	GPtrArray *reads;		// Reads on it, for paired-end tracking
 	int status;				// 0 means good.
+	int index;				// To determine strongly connected components in the graph
+	int lowlink;			// http://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
 } vertex;
 
 typedef struct {
@@ -41,6 +43,8 @@ typedef struct {
 	GPtrArray *vertexes;
 	GPtrArray *edges;
 	int len;
+	int index;				// Global index for Tarjan's algorithm
+	GPtrArray *stack;		// Stack for Tarjan's algorithm
 } splice_graph;
 
 typedef struct {

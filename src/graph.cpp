@@ -55,7 +55,9 @@ splice_graph *new_graph() {
 	splice_graph *g = (splice_graph*) malloc(sizeof(splice_graph));
 	g->edges = g_ptr_array_sized_new(0);
 	g->vertexes = g_ptr_array_sized_new(0);
+	g->stack = g_ptr_array_sized_new(0);
 	g->len = 0;
+	g->index = 0;
 	return g;
 }
 
@@ -81,6 +83,8 @@ vertex *new_vertex(tpl *t, int start, int len, hash_map *hm) {
 	v->weight = (float) v->reads->len;
 	v->status = 0;
 	v->id = vertex_id++;
+	v->index = 0;
+	v->lowlink = 0;
 	return v;
 }
 
@@ -192,6 +196,9 @@ void destroy_graph(splice_graph *g) {
 				destroy_edge(e);
 			}
 			g_ptr_array_free(g->edges, TRUE);
+		}
+		if (g->stack) {
+			g_ptr_array_free(g->stack, TRUE);
 		}
 		free(g);
 	}
@@ -418,6 +425,9 @@ void p_tpl_juncs(tpl *t, GPtrArray *t_juncs) {
 	}
 }
 
+/**
+ * Build the graph from the templates and junctions
+ */
 splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 		hash_map *hm) {
 	splice_graph *g = new_graph();
@@ -465,11 +475,71 @@ void clean_graph(splice_graph *g) {
 	}
 }
 
+void tarjan_connect(vertex *v, splice_graph *g) {
+	edge *e = NULL;
+	vertex *w = NULL, *tmp = NULL;
+	uint32_t i = 0, j = 0;
+	// Strongly connected component for this vertex
+	GPtrArray *scc = g_ptr_array_sized_new(4);
+	v->index = g->index;
+	v->lowlink = g->index;
+	g->index++;
+	g_ptr_array_add(g->stack, v);
+	for (i = 0; i < v->outs->len; i++) {
+		e = (edge*) g_ptr_array_index(v->outs, i);
+		w = e->right;
+		if (w->index == 0) {
+			tarjan_connect(w, g);
+			v->lowlink = min(v->lowlink, w->lowlink);
+		} else {
+			/**
+			for (j = 0; j < g->stack->len; j++) {
+				tmp = (vertex*) g_ptr_array_index(g->stack, j);
+				p_vertex(tmp);
+			}
+			**/
+			if (find_in_array(g->stack, (gpointer) w) >= 0) {
+				//p_vertex(v);
+				//p_vertex(w);
+				v->lowlink = min(v->lowlink, w->index);
+			}
+		}
+	}
+	if (v->lowlink == v->index) {
+		while (g->stack->len) {
+			w = (vertex*) g_ptr_array_index(g->stack, g->stack->len - 1);
+			g_ptr_array_remove_index_fast(g->stack, g->stack->len - 1);
+			g_ptr_array_add(scc, w);
+			if (w == v)
+				break;
+		}
+	}
+	printf("===================================================\n");
+	//if (scc->len >= 2) {
+	for (i = 0; i < scc->len; i++) {
+		v = (vertex*) g_ptr_array_index(scc, i);
+		p_vertex(v);
+	}
+	//}
+	g_ptr_array_free(scc, TRUE);
+}
+
+void tarjan(splice_graph *g) {
+	uint32_t i = 0;
+	vertex *v = NULL;
+	for (i = 0; i < g->vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(g->vertexes, i);
+		if (v->index == 0)
+			tarjan_connect(v, g);
+	}
+}
+
 void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	splice_graph *g = NULL;
 	g = build_graph(all_tpls, all_juncs, hm);
 	clean_graph(g);
 	p_graph(g);
 	save_vertexes(g->vertexes);
-	determine_paths(g, hm);
+	tarjan(g);
+	//determine_paths(g, hm);
 }

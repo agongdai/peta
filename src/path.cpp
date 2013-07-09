@@ -420,13 +420,13 @@ void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 						- SHORT_BRANCH_SHIFT);
 				// Stringent in junctions, 0 mismatches.
 				reads = reads_on_seq(seq, hm, 0);
-
+				/**
 				 show_debug_msg(__func__, "=== Path %d, Breaking point: %d ===\n", p->id, points[j]);
 				 p_ctg_seq("PATH", p->ctg);
 				 p_ctg_seq(__func__, seq);
 				 p_readarray(reads, 1);
 				 show_debug_msg(__func__, "=== %d reads. END === \n\n", reads->len);
-
+				**/
 				p->weights[2 * j + 1] = (float) reads->len;
 				e->len = seq->len;
 				g_ptr_array_free(reads, TRUE);
@@ -555,7 +555,7 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 	GPtrArray *coverage = NULL;
 	// Total # of reads on the the paths
 	float sum_N = 0.0, sum_p_len = 0.0, *this_Ns = (float*) calloc(
-			sizeof(float), n_paths);
+			sizeof(float), n_paths), sum_p = 0.0;
 	float *next_paths_p = NULL, sum_next_f_p = 0.0, sum_next_f_t_p = 0.0;
 	float *k_te = NULL, sum_k_te = 0.0, sum_k_c_te = 0.0;
 
@@ -702,8 +702,12 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 			next_paths_p[j] = (this_Ns[j] * sum_next_f_p) / (sum_next_f_t_p
 					* (sum_N - this_Ns[j]));
 		}
+		sum_p = 0.0;
 		for (j = 0; j < n_paths; j++) {
-			paths_p[j] = next_paths_p[j];
+			sum_p += next_paths_p[j];
+		}
+		for (j = 0; j < n_paths; j++) {
+			paths_p[j] = next_paths_p[j] / sum_p;
 		}
 		free(next_paths_p);
 
@@ -744,9 +748,9 @@ void determine_paths(splice_graph *g, hash_map *hm) {
 	GPtrArray *paths = combinatorial_paths(levels);
 	destory_levels(levels);
 	assign_path_attrs(paths, hm);
+	validate_short_exons(paths, hm);
 	p_paths(paths);
 	save_paths(paths, "paths.fa");
-	validate_short_exons(paths, hm);
 	paths_prob = init_path_prob(g, paths, hm->o->read_len);
 	diffsplice_em(g, paths, hm->o->read_len, paths_prob);
 }
