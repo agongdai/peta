@@ -170,6 +170,9 @@ void save_paths(GPtrArray *paths, char *fn) {
 	fclose(p_fp);
 }
 
+/*
+ * Get junction sequences
+ */
 bwa_seq_t *get_breaking_seq(path *p, int breaking_index, int read_len) {
 	bwa_seq_t *seq = p->ctg;
 	int *points = p->junction_points;
@@ -222,12 +225,12 @@ bwa_seq_t *get_breaking_seq(path *p, int breaking_index, int read_len) {
 /**
  * Get vertex without incoming edges
  */
-GPtrArray *get_graph_roots(splice_graph *g) {
+GPtrArray *get_graph_roots(comp *c) {
 	vertex *v = NULL;
 	uint32_t i = 0;
-	GPtrArray *roots = g_ptr_array_sized_new(32);
-	for (i = 0; i < g->vertexes->len; i++) {
-		v = (vertex*) g_ptr_array_index(g->vertexes, i);
+	GPtrArray *roots = g_ptr_array_sized_new(16);
+	for (i = 0; i < c->vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(c->vertexes, i);
 		if (!(v->ins) || v->ins->len == 0)
 			g_ptr_array_add(roots, v);
 	}
@@ -241,8 +244,8 @@ GPtrArray *get_graph_roots(splice_graph *g) {
  *  [1]: vertexes at level 1
  *  ......
  */
-GPtrArray *get_vertex_levels(splice_graph *g) {
-	GPtrArray *level_vertexes = get_graph_roots(g), *next_level = NULL;
+GPtrArray *get_vertex_levels(comp *c) {
+	GPtrArray *level_vertexes = get_graph_roots(c), *next_level = NULL;
 	GPtrArray *levels = g_ptr_array_sized_new(32);
 	uint32_t i = 0, j = 0, has_more = 1, n_level = 0;
 	vertex *v = NULL;
@@ -270,15 +273,12 @@ GPtrArray *get_vertex_levels(splice_graph *g) {
 				for (j = 0; j < v->outs->len; j++) {
 					e = (edge*) g_ptr_array_index(v->outs, j);
 					// If the edge is not visited before
-					//if (e->status == 0) {
 					// If the vertex is added before at the same level, ignore
 					if (e->right->status != n_level) {
 						g_ptr_array_add(next_level, e->right);
 						e->right->status = n_level;
-						e->status = 1;
 						has_more = 1;
 					}
-					//}
 				}
 			}
 		}
@@ -414,6 +414,9 @@ void validate_short_exons(GPtrArray *paths, hash_map *hm) {
 	}
 }
 
+/**
+ * Initialize attributes to paths
+ */
 void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 	uint32_t i = 0, j = 0, len = 0;
 	path *p = NULL;
@@ -489,7 +492,7 @@ void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 /**
  * Return initial path probability;
  */
-float *init_path_prob(splice_graph *g, GPtrArray *paths, const float read_len) {
+float *init_path_prob(GPtrArray *paths, const float read_len) {
 	float cov_sum = 0.0;
 	path *p = NULL;
 	uint32_t i = 0, j = 0;
@@ -604,7 +607,7 @@ GPtrArray *calc_features_coverage(GPtrArray *paths, const int read_len,
  * 		paths: combinatorial paths
  * 		read_len: read length
  */
-GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
+GPtrArray *diffsplice_em(comp *c, GPtrArray *paths,
 		const float read_len, float *paths_p) {
 	int round = 0, n_features = 0;
 	uint32_t i = 0, j = 0, m = 0, n = 0, n_paths = paths->len;
@@ -633,8 +636,8 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 	}
 
 	// Set the vertex probability: vertex_len/sum_len
-	for (i = 0; i < g->vertexes->len; i++) {
-		v = (vertex*) g_ptr_array_index(g->vertexes, i);
+	for (i = 0; i < c->vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(c->vertexes, i);
 		v_p_h[v] = ((float) v->len) / ((float) sum_p_len);
 		//printf("Vertex %d: %d/%d, %.2f \n", v->id, v->len, g->len, v_p_h[v]);
 	}
@@ -649,7 +652,7 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 		printf("\t\t\tProbability: %.2f \n", paths_p[i]);
 	}
 
-	while (round++ < 100000) {
+	while (round++ < 200000) {
 		// Expectation step: E-step
 		for (i = 0; i < n_paths; i++) {
 			p = (path*) g_ptr_array_index(paths, i);
@@ -787,7 +790,6 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 			tmp += paths_p[i];
 		}
 
-		printf("\n\n==== End Iteration %d: %.2f ====\n", round, tmp);
 	}
 	for (i = 0; i < coverage->len; i++) {
 		cov = (float*) g_ptr_array_index(coverage, i);
@@ -798,9 +800,12 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 	free(this_Ns);
 }
 
-void determine_paths(splice_graph *g, hash_map *hm) {
-	show_debug_msg(__func__, "Getting vertexes in levels...\n");
-	GPtrArray *levels = get_vertex_levels(g);
+/**
+ * Determine the paths of the component
+ */
+void comp_paths(comp *c, hash_map *hm) {
+	show_debug_msg(__func__, "Getting vertexes in component %d...\n", c->id);
+	GPtrArray *levels = get_vertex_levels(c);
 	uint32_t j = 0, i = 0;
 	vertex *v = NULL;
 	GPtrArray *vertexes = NULL;
@@ -818,10 +823,20 @@ void determine_paths(splice_graph *g, hash_map *hm) {
 	destory_levels(levels);
 	assign_path_attrs(paths, hm);
 
-	validate_short_exons(paths, hm);
 	p_paths(paths);
+	validate_short_exons(paths, hm);
+
 	save_paths(paths, "paths.fa");
-	paths_prob = init_path_prob(g, paths, hm->o->read_len);
-	diffsplice_em(g, paths, hm->o->read_len, paths_prob);
+	paths_prob = init_path_prob(paths, hm->o->read_len);
+	diffsplice_em(c, paths, hm->o->read_len, paths_prob);
 	free(paths_prob);
+}
+
+void determine_paths(splice_graph *g, hash_map *hm) {
+	comp *c = NULL;
+	uint32_t i = 0;
+	for (i = 0; i < g->components->len; i++) {
+		c = (comp*) g_ptr_array_index(g->components, i);
+		comp_paths(c, hm);
+	}
 }

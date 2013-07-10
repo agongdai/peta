@@ -46,12 +46,17 @@ typedef struct {
 	int index;				// Global index for Tarjan's algorithm
 	GPtrArray *stack;		// Stack for Tarjan's algorithm
 	GPtrArray *scc;			// Strongly connected components
+	GPtrArray *components;	// Components
 } splice_graph;
 
 typedef struct {
+	int id;
+	int index;				// Global index for Tarjan's algorithm
+	GPtrArray *stack;		// Stack for Tarjan's algorithm
+	GPtrArray *scc;			// Strongly connected components
 	GPtrArray *vertexes;
 	GPtrArray *edges;
-} component;
+} comp;
 
 typedef struct {
 	vertex *pre;

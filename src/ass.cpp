@@ -284,14 +284,14 @@ tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
 	bwa_seq_t *left_seq = NULL, *right_seq = NULL, *junc_seq = NULL;
 	GPtrArray *branch_juncs =
 			find_branch_junctions(branching_events, short_tpl);
+	if (branch_juncs->len == 0 || branch_juncs->len != 2) {
+		g_ptr_array_free(branch_juncs, TRUE);
+		return NULL;
+	}
 	show_debug_msg(__func__, "Branch: [%d, %d] \n", branch_tpl->id,
 			branch_tpl->len);
 	show_debug_msg(__func__, "Short: [%d, %d] \n", short_tpl->id,
 			short_tpl->len);
-	if (branch_juncs->len > 2) {
-		g_ptr_array_free(branch_juncs, TRUE);
-		return NULL;
-	}
 	// Assign the left template  and right template
 	for (i = 0; i < branch_juncs->len; i++) {
 		j = (junction*) g_ptr_array_index(branch_juncs, i);
@@ -304,6 +304,8 @@ tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
 		}
 	}
 	// Concatenate the three short sequences, to find where the branch_tpl should be connected to
+	p_ctg_seq(__func__, left_j->main_tpl->ctg);
+	show_debug_msg(__func__, "Locus: %d\n", left_j->locus);
 	left_seq = cut_tpl_tail(left_j->main_tpl, left_j->locus, max_len, 0);
 	right_seq = cut_tpl_tail(right_j->main_tpl, right_j->locus, max_len, 1);
 	junc_seq = blank_seq(left_seq->len + short_tpl->len + right_seq->len);

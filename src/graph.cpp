@@ -26,6 +26,7 @@
 #include "graph.hpp"
 #include "path.hpp"
 
+int comp_id = 0;
 int edge_id = 0;
 int vertex_id = 0;
 
@@ -57,9 +58,29 @@ splice_graph *new_graph() {
 	g->vertexes = g_ptr_array_sized_new(0);
 	g->stack = g_ptr_array_sized_new(0);
 	g->scc = g_ptr_array_sized_new(0);
+	g->components = g_ptr_array_sized_new(0);
 	g->len = 0;
 	g->index = 0;
 	return g;
+}
+
+comp *new_comp() {
+	comp *c = (comp*) malloc(sizeof(comp));
+	c->vertexes = g_ptr_array_sized_new(4);
+	c->edges = g_ptr_array_sized_new(4);
+	c->stack = g_ptr_array_sized_new(0);
+	c->scc = g_ptr_array_sized_new(0);
+	c->id = ++comp_id;
+	return c;
+}
+
+void destroy_comp(comp *c) {
+	if (c) {
+		if (c->vertexes)
+			g_ptr_array_free(c->vertexes, TRUE);
+		if (c->edges)
+			g_ptr_array_free(c->edges, TRUE);
+	}
 }
 
 gint cmp_junc_by_locus(gpointer a, gpointer b) {
@@ -83,7 +104,7 @@ vertex *new_vertex(tpl *t, int start, int len, hash_map *hm) {
 	v->reads = reads_on_seq(v->ctg, hm, N_MISMATCHES);
 	v->weight = (float) v->reads->len;
 	v->status = 0;
-	v->id = vertex_id++;
+	v->id = ++vertex_id;
 	v->index = 0;
 	v->lowlink = 0;
 	return v;
@@ -105,17 +126,16 @@ void p_edge(edge *e) {
 	//p_readarray(e->reads, 1);
 }
 
-void p_graph(splice_graph *g) {
+void p_comp_dot(GPtrArray *vertexes, GPtrArray *edges, FILE *dot) {
 	edge *e = NULL;
 	vertex *v = NULL, *left = NULL, *right = NULL;
 	int i = 0, j = 0;
-	GPtrArray *roots = NULL;
 	char entry[BUFSIZ];
-	FILE *dot = xopen("graph.dot", "w");
+
 	fputs("digraph G {\n", dot);
 	fputs("graph [rankdir=LR];", dot);
-	for (i = 0; i < g->vertexes->len; i++) {
-		v = (vertex*) g_ptr_array_index(g->vertexes, i);
+	for (i = 0; i < vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(vertexes, i);
 		//		if (v->id == 1 || v->id == 2 || v->id == 3 || v->id == 5 || v->id == 7
 		//				|| v->id == 8 || v->id == 10)
 		//			sprintf(entry, "%d [label=\"%d: %d\" shape=box color=blue]; \n",
@@ -125,8 +145,8 @@ void p_graph(splice_graph *g) {
 				v->len);
 		fputs(entry, dot);
 	}
-	for (j = 0; j < g->edges->len; j++) {
-		e = (edge*) g_ptr_array_index(g->edges, j);
+	for (j = 0; j < edges->len; j++) {
+		e = (edge*) g_ptr_array_index(edges, j);
 		left = e->left;
 		right = e->right;
 		sprintf(entry, "%d -> %d [label=\"%.0f\"]; \n", left->id, right->id,
@@ -134,6 +154,28 @@ void p_graph(splice_graph *g) {
 		fputs(entry, dot);
 	}
 	fputs("}\n", dot);
+}
+
+void p_comp(comp *c) {
+	char fn[128];
+	sprintf(fn, "comp.%d.dot", c->id);
+	FILE *dot = xopen(fn, "w");
+	p_comp_dot(c->vertexes, c->edges, dot);
+	fclose(dot);
+}
+
+void p_comps(splice_graph *g) {
+	uint32_t i = 0;
+	comp *c = NULL;
+	for (i = 0; i < g->components->len; i++) {
+		c = (comp*) g_ptr_array_index(g->components, i);
+		p_comp(c);
+	}
+}
+
+void p_graph(splice_graph *g) {
+	FILE *dot = xopen("graph.dot", "w");
+	p_comp_dot(g->vertexes, g->edges, dot);
 	fclose(dot);
 }
 
@@ -160,7 +202,7 @@ edge *new_edge(vertex *left, vertex *right) {
 	e->left_len = e->right_len = 0;
 	e->len = 0;
 	e->status = 0;
-	e->id = edge_id++;
+	e->id = ++edge_id;
 	return e;
 }
 
@@ -206,6 +248,9 @@ void destroy_graph(splice_graph *g) {
 		}
 		if (g->scc) {
 			g_ptr_array_free(g->scc, TRUE);
+		}
+		if (g->components) {
+			g_ptr_array_free(g->components, TRUE);
 		}
 		free(g);
 	}
@@ -316,7 +361,6 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 		g_ptr_array_add(g->edges, e);
 		pre_start += left->len;
 	}
-
 	t->vertexes = this_vs;
 }
 
@@ -638,7 +682,7 @@ void tmp_filter(splice_graph *g) {
 	for (i = 0; i < g->vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(g->vertexes, i);
 		if (v->id == 10) {
-			while(v->outs->len)
+			while (v->outs->len)
 				g_ptr_array_remove_index_fast(v->outs, 0);
 		}
 		if (v->id >= 11 && v->id <= 14)
@@ -653,7 +697,77 @@ void tmp_filter(splice_graph *g) {
 		if (e->right->id >= 11 && e->right->id <= 14)
 			g_ptr_array_remove_index_fast(g->edges, i--);
 	}
+}
 
+/**
+ * Fill in the vertexes and edges into components recursively
+ */
+void iterate_comp(splice_graph *g, comp *c, vertex *root) {
+	edge *e = NULL;
+	uint32_t i = 0, j = 0;
+	if (root->status > 0)
+		return;
+	g_ptr_array_add(c->vertexes, root);
+	root->status = c->id;
+	// Check all incoming edges and vertexes
+	for (i = 0; i < root->ins->len; i++) {
+		e = (edge*) g_ptr_array_index(root->ins, i);
+		if (e->status == 0) {
+			e->status = c->id;
+			g_ptr_array_add(c->edges, e);
+			if (root == e->left)
+				iterate_comp(g, c, e->right);
+			if (root == e->right)
+				iterate_comp(g, c, e->left);
+		}
+	}
+	// Check all outgoing edges and vertexes
+	for (i = 0; i < root->outs->len; i++) {
+		e = (edge*) g_ptr_array_index(root->outs, i);
+		if (e->status == 0) {
+			e->status = c->id;
+			g_ptr_array_add(c->edges, e);
+			if (root == e->left)
+				iterate_comp(g, c, e->right);
+			if (root == e->right)
+				iterate_comp(g, c, e->left);
+		}
+	}
+}
+
+/**
+ * Break the graph into components
+ */
+void break_to_comps(splice_graph *g) {
+	uint32_t i = 0, j = 0;
+	vertex *v = NULL;
+	edge *e = NULL;
+	comp *c = NULL;
+	for (i = 0; i < g->vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(g->vertexes, i);
+		if (v->status == 0) {
+			c = new_comp();
+			iterate_comp(g, c, v);
+			g_ptr_array_add(g->components, c);
+		}
+	}
+}
+
+/**
+ * Reset the vertex and edge status to be zero
+ */
+void reset_status(splice_graph *g) {
+	uint32_t i = 0;
+	vertex *v = NULL;
+	edge *e = NULL;
+	for (i = 0; i < g->vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(g->vertexes, i);
+		v->status = 0;
+	}
+	for (i = 0; i < g->edges->len; i++) {
+		e = (edge*) g_ptr_array_index(g->edges, i);
+		e->status = 0;
+	}
 }
 
 void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
@@ -663,8 +777,11 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	clean_graph(g);
 	save_vertexes(g->vertexes);
 	// Temporarily just break the cycles.
-	//while(tarjan(g)){
-	//}
+	while(tarjan(g)){
+	}
+	break_to_comps(g);
 	p_graph(g);
+	p_comps(g);
+	reset_status(g);
 	determine_paths(g, hm);
 }
