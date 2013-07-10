@@ -19,6 +19,7 @@ typedef struct {
 	bwa_seq_t *ctg;			// Contig sequence
 	int len;				// Length of path
 	int *junction_points;	// Junction points where reads validation should be done
+	int *junction_lengths;	// Junction lengths
 	float *weights;			// Weights of vertexes and junctions, same junction may have different weights on paths
 	float coverage;			// Coverage
 } path;

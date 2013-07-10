@@ -30,6 +30,7 @@ path *new_path() {
 	p->ctg = NULL;
 	p->junction_points = NULL;
 	p->weights = NULL;
+	p->junction_lengths = NULL;
 	p->coverage = 0;
 	return p;
 }
@@ -65,6 +66,8 @@ void destroy_path(path *p) {
 			free(p->junction_points);
 		if (p->weights)
 			free(p->weights);
+		if (p->junction_lengths)
+			free(p->junction_lengths);
 		free(p);
 	}
 }
@@ -167,10 +170,52 @@ void save_paths(GPtrArray *paths, char *fn) {
 	fclose(p_fp);
 }
 
-bwa_seq_t *get_breaking_seq(bwa_seq_t *seq, int point, int half_max) {
-	int start = point - half_max, end = point + half_max;
+bwa_seq_t *get_breaking_seq(path *p, int breaking_index, int read_len) {
+	bwa_seq_t *seq = p->ctg;
+	int *points = p->junction_points;
+	int n_points = p->edges->len;
+	int half_max = read_len - SHORT_BRANCH_SHIFT;
+	int start = points[breaking_index] - half_max, end = points[breaking_index]
+			+ half_max;
+	int shared_start = 0, shared_end = 0, shared_size;
+	int tuned_end = 0, tuned_start = 0;
+	// Make sure not to double count any read between adjacent junctions
+	//show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
+	if (n_points > breaking_index + 1) {
+		// Size of shared region of current junction and next junction (if any)
+		shared_size = end - (points[breaking_index + 1] - half_max);
+		if (shared_size >= read_len) {
+			shared_start = points[breaking_index + 1] - half_max;
+			shared_end = shared_start + shared_size;
+			tuned_end = ((shared_end - (read_len - 1)) + shared_start) / 2
+					+ (read_len - 1);
+			end = tuned_end < end ? tuned_end : end;
+			/**
+			 show_debug_msg(__func__, "Shared: [%d -> %d]\n", shared_start,
+			 shared_end);
+			 show_debug_msg(__func__, "Tuned end at breaking index %d: %d \n",
+			 breaking_index, end);
+			 **/
+		}
+	}
+	if (breaking_index > 0) {
+		shared_size = points[breaking_index - 1] + half_max - start;
+		if (shared_size >= read_len) {
+			shared_start = start;
+			shared_end = shared_start + shared_size;
+			tuned_start = ((shared_end - (read_len - 1)) + shared_start) / 2;
+			start = tuned_start > start ? tuned_start : start;
+			/**
+			 show_debug_msg(__func__, "Shared: [%d -> %d]\n", shared_start,
+			 shared_end);
+			 show_debug_msg(__func__, "Tuned start at breaking index %d: %d \n",
+			 breaking_index, start);
+			 **/
+		}
+	}
 	start = (start < 0) ? 0 : start;
 	end = (end >= seq->len) ? seq->len : end;
+	//show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
 	return new_seq(seq, end - start, start);
 }
 
@@ -203,11 +248,11 @@ GPtrArray *get_vertex_levels(splice_graph *g) {
 	vertex *v = NULL;
 	edge *e = NULL;
 	/**
-	for (i = 0; i < g->vertexes->len; i++) {
-		v = (vertex*) g_ptr_array_index(g->vertexes, i);
-		show_debug_msg(__func__, "Vertex [%d, %d] in graph \n", v->id, v->len);
-	}
-	**/
+	 for (i = 0; i < g->vertexes->len; i++) {
+	 v = (vertex*) g_ptr_array_index(g->vertexes, i);
+	 show_debug_msg(__func__, "Vertex [%d, %d] in graph \n", v->id, v->len);
+	 }
+	 **/
 	for (i = 0; i < level_vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(level_vertexes, i);
 		v->status = 0;
@@ -294,12 +339,13 @@ GPtrArray *combinatorial_paths(GPtrArray *levels) {
 		destroy_paths(paths);
 		paths = next_paths;
 
-		show_debug_msg(__func__, "Paths after level %d\n", i);
-		for (j = 0; j < paths->len; j++) {
-			p = (path*) g_ptr_array_index(paths, j);
-			p_p(p);
-		}
-
+		/**
+		 show_debug_msg(__func__, "Paths after level %d\n", i);
+		 for (j = 0; j < paths->len; j++) {
+		 p = (path*) g_ptr_array_index(paths, j);
+		 p_p(p);
+		 }
+		 **/
 	}
 	show_debug_msg(__func__, "%d Paths reported \n", paths->len);
 	return paths;
@@ -318,7 +364,7 @@ void validate_short_exons(GPtrArray *paths, hash_map *hm) {
 	// Destroy path with any edge weight 0
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
-		p_p(p);
+		//p_p(p);
 		for (j = 0; j < p->edges->len; j++) {
 			w = p->weights[j * 2 + 1];
 			if (w <= 0) {
@@ -396,7 +442,9 @@ void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 		p->len = len;
 		// The coverage, given all reads are from this path
 		p->reads = reads_on_seq(p->ctg, hm, N_MISMATCHES);
-		p->coverage = p->reads->len * hm->o->read_len / p->len;
+		g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_name);
+		p->coverage = ((float) p->reads->len) * ((float) hm->o->read_len)
+				/ ((float) p->len);
 		// Determine the junction points
 		points = (int*) malloc(sizeof(int) * (p->vertexes->len - 1));
 		len = 0;
@@ -407,33 +455,33 @@ void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 		}
 		p->junction_points = points;
 		// Assign the weights of vertexes and edges
-		p->weights = (float*) malloc(sizeof(float) * (p->edges->len
-				+ p->vertexes->len));
+		p->weights = (float*) calloc((p->edges->len + p->vertexes->len),
+				sizeof(float));
+		p->junction_lengths = (int*) calloc(p->edges->len, sizeof(int));
 		for (j = 0; j < p->vertexes->len; j++) {
 			v = (vertex*) g_ptr_array_index(p->vertexes, j);
 			p->weights[2 * j] = v->weight;
 		}
 		for (j = 0; j < p->edges->len; j++) {
 			e = (edge*) g_ptr_array_index(p->edges, j);
-			if (e->weight <= 0) {
-				seq = get_breaking_seq(p->ctg, points[j], hm->o->read_len
-						- SHORT_BRANCH_SHIFT);
-				// Stringent in junctions, 0 mismatches.
-				reads = reads_on_seq(seq, hm, 0);
-				/**
-				 show_debug_msg(__func__, "=== Path %d, Breaking point: %d ===\n", p->id, points[j]);
-				 p_ctg_seq("PATH", p->ctg);
-				 p_ctg_seq(__func__, seq);
-				 p_readarray(reads, 1);
-				 show_debug_msg(__func__, "=== %d reads. END === \n\n", reads->len);
-				**/
-				p->weights[2 * j + 1] = (float) reads->len;
-				e->len = seq->len;
-				g_ptr_array_free(reads, TRUE);
-				bwa_free_read_seq(1, seq);
-			} else {
-				p->weights[2 * j + 1] = e->weight;
-			}
+			seq = get_breaking_seq(p, j, hm->o->read_len);
+			// Stringent in junctions, 0 mismatches.
+			reads = reads_on_seq(seq, hm, N_MISMATCHES);
+
+			/**
+			 show_debug_msg(__func__, "=== Path %d, Breaking point: %d ===\n",
+			 p->id, points[j]);
+			 p_ctg_seq("PATH", p->ctg);
+			 p_ctg_seq(__func__, seq);
+			 p_readarray(reads, 1);
+			 show_debug_msg(__func__, "=== %d reads. END === \n\n", reads->len);
+			 **/
+
+			p->weights[2 * j + 1] = (float) reads->len;
+			p->junction_lengths[j] = seq->len;
+			e->len = seq->len;
+			g_ptr_array_free(reads, TRUE);
+			bwa_free_read_seq(1, seq);
 		}
 	}
 }
@@ -444,17 +492,29 @@ void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 float *init_path_prob(splice_graph *g, GPtrArray *paths, const float read_len) {
 	float cov_sum = 0.0;
 	path *p = NULL;
-	uint32_t i = 0;
+	uint32_t i = 0, j = 0;
+	vertex *v = NULL;
+	float *p_cov = (float*) calloc(paths->len, sizeof(float));
 
 	float *init_path_p = (float*) calloc(paths->len, sizeof(float));
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
-		cov_sum += p->coverage;
+		p_cov[i] = 0.0;
+		for (j = 0; j < p->vertexes->len; j++) {
+			v = (vertex*) g_ptr_array_index(p->vertexes, j);
+			p_cov[i] += (v->weight * (float) read_len) / ((float) v->len);
+		}
+		for (j = 0; j < p->edges->len; j++) {
+			p_cov[i] += p->weights[2 * j + 1] * read_len
+					/ p->junction_lengths[j];
+		}
+		cov_sum += p_cov[i];
 	}
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
-		init_path_p[i] = p->coverage / cov_sum;
+		init_path_p[i] = p_cov[i] / cov_sum;
 	}
+	free(p_cov);
 	return init_path_p;
 }
 
@@ -524,7 +584,7 @@ GPtrArray *calc_features_coverage(GPtrArray *paths, const int read_len,
 			e = (edge*) g_ptr_array_index(p->edges, j);
 			weight = p->weights[j * 2 + 1];
 			weight = weight > 0 ? weight : 0;
-			f_cov = weight * read_len / e->len;
+			f_cov = weight * read_len / p->junction_lengths[j];
 			f_p_sum = 0;
 			for (m = 0; m < paths->len; m++) {
 				p2 = (path*) g_ptr_array_index(paths, m);
@@ -555,22 +615,20 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 	GPtrArray *coverage = NULL;
 	// Total # of reads on the the paths
 	float sum_N = 0.0, sum_p_len = 0.0, *this_Ns = (float*) calloc(
-			sizeof(float), n_paths), sum_p = 0.0;
+			sizeof(float), n_paths), sum_p = 0.0, sum_len = 0;
 	float *next_paths_p = NULL, sum_next_f_p = 0.0, sum_next_f_t_p = 0.0;
 	float *k_te = NULL, sum_k_te = 0.0, sum_k_c_te = 0.0;
 
 	path *p = NULL, *p2 = NULL;
 	vertex *v = NULL;
-	edge *e = NULL;
+
 	// Hash: vertex => vertex_len/sum_len
 	vertex_p_hash v_p_h;
-
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
 		sum_p_len += p->len;
 		for (j = 0; j < p->edges->len; j++) {
-			e = (edge*) g_ptr_array_index(p->edges, j);
-			sum_p_len += e->len;
+			sum_p_len += p->junction_lengths[j];
 		}
 	}
 
@@ -591,8 +649,7 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 		printf("\t\t\tProbability: %.2f \n", paths_p[i]);
 	}
 
-	while (round++ < 1000) {
-		printf("\n\n==== Start Iteration %d ====\n", round);
+	while (round++ < 100000) {
 		// Expectation step: E-step
 		for (i = 0; i < n_paths; i++) {
 			p = (path*) g_ptr_array_index(paths, i);
@@ -602,13 +659,11 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 			// Set k(t,e)
 			for (j = 0; j < p->vertexes->len; j++) {
 				v = (vertex*) g_ptr_array_index(p->vertexes, j);
-				k_te[2 * j] = 1 / (read_len * (p->len - v->len) / (p->len
-						* v->len));
+				k_te[2 * j] = (p->len * v->len) / read_len * (p->len - v->len);
 			}
 			for (j = 0; j < p->edges->len; j++) {
-				e = (edge*) g_ptr_array_index(p->edges, j);
-				k_te[2 * j + 1] = 1 / (read_len * (p->len - e->len) / (p->len
-						* e->len));
+				k_te[2 * j + 1] = (p->len * p->junction_lengths[j]) / read_len
+						* (p->len - p->junction_lengths[j]);
 			}
 
 			for (j = 0; j < n_features; j++) {
@@ -636,19 +691,25 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 			//show_debug_msg(__func__, "p_covs[i]: %.2f\n", i, p_covs[i]);
 
 			// # of reads from path i in this iteration
-			this_Ns[i] = p_covs[i] * p->len / read_len;
+			sum_len = 0;
+			for (j = 0; j < p->edges->len; j++) {
+				sum_len += p->junction_lengths[j];
+			}
+			this_Ns[i] = p_covs[i] * (sum_len + p->len) / read_len;
 
 			free(k_te);
 		}
 
-		printf("\n\n==== After E-step %d ====\n", round);
-		for (i = 0; i < n_paths; i++) {
-			p = (path*) g_ptr_array_index(paths, i);
-			show_debug_msg(__func__, "---- Path %d ---- \n", p->id);
-			printf("\t\t\tCoverage: %.2f \n", p_covs[i]);
-			printf("\t\t\tN_reads: %.2f \n", this_Ns[i]);
-			printf("\t\t\tProbability: %.2f \n", paths_p[i]);
-		}
+		/**
+		 printf("\n\n==== After E-step %d ====\n", round);
+		 for (i = 0; i < n_paths; i++) {
+		 p = (path*) g_ptr_array_index(paths, i);
+		 show_debug_msg(__func__, "---- Path %d ---- \n", p->id);
+		 printf("\t\t\tCoverage: %.2f \n", p_covs[i]);
+		 printf("\t\t\tN_reads: %.2f \n", this_Ns[i]);
+		 printf("\t\t\tProbability: %.2f \n", paths_p[i]);
+		 }
+		 **/
 
 		// Sum of reads from all paths
 		sum_N = 0;
@@ -674,8 +735,8 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 					//printf("sum_next_f_t_p[%d, %d, %d]: %.2f \n", j, m, n, sum_next_f_t_p);
 				}
 				for (n = 0; n < p2->edges->len; n++) {
-					e = (edge*) g_ptr_array_index(p2->edges, n);
-					sum_next_f_t_p += ((float) e->len) / ((float) sum_p_len);
+					sum_next_f_t_p += ((float) p2->junction_lengths[n])
+							/ ((float) sum_p_len);
 				}
 				sum_next_f_p += paths_p[m] * sum_next_f_t_p;
 			}
@@ -688,16 +749,18 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 				sum_next_f_t_p += v_p_h[v];
 			}
 			for (n = 0; n < p->edges->len; n++) {
-				e = (edge*) g_ptr_array_index(p->edges, n);
-				sum_next_f_t_p += ((float) e->len) / ((float) sum_p_len);
+				sum_next_f_t_p += ((float) p->junction_lengths[n])
+						/ ((float) sum_p_len);
 			}
 
-			show_debug_msg(__func__, "sum_next_f_p[%d]: %.2f\n", j,
-					sum_next_f_p);
-			show_debug_msg(__func__, "sum_next_f_t_p[%d]: %.2f\n", j,
-					sum_next_f_t_p);
-			show_debug_msg(__func__, "this_Ns[%d]/Sum: %.2f / %.2f \n", j,
-					this_Ns[j], sum_N);
+			/**
+			 show_debug_msg(__func__, "sum_next_f_p[%d]: %.2f\n", j,
+			 sum_next_f_p);
+			 show_debug_msg(__func__, "sum_next_f_t_p[%d]: %.2f\n", j,
+			 sum_next_f_t_p);
+			 show_debug_msg(__func__, "this_Ns[%d]/Sum: %.2f / %.2f \n", j,
+			 this_Ns[j], sum_N);
+			 **/
 
 			next_paths_p[j] = (this_Ns[j] * sum_next_f_p) / (sum_next_f_t_p
 					* (sum_N - this_Ns[j]));
@@ -707,7 +770,7 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 			sum_p += next_paths_p[j];
 		}
 		for (j = 0; j < n_paths; j++) {
-			paths_p[j] = next_paths_p[j] / sum_p;
+			paths_p[j] = next_paths_p[j];
 		}
 		free(next_paths_p);
 
@@ -717,20 +780,26 @@ GPtrArray *diffsplice_em(splice_graph *g, GPtrArray *paths,
 		float tmp = 0;
 		for (i = 0; i < n_paths; i++) {
 			p = (path*) g_ptr_array_index(paths, i);
-			show_debug_msg(__func__, "---- Path %d ---- \n", p->id);
+			show_debug_msg(__func__, "---- %d: Path %d ---- \n", i, p->id);
 			printf("\t\t\tCoverage: %.2f \n", p_covs[i]);
 			printf("\t\t\tN_reads: %.2f \n", this_Ns[i]);
-			printf("\t\t\tProbability: %.2f \n", paths_p[i]);
+			printf("\t\t\tProbability: %.3f \n", paths_p[i]);
 			tmp += paths_p[i];
 		}
 
 		printf("\n\n==== End Iteration %d: %.2f ====\n", round, tmp);
 	}
+	for (i = 0; i < coverage->len; i++) {
+		cov = (float*) g_ptr_array_index(coverage, i);
+		free(cov);
+	}
+	g_ptr_array_free(coverage, TRUE);
 	free(p_covs);
 	free(this_Ns);
 }
 
 void determine_paths(splice_graph *g, hash_map *hm) {
+	show_debug_msg(__func__, "Getting vertexes in levels...\n");
 	GPtrArray *levels = get_vertex_levels(g);
 	uint32_t j = 0, i = 0;
 	vertex *v = NULL;
@@ -748,9 +817,11 @@ void determine_paths(splice_graph *g, hash_map *hm) {
 	GPtrArray *paths = combinatorial_paths(levels);
 	destory_levels(levels);
 	assign_path_attrs(paths, hm);
+
 	validate_short_exons(paths, hm);
 	p_paths(paths);
 	save_paths(paths, "paths.fa");
 	paths_prob = init_path_prob(g, paths, hm->o->read_len);
 	diffsplice_em(g, paths, hm->o->read_len, paths_prob);
+	free(paths_prob);
 }

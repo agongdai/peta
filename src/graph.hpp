@@ -45,6 +45,7 @@ typedef struct {
 	int len;
 	int index;				// Global index for Tarjan's algorithm
 	GPtrArray *stack;		// Stack for Tarjan's algorithm
+	GPtrArray *scc;			// Strongly connected components
 } splice_graph;
 
 typedef struct {
@@ -52,10 +53,18 @@ typedef struct {
 	GPtrArray *edges;
 } component;
 
+typedef struct {
+	vertex *pre;
+	vertex *post;
+	GPtrArray *vertexes;
+	GPtrArray *edges;
+} ASM;
+
 void assign_reads2tpl(tpl *eg, hash_map *hm);
 void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 		hash_map *hm);
 void p_vertex(vertex *v);
 GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_map *hm, const int n_mismatch);
+int vertex_in_scc(splice_graph *g, vertex *v);
 
 #endif /* GRAPH_HPP_ */

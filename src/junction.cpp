@@ -74,7 +74,7 @@ int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 	p_query("Left  seq", left);
 	p_query("Right seq", right);
 	p_query("Junction seq", junction_seq);
-	reads = kmer_find_reads(junction_seq, hm, 2, 0);
+	reads = kmer_find_reads(junction_seq, hm, N_MISMATCHES, 0);
 	n_reads = reads->len;
 	show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
 	*weight = n_reads;

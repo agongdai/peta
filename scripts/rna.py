@@ -310,6 +310,9 @@ def fa2single(args):
     print 'Check file %s' % out
     
 def simu(args):
+    if args.ins_size > 0:
+        simu_pair(args)
+        return
     annotated = FastaFile(args.annotated)
     reads = FastaFile()
     read_id = 0
@@ -344,12 +347,19 @@ def simu_pair(args):
         seq = annotated.seqs[tx]
         part_fa.seqs[tx] = seq
         for i in range(len(seq) - args.read_len + 1):
-            reads.seqs[read_id + '/1'] = seq[i:i+args.read_len]
-            if (i + args.read_len + args.ins_size < length(seq)):
-                reads.seqs[read_id + '/2'] = seq[i:i+args.read_len]
+            if (i + args.read_len + args.ins_size <= len(seq)):
+                reads.seqs[read_id] = seq[i:i+args.read_len]
+                read_id += 1
+                reads.seqs[read_id] = seq[i+args.ins_size:i+args.ins_size+args.read_len]
+                read_id += 1
             else:
                 break
+            
+            reads.seqs[read_id] = seq[i:i+args.read_len]
             read_id += 1
+            reads.seqs[read_id] = seq[i+args.ins_size:i+args.ins_size+args.read_len]
+            read_id += 1
+            
     reads.save_to_disk(out)
     part_fa.save_to_disk(part)
     cmd = 'blat %s %s %s.psl' % (args.annotated, out, out)
@@ -409,6 +419,7 @@ def main():
     parser_exon.add_argument('transcripts', nargs='+', help='transcript names')
     parser_exon.add_argument('-t', '--annotated', default='/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta.rev', help='annotated transcript file')
     parser_exon.add_argument('-l', '--read_len', default=68, type=int, help='read length')
+    parser_exon.add_argument('-i', '--ins_size', required=False, default=0, type=int, help='insert size')
 
     args = parser.parse_args()
     args.func(args)
