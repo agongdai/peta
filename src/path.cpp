@@ -625,7 +625,7 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 	float sum_N = 0.0, sum_p_len = 0.0, *this_Ns = (float*) calloc(
 			sizeof(float), n_paths), sum_p = 0.0, sum_len = 0;
 	float *next_paths_p = NULL, sum_next_f_p = 0.0, sum_next_f_t_p = 0.0;
-	float *k_te = NULL, sum_k_te = 0.0, sum_k_c_te = 0.0;
+	float *k_te = NULL, sum_k_te = 0.0, sum_k_c_te = 0.0, sum_denominator = 0.0;
 
 	path *p = NULL, *p2 = NULL;
 	vertex *v = NULL;
@@ -658,7 +658,7 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		printf("\t\t\tProbability: %.2f \n", paths_p[i]);
 	}
 
-	while (round++ < 2) {
+	while (round++ < 2000) {
 		// Expectation step: E-step
 		for (i = 0; i < n_paths; i++) {
 			p = (path*) g_ptr_array_index(paths, i);
@@ -770,15 +770,23 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 			show_debug_msg(__func__, "this_Ns[%d]/Sum: %.2f / %.2f \n", j,
 					this_Ns[j], sum_N);
 
-			next_paths_p[j] = (this_Ns[j] * sum_next_f_p) / (sum_next_f_t_p
+			sum_denominator = (sum_next_f_t_p
 					* (sum_N - this_Ns[j]));
+			if (sum_denominator > 0.0) {
+				next_paths_p[j] = (this_Ns[j] * sum_next_f_p) / sum_denominator;
+			} else {
+				if (this_Ns[j] >= sum_N)
+					next_paths_p[j] = 1.0;
+				else
+					next_paths_p[j] = 0.0;
+			}
 		}
 		sum_p = 0.0;
 		for (j = 0; j < n_paths; j++) {
 			sum_p += next_paths_p[j];
 		}
 		for (j = 0; j < n_paths; j++) {
-			paths_p[j] = next_paths_p[j];
+			paths_p[j] = next_paths_p[j] / sum_p;
 		}
 		free(next_paths_p);
 

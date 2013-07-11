@@ -793,9 +793,9 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	while(tarjan(g)){
 	}
 	break_to_comps(g);
-	//p_graph(g);
+	p_graph(g);
 	p_comps(g);
 	calc_comp_stat(g);
 	reset_status(g);
-	//determine_paths(g, hm);
+	determine_paths(g, hm);
 }

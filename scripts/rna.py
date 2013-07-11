@@ -45,6 +45,12 @@ def read_junctions(junction_file):
             junctions.append(new_j)
     return junctions
 
+def simple_format_junctions(args):
+    junctions = read_junctions(args.junc)
+    with open(args.junc + '.nolen', 'w') as simple:
+        for j in junctions:
+            simple.write('%d\t%d\t%d\t%d\t%d\n' % (int(j.main), int(j.branch), int(j.locus), int(j.weight), int(j.ori)))
+
 def get_junction_dict(junctions):
     my_junctions = {}
     for j in junctions:
@@ -413,6 +419,10 @@ def main():
     parser_junction.add_argument('full', help='Existing full length list (would be skipped)')
     parser_junction.add_argument('junction', help='PETA junction file')
     parser_junction.add_argument('psl', help='transcript/contigs-to-annotation PSL file')
+    
+    parser_simple = subparsers.add_parser('simple', help='Convert junctions to simpler format')
+    parser_simple.set_defaults(func=simple_format_junctions)
+    parser_simple.add_argument('junc', help='somefile.junctions')
     
     parser_exon = subparsers.add_parser('simu', help='simulate reads from specific contigs for small debugging')
     parser_exon.set_defaults(func=simu)

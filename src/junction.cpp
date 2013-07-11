@@ -45,6 +45,9 @@ void destroy_junction(junction *j) {
 	}
 }
 
+/**
+ * Get junctions whose branch tpl is the given tpl branch
+ */
 GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch) {
 	uint32_t i = 0;
 	junction *j = NULL;
