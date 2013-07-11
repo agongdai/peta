@@ -797,5 +797,5 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	p_comps(g);
 	calc_comp_stat(g);
 	reset_status(g);
-	determine_paths(g, hm);
+	//determine_paths(g, hm);
 }
