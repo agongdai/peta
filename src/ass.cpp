@@ -674,6 +674,7 @@ int kmer_ext_tpl(tpl *t, uint64_t query_int, hash_map *hm, tpl_hash *all_tpls,
 		counters_all = count_next_kmers(hm, query_int, 0, ori);
 		max_c_all = get_max_index(counters_all);
 
+		/**
 		if (t->id == 3) {
 			if (ori)
 				seq_reverse(t->len, t->ctg->seq, 0);
@@ -689,6 +690,7 @@ int kmer_ext_tpl(tpl *t, uint64_t query_int, hash_map *hm, tpl_hash *all_tpls,
 			if (ori)
 				seq_reverse(t->len, t->ctg->seq, 0);
 		}
+		**/
 
 		// If the max direction is taken already, connect to it.
 		if (max_c_all != max_c) {

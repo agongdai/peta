@@ -770,6 +770,19 @@ void reset_status(splice_graph *g) {
 	}
 }
 
+void calc_comp_stat(splice_graph *g) {
+	uint32_t i = 0, j = 0;
+	comp *c = NULL;
+	FILE *stat = xopen("components.csv", "w");
+	char entry[BUFSIZE];
+	for (i = 0; i < g->components->len; i++) {
+		c = (comp*) g_ptr_array_index(g->components, i);
+		sprintf(entry, "%d\t%d\t%d\n", c->id, c->vertexes->len, c->edges->len);
+		fputs(entry, stat);
+	}
+	show_debug_msg(__func__, "Statistics of components are output to components.csv.\n");
+}
+
 void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	splice_graph *g = NULL;
 	g = build_graph(all_tpls, all_juncs, hm);
@@ -780,8 +793,9 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	while(tarjan(g)){
 	}
 	break_to_comps(g);
-	p_graph(g);
+	//p_graph(g);
 	p_comps(g);
+	calc_comp_stat(g);
 	reset_status(g);
-	determine_paths(g, hm);
+	//determine_paths(g, hm);
 }
