@@ -577,10 +577,10 @@ GPtrArray *calc_features_coverage(GPtrArray *paths, const int read_len,
 				p2 = (path*) g_ptr_array_index(paths, m);
 				if (array_contains(p2->vertexes, (gpointer) v)) {
 					f_p_sum += path_p[m];
-					show_debug_msg(__func__, "Path %d contains exon %d; f_p_sum = %.2f\n", p2->id, v->id, f_p_sum);
+					//show_debug_msg(__func__, "Path %d contains exon %d; f_p_sum = %.2f\n", p2->id, v->id, f_p_sum);
 				}
 			}
-			show_debug_msg(__func__, "Path %d, exon %d: %.2f \n", p->id, v->id, f_p_sum);
+			//show_debug_msg(__func__, "Path %d, exon %d: %.2f \n", p->id, v->id, f_p_sum);
 			cov[j * 2] = f_cov * path_p[i] / f_p_sum;
 		}
 		// Calc the coverage of every edge on this path
@@ -640,12 +640,12 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		}
 	}
 
-	show_debug_msg(__func__, "Total length: %.2f\n", sum_p_len);
+	//show_debug_msg(__func__, "Total length: %.2f\n", sum_p_len);
 	// Set the vertex probability: vertex_len/sum_len
 	for (i = 0; i < c->vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(c->vertexes, i);
 		v_p_h[v] = ((float) v->len) / ((float) sum_p_len);
-		printf("Vertex %d: %d/%.2f, %.2f \n", v->id, v->len, sum_p_len, v_p_h[v]);
+		//printf("Vertex %d: %d/%.2f, %.2f \n", v->id, v->len, sum_p_len, v_p_h[v]);
 	}
 
 	// Set initial coverage values
@@ -658,7 +658,7 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		printf("\t\t\tProbability: %.2f \n", paths_p[i]);
 	}
 
-	while (round++ < 2000) {
+	while (round++ < 100000) {
 		// Expectation step: E-step
 		for (i = 0; i < n_paths; i++) {
 			p = (path*) g_ptr_array_index(paths, i);
@@ -688,16 +688,16 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 			cov = (float*) g_ptr_array_index(coverage, i);
 			for (j = 0; j < n_features; j++) {
 				sum_k_c_te += k_te[j] * (cov[j] * cov[j]);
-				show_debug_msg(__func__, "cov[%d, %d]: %.2f\n", i, j, cov[j]);
+				//show_debug_msg(__func__, "cov[%d, %d]: %.2f\n", i, j, cov[j]);
 			}
 
-			show_debug_msg(__func__, "sum_k_c_te[i]: %.2f\n", i, sum_k_c_te);
+			//show_debug_msg(__func__, "sum_k_c_te[i]: %.2f\n", i, sum_k_c_te);
 
 			// Coverage of path i in this iteration
 			p_covs[i] = (0 - n_features + sqrt(n_features * n_features + 4
 					* sum_k_te * sum_k_c_te)) / (2 * sum_k_te);
 
-			show_debug_msg(__func__, "p_covs[i]: %.2f\n", i, p_covs[i]);
+			//show_debug_msg(__func__, "p_covs[i]: %.2f\n", i, p_covs[i]);
 
 			// # of reads from path i in this iteration
 			sum_len = 0;
@@ -709,6 +709,7 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 			free(k_te);
 		}
 
+		/**
 		printf("\n\n==== After E-step %d ====\n", round);
 		for (i = 0; i < n_paths; i++) {
 			p = (path*) g_ptr_array_index(paths, i);
@@ -717,6 +718,7 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 			printf("\t\t\tN_reads: %.2f \n", this_Ns[i]);
 			printf("\t\t\tProbability: %.2f \n", paths_p[i]);
 		}
+		**/
 
 		// Sum of reads from all paths
 		sum_N = 0;
@@ -758,17 +760,19 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 			for (n = 0; n < p->edges->len; n++) {
 				sum_next_f_t_p += ((float) p->junction_lengths[n])
 						/ ((float) sum_p_len);
-				show_debug_msg(__func__,
-						"junction_lengths[%d] / sum_p_len: %d/%d += %.2f\n", n,
-						p->junction_lengths[n], sum_p_len, sum_next_f_t_p);
+				//show_debug_msg(__func__,
+				//		"junction_lengths[%d] / sum_p_len: %d/%d += %.2f\n", n,
+				//		p->junction_lengths[n], sum_p_len, sum_next_f_t_p);
 			}
 
+			/**
 			show_debug_msg(__func__, "sum_next_f_p[%d]: %.2f\n", j,
 					sum_next_f_p);
 			show_debug_msg(__func__, "sum_next_f_t_p[%d]: %.2f\n", j,
 					sum_next_f_t_p);
 			show_debug_msg(__func__, "this_Ns[%d]/Sum: %.2f / %.2f \n", j,
 					this_Ns[j], sum_N);
+			**/
 
 			sum_denominator = (sum_next_f_t_p
 					* (sum_N - this_Ns[j]));

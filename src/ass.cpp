@@ -980,29 +980,34 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	//	fclose(contigs);
 }
 
-tpl_hash all_tpls;
-
 void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,
 		GPtrArray *all_junctions) {
 	FILE *junc_fp = xopen(junc_fn, "r");
 	bwa_seq_t *seqs = NULL, *ctg = NULL;
-	uint32_t n_ctgs = 0, i = 0;
+	uint32_t n_ctgs = 0, i = 0, id = 0;
 	seqs = load_reads(pair_fa, &n_ctgs);
 	tpl *t = NULL, *main_tpl = NULL, *branch = NULL;
 	tpl_hash tpls;
 	char buf[BUFSIZ];
 	char *attr[18];
 	junction *jun = NULL;
-	tpl_hash::iterator it;
 	for (i = 0; i < n_ctgs; i++) {
 		ctg = &seqs[i];
 		t = new_eg();
-		t->id = atoi(ctg->name);
-		t->ctg = ctg;
+		if (atoi(ctg->name) - id == 1) {
+			ctg = &seqs[i];
+			t->id = atoi(ctg->name);
+			t->ctg = new_seq(ctg, ctg->len, 0);
+			id = t->id;
+		} else {
+			t->ctg = blank_seq(0);
+			t->id = ++id;
+			i--;
+		}
+		tpls[t->id] = t;
 		t->len = ctg->len;
 		t->alive = 1;
 		g_ptr_array_add(all_tpls, t);
-		tpls[t->id] = t;
 	}
 
 	while (fgets(buf, sizeof(buf), junc_fp)) {
@@ -1012,32 +1017,13 @@ void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,
 			//			printf("fields[%d] = %s\n", i, fields[i]);
 			attr[++i] = strtok(NULL, "\t"); //continue to tokenize the string
 		}
-		it = tpls.find(atoi(attr[0]));
-		if (it != tpls.end()) {
-			t = new_eg();
-			t->ctg = blank_seq(0);
-			t->len = 0;
-			t->alive = 1;
-			t->id = atoi(attr[0]);
-			tpls[t->id] = t;
-			g_ptr_array_add(all_tpls, t);
-		}
 		main_tpl = tpls[atoi(attr[0])];
-		it = tpls.find(atoi(attr[1]));
-		if (it != tpls.end()) {
-			t = new_eg();
-			t->ctg = blank_seq(0);
-			t->len = 0;
-			t->alive = 1;
-			t->id = atoi(attr[1]);
-			tpls[t->id] = t;
-			g_ptr_array_add(all_tpls, t);
-		}
 		branch = tpls[atoi(attr[1])];
 		jun = new_junction(main_tpl, branch, 0, atoi(attr[2]), atoi(attr[4]),
 				atoi(attr[3]));
 		g_ptr_array_add(all_junctions, jun);
 	}
+	bwa_free_read_seq(n_ctgs, seqs);
 }
 
 void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
@@ -1049,15 +1035,16 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 	mer_hash map;
 	hash_map *hm = load_hash_map(hash_fn, 1, map);
 	//for (i = 0; i < all_junctions->len; i++) {
-		//j = (junction*) g_ptr_array_index(all_junctions, i);
-		//p_junction(j);
+	//j = (junction*) g_ptr_array_index(all_junctions, i);
+	//p_junction(j);
 	//}
 	process_graph(all_tpls, all_junctions, hm);
 }
 
 int pe_kmer(int argc, char *argv[]) {
-	process_only("../SRR097897_out/paired.junctions.nolen", "../SRR097897_out/paired.fa",
-			"/home/ariyaratnep/shaojiang/peta/rnaseq/Spombe/SRR097897/SRR097897.fa");
+	process_only("../SRR097897_out/paired.junctions.nolen",
+			"../SRR097897_out/paired.fa",
+			"/home/carl/Projects/peta/rnaseq/Spombe/genome/simu.fa");
 	return 0;
 
 	int c = 0;

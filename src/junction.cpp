@@ -281,3 +281,7 @@ int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
 			similar);
 	return similar;
 }
+
+void filter_junctions(tpl_hash *tpls, GPtrArray *junctions) {
+
+}

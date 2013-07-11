@@ -39,6 +39,8 @@ GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_map *hm, const int n_mismatch) {
 	GPtrArray *hits = NULL;
 	GPtrArray *reads = g_ptr_array_sized_new(32);
 
+	return reads;
+
 	for (i = 0; i <= seq->len - read_len; i++) {
 		part = new_seq(seq, read_len, i);
 		hits = align_full_seq(part, hm, n_mismatch);
@@ -331,6 +333,10 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 	// Break the main template into vertexes
 	for (i = 0; i < main_juncs->len; i++) {
 		j = (junction*) g_ptr_array_index(main_juncs, i);
+		//p_junction(j);
+		if (j->locus > t->len || j->locus < 0) {
+			continue;
+		}
 		if (j->main_tpl != t || (j->main_tpl == t && j->branch_tpl == t)
 				|| j->locus == pre_start)
 			continue;
@@ -339,12 +345,13 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 		g_ptr_array_add(this_vs, v);
 		pre_start = j->locus;
 	}
+
 	// Create the last vertex
 	v = new_vertex(t, pre_start, t->len - pre_start, hm);
 	g_ptr_array_add(g->vertexes, v);
 	g_ptr_array_add(this_vs, v);
 
-	show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
+	//show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
 
 	// Create the edges between vertexes
 	pre_start = 0;
@@ -373,17 +380,16 @@ vertex *find_vertex_by_locus(tpl *t, int locus, int ori) {
 	int sum_shift = 0;
 	uint32_t i = 0;
 	vertex *this_v = NULL, *next_v = NULL;
-	if (!t || !t->vertexes)
+	if (!t || !t->vertexes || t->vertexes->len == 0)
 		return NULL;
 	if (t->vertexes->len == 1) {
 		this_v = (vertex*) g_ptr_array_index(t->vertexes, 0);
-		if (locus == t->len && ori == 1)
 			return this_v;
-		else if (locus == 0 && ori == 0)
-			return this_v;
-		else
-			return NULL;
 	}
+	if (locus == 0 && ori == 0)
+		return (vertex*) g_ptr_array_index(t->vertexes, 0);
+	if (locus == t->len && ori == 1)
+		return (vertex*) g_ptr_array_index(t->vertexes, t->vertexes->len - 1);
 	for (i = 0; i < t->vertexes->len - 1; i++) {
 		this_v = (vertex*) g_ptr_array_index(t->vertexes, i);
 		next_v = (vertex*) g_ptr_array_index(t->vertexes, i + 1);
@@ -478,6 +484,8 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
 					- 1);
 			// Shifting on the main_tpl to find connecting vertex
 			right = find_vertex_by_locus(t, j->locus, 0);
+			if (!right)
+				continue;
 			e = new_edge(branch_v, right);
 			e->junc_seq = get_junc_seq(j->branch_tpl, j->branch_tpl->len,
 					&e->left_len, t, j->locus, &e->right_len, max_len);
@@ -487,6 +495,8 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
 			branch_v = (vertex*) g_ptr_array_index(branch_vs, 0);
 			// Shifting on the main_tpl to find connecting vertex
 			left = find_vertex_by_locus(t, j->locus, 1);
+			if (!left)
+				continue;
 			e = new_edge(left, branch_v);
 			e->junc_seq = get_junc_seq(t, j->locus, &e->left_len,
 					j->branch_tpl, 0, &e->right_len, max_len);
@@ -531,7 +541,7 @@ splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 		t = (tpl*) g_ptr_array_index(all_tpls, i);
 		t_juncs = tpl_junctions(t, all_juncs);
 		break_tpl(t, t_juncs, g, hm);
-		p_tpl_juncs(t, t_juncs);
+		//p_tpl_juncs(t, t_juncs);
 		g_ptr_array_free(t_juncs, TRUE);
 	}
 
@@ -542,7 +552,7 @@ splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 				t->id);
 		remove_zero_vertexes(t, t_juncs, hm->o->read_len, g);
 		connect_tpls(t, t_juncs, g, hm);
-		p_tpl_juncs(t, t_juncs);
+		//p_tpl_juncs(t, t_juncs);
 		g_ptr_array_free(t_juncs, TRUE);
 	}
 
