@@ -85,18 +85,6 @@ void destroy_comp(comp *c) {
 	}
 }
 
-gint cmp_junc_by_locus(gpointer a, gpointer b) {
-	junction *c_a = *((junction**) a);
-	junction *c_b = *((junction**) b);
-	return ((c_a->locus) - c_b->locus);
-}
-
-gint cmp_junc_by_branch_id(gpointer a, gpointer b) {
-	junction *c_a = *((junction**) a);
-	junction *c_b = *((junction**) b);
-	return ((c_a->branch_tpl->id) - c_b->branch_tpl->id);
-}
-
 vertex *new_vertex(tpl *t, int start, int len, hash_map *hm) {
 	vertex *v = (vertex*) malloc(sizeof(vertex));
 	v->ctg = new_seq(t->ctg, len, start);
@@ -151,8 +139,7 @@ void p_comp_dot(GPtrArray *vertexes, GPtrArray *edges, FILE *dot) {
 		e = (edge*) g_ptr_array_index(edges, j);
 		left = e->left;
 		right = e->right;
-		sprintf(entry, "%d -> %d [label=\"%.0f\"]; \n", left->id, right->id,
-				e->weight);
+		sprintf(entry, "%d -> %d [label=\"\"]; \n", left->id, right->id);
 		fputs(entry, dot);
 	}
 	fputs("}\n", dot);
@@ -298,23 +285,6 @@ void remove_edge_from_g(splice_graph *g, edge *rmv_e) {
 			break;
 		}
 	}
-}
-
-/**
- * Get junctions with the template t as main/branch
- */
-GPtrArray *tpl_junctions(tpl *t, GPtrArray *all_juncs) {
-	junction *junc = NULL;
-	uint64_t i = 0, j = 0;
-	GPtrArray *tpl_junc = NULL;
-	tpl_junc = g_ptr_array_sized_new(4);
-	for (j = 0; j < all_juncs->len; j++) {
-		junc = (junction*) g_ptr_array_index(all_juncs, j);
-		if (junc->main_tpl == t && !(junc->branch_tpl == t))
-			g_ptr_array_add(tpl_junc, junc);
-	}
-	g_ptr_array_sort(tpl_junc, (GCompareFunc) cmp_junc_by_locus);
-	return tpl_junc;
 }
 
 /**
@@ -473,6 +443,8 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
 		j = (junction*) g_ptr_array_index(main_juncs, i);
 		if (j->main_tpl != t || (j->main_tpl == t && j->branch_tpl == t))
 			continue;
+		if (j->locus < 0 || j->locus >= t->len)
+			continue;
 
 		show_debug_msg(__func__, "Junction %d: nth_zero: %d \n", i, nth_zero);
 		p_junction(j);
@@ -511,22 +483,6 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
 	}
 }
 
-void p_tpl_juncs(tpl *t, GPtrArray *t_juncs) {
-	show_debug_msg(__func__, "==== Junctions of Template %d ====\n", t->id);
-	uint32_t i = 0;
-	junction *j = NULL;
-	vertex *v = NULL;
-	for (i = 0; i < t_juncs->len; i++) {
-		j = (junction*) g_ptr_array_index(t_juncs, i);
-		p_junction(j);
-	}
-	show_debug_msg(__func__, "==== Vertexes of Template %d ====\n", t->id);
-	for (i = 0; i < t->vertexes->len; i++) {
-		v = (vertex*) g_ptr_array_index(t->vertexes, i);
-		printf("\tVertex %d: %d \n", v->id, v->len);
-	}
-}
-
 /**
  * Build the graph from the templates and junctions
  */
@@ -537,19 +493,23 @@ splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 	vertex *v = NULL;
 	int i = 0;
 	tpl *t = NULL;
+	int start_index = 0;
+	show_debug_msg(__func__, "Breaking templates into vertexes...\n");
 	for (i = 0; i < all_tpls->len; i++) {
 		t = (tpl*) g_ptr_array_index(all_tpls, i);
-		t_juncs = tpl_junctions(t, all_juncs);
+		t_juncs = tpl_junctions(t, all_juncs, start_index, 1);
+		start_index += t_juncs->len;
 		break_tpl(t, t_juncs, g, hm);
 		//p_tpl_juncs(t, t_juncs);
 		g_ptr_array_free(t_juncs, TRUE);
 	}
 
+	start_index = 0;
+	show_debug_msg(__func__, "Building subgraph connected to templates...\n");
 	for (i = 0; i < all_tpls->len; i++) {
 		t = (tpl*) g_ptr_array_index(all_tpls, i);
-		t_juncs = tpl_junctions(t, all_juncs);
-		printf("\n\n\n==== Building subgraph connected to template %d ===\n ",
-				t->id);
+		t_juncs = tpl_junctions(t, all_juncs, start_index, 1);
+		start_index += t_juncs->len;
 		remove_zero_vertexes(t, t_juncs, hm->o->read_len, g);
 		connect_tpls(t, t_juncs, g, hm);
 		//p_tpl_juncs(t, t_juncs);

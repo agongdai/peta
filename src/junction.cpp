@@ -22,6 +22,7 @@
 #include "utils.h"
 #include "peseq.h"
 #include "junction.hpp"
+#include "graph.hpp"
 
 junction *new_junction(tpl *main_tpl, tpl *branch_tpl, uint64_t kmer,
 		int locus, int ori, int weight) {
@@ -34,6 +35,7 @@ junction *new_junction(tpl *main_tpl, tpl *branch_tpl, uint64_t kmer,
 	j->weight = weight;
 	j->kmer = kmer;
 	j->reads = g_ptr_array_sized_new(0);
+	j->status = 0;
 	return j;
 }
 
@@ -45,6 +47,34 @@ void destroy_junction(junction *j) {
 	}
 }
 
+void p_tpl_juncs(tpl *t, GPtrArray *t_juncs) {
+	show_debug_msg(__func__, "==== Junctions of Template %d ====\n", t->id);
+	uint32_t i = 0;
+	junction *j = NULL;
+	vertex *v = NULL;
+	for (i = 0; i < t_juncs->len; i++) {
+		j = (junction*) g_ptr_array_index(t_juncs, i);
+		p_junction(j);
+	}
+	show_debug_msg(__func__, "==== Vertexes of Template %d ====\n", t->id);
+	for (i = 0; i < t->vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(t->vertexes, i);
+		printf("\tVertex %d: %d \n", v->id, v->len);
+	}
+}
+
+gint cmp_junc_by_locus(gpointer a, gpointer b) {
+	junction *c_a = *((junction**) a);
+	junction *c_b = *((junction**) b);
+	return ((c_a->locus) - c_b->locus);
+}
+
+gint cmp_junc_by_branch_id(gpointer a, gpointer b) {
+	junction *c_a = *((junction**) a);
+	junction *c_b = *((junction**) b);
+	return ((c_a->branch_tpl->id) - c_b->branch_tpl->id);
+}
+
 /**
  * Get junctions whose branch tpl is the given tpl branch
  */
@@ -52,7 +82,7 @@ GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch) {
 	uint32_t i = 0;
 	junction *j = NULL;
 	GPtrArray *hits = g_ptr_array_sized_new(2);
-	for(i = 0; i < all->len; i++) {
+	for (i = 0; i < all->len; i++) {
 		j = (junction*) g_ptr_array_index(all, i);
 		if (j->branch_tpl == branch)
 			g_ptr_array_add(hits, j);
@@ -182,12 +212,12 @@ void store_features(char *name, GPtrArray *branching_events,
 	FILE *f = xopen(name, "w");
 	sprintf(entry, "Main\tBranch\tLocus\tWeight\tDirection\n");
 	fputs(entry, f);
-//	for (i = 0; i < all_tpls->len; i++) {
-//		t = (tpl*) g_ptr_array_index(all_tpls, i);
-//		sprintf(entry, "[%d, %d]\t[%d, %d]\t0\t%d\t-1\n", t->id, t->len, t->id,
-//				t->len, t->kmer_freq);
-//		fputs(entry, f);
-//	}
+	//	for (i = 0; i < all_tpls->len; i++) {
+	//		t = (tpl*) g_ptr_array_index(all_tpls, i);
+	//		sprintf(entry, "[%d, %d]\t[%d, %d]\t0\t%d\t-1\n", t->id, t->len, t->id,
+	//				t->len, t->kmer_freq);
+	//		fputs(entry, f);
+	//	}
 	for (i = 0; i < branching_events->len; i++) {
 		jun = (junction*) g_ptr_array_index(branching_events, i);
 		sprintf(entry, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\n", jun->main_tpl->id,
@@ -199,9 +229,32 @@ void store_features(char *name, GPtrArray *branching_events,
 }
 
 void p_junction(junction *jun) {
-	show_debug_msg(__func__, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\n", jun->main_tpl->id,
-			jun->main_tpl->len, jun->branch_tpl->id, jun->branch_tpl->len,
-			jun->locus, jun->weight, jun->ori);
+	show_debug_msg(__func__, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\n",
+			jun->main_tpl->id, jun->main_tpl->len, jun->branch_tpl->id,
+			jun->branch_tpl->len, jun->locus, jun->weight, jun->ori);
+}
+
+/**
+ * Remove those junctions with status not equal to 0 from the list
+ */
+void remove_dead_junctions(GPtrArray *junctions) {
+	junction *j = NULL;
+	uint32_t i = 0;
+	for (i = 0; i < junctions->len; i++) {
+		j = (junction*) g_ptr_array_index(junctions, i);
+		if (j->status != 0) {
+			destroy_junction(j);
+			g_ptr_array_remove_index_fast(junctions, i--);
+		}
+	}
+}
+
+/**
+ * Remove templates with no connection to other templates or the length is short
+ */
+void remove_short_isolate_tpls(GPtrArray *tpls, GPtrArray *junctions, const int max_len) {
+	uint32_t i = 0, j = 0;
+
 }
 
 /**
@@ -225,18 +278,14 @@ void clean_junctions(GPtrArray *junctions) {
 			not_alive = 1;
 		}
 		if (not_alive) {
-			destroy_junction(junc);
-			g_ptr_array_remove_index_fast(junctions, i);
-			i--;
+			junc->status = 1;
 			continue;
 		}
 		if (pre) {
 			if (pre->branch_tpl == junc->branch_tpl && pre->main_tpl
 					== junc->main_tpl && pre->kmer == junc->kmer && pre->locus
-					== junc->locus && pre->ori == junc->ori && pre->weight
-					== junc->weight) {
-				g_ptr_array_remove_index_fast(junctions, i);
-				i--;
+					== junc->locus && pre->ori == junc->ori) {
+				junc->status = 1;
 				continue;
 			}
 		}
@@ -282,6 +331,81 @@ int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
 	return similar;
 }
 
-void filter_junctions(tpl_hash *tpls, GPtrArray *junctions) {
+/**
+ * Get junctions with the template t as main/branch
+ * all_juncs are supposed to be ordered in main/branch template id increasingly
+ */
+GPtrArray *tpl_junctions(tpl *t, GPtrArray *all_juncs, int start_index,
+		int to_get_main) {
+	uint32_t i = 0;
+	junction *j = NULL;
+	GPtrArray *juncs = g_ptr_array_sized_new(32);
+	for (i = start_index; i < all_juncs->len; i++) {
+		j = (junction*) g_ptr_array_index(all_juncs, i);
+		if (to_get_main) {
+			if (j->main_tpl == t)
+				g_ptr_array_add(juncs, j);
+			else
+				break;
+		} else {
+			if (j->branch_tpl == t)
+				g_ptr_array_add(juncs, j);
+			else
+				break;
+		}
+	}
+	return juncs;
+}
 
+void filter_branches(GPtrArray *junctions, const int read_len) {
+	uint32_t i = 0;
+	junction *cur = NULL, *pre = NULL;
+	bwa_seq_t *main_seq = NULL, *branch_seq = NULL;
+	tpl *main_tpl = NULL, *branch_tpl = NULL;
+	for (i = 0; i < junctions->len; i++) {
+		cur = (junction*) g_ptr_array_index(junctions, i);
+		if (cur->status != 0)
+			continue;
+		if (!pre) {
+			pre = (junction*) g_ptr_array_index(junctions, 0);
+			continue;
+		}
+		if (cur->branch_tpl != pre->branch_tpl) {
+			pre = cur;
+			continue;
+		}
+		if (abs(cur->locus - pre->locus) <= 2 && cur->branch_tpl->len <= 2) {
+			pre->status = 1;
+			cur->status = 1;
+			p_junction(pre);
+			p_junction(cur);
+		} else {
+			if (abs(cur->locus - pre->locus) < read_len && pre->ori != cur->ori) {
+				branch_seq = branch_tpl->ctg;
+			}
+		}
+		pre = cur;
+	}
+}
+
+/**
+ * Filter out some junctions if:
+ * 	- template length 0, connect to the same template at same locus
+ *  - hanging branch template can be merged to the main template
+ */
+void filter_junctions(GPtrArray *junctions, hash_map *hm) {
+	uint32_t i = 0, j = 0, start_index = 0;
+	junction *junc = NULL;
+	tpl *t = NULL;
+	GPtrArray *main_junctions = NULL;
+	clean_junctions(junctions);
+	while(start_index < junctions->len - 1) {
+		show_debug_msg(__func__, "======== Started at %d =======\n", start_index);
+		junc = (junction*) g_ptr_array_index(junctions, start_index);
+		t = junc->main_tpl;
+		main_junctions = tpl_junctions(t, junctions, start_index, 1);
+		filter_branches(main_junctions, hm->o->read_len);
+		start_index += main_junctions->len;
+		g_ptr_array_free(main_junctions, TRUE);
+	}
 }

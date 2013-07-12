@@ -25,7 +25,7 @@
 #define bns_pac(pac, k) ((pac)[(k)>>2] >> ((~(k)&3)<<1) & 3)
 #endif
 
-typedef uint8_t	tf_flag;
+typedef int8_t	tf_flag;
 typedef unsigned char ubyte_t;
 
 typedef struct {

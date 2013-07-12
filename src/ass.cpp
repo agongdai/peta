@@ -959,8 +959,8 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	fflush(contigs);
 	fclose(contigs);
 
-	clean_junctions(branching_events);
 	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junctions_by_id);
+	clean_junctions(branching_events);
 	store_features(get_output_file("paired.junctions", kmer_out),
 			branching_events, kmer_tpls);
 	process_graph(kmer_tpls, branching_events, hm);
@@ -1005,7 +1005,7 @@ void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,
 			i--;
 		}
 		tpls[t->id] = t;
-		t->len = ctg->len;
+		t->len = t->ctg->len;
 		t->alive = 1;
 		g_ptr_array_add(all_tpls, t);
 	}
@@ -1017,6 +1017,8 @@ void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,
 			//			printf("fields[%d] = %s\n", i, fields[i]);
 			attr[++i] = strtok(NULL, "\t"); //continue to tokenize the string
 		}
+		if (atoi(attr[3]) < 2)
+			continue;
 		main_tpl = tpls[atoi(attr[0])];
 		branch = tpls[atoi(attr[1])];
 		jun = new_junction(main_tpl, branch, 0, atoi(attr[2]), atoi(attr[4]),
@@ -1034,11 +1036,8 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 	uint32_t i = 0;
 	mer_hash map;
 	hash_map *hm = load_hash_map(hash_fn, 1, map);
-	//for (i = 0; i < all_junctions->len; i++) {
-	//j = (junction*) g_ptr_array_index(all_junctions, i);
-	//p_junction(j);
-	//}
-	process_graph(all_tpls, all_junctions, hm);
+	//process_graph(all_tpls, all_junctions, hm);
+	filter_junctions(all_junctions, hm);
 }
 
 int pe_kmer(int argc, char *argv[]) {
