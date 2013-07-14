@@ -34,7 +34,8 @@ typedef struct {
 	int len;
 	int full_len;
 	tf_flag rev_com; 	// Whether use reverse complement in pool
-	int contig_id;
+	int contig_id;		// The template using this read
+	int contig_locus;	// The locus of read on the template
 	tf_flag status;
 	short pos;			// Position of some kmer on this read, used by kmer_find_reads
 } bwa_seq_t;

@@ -15,6 +15,7 @@
 #include "tpl.h"
 
 #define		SHORT_BRANCH_SHIFT	4
+typedef 	unordered_map<int, int> junc_count;
 
 using namespace std;
 typedef struct {
@@ -42,7 +43,7 @@ int find_junc_reads_w_tails(hash_map *hm, tpl *left, tpl *right,
 void upd_tpl_jun_locus(tpl *t, GPtrArray *branching_events, const int kmer_len);
 void store_features(char *name, GPtrArray *branching_events,
 		GPtrArray *all_tpls);
-gint cmp_junctions_by_id(gpointer a, gpointer b);
+gint cmp_junc_by_id(gpointer a, gpointer b);
 void clean_junctions(GPtrArray *junctions);
 int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
 		const int pos, const int mismatches, const int ori);
@@ -52,9 +53,10 @@ bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
 GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch);
 void p_junction(junction *jun);
 gint cmp_junc_by_branch_id(gpointer a, gpointer b);
+gint cmp_junc_by_locus(gpointer a, gpointer b);
 GPtrArray *tpl_junctions(tpl *t, GPtrArray *all_juncs, int start_index,
 		int to_get_main);
-void filter_junctions(GPtrArray *junctions, hash_map *hm);
+void filter_junctions(GPtrArray *junctions, GPtrArray *tpls, hash_map *hm);
 
 #ifdef __cplusplus
 }

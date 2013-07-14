@@ -107,7 +107,8 @@ void p_vertex(vertex *v) {
 }
 
 void p_edge(edge *e) {
-	show_debug_msg(__func__, "---- Edge %d: %.2f ----\n", e->id, e->weight);
+	show_debug_msg(__func__, "---- Edge %d: %.2f status: %d ----\n", e->id,
+			e->weight, e->status);
 	show_debug_msg(__func__, "Left len: %d; right len: %d\n", e->left_len,
 			e->right_len);
 	p_vertex(e->left);
@@ -303,7 +304,6 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 	// Break the main template into vertexes
 	for (i = 0; i < main_juncs->len; i++) {
 		j = (junction*) g_ptr_array_index(main_juncs, i);
-		//p_junction(j);
 		if (j->locus > t->len || j->locus < 0) {
 			continue;
 		}
@@ -354,7 +354,7 @@ vertex *find_vertex_by_locus(tpl *t, int locus, int ori) {
 		return NULL;
 	if (t->vertexes->len == 1) {
 		this_v = (vertex*) g_ptr_array_index(t->vertexes, 0);
-			return this_v;
+		return this_v;
 	}
 	if (locus == 0 && ori == 0)
 		return (vertex*) g_ptr_array_index(t->vertexes, 0);
@@ -406,15 +406,19 @@ void remove_zero_vertexes(tpl *t, GPtrArray *main_juncs, int read_len,
 				if (right_locus - left_locus > 0) {
 					left = find_vertex_by_locus(t, left_locus, 1);
 					right = find_vertex_by_locus(t, right_locus, 0);
+					if (!left || !right)
+						continue;
 					e = new_edge(left, right);
 					e->junc_seq = get_junc_seq(t, left_locus, &e->left_len, t,
 							right_locus, &e->right_len, max_len);
 					g_ptr_array_add(left->outs, e);
 					g_ptr_array_add(right->ins, e);
 					g_ptr_array_add(g->edges, e);
-					show_debug_msg(__func__,
-							"New edge between vertexes %d and %d \n", left->id,
-							right->id);
+					/**
+					 show_debug_msg(__func__,
+					 "New edge between vertexes %d and %d \n", left->id,
+					 right->id);
+					 **/
 				}
 			}
 		}
@@ -446,8 +450,10 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
 		if (j->locus < 0 || j->locus >= t->len)
 			continue;
 
-		show_debug_msg(__func__, "Junction %d: nth_zero: %d \n", i, nth_zero);
-		p_junction(j);
+		/**
+		 show_debug_msg(__func__, "Junction %d: nth_zero: %d \n", i, nth_zero);
+		 p_junction(j);
+		 **/
 
 		branch_vs = j->branch_tpl->vertexes;
 		main_vs = j->main_tpl->vertexes;
@@ -498,6 +504,7 @@ splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 	for (i = 0; i < all_tpls->len; i++) {
 		t = (tpl*) g_ptr_array_index(all_tpls, i);
 		t_juncs = tpl_junctions(t, all_juncs, start_index, 1);
+		g_ptr_array_sort(t_juncs, (GCompareFunc) cmp_junc_by_locus);
 		start_index += t_juncs->len;
 		break_tpl(t, t_juncs, g, hm);
 		//p_tpl_juncs(t, t_juncs);
@@ -509,6 +516,7 @@ splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 	for (i = 0; i < all_tpls->len; i++) {
 		t = (tpl*) g_ptr_array_index(all_tpls, i);
 		t_juncs = tpl_junctions(t, all_juncs, start_index, 1);
+		g_ptr_array_sort(t_juncs, (GCompareFunc) cmp_junc_by_locus);
 		start_index += t_juncs->len;
 		remove_zero_vertexes(t, t_juncs, hm->o->read_len, g);
 		connect_tpls(t, t_juncs, g, hm);
@@ -529,10 +537,15 @@ splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
  */
 void clean_graph(splice_graph *g) {
 	vertex *v = NULL;
-	uint32_t i = 0;
+	uint32_t i = 0, j = 0;
+	edge *e = NULL;
 	for (i = 0; i < g->vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(g->vertexes, i);
-		if (v->len < 10 && v->ins->len == 0 && v->outs->len == 0)
+		// Consider removing vertexes with length <10
+		if (v->len >= 10)
+			continue;
+		// If it's isolated, remove
+		if (v->ins->len == 0 && v->outs->len == 0)
 			g_ptr_array_remove_index_fast(g->vertexes, i--);
 	}
 }
@@ -605,7 +618,7 @@ int tarjan_connect(vertex *v, splice_graph *g) {
 				for (i = 0; i < v->ins->len; i++) {
 					e = (edge*) g_ptr_array_index(v->ins, i);
 					if (find_in_array(scc, (gpointer) e->left) >= 0) {
-						p_edge(e);
+						//p_edge(e);
 						remove_edge_from_g(g, e);
 						removed = 1;
 					}
@@ -618,6 +631,9 @@ int tarjan_connect(vertex *v, splice_graph *g) {
 	return removed;
 }
 
+/**
+ * Tarjan's algorithm to detect strongly connected components (SCC), and break them
+ */
 int tarjan(splice_graph *g) {
 	uint32_t i = 0;
 	int removed = 0;
@@ -643,30 +659,6 @@ int vertex_in_scc(splice_graph *g, vertex *v) {
 		}
 	}
 	return 0;
-}
-
-void tmp_filter(splice_graph *g) {
-	uint32_t i = 0, j = 0;
-	vertex *v = NULL;
-	edge *e = NULL, *e2 = NULL;
-	for (i = 0; i < g->vertexes->len; i++) {
-		v = (vertex*) g_ptr_array_index(g->vertexes, i);
-		if (v->id == 10) {
-			while (v->outs->len)
-				g_ptr_array_remove_index_fast(v->outs, 0);
-		}
-		if (v->id >= 11 && v->id <= 14)
-			g_ptr_array_remove_index_fast(g->vertexes, i--);
-	}
-	for (i = 0; i < g->edges->len; i++) {
-		e = (edge*) g_ptr_array_index(g->edges, i);
-		if (e->left->id >= 11 && e->left->id <= 14) {
-			g_ptr_array_remove_index_fast(g->edges, i--);
-			continue;
-		}
-		if (e->right->id >= 11 && e->right->id <= 14)
-			g_ptr_array_remove_index_fast(g->edges, i--);
-	}
 }
 
 /**
@@ -740,27 +732,36 @@ void reset_status(splice_graph *g) {
 	}
 }
 
+/**
+ * Output the counts of edges and vertexes in components
+ */
 void calc_comp_stat(splice_graph *g) {
-	uint32_t i = 0, j = 0;
+	uint32_t len = 0, i = 0, j = 0;
 	comp *c = NULL;
 	FILE *stat = xopen("components.csv", "w");
+	vertex *v = NULL;
 	char entry[BUFSIZE];
 	for (i = 0; i < g->components->len; i++) {
 		c = (comp*) g_ptr_array_index(g->components, i);
-		sprintf(entry, "%d\t%d\t%d\n", c->id, c->vertexes->len, c->edges->len);
+		len = 0;
+		for (j = 0; j < c->vertexes->len; j++) {
+			v = (vertex*) g_ptr_array_index(c->vertexes, j);
+			len += v->len;
+		}
+		sprintf(entry, "%d\t%d\t%d\t%d\n", c->id, c->vertexes->len, c->edges->len, len);
 		fputs(entry, stat);
 	}
-	show_debug_msg(__func__, "Statistics of components are output to components.csv.\n");
+	show_debug_msg(__func__,
+			"Statistics of components are output to components.csv.\n");
 }
 
 void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	splice_graph *g = NULL;
 	g = build_graph(all_tpls, all_juncs, hm);
-	//tmp_filter(g);
 	clean_graph(g);
 	save_vertexes(g->vertexes);
 	// Temporarily just break the cycles.
-	while(tarjan(g)){
+	while (tarjan(g)) {
 	}
 	break_to_comps(g);
 	p_graph(g);

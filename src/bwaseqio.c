@@ -94,6 +94,7 @@ bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int mode,
 		p->seq = (ubyte_t*) calloc(p->len, 1);
 
 		p->contig_id = -1; // -1 means unused
+		p->contig_locus = 0;
 		p->rev_com = 0;
 		p->pos = -1;
 

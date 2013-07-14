@@ -70,12 +70,6 @@ tpl *blank_tpl(uint64_t query_int, int kmer_len, int init_len, int ori) {
 	return t;
 }
 
-gint cmp_tpl_by_id(gpointer a, gpointer b) {
-	tpl *c_a = *((tpl**) a);
-	tpl *c_b = *((tpl**) b);
-	return ((c_a->id) - c_b->id);
-}
-
 GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 	uint64_t id = 0;
 	tpl *t = NULL;
@@ -116,6 +110,9 @@ void mark_tpl_kmers_fresh(tpl *t, hash_map *hm, const int kmer_len) {
 	}
 }
 
+/**
+ * Mark reads on template as used.
+ */
 void mark_reads_on_tpl(tpl *t, hash_map *hm) {
 	int i = 0, j = 0, k = 0;
 	uint64_t kmer_int = 0;
@@ -124,11 +121,14 @@ void mark_reads_on_tpl(tpl *t, hash_map *hm) {
 	int kmer_len = hm->o->k, read_len = hm->o->read_len;
 	if (t->len < read_len)
 		return;
+	if (!t->reads)
+		t->reads = g_ptr_array_sized_new(4);
 	for (i = 0; i <= t->len - read_len; i++) {
 		seq = new_seq(t->ctg, read_len, i);
 		hits = align_full_seq(seq, hm, 2);
 		for (j = 0; j < hits->len; j++) {
 			read = (bwa_seq_t*) g_ptr_array_index(hits, j);
+			add_read_to_tpl(t, read, i);
 			//p_query(__func__, read);
 			for (k = 0; k <= read->len - kmer_len; k++) {
 				kmer_int = get_kmer_int(read->seq, k, 1, kmer_len);
@@ -904,7 +904,7 @@ void test_kmer_ext(kmer_t_meta *params) {
 	fclose(contigs);
 
 	clean_junctions(branching_events);
-	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junctions_by_id);
+	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junc_by_id);
 	store_features(get_output_file("single.junctions", kmer_out),
 			branching_events, all_tpls);
 }
@@ -959,7 +959,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	fflush(contigs);
 	fclose(contigs);
 
-	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junctions_by_id);
+	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junc_by_id);
 	clean_junctions(branching_events);
 	store_features(get_output_file("paired.junctions", kmer_out),
 			branching_events, kmer_tpls);
@@ -1036,8 +1036,8 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 	uint32_t i = 0;
 	mer_hash map;
 	hash_map *hm = load_hash_map(hash_fn, 1, map);
-	//process_graph(all_tpls, all_junctions, hm);
-	filter_junctions(all_junctions, hm);
+	filter_junctions(all_junctions, all_tpls, hm);
+	process_graph(all_tpls, all_junctions, hm);
 }
 
 int pe_kmer(int argc, char *argv[]) {

@@ -38,13 +38,13 @@ tpl *new_eg() {
 	t->alive = 1;
 	t->is_root = 0;
 	t->ori = 0;
-	t->comp_id = -1;
 	t->start_kmer = 0;
 	t->tid = 0;
 	t->coverage = 0.0;
 	t->kmer_freq = 0;
 	t->in_connect = 0;
 	t->vertexes = g_ptr_array_sized_new(0);
+	t->reads = NULL;
 	return t;
 }
 
@@ -52,6 +52,50 @@ void free_readarray(readarray *ra) {
 	if (!ra)
 		return;
 	g_ptr_array_free(ra, TRUE);
+}
+
+gint cmp_tpl_by_id(gpointer a, gpointer b) {
+	tpl *c_a = *((tpl**) a);
+	tpl *c_b = *((tpl**) b);
+	return (c_a->id - c_b->id);
+}
+
+/**
+ * Find whether the two templates contain at least min_n_pairs pairs of mates.
+ * Assume the reads on them are already sorted by name
+ */
+int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
+		const int min_n_pairs) {
+	bwa_seq_t *r1 = NULL, *r2 = NULL;
+	uint32_t i = 0, j = 0, index_2 = 0;
+	int n_pairs = 0;
+	GPtrArray *reads_1 = t1->reads;
+	GPtrArray *reads_2 = t2->reads;
+	if (!reads_1 || !reads_2)
+		return 0;
+	for (i = 0; i < reads_1->len; i++) {
+		r1 = (bwa_seq_t*) g_ptr_array_index(reads_1, i);
+		if (r1->contig_id != t1->id)
+			continue;
+		if (index_2 >= reads_2->len - 1)
+			break;
+		for (j = index_2; j < reads_2->len; j++) {
+			r2 = (bwa_seq_t*) g_ptr_array_index(reads_2, j);
+			if (r2->contig_id != t2->id || r2->contig_locus < start_2
+					|| r2->contig_locus > end_2)
+				continue;
+			if (is_mates(r1->name, r2->name)) {
+				n_pairs++;
+			}
+			if (atoi(r2->name) - atoi(r1->name) >= 1) {
+				index_2 = j;
+				break;
+			}
+		}
+		if (n_pairs >= min_n_pairs)
+			return 1;
+	}
+	return 0;
 }
 
 /**
@@ -113,8 +157,8 @@ bwa_seq_t *cut_tpl_tail(tpl *t, const int pos, const int tail_len,
 	return tail;
 }
 
-void set_tail(tpl *branch, tpl *parent_eg, const int shift,
-		const int tail_len, const int ori) {
+void set_tail(tpl *branch, tpl *parent_eg, const int shift, const int tail_len,
+		const int ori) {
 	bwa_seq_t *tmp = NULL;
 	// The right/left tail would be used in cut_tpl_tail function,
 	//	but will be replaced later. So save to tmp first, free the old one later.
@@ -126,6 +170,12 @@ void set_tail(tpl *branch, tpl *parent_eg, const int shift,
 		branch->l_tail = cut_tpl_tail(parent_eg, shift, tail_len, ori);
 	}
 	bwa_free_read_seq(1, tmp);
+}
+
+void add_read_to_tpl(tpl *t, bwa_seq_t *r, const int locus) {
+	r->contig_id = t->id;
+	r->contig_locus = locus;
+	g_ptr_array_add(t->reads, r);
 }
 
 void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
@@ -160,6 +210,8 @@ void destroy_eg(tpl *t) {
 		bwa_free_read_seq(1, t->l_tail);
 		if (t->vertexes)
 			g_ptr_array_free(t->vertexes, TRUE);
+		if (t->reads)
+			g_ptr_array_free(t->reads, TRUE);
 		free(t);
 	}
 }

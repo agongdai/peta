@@ -21,7 +21,7 @@ typedef struct {
 	GPtrArray *ins;			// Incoming edges
 	GPtrArray *outs;		// Outgoing edges
 	GPtrArray *reads;		// Reads on it, for paired-end tracking
-	int8_t status;			// 0 means good.
+	int status;				// 0 means good.
 	int index;				// To determine strongly connected components in the graph
 	int lowlink;			// http://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
 } vertex;
@@ -36,7 +36,7 @@ typedef struct {
 	vertex *right;			// Right vertex
 	float weight;			// Likely to be # of reads
 	GPtrArray *reads;		// Reads on it, for paired-end tracking
-	int8_t status;			// 0 means good.
+	int status;				// 0 means good.
 } edge;
 
 typedef struct {
