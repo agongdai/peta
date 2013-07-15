@@ -119,10 +119,10 @@ void mark_reads_on_tpl(tpl *t, hash_map *hm) {
 	bwa_seq_t *seq = NULL, *read = NULL;
 	GPtrArray *hits = NULL;
 	int kmer_len = hm->o->k, read_len = hm->o->read_len;
-	if (t->len < read_len)
-		return;
 	if (!t->reads)
 		t->reads = g_ptr_array_sized_new(4);
+	if (t->len < read_len)
+		return;
 	for (i = 0; i <= t->len - read_len; i++) {
 		seq = new_seq(t->ctg, read_len, i);
 		hits = align_full_seq(seq, hm, 2);
@@ -139,6 +139,7 @@ void mark_reads_on_tpl(tpl *t, hash_map *hm) {
 		g_ptr_array_free(hits, TRUE);
 		bwa_free_read_seq(1, seq);
 	}
+	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
 }
 
 void cal_coverage(tpl *t, hash_map *hm) {
@@ -268,6 +269,25 @@ int val_branching(hash_map *hm, tpl *main_tpl, tpl_hash *all_tpls,
 	bwa_free_read_seq(1, main_seq);
 	bwa_free_read_seq(1, branch_seq);
 	return n_reads;
+}
+
+/**
+ * Validate the junction by checking mate pairs
+ */
+int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, hash_map *hm,
+		const int con_pos, const int ori) {
+	int start = con_pos, end = branch_tpl->len;
+	if (!main_tpl->reads) {
+		mark_reads_on_tpl(main_tpl, hm);
+	}
+	if (!branch_tpl->reads) {
+		mark_reads_on_tpl(branch_tpl, hm);
+	}
+	if (ori) {
+		start = 0;
+		end = con_pos;
+	}
+	return vld_tpl_mates(branch_tpl, main_tpl, start, end, 2);
 }
 
 /**
@@ -425,6 +445,9 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 			}
 			valid = find_junc_reads_w_tails(hm, existing, branch, con_pos,
 					(hm->o->read_len - SHORT_BRANCH_SHIFT) * 2, ori, &weight);
+			if (!valid)
+				continue;
+			//valid = vld_junc_by_mates(existing, branch, hm, con_pos, ori);
 			if (valid) {
 				exist_ori = ori ? 0 : 1;
 				if (branch->len < hm->o->k) {
@@ -1041,10 +1064,10 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 }
 
 int pe_kmer(int argc, char *argv[]) {
-	process_only("../SRR097897_out/paired.junctions.nolen",
-			"../SRR097897_out/paired.fa",
-			"/home/carl/Projects/peta/rnaseq/Spombe/genome/simu.fa");
-	return 0;
+//	process_only("../SRR097897_out/paired.junctions.nolen",
+//			"../SRR097897_out/paired.fa",
+//			"/home/carl/Projects/peta/rnaseq/Spombe/genome/simu.fa");
+//	return 0;
 
 	int c = 0;
 	clock_gettime(CLOCK_MONOTONIC, &kmer_start_time);

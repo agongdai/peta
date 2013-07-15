@@ -47,7 +47,7 @@ extern "C" {
 	gzFile err_xzopen_core(const char *func, const char *fn, const char *mode);
 	double std_dev(double a[], double n);
 	double mean(double a[], double n);
-	int get_abs(int a);
+	float get_abs(float a);
 	void trim(char *str);
 	char *get_output_file(const char *file_name, const char *out_root);
 	int find_in_array(GPtrArray *arr, gpointer value);

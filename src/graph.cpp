@@ -39,8 +39,6 @@ GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_map *hm, const int n_mismatch) {
 	GPtrArray *hits = NULL;
 	GPtrArray *reads = g_ptr_array_sized_new(32);
 
-	return reads;
-
 	for (i = 0; i <= seq->len - read_len; i++) {
 		part = new_seq(seq, read_len, i);
 		hits = align_full_seq(part, hm, n_mismatch);
@@ -768,5 +766,5 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	p_comps(g);
 	calc_comp_stat(g);
 	reset_status(g);
-	//determine_paths(g, hm);
+	determine_paths(g, hm);
 }

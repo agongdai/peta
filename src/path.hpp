@@ -22,6 +22,7 @@ typedef struct {
 	int *junction_lengths;	// Junction lengths
 	float *weights;			// Weights of vertexes and junctions, same junction may have different weights on paths
 	float coverage;			// Coverage
+	uint8_t status;			// 0 means good
 } path;
 
 void determine_paths(splice_graph *g, hash_map *hm);

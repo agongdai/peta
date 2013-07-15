@@ -91,8 +91,8 @@ double std_dev(double a[], double n) {
 	return sqrt(variance);
 }
 
-int get_abs(int a) {
-	return (a > 0) ? a : (0 - a);
+float get_abs(float a) {
+	return (a > 0.0) ? a : (0.0 - a);
 }
 
 void trim(char *str) {

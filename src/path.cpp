@@ -32,6 +32,7 @@ path *new_path() {
 	p->weights = NULL;
 	p->junction_lengths = NULL;
 	p->coverage = 0;
+	p->status = 0;
 	return p;
 }
 
@@ -157,13 +158,16 @@ void p_paths(GPtrArray *paths) {
 	fclose(dot);
 }
 
-void save_paths(GPtrArray *paths, char *fn) {
+void save_paths(GPtrArray *paths, char *fn, const int to_save_all) {
 	uint32_t i = 0;
 	path *p = NULL;
 	char entry[BUFSIZ];
 	FILE *p_fp = xopen(fn, "w");
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
+		// If we are not saving all paths and the status is not 0, skip
+		if (!to_save_all && p->status != 0)
+			continue;
 		sprintf(entry, ">%d length: %d\n", p->id, p->len);
 		save_con(entry, p->ctg, p_fp);
 	}
@@ -427,7 +431,7 @@ void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 	GPtrArray *reads = NULL;
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
-		show_debug_msg(__func__, "Properties of path %d \n", p->id);
+		//show_debug_msg(__func__, "Properties of path %d \n", p->id);
 		p->len = 0;
 		// Get path length
 		for (j = 0; j < p->vertexes->len; j++) {
@@ -465,8 +469,8 @@ void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 		for (j = 0; j < p->vertexes->len; j++) {
 			v = (vertex*) g_ptr_array_index(p->vertexes, j);
 			p->weights[2 * j] = (float) v->weight;
-			show_debug_msg(__func__, "Weight of vertex %d: %.2f\n", v->id,
-					v->weight);
+			//show_debug_msg(__func__, "Weight of vertex %d: %.2f\n", v->id,
+			//		v->weight);
 		}
 		for (j = 0; j < p->edges->len; j++) {
 			e = (edge*) g_ptr_array_index(p->edges, j);
@@ -484,8 +488,8 @@ void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 			 **/
 
 			p->weights[2 * j + 1] = (float) reads->len;
-			show_debug_msg(__func__, "Weight of edge %d: %.2f\n", e->id,
-					p->weights[2 * j + 1]);
+			//show_debug_msg(__func__, "Weight of edge %d: %.2f\n", e->id,
+			//		p->weights[2 * j + 1]);
 			p->junction_lengths[j] = seq->len;
 			e->len = seq->len;
 			g_ptr_array_free(reads, TRUE);
@@ -614,7 +618,8 @@ GPtrArray *calc_features_coverage(GPtrArray *paths, const int read_len,
  */
 GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		float *paths_p) {
-	int round = 0, n_features = 0;
+	int round = 0, n_features = 0, max_iteration = 200000, stop = 0;
+	float stop_threshold = 0.00001;
 	uint32_t i = 0, j = 0, m = 0, n = 0, n_paths = paths->len;
 	// Coverage of paths
 	float *p_covs = (float*) calloc(sizeof(float), n_paths);
@@ -658,7 +663,7 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		printf("\t\t\tProbability: %.2f \n", paths_p[i]);
 	}
 
-	while (round++ < 100000) {
+	while (round++ < max_iteration && !stop) {
 		// Expectation step: E-step
 		for (i = 0; i < n_paths; i++) {
 			p = (path*) g_ptr_array_index(paths, i);
@@ -710,15 +715,15 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		}
 
 		/**
-		printf("\n\n==== After E-step %d ====\n", round);
-		for (i = 0; i < n_paths; i++) {
-			p = (path*) g_ptr_array_index(paths, i);
-			show_debug_msg(__func__, "---- Path %d ---- \n", p->id);
-			printf("\t\t\tCoverage: %.2f \n", p_covs[i]);
-			printf("\t\t\tN_reads: %.2f \n", this_Ns[i]);
-			printf("\t\t\tProbability: %.2f \n", paths_p[i]);
-		}
-		**/
+		 printf("\n\n==== After E-step %d ====\n", round);
+		 for (i = 0; i < n_paths; i++) {
+		 p = (path*) g_ptr_array_index(paths, i);
+		 show_debug_msg(__func__, "---- Path %d ---- \n", p->id);
+		 printf("\t\t\tCoverage: %.2f \n", p_covs[i]);
+		 printf("\t\t\tN_reads: %.2f \n", this_Ns[i]);
+		 printf("\t\t\tProbability: %.2f \n", paths_p[i]);
+		 }
+		 **/
 
 		// Sum of reads from all paths
 		sum_N = 0;
@@ -766,16 +771,15 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 			}
 
 			/**
-			show_debug_msg(__func__, "sum_next_f_p[%d]: %.2f\n", j,
-					sum_next_f_p);
-			show_debug_msg(__func__, "sum_next_f_t_p[%d]: %.2f\n", j,
-					sum_next_f_t_p);
-			show_debug_msg(__func__, "this_Ns[%d]/Sum: %.2f / %.2f \n", j,
-					this_Ns[j], sum_N);
-			**/
+			 show_debug_msg(__func__, "sum_next_f_p[%d]: %.2f\n", j,
+			 sum_next_f_p);
+			 show_debug_msg(__func__, "sum_next_f_t_p[%d]: %.2f\n", j,
+			 sum_next_f_t_p);
+			 show_debug_msg(__func__, "this_Ns[%d]/Sum: %.2f / %.2f \n", j,
+			 this_Ns[j], sum_N);
+			 **/
 
-			sum_denominator = (sum_next_f_t_p
-					* (sum_N - this_Ns[j]));
+			sum_denominator = (sum_next_f_t_p * (sum_N - this_Ns[j]));
 			if (sum_denominator > 0.0) {
 				next_paths_p[j] = (this_Ns[j] * sum_next_f_p) / sum_denominator;
 			} else {
@@ -785,12 +789,28 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 					next_paths_p[j] = 0.0;
 			}
 		}
+		// Sum and normalize the next path prob
 		sum_p = 0.0;
 		for (j = 0; j < n_paths; j++) {
 			sum_p += next_paths_p[j];
 		}
 		for (j = 0; j < n_paths; j++) {
-			paths_p[j] = next_paths_p[j] / sum_p;
+			next_paths_p[j] = next_paths_p[j] / sum_p;
+		}
+		stop = 1;
+		for (j = 0; j < n_paths; j++) {
+			//show_debug_msg(__func__, "%.5f vs %.5f \n", paths_p[j], next_paths_p[j]);
+			//show_debug_msg(__func__, "Difference: %.5f \n", get_abs(paths_p[j] - next_paths_p[j]));
+			if ((float) (get_abs(paths_p[j] - next_paths_p[j])) > stop_threshold) {
+				stop = 0;
+			}
+		}
+		if (stop) {
+			show_debug_msg(__func__, "Stop at Iteration %d \n", round);
+		} else {
+			for (j = 0; j < n_paths; j++) {
+				paths_p[j] = next_paths_p[j];
+			}
 		}
 		free(next_paths_p);
 
@@ -820,13 +840,14 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 /**
  * Determine the paths of the component
  */
-void comp_paths(comp *c, hash_map *hm) {
+GPtrArray *comp_paths(comp *c, hash_map *hm) {
 	show_debug_msg(__func__, "Getting vertexes in component %d...\n", c->id);
 	GPtrArray *levels = get_vertex_levels(c);
 	uint32_t j = 0, i = 0;
 	vertex *v = NULL;
 	GPtrArray *vertexes = NULL;
 	float *paths_prob = NULL;
+	path *p = NULL;
 	for (i = 0; i < levels->len; i++) {
 		vertexes = (GPtrArray*) g_ptr_array_index(levels, i);
 		show_debug_msg(__func__, ">>>> Level %d <<<<<\n", i);
@@ -843,18 +864,38 @@ void comp_paths(comp *c, hash_map *hm) {
 	p_paths(paths);
 	validate_short_exons(paths, hm);
 
-	save_paths(paths, "paths.fa");
 	paths_prob = init_path_prob(paths, hm->o->read_len);
 	diffsplice_em(c, paths, hm->o->read_len, paths_prob);
+	for (i = 0; i < paths->len; i++) {
+		p = (path*) g_ptr_array_index(paths, i);
+		// If the probability of the paths is small, mark it as not alive.
+		if (paths_prob[i] * paths->len < 0.9)
+			p->status = 1;
+	}
 	free(paths_prob);
+	return paths;
+}
+
+void append_paths(GPtrArray *all_paths, GPtrArray *paths) {
+	uint32_t i = 0;
+	path *p = NULL;
+	for (i = 0; i < paths->len; i++) {
+		p = (path*) g_ptr_array_index(paths, i);
+		g_ptr_array_add(all_paths, p);
+	}
 }
 
 void determine_paths(splice_graph *g, hash_map *hm) {
 	comp *c = NULL;
 	uint32_t i = 0;
+	path *p = NULL;
+	GPtrArray *paths = NULL, *all_paths = g_ptr_array_sized_new(
+			g->vertexes->len / 10);
 	for (i = 0; i < g->components->len; i++) {
 		c = (comp*) g_ptr_array_index(g->components, i);
-		comp_paths(c, hm);
-		break;
+		paths = comp_paths(c, hm);
+		append_paths(all_paths, paths);
 	}
+	save_paths(all_paths, "paths.fa", 0);
+	destroy_paths(all_paths);
 }
