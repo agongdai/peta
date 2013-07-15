@@ -1064,10 +1064,10 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 }
 
 int pe_kmer(int argc, char *argv[]) {
-//	process_only("../SRR097897_out/paired.junctions.nolen",
-//			"../SRR097897_out/paired.fa",
-//			"/home/carl/Projects/peta/rnaseq/Spombe/genome/simu.fa");
-//	return 0;
+	process_only("../SRR097897_out/paired.junctions.nolen",
+			"../SRR097897_out/paired.fa",
+			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa");
+	return 0;
 
 	int c = 0;
 	clock_gettime(CLOCK_MONOTONIC, &kmer_start_time);
