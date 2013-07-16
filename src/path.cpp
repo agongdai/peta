@@ -507,8 +507,11 @@ float *init_path_prob(GPtrArray *paths, const float read_len) {
 	uint32_t i = 0, j = 0;
 	vertex *v = NULL;
 	float *p_cov = (float*) calloc(paths->len, sizeof(float));
-
 	float *init_path_p = (float*) calloc(paths->len, sizeof(float));
+	if (paths->len == 0) {
+		free(p_cov);
+		return init_path_p;
+	}
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
 		p_cov[i] = 0.0;
@@ -522,9 +525,15 @@ float *init_path_prob(GPtrArray *paths, const float read_len) {
 		}
 		cov_sum += p_cov[i];
 	}
-	for (i = 0; i < paths->len; i++) {
-		p = (path*) g_ptr_array_index(paths, i);
-		init_path_p[i] = p_cov[i] / cov_sum;
+	if (cov_sum == 0) {
+		for (i = 0; i < paths->len; i++) {
+			init_path_p[i] = 1.0 / (float) paths->len;
+		}
+	} else {
+		for (i = 0; i < paths->len; i++) {
+			p = (path*) g_ptr_array_index(paths, i);
+			init_path_p[i] = p_cov[i] / cov_sum;
+		}
 	}
 	free(p_cov);
 	return init_path_p;
@@ -616,13 +625,13 @@ GPtrArray *calc_features_coverage(GPtrArray *paths, const int read_len,
  * 		paths: combinatorial paths
  * 		read_len: read length
  */
-GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
+void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		float *paths_p) {
 	int round = 0, n_features = 0, max_iteration = 200000, stop = 0;
-	float stop_threshold = 0.000005;
+	float stop_threshold = 0.00001;
 	uint32_t i = 0, j = 0, m = 0, n = 0, n_paths = paths->len;
 	// Coverage of paths
-	float *p_covs = (float*) calloc(sizeof(float), n_paths);
+	float *p_covs = NULL;
 	// Feature coverage on a transcript
 	float *cov = NULL;
 	GPtrArray *coverage = NULL;
@@ -635,6 +644,10 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 	path *p = NULL, *p2 = NULL;
 	vertex *v = NULL;
 
+	if (paths->len <= 1)
+		return;
+
+	p_covs = (float*) calloc(sizeof(float), n_paths);
 	// Hash: vertex => vertex_len/sum_len
 	vertex_p_hash v_p_h;
 	for (i = 0; i < paths->len; i++) {
@@ -770,14 +783,12 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 				//		p->junction_lengths[n], sum_p_len, sum_next_f_t_p);
 			}
 
-			/**
-			 show_debug_msg(__func__, "sum_next_f_p[%d]: %.2f\n", j,
-			 sum_next_f_p);
-			 show_debug_msg(__func__, "sum_next_f_t_p[%d]: %.2f\n", j,
-			 sum_next_f_t_p);
-			 show_debug_msg(__func__, "this_Ns[%d]/Sum: %.2f / %.2f \n", j,
-			 this_Ns[j], sum_N);
-			 **/
+			show_debug_msg(__func__, "sum_next_f_p[%d]: %.2f\n", j,
+					sum_next_f_p);
+			show_debug_msg(__func__, "sum_next_f_t_p[%d]: %.2f\n", j,
+					sum_next_f_t_p);
+			show_debug_msg(__func__, "this_Ns[%d]/Sum: %.2f / %.2f \n", j,
+					this_Ns[j], sum_N);
 
 			sum_denominator = (sum_next_f_t_p * (sum_N - this_Ns[j]));
 			if (sum_denominator > 0.0) {
@@ -799,9 +810,12 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		}
 		stop = 1;
 		for (j = 0; j < n_paths; j++) {
-			//show_debug_msg(__func__, "%.5f vs %.5f \n", paths_p[j], next_paths_p[j]);
-			//show_debug_msg(__func__, "Difference: %.5f \n", get_abs(paths_p[j] - next_paths_p[j]));
-			if ((float) (get_abs(paths_p[j] - next_paths_p[j])) > stop_threshold) {
+			show_debug_msg(__func__, "%.5f vs %.5f \n", paths_p[j],
+					next_paths_p[j]);
+			show_debug_msg(__func__, "Difference: %.5f \n", get_abs(paths_p[j]
+					- next_paths_p[j]));
+			if ((float) (get_abs(paths_p[j] - next_paths_p[j]))
+					> stop_threshold) {
 				stop = 0;
 			}
 		}
@@ -821,9 +835,9 @@ GPtrArray *diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		for (i = 0; i < n_paths; i++) {
 			p = (path*) g_ptr_array_index(paths, i);
 			show_debug_msg(__func__, "---- %d: Path %d ---- \n", i, p->id);
-			printf("\t\t\tCoverage: %.5f \n", p_covs[i]);
-			printf("\t\t\tN_reads: %.5f \n", this_Ns[i]);
-			printf("\t\t\tProbability: %.5f \n", paths_p[i]);
+			printf("\t\t\tCoverage: %.2f \n", p_covs[i]);
+			printf("\t\t\tN_reads: %.2f \n", this_Ns[i]);
+			printf("\t\t\tProbability: %.3f \n", paths_p[i]);
 			tmp += paths_p[i];
 		}
 
@@ -869,7 +883,7 @@ GPtrArray *comp_paths(comp *c, hash_map *hm) {
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
 		// If the probability of the paths is small, mark it as not alive.
-		if (paths_prob[i] * paths->len < 0.9)
+		if (paths_prob[i] * paths->len < 0.5)
 			p->status = 1;
 	}
 	free(paths_prob);
@@ -893,10 +907,14 @@ void determine_paths(splice_graph *g, hash_map *hm) {
 			g->vertexes->len / 10);
 	for (i = 0; i < g->components->len; i++) {
 		c = (comp*) g_ptr_array_index(g->components, i);
-		if (c->vertexes->len >= 100)
+		if (c->vertexes->len >= 50)
 			continue;
+		//if (c->id != 402)
+		//	continue;
+		//p_comp(c);
 		paths = comp_paths(c, hm);
 		append_paths(all_paths, paths);
+		//break;
 	}
 	save_paths(all_paths, "paths.fa", 0);
 	destroy_paths(all_paths);

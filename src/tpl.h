@@ -64,6 +64,8 @@ extern "C" {
 	int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
 			const int min_n_pairs);
 	void add_read_to_tpl(tpl *t, bwa_seq_t *r, const int locus);
+	int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,
+			int start_2, int end_2, const int min_n_pairs);
 
 #ifdef __cplusplus
 }

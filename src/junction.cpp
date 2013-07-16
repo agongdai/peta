@@ -92,7 +92,7 @@ GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch) {
 	return hits;
 }
 
-int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
+GPtrArray *find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 		const int max_len, int *weight) {
 	int left_len = 0, right_len = 0, n_reads = 0;
 	GPtrArray *reads = NULL;
@@ -114,10 +114,7 @@ int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 	//show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
 	*weight = n_reads;
 	bwa_free_read_seq(1, junction_seq);
-	g_ptr_array_free(reads, TRUE);
-	if (n_reads > 0)
-		return 1;
-	return 0;
+	return reads;
 }
 
 bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
@@ -136,11 +133,12 @@ bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
 	return junc_seq;
 }
 
-int find_junc_reads_w_tails(hash_map *hm, tpl *main_tpl, tpl *branch_tpl,
+GPtrArray *find_junc_reads_w_tails(hash_map *hm, tpl *main_tpl, tpl *branch_tpl,
 		const int pos, const int max_len, const int ori, int *weight) {
 	bwa_seq_t *left_seq = NULL, *right_seq = NULL;
 	tpl *left_eg = branch_tpl, *right_eg = main_tpl;
-	int is_valid = 0, l_pos = branch_tpl->len, r_pos = pos;
+	int l_pos = branch_tpl->len, r_pos = pos;
+	GPtrArray *reads = NULL;
 	if (ori) {
 		left_eg = main_tpl;
 		l_pos = pos;
@@ -154,10 +152,10 @@ int find_junc_reads_w_tails(hash_map *hm, tpl *main_tpl, tpl *branch_tpl,
 	right_seq = cut_tpl_tail(right_eg, r_pos, max_len / 2, 1);
 	//p_query("Right  seq", right_eg->ctg);
 	//p_query("Right tail", right_seq);
-	is_valid = find_junc_reads(hm, left_seq, right_seq, max_len, weight);
+	reads = find_junc_reads(hm, left_seq, right_seq, max_len, weight);
 	bwa_free_read_seq(1, left_seq);
 	bwa_free_read_seq(1, right_seq);
-	return is_valid;
+	return reads;
 }
 
 /**

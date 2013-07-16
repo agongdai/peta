@@ -1,4 +1,3 @@
-python /home/ariyaratnep/shaojiang//peta_copies/peta_dev/scripts/eva.py blat -t /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.fa -c /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/paired.fa -p /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/paired.fa.psl -o /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/ -s 0.99
 ===================================================================
 Summary of /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.fa
         Total base:             7012307
@@ -10,36 +9,37 @@ Summary of /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.
 ===================================================================
 ===================================================================
 Summary of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/paired.fa
-        Total base:             12335495
-        # of transcripts:       190774
+        Total base:             10803681
+        # of transcripts:       103316
         Longest length:         7048
         Shortest length:        1
-        Average length:         64.66
-        N50 value:              904
+        Average length:         104.57
+        N50 value:              1152
 ===================================================================
 ===================================================================
 Evaluation result of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/paired.fa
 [similarity threshold: 0.99]
 [full length threshold: 0.99]
 [n_mismatches + n_indels < 10]
-        Assembled base:               12335495
-        Bases aligned:                7585454
-        # of contigs:                 190774
-        # of Full length:             2571
-        # of one-on-one:              332
-        # of near full length 90%:    416
-        # of 70% covered:             383
-        Covered by one contig:        45
-        # of Ctgs not aligned:        167198
-        Bases not aligned:            3428284
+        Assembled base:               10803681
+        Bases aligned:                7162108
+        # of contigs:                 103316
+        # of Full length:             2898
+        # of Ctgs not aligned:        86559
+        Bases not aligned:            2299666
         # of Ctgs not reached:        41
         Bases not reached:            22398
         Optimal N50:                  1752
-        Raw N50:                      904
-        Aligned N50:                  1425
-        Aligned N50 based on all:     0
-        Base coverage:                96.71%
+        Raw N50:                      1152
+        Aligned N50:                  1398
+        Accuracy:                     96.44%
+        Completeness 80%:             95.32%
+        Contiguity 80%:               69.48%
+        # of chimaeras:               40
+        Chimerism:                    0.04%
+        Variant resolution:           0.00%
 ===================================================================
+Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/paired.fa.full
 Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/paired.fa_full_length.txt
 Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/paired.fa_one_on_one.txt
 Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/paired.fa_near_full_length.txt
@@ -47,4 +47,3 @@ Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/paired.fa_
 Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/paired.fa_one_covered.txt
 Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/paired.fa_not_aligned.txt
 Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR097897_out/paired.fa_partial.txt
-=======================================

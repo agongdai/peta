@@ -1,12 +1,12 @@
 #!/bin/bash
 
-query="single"
+query="oases"
 root_dir="/home/ariyaratnep/shaojiang/"
 eva_exe="$root_dir/peta_copies/peta_dev/scripts/eva.py"
 db_dir="$root_dir/peta/rnaseq/Spombe/genome/"
 db="tx.630.oracle.fa"
 blastdb="$root_dir/ncbi-blast-2.2.26+/db/"
-similarity="98"
+similarity="99"
 query_dir="$root_dir/peta_copies/peta_dev/SRR097897_out/"
 
 blastn_exe="blastn"

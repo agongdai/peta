@@ -36,9 +36,9 @@ extern "C" {
 junction *new_junction(tpl *main_tpl, tpl *branch_tpl, uint64_t kmer,
 		int locus, int ori, int weight);
 void p_tpl_juncs(tpl *t, GPtrArray *t_juncs);
-int find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
+GPtrArray *find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 		const int max_len, int *weight);
-int find_junc_reads_w_tails(hash_map *hm, tpl *left, tpl *right,
+GPtrArray *find_junc_reads_w_tails(hash_map *hm, tpl *left, tpl *right,
 		const int shift, const int max_len, const int ori, int *weight);
 void upd_tpl_jun_locus(tpl *t, GPtrArray *branching_events, const int kmer_len);
 void store_features(char *name, GPtrArray *branching_events,

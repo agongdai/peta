@@ -31,6 +31,8 @@
 #define	MISMATCH_SCORE			-1
 #define	INDEL_SCORE				-2
 #define N_MISMATCHES			2
+#define MIN_PAIRS				2
+#define MIN_JUNCTION_READS		1
 
 typedef uint64_t index64;
 

@@ -244,6 +244,7 @@ int val_branching(hash_map *hm, tpl *main_tpl, tpl_hash *all_tpls,
 	int n_reads = 0, existing_shift = 0;
 	bwa_seq_t *branch_seq = NULL, *main_seq = NULL;
 	tpl *connected_tpl = NULL;
+	GPtrArray *reads = NULL;
 
 	query = shift_bit(query_int, c, hm->o->k, ori);
 	branch_seq = try_short_tpl_byte_ext(hm, &query, c, ori, max_len / 2);
@@ -257,11 +258,13 @@ int val_branching(hash_map *hm, tpl *main_tpl, tpl_hash *all_tpls,
 
 	if (ori) {
 		main_seq = cut_tpl_tail(main_tpl, shift, max_len / 2, ori);
-		n_reads = find_junc_reads(hm, branch_seq, main_seq, max_len, weight);
+		reads = find_junc_reads(hm, branch_seq, main_seq, max_len, weight);
 	} else {
 		main_seq = cut_tpl_tail(main_tpl, shift + hm->o->k, max_len / 2, ori);
-		n_reads = find_junc_reads(hm, main_seq, branch_seq, max_len, weight);
+		reads = find_junc_reads(hm, main_seq, branch_seq, max_len, weight);
 	}
+	n_reads = reads->len;
+	g_ptr_array_free(reads, TRUE);
 	//p_ctg_seq("MAIN", main_tpl->ctg);
 	//p_ctg_seq("SUB", main_seq);
 	//p_ctg_seq("BRANCH", branch_seq);
@@ -274,9 +277,11 @@ int val_branching(hash_map *hm, tpl *main_tpl, tpl_hash *all_tpls,
 /**
  * Validate the junction by checking mate pairs
  */
-int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, hash_map *hm,
+int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, GPtrArray *junc_reads, hash_map *hm,
 		const int con_pos, const int ori) {
-	int start = con_pos, end = branch_tpl->len;
+	int start = con_pos, end = main_tpl->len;
+	int is_valid = 0;
+	GPtrArray *tmp = NULL;
 	if (!main_tpl->reads) {
 		mark_reads_on_tpl(main_tpl, hm);
 	}
@@ -287,7 +292,31 @@ int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, hash_map *hm,
 		start = 0;
 		end = con_pos;
 	}
-	return vld_tpl_mates(branch_tpl, main_tpl, start, end, 2);
+	/**
+	show_debug_msg(__func__, "Range [%d, %d]; ORI: %d\n", start, end, ori);
+	show_debug_msg(__func__, "Main template %d reads: %d\n", main_tpl->id,
+			main_tpl->reads->len);
+	p_readarray(main_tpl->reads, 1);
+	show_debug_msg(__func__, "Branch template %d reads: %d\n", branch_tpl->id,
+			branch_tpl->reads->len);
+	p_readarray(branch_tpl->reads, 1);
+	 **/
+
+	is_valid = vld_tpl_mates(branch_tpl, main_tpl, start, end, MIN_PAIRS);
+	if (!is_valid) {
+		g_ptr_array_sort(junc_reads, (GCompareFunc) cmp_reads_by_name);
+		/**
+		show_debug_msg(__func__, "Tag 1 \n");
+		p_readarray(main_tpl->reads, 1);
+		show_debug_msg(__func__, "Tag 2\n");
+		p_readarray(junc_reads, 1);
+		**/
+		is_valid = find_pairs(junc_reads, main_tpl->reads, 0, main_tpl->id,
+				start, end, MIN_PAIRS);
+		if (!is_valid) {
+		}
+	}
+	return is_valid;
 }
 
 /**
@@ -387,6 +416,7 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 			parent_locus = 0, borrow_bases = 0;
 	uint64_t value = 0, query_copy = query_int;
 	tpl *existing = NULL, *parent_existing = NULL;
+	GPtrArray *junc_reads = NULL;
 
 	show_debug_msg(__func__,
 			"---------- Connecting to existing, ori %d ----------\n", ori);
@@ -443,11 +473,14 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 					con_pos = parent_locus;
 				}
 			}
-			valid = find_junc_reads_w_tails(hm, existing, branch, con_pos,
+			junc_reads = find_junc_reads_w_tails(hm, existing, branch, con_pos,
 					(hm->o->read_len - SHORT_BRANCH_SHIFT) * 2, ori, &weight);
+			valid = (junc_reads->len >= MIN_JUNCTION_READS) ? 1 : 0;
+			p_readarray(junc_reads, 1);
 			if (!valid)
 				continue;
-			//valid = vld_junc_by_mates(existing, branch, hm, con_pos, ori);
+			valid = vld_junc_by_mates(existing, branch, junc_reads, hm, con_pos, ori);
+			g_ptr_array_free(junc_reads, TRUE);
 			if (valid) {
 				exist_ori = ori ? 0 : 1;
 				if (branch->len < hm->o->k) {
@@ -597,7 +630,7 @@ void trim_weak_tails(tpl *t, hash_map *hm, const int ori) {
 void kmer_ext_branch(tpl *t, hash_map *hm, tpl_hash *all_tpls, const int ori) {
 	int *counters = NULL, weight = 0, c = 0, i = 0, j = 0, con_pos = 0;
 	int kmer_len = hm->o->k, branch_is_valid = 0, max_freq = 0, con_existing =
-			0;
+			0, valid = 0;
 	uint64_t query_int = 0, branch_query = 0;
 	tpl *branch = NULL;
 	if (t->len <= kmer_len)
@@ -673,13 +706,15 @@ void kmer_ext_branch(tpl *t, hash_map *hm, tpl_hash *all_tpls, const int ori) {
 				free_eg_seq(branch);
 				branch->alive = 0;
 			} else {
-				add_a_junction(t, branch, query_int, con_pos, ori, weight);
-				mark_tpl_kmers_used(branch, hm, kmer_len, 0);
-				mark_reads_on_tpl(branch, hm);
-				upd_tpl_jun_locus(branch, branching_events, kmer_len);
-				// Try to extend branches of current branch
-				kmer_ext_branch(branch, hm, all_tpls, 0);
-				kmer_ext_branch(branch, hm, all_tpls, 1);
+//				valid = vld_junc_by_mates(t, branch, hm, con_pos, ori);
+//				if (valid) {
+					add_a_junction(t, branch, query_int, con_pos, ori, weight);
+					mark_tpl_kmers_used(branch, hm, kmer_len, 0);
+					upd_tpl_jun_locus(branch, branching_events, kmer_len);
+					// Try to extend branches of current branch
+					kmer_ext_branch(branch, hm, all_tpls, 0);
+					kmer_ext_branch(branch, hm, all_tpls, 1);
+//				}
 			}
 		}
 		free(counters);
@@ -1065,9 +1100,9 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 
 int pe_kmer(int argc, char *argv[]) {
 	process_only("../SRR097897_out/paired.junctions.nolen",
-			"../SRR097897_out/paired.fa",
-			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa");
-	return 0;
+				"../SRR097897_out/paired.fa",
+				"/home/ariyaratnep/shaojiang/peta/rnaseq/Spombe/SRR097897/SRR097897.fa");
+		return 0;
 
 	int c = 0;
 	clock_gettime(CLOCK_MONOTONIC, &kmer_start_time);

@@ -61,30 +61,61 @@ gint cmp_tpl_by_id(gpointer a, gpointer b) {
 }
 
 /**
- * Find whether the two templates contain at least min_n_pairs pairs of mates.
- * Assume the reads on them are already sorted by name
+ * Get the nearest index of read with name as the query
  */
-int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
-		const int min_n_pairs) {
+int binary_search_read(GPtrArray *reads, bwa_seq_t *q) {
+	int start = 0, end = reads->len, middle = (start + end) / 2;
+	bwa_seq_t *r = NULL, *m = NULL;
+	//p_readarray(reads, 1);
+	//p_query(__func__, q);
+	while (start < end - 2) {
+		middle = (start + end) / 2;
+		show_debug_msg(__func__, "[%d, %d, %d]\n", start, middle, end);
+		m = g_ptr_array_index(reads, middle);
+		//p_query("MIDDLE", m);
+		if (atoi(m->name) - atoi(q->name) == 0) {
+			return middle;
+		} else {
+			if (atoi(m->name) - atoi(q->name) > 0) {
+				end = middle + 1;
+			} else {
+				start = middle;
+			}
+		}
+	}
+	return middle;
+}
+
+/**
+ * Find pairs among two lists
+ */
+int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,
+		int start_2, int end_2, const int min_n_pairs) {
 	bwa_seq_t *r1 = NULL, *r2 = NULL;
-	uint32_t i = 0, j = 0, index_2 = 0;
+	uint32_t i = 0, j = 0, index_1 = 0, index_2 = 0;
 	int n_pairs = 0;
-	GPtrArray *reads_1 = t1->reads;
-	GPtrArray *reads_2 = t2->reads;
-	if (!reads_1 || !reads_2)
+	if (!reads_1 || !reads_2 || reads_1->len == 0 || reads_2->len == 0)
 		return 0;
-	for (i = 0; i < reads_1->len; i++) {
+	r1 = (bwa_seq_t*) g_ptr_array_index(reads_2, 0);
+	index_1 = binary_search_read(reads_1, r1);
+
+	for (i = index_1; i < reads_1->len; i++) {
 		r1 = (bwa_seq_t*) g_ptr_array_index(reads_1, i);
-		if (r1->contig_id != t1->id)
+		if (t1_id && r1->contig_id != t1_id)
 			continue;
 		if (index_2 >= reads_2->len - 1)
 			break;
+		//p_query("READ_1", r1);
 		for (j = index_2; j < reads_2->len; j++) {
 			r2 = (bwa_seq_t*) g_ptr_array_index(reads_2, j);
-			if (r2->contig_id != t2->id || r2->contig_locus < start_2
-					|| r2->contig_locus > end_2)
+			if (t2_id && (r2->contig_id != t2_id))
 				continue;
+			if (r2->contig_locus < start_2 || r2->contig_locus > end_2)
+				continue;
+			//p_query("READ_2", r2);
 			if (is_mates(r1->name, r2->name)) {
+				p_query(__func__, r1);
+				p_query(__func__, r2);
 				n_pairs++;
 			}
 			if (atoi(r2->name) - atoi(r1->name) >= 1) {
@@ -96,6 +127,18 @@ int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
 			return 1;
 	}
 	return 0;
+}
+
+/**
+ * Find whether the two templates contain at least min_n_pairs pairs of mates.
+ * Assume the reads on them are already sorted by name
+ */
+int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
+		const int min_n_pairs) {
+	int is_valid = 0;
+	is_valid = find_pairs(t1->reads, t2->reads, t1->id, t2->id, start_2, end_2,
+			min_n_pairs);
+	return is_valid;
 }
 
 /**

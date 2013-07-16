@@ -69,6 +69,8 @@ void assign_reads2tpl(tpl *eg, hash_map *hm);
 void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 		hash_map *hm);
 void p_vertex(vertex *v);
+void p_edge(edge *e);
+void p_comp(comp *c);
 GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_map *hm, const int n_mismatch);
 int vertex_in_scc(splice_graph *g, vertex *v);
 

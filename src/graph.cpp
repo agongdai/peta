@@ -247,7 +247,7 @@ void destroy_graph(splice_graph *g) {
 /**
  * Remove an edge from the graph
  */
-void remove_edge_by_index(splice_graph *g, uint32_t index) {
+void remove_edge_by_index(comp *g, uint32_t index) {
 	uint32_t i = 0;
 	edge *e = NULL, *e2 = NULL;
 	vertex *v = NULL;
@@ -274,13 +274,13 @@ void remove_edge_by_index(splice_graph *g, uint32_t index) {
 /**
  * Remove an edge from the graph
  */
-void remove_edge_from_g(splice_graph *g, edge *rmv_e) {
+void remove_edge_from_c(comp *c, edge *rmv_e) {
 	uint32_t i = 0;
 	edge *e = NULL;
-	for (i = 0; i < g->edges->len; i++) {
-		e = (edge*) g_ptr_array_index(g->edges, i);
+	for (i = 0; i < c->edges->len; i++) {
+		e = (edge*) g_ptr_array_index(c->edges, i);
 		if (e == rmv_e) {
-			remove_edge_by_index(g, i);
+			remove_edge_by_index(c, i);
 			break;
 		}
 	}
@@ -548,7 +548,7 @@ void clean_graph(splice_graph *g) {
 	}
 }
 
-int tarjan_connect(vertex *v, splice_graph *g) {
+int tarjan_connect(vertex *v, comp *g) {
 	edge *e = NULL;
 	vertex *w = NULL, *tmp = NULL;
 	uint32_t i = 0, j = 0;
@@ -598,26 +598,28 @@ int tarjan_connect(vertex *v, splice_graph *g) {
 	// Since a property of SCC is that all vertexes are reachable by others
 	//		In this way, other vertexes cannot reach A.
 	if (scc->len >= 2) {
+		//show_debug_msg(__func__, "Removing edges to break the SCC...\n");
 		g_ptr_array_add(g->scc, scc);
 		for (j = 0; j < scc->len; j++) {
 			to_break = 0;
 			v = (vertex*) g_ptr_array_index(scc, j);
+			//p_vertex(v);
 			// Identify vertex A
 			for (i = 0; i < v->ins->len; i++) {
 				e = (edge*) g_ptr_array_index(v->ins, i);
 				if (find_in_array(scc, e->left) == -1) {
-					to_break = 0;
+					to_break = 1;
 					break;
 				} else
-					to_break = 1;
+					to_break = 0;
 			}
 			// Remove all incoming SCC edges to A
 			if (to_break) {
 				for (i = 0; i < v->ins->len; i++) {
 					e = (edge*) g_ptr_array_index(v->ins, i);
-					if (find_in_array(scc, (gpointer) e->left) >= 0) {
+					if (find_in_array(scc, (gpointer) e->right) >= 0) {
 						//p_edge(e);
-						remove_edge_from_g(g, e);
+						remove_edge_from_c(g, e);
 						removed = 1;
 					}
 				}
@@ -632,14 +634,14 @@ int tarjan_connect(vertex *v, splice_graph *g) {
 /**
  * Tarjan's algorithm to detect strongly connected components (SCC), and break them
  */
-int tarjan(splice_graph *g) {
+int tarjan(comp *g) {
 	uint32_t i = 0;
 	int removed = 0;
 	vertex *v = NULL;
 	for (i = 0; i < g->vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(g->vertexes, i);
 		if (v->index == 0)
-			removed = tarjan_connect(v, g);
+			removed |= tarjan_connect(v, g);
 	}
 	return removed;
 }
@@ -708,6 +710,8 @@ void break_to_comps(splice_graph *g) {
 		if (v->status == 0) {
 			c = new_comp();
 			iterate_comp(g, c, v);
+			while (tarjan(c)) {
+			}
 			g_ptr_array_add(g->components, c);
 		}
 	}
@@ -755,16 +759,18 @@ void calc_comp_stat(splice_graph *g) {
 
 void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	splice_graph *g = NULL;
+	show_msg(__func__, "Building the splice graph...\n");
 	g = build_graph(all_tpls, all_juncs, hm);
+	show_msg(__func__, "Simplifying the splice graph...\n");
 	clean_graph(g);
 	save_vertexes(g->vertexes);
-	// Temporarily just break the cycles.
-	while (tarjan(g)) {
-	}
+
+	show_msg(__func__, "Breaking into components...\n");
 	break_to_comps(g);
-	p_graph(g);
-	p_comps(g);
+	//p_graph(g);
+	//p_comps(g);
 	calc_comp_stat(g);
 	reset_status(g);
+	show_msg(__func__, "Running EM to get paths...\n");
 	determine_paths(g, hm);
 }
