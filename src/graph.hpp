@@ -40,9 +40,9 @@ typedef struct {
 } edge;
 
 typedef struct {
-	GPtrArray *vertexes;
-	GPtrArray *edges;
-	int len;
+	GPtrArray *vertexes;	// Vertexes
+	GPtrArray *edges;		// Edges
+	int len;				// Length
 	int index;				// Global index for Tarjan's algorithm
 	GPtrArray *stack;		// Stack for Tarjan's algorithm
 	GPtrArray *scc;			// Strongly connected components
@@ -50,12 +50,12 @@ typedef struct {
 } splice_graph;
 
 typedef struct {
-	int id;
+	int id;					// Component id
 	int index;				// Global index for Tarjan's algorithm
 	GPtrArray *stack;		// Stack for Tarjan's algorithm
 	GPtrArray *scc;			// Strongly connected components
-	GPtrArray *vertexes;
-	GPtrArray *edges;
+	GPtrArray *vertexes;	// Vertexes in the component
+	GPtrArray *edges;		// Edges in the component
 } comp;
 
 typedef struct {

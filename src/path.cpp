@@ -269,13 +269,16 @@ GPtrArray *get_vertex_levels(comp *c) {
 		has_more = 0;
 		next_level = NULL;
 		n_level++;
+		show_debug_msg(__func__, "Level: %d \n", n_level);
 		for (i = 0; i < level_vertexes->len; i++) {
 			v = (vertex*) g_ptr_array_index(level_vertexes, i);
+			p_vertex(v);
 			if (v->outs->len > 0) {
 				if (!next_level)
 					next_level = g_ptr_array_sized_new(level_vertexes->len);
 				for (j = 0; j < v->outs->len; j++) {
 					e = (edge*) g_ptr_array_index(v->outs, j);
+					p_edge(e);
 					// If the edge is not visited before
 					// If the vertex is added before at the same level, ignore
 					if (e->right->status != n_level) {
@@ -909,13 +912,10 @@ void determine_paths(splice_graph *g, hash_map *hm) {
 		c = (comp*) g_ptr_array_index(g->components, i);
 		if (c->vertexes->len >= 50)
 			continue;
-		//if (c->id != 402)
-		//	continue;
 		//p_comp(c);
 		paths = comp_paths(c, hm);
 		append_paths(all_paths, paths);
-		//break;
 	}
-	save_paths(all_paths, "paths.fa", 0);
+	save_paths(all_paths, "paths.fa", 1);
 	destroy_paths(all_paths);
 }

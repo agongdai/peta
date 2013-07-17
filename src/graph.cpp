@@ -66,11 +66,12 @@ splice_graph *new_graph() {
 
 comp *new_comp() {
 	comp *c = (comp*) malloc(sizeof(comp));
-	c->vertexes = g_ptr_array_sized_new(4);
-	c->edges = g_ptr_array_sized_new(4);
+	c->vertexes = g_ptr_array_sized_new(2);
+	c->edges = g_ptr_array_sized_new(2);
 	c->stack = g_ptr_array_sized_new(0);
 	c->scc = g_ptr_array_sized_new(0);
 	c->id = ++comp_id;
+	c->index = 0;
 	return c;
 }
 
@@ -80,6 +81,11 @@ void destroy_comp(comp *c) {
 			g_ptr_array_free(c->vertexes, TRUE);
 		if (c->edges)
 			g_ptr_array_free(c->edges, TRUE);
+		if (c->stack)
+			g_ptr_array_free(c->stack, TRUE);
+		if (c->scc)
+			g_ptr_array_free(c->scc, TRUE);
+		free(c);
 	}
 }
 
@@ -216,6 +222,7 @@ void destroy_graph(splice_graph *g) {
 	int i = 0;
 	vertex *v = NULL;
 	edge *e = NULL;
+	comp *c = NULL;
 	if (g) {
 		if (g->vertexes) {
 			for (i = 0; i < g->vertexes->len; i++) {
@@ -238,6 +245,10 @@ void destroy_graph(splice_graph *g) {
 			g_ptr_array_free(g->scc, TRUE);
 		}
 		if (g->components) {
+			for (i = 0; i < g->components->len; i++) {
+				c = (comp*) g_ptr_array_index(g->components, i);
+				destroy_comp(c);
+			}
 			g_ptr_array_free(g->components, TRUE);
 		}
 		free(g);
@@ -291,15 +302,14 @@ void remove_edge_from_c(comp *c, edge *rmv_e) {
  */
 void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 	junction *j = NULL;
-	tpl *branch = NULL;
 	vertex *v = NULL, *left = NULL, *right = NULL;
 	edge *e = NULL;
 	int i = 0, pre_start = 0;
-	GPtrArray *branch_vs = NULL, *branch_juncs = NULL;
 	int max_len = (hm->o->read_len - SHORT_BRANCH_SHIFT) * 2;
 	GPtrArray *this_vs = g_ptr_array_sized_new(main_juncs->len + 1);
 
 	// Break the main template into vertexes
+	// The junctions are sorted by locus already
 	for (i = 0; i < main_juncs->len; i++) {
 		j = (junction*) g_ptr_array_index(main_juncs, i);
 		if (j->locus > t->len || j->locus < 0) {
@@ -456,8 +466,8 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
 		branch_vs = j->branch_tpl->vertexes;
 		main_vs = j->main_tpl->vertexes;
 		if (j->ori) { // Branch is left, main is right
-			branch_v = (vertex*) g_ptr_array_index(branch_vs, branch_vs->len
-					- 1);
+			branch_v = (vertex*) g_ptr_array_index(branch_vs,
+					branch_vs->len - 1);
 			// Shifting on the main_tpl to find connecting vertex
 			right = find_vertex_by_locus(t, j->locus, 0);
 			if (!right)
@@ -531,7 +541,8 @@ splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 }
 
 /**
- * Remove isolated vertexes with length smaller than 10
+ * Remove isolated vertexes with length smaller than 10;
+ * Remove edges with status -1
  */
 void clean_graph(splice_graph *g) {
 	vertex *v = NULL;
@@ -546,13 +557,22 @@ void clean_graph(splice_graph *g) {
 		if (v->ins->len == 0 && v->outs->len == 0)
 			g_ptr_array_remove_index_fast(g->vertexes, i--);
 	}
+	for (i = 0; i < g->edges->len; i++) {
+		e = (edge*) g_ptr_array_index(g->edges, i);
+		if (e->status == -1) {
+			g_ptr_array_remove_index_fast(g->edges, i--);
+			destroy_edge(e);
+		}
+	}
 }
 
 int tarjan_connect(vertex *v, comp *g) {
 	edge *e = NULL;
 	vertex *w = NULL, *tmp = NULL;
 	uint32_t i = 0, j = 0;
-	int removed = 0, to_break = 0;
+	// A flag to indicate whether some edges are removed at this round
+	int removed = 0;
+	int to_break = 0;
 
 	// Strongly connected component for this vertex
 	GPtrArray *scc = g_ptr_array_sized_new(4);
@@ -564,7 +584,7 @@ int tarjan_connect(vertex *v, comp *g) {
 		e = (edge*) g_ptr_array_index(v->outs, i);
 		w = e->right;
 		if (w->index == 0) {
-			tarjan_connect(w, g);
+			removed |= tarjan_connect(w, g);
 			v->lowlink = min(v->lowlink, w->lowlink);
 		} else {
 			/**
@@ -594,11 +614,10 @@ int tarjan_connect(vertex *v, comp *g) {
 	// Remove edges to break the strongly connected component
 	// The edges to remove:
 	//		1. identify a vertex A with incoming edges from outside (not in scc)
-	//		2. remove all incoming edges to this vertex A.
+	//		2. remove all incoming edges from scc vertexes to this vertex A.
 	// Since a property of SCC is that all vertexes are reachable by others
 	//		In this way, other vertexes cannot reach A.
 	if (scc->len >= 2) {
-		//show_debug_msg(__func__, "Removing edges to break the SCC...\n");
 		g_ptr_array_add(g->scc, scc);
 		for (j = 0; j < scc->len; j++) {
 			to_break = 0;
@@ -607,17 +626,23 @@ int tarjan_connect(vertex *v, comp *g) {
 			// Identify vertex A
 			for (i = 0; i < v->ins->len; i++) {
 				e = (edge*) g_ptr_array_index(v->ins, i);
-				if (find_in_array(scc, e->left) == -1) {
+				if (find_in_array(scc, (gpointer) e->left) == -1) {
 					to_break = 1;
 					break;
 				} else
 					to_break = 0;
 			}
-			// Remove all incoming SCC edges to A
+			// Remove all incoming SCC edges from SCC vertexes to A
 			if (to_break) {
+				//show_debug_msg(__func__, "Removing edges to break the SCC...\n");
 				for (i = 0; i < v->ins->len; i++) {
 					e = (edge*) g_ptr_array_index(v->ins, i);
+					//p_edge(e);
 					if (find_in_array(scc, (gpointer) e->right) >= 0) {
+						// Will be removed from the global graph later by clean_graph
+						e->status = -1;
+						//show_debug_msg(__func__, "To remove edge %d...\n",
+						//		e->id);
 						//p_edge(e);
 						remove_edge_from_c(g, e);
 						removed = 1;
@@ -634,31 +659,25 @@ int tarjan_connect(vertex *v, comp *g) {
 /**
  * Tarjan's algorithm to detect strongly connected components (SCC), and break them
  */
-int tarjan(comp *g) {
+int tarjan(comp *c) {
 	uint32_t i = 0;
 	int removed = 0;
 	vertex *v = NULL;
-	for (i = 0; i < g->vertexes->len; i++) {
-		v = (vertex*) g_ptr_array_index(g->vertexes, i);
+	// Reset the index and stack in case they are not empty
+	while (c->stack->len > 0)
+		g_ptr_array_remove_index_fast(c->stack, 0);
+	c->index = 0;
+	for (i = 0; i < c->vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(c->vertexes, i);
+		v->index = 0;
+		v->lowlink = 0;
+	}
+	for (i = 0; i < c->vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(c->vertexes, i);
 		if (v->index == 0)
-			removed |= tarjan_connect(v, g);
+			removed |= tarjan_connect(v, c);
 	}
 	return removed;
-}
-
-/**
- * Check whether a vertex is in a SCC.
- */
-int vertex_in_scc(splice_graph *g, vertex *v) {
-	GPtrArray *scc = NULL;
-	uint32_t i = 0;
-	for (i = 0; i < g->scc->len; i++) {
-		scc = (GPtrArray*) g_ptr_array_index(g->scc, i);
-		if (find_in_array(scc, v) >= 0) {
-			return 1;
-		}
-	}
-	return 0;
 }
 
 /**
@@ -703,14 +722,14 @@ void iterate_comp(splice_graph *g, comp *c, vertex *root) {
 void break_to_comps(splice_graph *g) {
 	uint32_t i = 0, j = 0;
 	vertex *v = NULL;
-	edge *e = NULL;
 	comp *c = NULL;
 	for (i = 0; i < g->vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(g->vertexes, i);
 		if (v->status == 0) {
 			c = new_comp();
 			iterate_comp(g, c, v);
-			while (tarjan(c)) {
+			// Try to break cycles if there are some edges removed from last round
+			while (tarjan(c) > 0) {
 			}
 			g_ptr_array_add(g->components, c);
 		}
@@ -750,9 +769,11 @@ void calc_comp_stat(splice_graph *g) {
 			v = (vertex*) g_ptr_array_index(c->vertexes, j);
 			len += v->len;
 		}
-		sprintf(entry, "%d\t%d\t%d\t%d\n", c->id, c->vertexes->len, c->edges->len, len);
+		sprintf(entry, "%d\t%d\t%d\t%d\n", c->id, c->vertexes->len,
+				c->edges->len, len);
 		fputs(entry, stat);
 	}
+	fclose(stat);
 	show_debug_msg(__func__,
 			"Statistics of components are output to components.csv.\n");
 }
@@ -767,10 +788,13 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 
 	show_msg(__func__, "Breaking into components...\n");
 	break_to_comps(g);
+	// Some edges may be marked as 'dead' when breaking SCCs
+	clean_graph(g);
 	//p_graph(g);
 	//p_comps(g);
 	calc_comp_stat(g);
 	reset_status(g);
 	show_msg(__func__, "Running EM to get paths...\n");
 	determine_paths(g, hm);
+	//destroy_graph(g);
 }
