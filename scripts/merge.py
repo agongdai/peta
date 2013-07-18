@@ -1,5 +1,7 @@
 import sys, os, eva
 from argparse import ArgumentParser
+import re, glob
+from eva import *
 
 def rev_comp(sequence):
     complement = {'A':'T','C':'G','G':'C','T':'A','N':'N'}
@@ -257,6 +259,18 @@ def to_files(args):
                     line_no += 1
     print 'Check %s and %s' % (left, right)
 
+def app(args):
+    out_fa = FastaFile()
+    count = 0
+    for infile in glob.glob(os.path.join(args.dir, '*.fa')):
+        comp_id = os.path.basename(infile[:-3])
+        fa = FastaFile(infile)
+        for id, seq in fa.seqs.iteritems():
+            out_fa.seqs[id + '_' + comp_id] = seq
+            count += 1
+    out_fa.save_to_disk(args.out)
+    print 'Check %d seqs in file %s' % (count, args.out)
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -323,6 +337,11 @@ def main():
     parser_2files = subparsers.add_parser('2files', help='Split shuffled FASTQ file into two')
     parser_2files.set_defaults(func=to_files)
     parser_2files.add_argument('fq', help='fastq')
+    
+    parser_app = subparsers.add_parser('app', help='Append component id and merge FASTA files')
+    parser_app.set_defaults(func=app)
+    parser_app.add_argument('dir', help='directory')
+    parser_app.add_argument('out', help='output file')
 
     args = parser.parse_args()
     args.func(args)

@@ -910,6 +910,11 @@ def main():
     parser_paths = subparsers.add_parser('paths', help='Check how many full length paths')
     parser_paths.set_defaults(func=paths)
     parser_paths.add_argument('psl', help='path-to-ref PSL file')
+    
+    parser_comps = subparsers.add_parser('comp', help='Check which transcript from which component')
+    parser_comps.set_defaults(func=comps)
+    parser_comps.add_argument('psl', help='component-to-ref PSL file')
+    parser_comps.add_argument('id_file', help='file of id list to check')
 	
     args = parser.parse_args()
     args.func(args)

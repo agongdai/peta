@@ -152,7 +152,7 @@ void p_comp_dot(GPtrArray *vertexes, GPtrArray *edges, FILE *dot) {
 
 void p_comp(comp *c) {
 	char fn[128];
-	sprintf(fn, "comp.%d.dot", c->id);
+	sprintf(fn, "../SRR097897_out/components/comp.%d.dot", c->id);
 	FILE *dot = xopen(fn, "w");
 	p_comp_dot(c->vertexes, c->edges, dot);
 	fclose(dot);
@@ -177,7 +177,7 @@ void save_vertexes(GPtrArray *vertexes) {
 	int i = 0;
 	vertex *v = NULL;
 	char entry[BUFSIZ];
-	FILE *v_fp = xopen("../simu_out/vertexes.fa", "w");
+	FILE *v_fp = xopen("../SRR097897_out/vertexes.fa", "w");
 	for (i = 0; i < vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(vertexes, i);
 		sprintf(entry, ">%d length: %d\n", v->id, v->len);

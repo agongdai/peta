@@ -895,7 +895,6 @@ GPtrArray *comp_paths(comp *c, hash_map *hm) {
 	destory_levels(levels);
 	assign_path_attrs(paths, hm);
 
-	save_paths(paths, "../simu_out/paths.fa", 1);
 	validate_short_exons(paths, hm);
 
 	paths_prob = init_path_prob(paths, hm->o->read_len);
@@ -934,6 +933,7 @@ void determine_paths(splice_graph *g, hash_map *hm) {
 		append_paths(all_paths, paths);
 	}
 	p_paths(all_paths);
-	save_paths(all_paths, "../simu_out/peta.fa", 0);
+	save_paths(all_paths, "../SRR097897_out/paths.fa", 1);
+	save_paths(all_paths, "../SRR097897_out/peta.fa", 0);
 	destroy_paths(all_paths);
 }

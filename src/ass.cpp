@@ -401,10 +401,16 @@ tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
 			right_seq->len);
 	junc_seq->len = left_seq->len + short_tpl->len + right_seq->len;
 	set_rev_com(junc_seq);
-	//p_ctg_seq("JUNCTION", junc_seq);
+	p_ctg_seq("JUNCTION", junc_seq);
 
 	for (i = 0; i <= junc_seq->len - hm->o->k; i++) {
 		kmer_int = get_kmer_int(junc_seq->seq, i, 1, hm->o->k);
+
+		show_debug_msg(__func__, "Debug %d: left_len: %d; right_len: %d \n", i, left_seq->len, right_seq->len);
+		bwa_seq_t *debug = get_kmer_seq(kmer_int, 25);
+		p_query(__func__, debug);
+		bwa_free_read_seq(1, debug);
+
 		if (kmer_int == query_int) {
 			bwa_free_read_seq(1, junc_seq);
 			if (ori) {
@@ -455,12 +461,14 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 
 	counters = count_next_kmers(hm, query_int, 0, ori);
 
+	/**
 	p_ctg_seq(__func__, branch->ctg);
 	bwa_seq_t *debug = get_kmer_seq(query_int, 25);
 	p_query(__func__, debug);
 	bwa_free_read_seq(1, debug);
 	show_debug_msg(__func__, "Counters: %d,%d,%d,%d\n", counters[0],
 			counters[1], counters[2], counters[3]);
+	**/
 
 	// In case connecting to the template itself
 	mark_tpl_kmers_used(branch, hm, hm->o->k, 0);
@@ -479,7 +487,7 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 			// It happens when 'existing' and 'branch' are the same.
 			// And the same template has been trimmed before.
 
-
+			/**
 			show_debug_msg(__func__, "Existing tpl %d: %d\n", existing->id,
 					existing->len);
 			show_debug_msg(__func__,
@@ -487,11 +495,13 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 					existing->len, hm->o->k);
 			p_ctg_seq("MAIN", existing->ctg);
 			p_ctg_seq("BRANCH", branch->ctg);
+			**/
 
 			//if (locus > existing->len - hm->o->k)
 			//	continue;
 			con_pos = ori ? (locus + 1) : (locus + hm->o->k - 1);
 			exist_ori = ori ? 0 : 1;
+
 
 			bwa_seq_t *debug = get_kmer_seq(query_int, 25);
 			p_query(__func__, debug);
@@ -499,15 +509,18 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 			show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
 					locus);
 
+
 			// If the branch is can be merged to main template, skip
 			// Only check when it is extending to the left and
 			//		its right end is not connected to anywhere.
 			if (branch->len < 100 && branch->r_tail) {
+				/**
 				show_debug_msg(__func__, "Main template: %d; pos: %d \n",
 						existing->id, con_pos);
 				show_debug_msg(__func__, "Branch template: %d; ori: %d \n",
 						branch->id, exist_ori);
 				p_ctg_seq("Right Tail", branch->r_tail);
+				**/
 
 				right_junc = (junction*) g_ptr_array_index(branch->b_juncs, 0);
 				if (0 - N_MISMATCHES <= right_junc->locus - con_pos
@@ -533,6 +546,8 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 				parent_existing = connect_to_small_tpl(hm, query_int, branch,
 						existing, &parent_locus, &borrow_bases, ori);
 				if (parent_existing) {
+					show_debug_msg(__func__, "TAG: Existing changed from [%d, %d] to [%d, %d]\n", existing->id, existing->len, parent_existing->id, parent_existing->len);
+					show_debug_msg(__func__, "TAG: Connect position changed from %d to %d\n", con_pos, parent_locus);
 					existing = parent_existing;
 					con_pos = parent_locus;
 				}
@@ -563,6 +578,11 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 				branch->ctg->len = 0;
 				set_rev_com(branch->ctg);
 			} else {
+				p_ctg_seq("EXISTING", existing->ctg);
+				p_ctg_seq(__func__, branch->ctg);
+				show_debug_msg(__func__, "Borrow bases: %d\n", borrow_bases);
+				show_debug_msg(__func__, "Branch length: %d \n", branch->len);
+				show_debug_msg(__func__, "ORI: %d \n", ori);
 				// Make the branch not sharing a 24-mer with the main
 				if (exist_ori) {
 					con_pos -= (hm->o->k - 1 - borrow_bases);
@@ -856,10 +876,10 @@ int kmer_ext_tpl(tpl *t, uint64_t query_int, hash_map *hm, tpl_hash *all_tpls,
 			}
 		}
 		// Maybe marked as not alive in existing_connect
-		//		if (!t->alive) {
-		//			free(counters);
-		//			break;
-		//		}
+		if (!t->alive) {
+			free(counters);
+			break;
+		}
 		if (max_c == -1) {
 			if (!existing_connect(t, hm, all_tpls, query_int, ori))
 				show_debug_msg(__func__, "[%d, %d] No hits, stop here. \n",
