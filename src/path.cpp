@@ -11,7 +11,7 @@
 #include "utils.h"
 #include "peseq.h"
 #include "bwtaln.h"
-#include "tpl.h"
+#include "tpl.hpp"
 #include "kmers.hpp"
 #include "hash.hpp"
 #include "graph.hpp"
@@ -269,16 +269,16 @@ GPtrArray *get_vertex_levels(comp *c) {
 		has_more = 0;
 		next_level = NULL;
 		n_level++;
-		show_debug_msg(__func__, "Level: %d \n", n_level);
+		show_debug_msg(__func__, "Level %d: %d \n", n_level, level_vertexes->len);
 		for (i = 0; i < level_vertexes->len; i++) {
 			v = (vertex*) g_ptr_array_index(level_vertexes, i);
-			p_vertex(v);
+			//p_vertex(v);
 			if (v->outs->len > 0) {
 				if (!next_level)
 					next_level = g_ptr_array_sized_new(level_vertexes->len);
 				for (j = 0; j < v->outs->len; j++) {
 					e = (edge*) g_ptr_array_index(v->outs, j);
-					p_edge(e);
+					//p_edge(e);
 					// If the edge is not visited before
 					// If the vertex is added before at the same level, ignore
 					if (e->right->status != n_level) {
@@ -358,6 +358,10 @@ GPtrArray *combinatorial_paths(GPtrArray *levels) {
 	return paths;
 }
 
+/**
+ * If an exon is shorter than k,
+ * 		verify whether there are reads covering this vertex and its left and right vertexes
+ */
 void validate_short_exons(GPtrArray *paths, hash_map *hm) {
 	uint32_t i = 0, j = 0;
 	int start = 0, end = 0, n_reads = 0;
@@ -393,19 +397,22 @@ void validate_short_exons(GPtrArray *paths, hash_map *hm) {
 		start = v->len;
 		for (j = 1; j < p->vertexes->len; j++) {
 			v = (vertex*) g_ptr_array_index(p->vertexes, j);
-			if (v->len < read_len) {
+			// If the vertex is smaller than the k value (25)
+			if (v->len < hm->o->k + N_MISMATCHES) {
 				end = start + read_len - N_MISMATCHES * 2;
 				end = end > p->len ? p->len : end;
 				start = start - (read_len - v->len) + N_MISMATCHES * 2;
 				start = start < 0 ? 0 : start;
 				seq = new_seq(p->ctg, end - start, start);
 				reads = reads_on_seq(seq, hm, N_MISMATCHES);
+
 				/**
 				 show_debug_msg(__func__, "Path %d exon %d: [%d, %d)\n", p->id, v->id, start, end);
 				 p_ctg_seq("PATH", p->ctg);
 				 p_ctg_seq("EXON", seq);
-				 p_readarray(reads, 1);
-				 **/
+				 p_readarray(reads, 0);
+				**/
+
 				n_reads = reads->len;
 				g_ptr_array_free(reads, TRUE);
 				bwa_free_read_seq(1, seq);
@@ -631,7 +638,7 @@ GPtrArray *calc_features_coverage(GPtrArray *paths, const int read_len,
 void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		float *paths_p) {
 	int round = 0, n_features = 0, max_iteration = 200000, stop = 0;
-	float stop_threshold = 0.00001;
+	float stop_threshold = 0.000001;
 	uint32_t i = 0, j = 0, m = 0, n = 0, n_paths = paths->len;
 	// Coverage of paths
 	float *p_covs = NULL;
@@ -747,7 +754,7 @@ void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 			sum_N += this_Ns[j];
 		}
 
-		printf("N: %.2f\n", sum_N);
+		//printf("N: %.2f\n", sum_N);
 
 		// Maximization step: M-step
 		next_paths_p = (float*) calloc(sizeof(float), n_paths);
@@ -786,12 +793,14 @@ void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 				//		p->junction_lengths[n], sum_p_len, sum_next_f_t_p);
 			}
 
+			/**
 			show_debug_msg(__func__, "sum_next_f_p[%d]: %.2f\n", j,
 					sum_next_f_p);
 			show_debug_msg(__func__, "sum_next_f_t_p[%d]: %.2f\n", j,
 					sum_next_f_t_p);
 			show_debug_msg(__func__, "this_Ns[%d]/Sum: %.2f / %.2f \n", j,
 					this_Ns[j], sum_N);
+			**/
 
 			sum_denominator = (sum_next_f_t_p * (sum_N - this_Ns[j]));
 			if (sum_denominator > 0.0) {
@@ -813,18 +822,18 @@ void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		}
 		stop = 1;
 		for (j = 0; j < n_paths; j++) {
+			/**
 			show_debug_msg(__func__, "%.5f vs %.5f \n", paths_p[j],
 					next_paths_p[j]);
 			show_debug_msg(__func__, "Difference: %.5f \n", get_abs(paths_p[j]
 					- next_paths_p[j]));
+			**/
 			if ((float) (get_abs(paths_p[j] - next_paths_p[j]))
 					> stop_threshold) {
 				stop = 0;
 			}
 		}
-		if (stop) {
-			show_debug_msg(__func__, "Stop at Iteration %d \n", round);
-		} else {
+		if (!stop) {
 			for (j = 0; j < n_paths; j++) {
 				paths_p[j] = next_paths_p[j];
 			}
@@ -833,17 +842,25 @@ void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 
 		coverage = calc_features_coverage(paths, read_len, paths_p, coverage);
 
+		/**
 		printf("\n\n==== Iteration %d ====\n", round);
-		float tmp = 0;
 		for (i = 0; i < n_paths; i++) {
 			p = (path*) g_ptr_array_index(paths, i);
 			show_debug_msg(__func__, "---- %d: Path %d ---- \n", i, p->id);
 			printf("\t\t\tCoverage: %.2f \n", p_covs[i]);
 			printf("\t\t\tN_reads: %.2f \n", this_Ns[i]);
 			printf("\t\t\tProbability: %.3f \n", paths_p[i]);
-			tmp += paths_p[i];
 		}
+		**/
 
+	}
+	show_debug_msg(__func__, "Stop at Iteration %d \n", round);
+	for (i = 0; i < n_paths; i++) {
+		p = (path*) g_ptr_array_index(paths, i);
+		show_debug_msg(__func__, "---- %d: Path %d ---- \n", i, p->id);
+		printf("\t\t\tCoverage: %.2f \n", p_covs[i]);
+		printf("\t\t\tN_reads: %.2f \n", this_Ns[i]);
+		printf("\t\t\tProbability: %.3f \n", paths_p[i]);
 	}
 	for (i = 0; i < coverage->len; i++) {
 		cov = (float*) g_ptr_array_index(coverage, i);
@@ -878,7 +895,7 @@ GPtrArray *comp_paths(comp *c, hash_map *hm) {
 	destory_levels(levels);
 	assign_path_attrs(paths, hm);
 
-	p_paths(paths);
+	save_paths(paths, "../simu_out/paths.fa", 1);
 	validate_short_exons(paths, hm);
 
 	paths_prob = init_path_prob(paths, hm->o->read_len);
@@ -886,7 +903,7 @@ GPtrArray *comp_paths(comp *c, hash_map *hm) {
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
 		// If the probability of the paths is small, mark it as not alive.
-		if (paths_prob[i] * paths->len < 0.5)
+		if (paths_prob[i] <= 0.02 && paths_prob[i] * paths->len < 0.8)
 			p->status = 1;
 	}
 	free(paths_prob);
@@ -912,10 +929,11 @@ void determine_paths(splice_graph *g, hash_map *hm) {
 		c = (comp*) g_ptr_array_index(g->components, i);
 		if (c->vertexes->len >= 50)
 			continue;
-		//p_comp(c);
+		p_comp(c);
 		paths = comp_paths(c, hm);
 		append_paths(all_paths, paths);
 	}
-	save_paths(all_paths, "paths.fa", 1);
+	p_paths(all_paths);
+	save_paths(all_paths, "../simu_out/peta.fa", 0);
 	destroy_paths(all_paths);
 }

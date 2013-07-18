@@ -1,6 +1,6 @@
 #!/bin/bash
 
-query="oases"
+query="peta"
 root_dir="/home/ariyaratnep/shaojiang/"
 eva_exe="$root_dir/peta_copies/peta_dev/scripts/eva.py"
 db_dir="$root_dir/peta/rnaseq/Spombe/genome/"

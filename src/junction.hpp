@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include "hash.hpp"
 #include "bwtaln.h"
-#include "tpl.h"
+#include "tpl.hpp"
 
 #define		SHORT_BRANCH_SHIFT	4
 typedef 	unordered_map<int, int> junc_count;
@@ -24,9 +24,9 @@ typedef struct {
 	int locus;
 	int weight;
 	uint8_t ori;
-	uint64_t kmer; // Kmer when branching
-	GPtrArray *reads;
-	int8_t status; // 0 means good status
+	uint64_t kmer; 		// Kmer when branching
+	GPtrArray *reads;	// Reads at the junction
+	int8_t status; 		// 0 means good status
 } junction;
 
 #ifdef __cplusplus
@@ -46,7 +46,7 @@ void store_features(char *name, GPtrArray *branching_events,
 gint cmp_junc_by_id(gpointer a, gpointer b);
 void clean_junctions(GPtrArray *junctions);
 int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
-		const int pos, const int mismatches, const int ori);
+		const int pos, const int mismatches, const int exist_ori);
 void destroy_junction(junction *j);
 bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
 		int r_pos, int *right_len, int max_len);

@@ -11,9 +11,8 @@
 #include <glib.h>
 #include <unordered_map>
 #include "kmers.hpp"
-#include "tpl.h"
+#include "tpl.hpp"
 
-#define 	MIN_WEIGHT			1
 #define		ERROR_RATE			0.02
 #define		BRANCH_THRE			0.1
 

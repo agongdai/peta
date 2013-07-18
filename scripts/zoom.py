@@ -741,6 +741,34 @@ def intersect(args):
     print 'Check file %s.only: %d' % (args.list_1, n_1)
     print 'Check file %s.only: %d' % (args.list_2, n_2)
     print 'Check file %s.both: %d' % (args.list_1, n_both)
+
+def kmer_duplicates(args):
+    fa = FastaFile(args.fa)
+    for name, seq in fa.seqs.iteritems():
+        counter = {}
+        for i in range(len(seq) - args.k):
+            kmer = seq[i:i+args.k]
+            if not kmer in counter:
+                counter[kmer] = []
+            counter[kmer].append((name, i))
+        for kmer, count in counter.iteritems():
+            if len(count) > 1:
+                print kmer
+                print count
+                
+def concat(args):
+    fa = FastaFile(args.fa)
+    out = FastaFile()
+    id_str = ''
+    for id in args.ids:
+        id_str += id + '_'
+    id_str = id_str[:-1]
+    out.seqs[id_str] = ''
+    for name, seq in fa.seqs.iteritems():
+        if name in args.ids:
+            out.seqs[id_str] += seq
+    out.save_to_disk(args.out)
+    print 'Check sequence %s in file %s' % (id_str, args.out)
                 
 def main():
     parser = ArgumentParser()
@@ -819,7 +847,18 @@ def main():
     parset_set = subparsers.add_parser('set', help='Intersect two files with ids')
     parset_set.add_argument('list_1', help='File with list of ids')
     parset_set.add_argument('list_2', help='File with list of ids')
-    parset_set.set_defaults(func=intersect)    
+    parset_set.set_defaults(func=intersect)
+    
+    parset_dup = subparsers.add_parser('kmer', help='Check kmer frequencies')
+    parset_dup.add_argument('fa', help='FASTA file')
+    parset_dup.add_argument('k', type=int, help='kmer length')
+    parset_dup.set_defaults(func=kmer_duplicates)    
+
+    parset_cat = subparsers.add_parser('cat', help='Check kmer frequencies')
+    parset_cat.add_argument('fa', help='FASTA file')
+    parset_cat.add_argument('out', help='output file')
+    parset_cat.add_argument('ids', nargs='+', help='contig ids')
+    parset_cat.set_defaults(func=concat)    
     
     args = parser.parse_args()
     args.func(args)

@@ -9,7 +9,7 @@
 #define GRAPH_HPP_
 
 #include <glib.h>
-#include "tpl.h"
+#include "tpl.hpp"
 #include "bwtaln.h"
 #include "hash.hpp"
 

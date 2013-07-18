@@ -14,7 +14,7 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include "bwtaln.h"
-#include "tpl.h"
+#include "tpl.hpp"
 #include "kmers.hpp"
 #include "ass.hpp"
 #include "rnaseq.h"
@@ -167,8 +167,8 @@ void p_comps(splice_graph *g) {
 	}
 }
 
-void p_graph(splice_graph *g) {
-	FILE *dot = xopen("graph.dot", "w");
+void p_graph(splice_graph *g, char *fn) {
+	FILE *dot = xopen(fn, "w");
 	p_comp_dot(g->vertexes, g->edges, dot);
 	fclose(dot);
 }
@@ -177,7 +177,7 @@ void save_vertexes(GPtrArray *vertexes) {
 	int i = 0;
 	vertex *v = NULL;
 	char entry[BUFSIZ];
-	FILE *v_fp = xopen("vertexes.fa", "w");
+	FILE *v_fp = xopen("../simu_out/vertexes.fa", "w");
 	for (i = 0; i < vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(vertexes, i);
 		sprintf(entry, ">%d length: %d\n", v->id, v->len);
@@ -203,7 +203,8 @@ edge *new_edge(vertex *left, vertex *right) {
 void destroy_edge(edge *eg) {
 	if (eg) {
 		bwa_free_read_seq(1, eg->junc_seq);
-		g_ptr_array_free(eg->reads, TRUE);
+		if (eg->reads)
+			g_ptr_array_free(eg->reads, TRUE);
 		free(eg);
 	}
 }
@@ -211,9 +212,12 @@ void destroy_edge(edge *eg) {
 void destroy_vertex(vertex *v) {
 	if (v) {
 		bwa_free_read_seq(1, v->ctg);
-		g_ptr_array_free(v->ins, TRUE);
-		g_ptr_array_free(v->outs, TRUE);
-		g_ptr_array_free(v->reads, TRUE);
+		if (v->ins)
+			g_ptr_array_free(v->ins, TRUE);
+		if (v->outs)
+			g_ptr_array_free(v->outs, TRUE);
+		if (v->reads)
+			g_ptr_array_free(v->reads, TRUE);
 		free(v);
 	}
 }
@@ -306,7 +310,12 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 	edge *e = NULL;
 	int i = 0, pre_start = 0;
 	int max_len = (hm->o->read_len - SHORT_BRANCH_SHIFT) * 2;
-	GPtrArray *this_vs = g_ptr_array_sized_new(main_juncs->len + 1);
+	GPtrArray *this_vs = NULL;
+
+	if (t->len <= 0)
+		return;
+
+	this_vs = g_ptr_array_sized_new(main_juncs->len + 1);
 
 	// Break the main template into vertexes
 	// The junctions are sorted by locus already
@@ -322,6 +331,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 		g_ptr_array_add(g->vertexes, v);
 		g_ptr_array_add(this_vs, v);
 		pre_start = j->locus;
+		show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
 	}
 
 	// Create the last vertex
@@ -329,7 +339,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 	g_ptr_array_add(g->vertexes, v);
 	g_ptr_array_add(this_vs, v);
 
-	//show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
+	show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
 
 	// Create the edges between vertexes
 	pre_start = 0;
@@ -638,7 +648,7 @@ int tarjan_connect(vertex *v, comp *g) {
 				for (i = 0; i < v->ins->len; i++) {
 					e = (edge*) g_ptr_array_index(v->ins, i);
 					//p_edge(e);
-					if (find_in_array(scc, (gpointer) e->right) >= 0) {
+					if (e->right == v && find_in_array(scc, (gpointer) e->left) >= 0) {
 						// Will be removed from the global graph later by clean_graph
 						e->status = -1;
 						//show_debug_msg(__func__, "To remove edge %d...\n",
@@ -783,6 +793,7 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	show_msg(__func__, "Building the splice graph...\n");
 	g = build_graph(all_tpls, all_juncs, hm);
 	show_msg(__func__, "Simplifying the splice graph...\n");
+	p_graph(g, "graph.ori.dot");
 	clean_graph(g);
 	save_vertexes(g->vertexes);
 
@@ -790,11 +801,11 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	break_to_comps(g);
 	// Some edges may be marked as 'dead' when breaking SCCs
 	clean_graph(g);
-	//p_graph(g);
+	p_graph(g, "graph.dot");
 	//p_comps(g);
 	calc_comp_stat(g);
 	reset_status(g);
 	show_msg(__func__, "Running EM to get paths...\n");
 	determine_paths(g, hm);
-	//destroy_graph(g);
+	destroy_graph(g);
 }

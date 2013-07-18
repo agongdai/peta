@@ -9,16 +9,16 @@ class Vertex(object):
     
     def __repr__(self):
         s = '==== Vertex %d ====\n' % self.id
-        s += 'Ins: \n'
-        for e in self.ins:
-            s += '\t'
-            s += str(e)
-            s += '\n'
-        s += 'Outs: \n'
-        for e in self.outs:
-            s += '\t'
-            s += str(e)
-            s += '\n'
+#        s += 'Ins: \n'
+#        for e in self.ins:
+#            s += '\t'
+#            s += str(e)
+#            s += '\n'
+#        s += 'Outs: \n'
+#        for e in self.outs:
+#            s += '\t'
+#            s += str(e)
+#            s += '\n'
         return s
 
 class Edge(object):
@@ -85,24 +85,53 @@ def connect(v, g):
                 break
             else:
                 this_scc.append(w)
-#    if len(this_scc):
-#        print '=== SCC root: Vertex %d ===' % v.id
-#        print this_scc
+    if len(this_scc):
+        print '=== SCC root: Vertex %d ===' % v.id
+        print this_scc
 
 g = Graph()
-for i in range(0, 8):
-    g.add_vertex(Vertex(i))
+v25581 = Vertex(25581)
+v25582 = Vertex(25582)
+v25583 = Vertex(25583)
+v25584 = Vertex(25584)
+v25585 = Vertex(25585)
+v25586 = Vertex(25586)
+v25587 = Vertex(25587)
+v25588 = Vertex(25588)
+v25589 = Vertex(25589)
+v25590 = Vertex(25590)
+v25591 = Vertex(25591)
+v30935 = Vertex(30935)
+g.add_vertex(v25581)
+g.add_vertex(v25582)
+g.add_vertex(v25583)
+g.add_vertex(v25584)
+g.add_vertex(v25585)
+g.add_vertex(v25586)
+g.add_vertex(v25587)
+g.add_vertex(v25588)
+g.add_vertex(v25589)
+g.add_vertex(v25590)
+g.add_vertex(v25591)
+g.add_vertex(v30935)
     
-e1 = Edge(1, g.vertexes[0], g.vertexes[1])
-e2 = Edge(2, g.vertexes[1], g.vertexes[7])
-e3 = Edge(3, g.vertexes[7], g.vertexes[1])
-e4 = Edge(4, g.vertexes[1], g.vertexes[2])
-e5 = Edge(5, g.vertexes[2], g.vertexes[3])
-e6 = Edge(6, g.vertexes[2], g.vertexes[5])
-e7 = Edge(7, g.vertexes[3], g.vertexes[4])
-e8 = Edge(8, g.vertexes[4], g.vertexes[5])
-e9 = Edge(9, g.vertexes[5], g.vertexes[6])
-e10 = Edge(10, g.vertexes[3], g.vertexes[6])
+e1 = Edge(1, v25581, v25582)
+e2 = Edge(1, v25582, v25583)
+e3 = Edge(1, v25583, v25584)
+e4 = Edge(1, v25584, v25585)
+e5 = Edge(1, v25585, v25586)
+e6 = Edge(1, v25586, v25587)
+e7 = Edge(1, v25587, v25588)
+e8 = Edge(1, v25588, v25589)
+e9 = Edge(1, v25589, v25590)
+e10 = Edge(1, v25590, v25591)
+e11 = Edge(1, v25590, v30935)
+
+e12 = Edge(1, v30935, v25581)
+e13 = Edge(1, v25583, v25590)
+e14 = Edge(1, v25582, v25586)
+e15 = Edge(1, v25584, v25588)
+e16 = Edge(1, v25581, v25589)
 
 #for i in range(0, 10):
 #    g.add_vertex(Vertex(i))
@@ -137,13 +166,12 @@ g.add_edge(e7)
 g.add_edge(e8)
 g.add_edge(e9)
 g.add_edge(e10)
-#g.add_edge(e11)
-#g.add_edge(e12)
-#g.add_edge(e13)
-#g.add_edge(e14)
-#g.add_edge(e15)
-#g.add_edge(e16)
-#g.add_edge(e17)
+g.add_edge(e11)
+g.add_edge(e12)
+g.add_edge(e13)
+g.add_edge(e14)
+g.add_edge(e15)
+g.add_edge(e16)
 
 g.draw()
 

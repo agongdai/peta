@@ -3,7 +3,7 @@
 
 #include <glib.h>
 #include <unordered_map>
-#include "tpl.h"
+#include "tpl.hpp"
 #include "bwtaln.h"
 #include "hash.hpp"
 #include "graph.hpp"

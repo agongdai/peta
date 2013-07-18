@@ -16,7 +16,7 @@
 #include "hash.hpp"
 #include "utils.h"
 #include "rnaseq.h"
-#include "tpl.h"
+#include "tpl.hpp"
 #include "kmers.hpp"
 #include "peseq.h"
 

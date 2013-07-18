@@ -14,7 +14,7 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include "bwtaln.h"
-#include "tpl.h"
+#include "tpl.hpp"
 #include "kmers.hpp"
 #include "ass.hpp"
 #include "rnaseq.h"
@@ -46,22 +46,6 @@ void destroy_junction(junction *j) {
 		if (j->reads)
 			g_ptr_array_free(j->reads, TRUE);
 		free(j);
-	}
-}
-
-void p_tpl_juncs(tpl *t, GPtrArray *t_juncs) {
-	show_debug_msg(__func__, "==== Junctions of Template %d ====\n", t->id);
-	uint32_t i = 0;
-	junction *j = NULL;
-	vertex *v = NULL;
-	for (i = 0; i < t_juncs->len; i++) {
-		j = (junction*) g_ptr_array_index(t_juncs, i);
-		p_junction(j);
-	}
-	show_debug_msg(__func__, "==== Vertexes of Template %d ====\n", t->id);
-	for (i = 0; i < t->vertexes->len; i++) {
-		v = (vertex*) g_ptr_array_index(t->vertexes, i);
-		printf("\tVertex %d: %d \n", v->id, v->len);
 	}
 }
 
@@ -299,23 +283,23 @@ void clean_junctions(GPtrArray *junctions) {
  *                         |||||||||
  *                         ---------
  */
-int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
-		const int pos, const int mismatches, const int ori) {
+int branch_on_main(const bwa_seq_t *main_seq, const bwa_seq_t *branch,
+		const int pos, const int mismatches, const int exist_ori) {
 	bwa_seq_t *sub = NULL;
 	int similar = 0;
-	if (ori) {
+	if (exist_ori) {
 		if (pos < branch->len)
 			return 0;
-		sub = new_seq(main, branch->len, pos - branch->len);
+		sub = new_seq(main_seq, branch->len, pos - branch->len);
 	} else {
-		if ((main->len - pos) < branch->len)
+		if ((main_seq->len - pos) < branch->len)
 			return 0;
-		sub = new_seq(main, branch->len, pos);
+		sub = new_seq(main_seq, branch->len, pos);
 	}
+
+	p_ctg_seq("FULL", main_seq);
 	p_ctg_seq(__func__, sub);
 	p_ctg_seq(__func__, branch);
-	//similar = similar_seqs(sub, branch, mismatches, 1, MATCH_SCORE,
-	//		MISMATCH_SCORE, INDEL_SCORE);
 	similar = seq_ol(sub, branch, branch->len, mismatches);
 	free_read_seq(sub);
 	show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,

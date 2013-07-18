@@ -33,6 +33,7 @@
 #define N_MISMATCHES			2
 #define MIN_PAIRS				2
 #define MIN_JUNCTION_READS		1
+#define MIN_WEIGHT				2
 
 typedef uint64_t index64;
 

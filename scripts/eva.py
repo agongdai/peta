@@ -768,6 +768,21 @@ def get_unaligned(args):
 			unaligned.seqs[ctg_name] = seq
 	unaligned.save_to_disk('%s.unaligned' % args.psl)
 	print 'Check %s.unaligned' % args.psl
+	
+def paths(args):
+	all_hits = read_blat_hits(args.psl, 'ref')
+	no = 1
+	print '%d reference transcripts hit' % len(all_hits)
+	for tx_name, hits in all_hits.iteritems():
+		paths = []
+		for h in hits:
+			if h.n_mismatch == 0 and h.n_match == h.rlen and h.n_ref_gap == 0 and h.n_query_gap == 0:
+				paths.append(h.qname)
+		if len(paths) > 0:
+			print no, tx_name
+			for p in paths:
+				print '\tPath %s' % p
+			no+=1
 
 def diff_novo(args):
 	tx = FastaFile(args.transcript)
@@ -891,7 +906,11 @@ def main():
     parser_unaligned.set_defaults(func=get_unaligned)
     parser_unaligned.add_argument('contigs', help='assembled contigs')
     parser_unaligned.add_argument('-p', '--psl', required=True, metavar='FILE', help='PSL file', dest='psl')
-
+    
+    parser_paths = subparsers.add_parser('paths', help='Check how many full length paths')
+    parser_paths.set_defaults(func=paths)
+    parser_paths.add_argument('psl', help='path-to-ref PSL file')
+	
     args = parser.parse_args()
     args.func(args)
 

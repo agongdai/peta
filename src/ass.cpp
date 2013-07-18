@@ -15,7 +15,7 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include "bwtaln.h"
-#include "tpl.h"
+#include "tpl.hpp"
 #include "rnaseq.h"
 #include "pechar.h"
 #include "utils.h"
@@ -49,6 +49,13 @@ void add_a_junction(tpl *main_tpl, tpl *branch_tpl, uint64_t kmer, int locus,
 	g_mutex_lock(kmer_id_mutex);
 	g_ptr_array_add(branching_events, new_j);
 	g_mutex_unlock(kmer_id_mutex);
+	// Add the junction to the templates. For the 'existing connect' later.
+	if (!main_tpl->m_juncs)
+		main_tpl->m_juncs = g_ptr_array_sized_new(2);
+	g_ptr_array_add(main_tpl->m_juncs, new_j);
+	if (!branch_tpl->b_juncs)
+		branch_tpl->b_juncs = g_ptr_array_sized_new(2);
+	g_ptr_array_add(branch_tpl->b_juncs, new_j);
 }
 
 tpl *blank_tpl(uint64_t query_int, int kmer_len, int init_len, int ori) {
@@ -78,6 +85,11 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 		id = m->first;
 		t = (tpl*) m->second;
 		g_ptr_array_add(tpls, t);
+		/**
+		 show_debug_msg(__func__, "Tails of template %d\n", t->id);
+		 p_ctg_seq(__func__, t->l_tail);
+		 p_ctg_seq(__func__, t->r_tail);
+		 **/
 	}
 	g_ptr_array_sort(tpls, (GCompareFunc) cmp_tpl_by_id);
 	return tpls;
@@ -112,49 +124,64 @@ void mark_tpl_kmers_fresh(tpl *t, hash_map *hm, const int kmer_len) {
 
 /**
  * Mark reads on template as used.
+ * If there are virtual tails, concat them as well
  */
 void mark_reads_on_tpl(tpl *t, hash_map *hm) {
-	int i = 0, j = 0, k = 0;
+	int i = 0, j = 0, k = 0, ctg_len = 0, l_len = 0;
 	uint64_t kmer_int = 0;
-	bwa_seq_t *seq = NULL, *read = NULL;
+	bwa_seq_t *seq = NULL, *read = NULL, *ctg = NULL;
 	GPtrArray *hits = NULL;
 	int kmer_len = hm->o->k, read_len = hm->o->read_len;
 	if (!t->reads)
 		t->reads = g_ptr_array_sized_new(4);
-	if (t->len < read_len)
+	ctg_len = t->len;
+	if (t->l_tail) {
+		ctg_len += t->l_tail->len;
+		l_len = t->l_tail->len;
+	}
+	if (t->r_tail) {
+		ctg_len += t->r_tail->len;
+	}
+	if (ctg_len < read_len)
 		return;
-	for (i = 0; i <= t->len - read_len; i++) {
-		seq = new_seq(t->ctg, read_len, i);
-		hits = align_full_seq(seq, hm, 2);
+	ctg = blank_seq(ctg_len);
+	if (t->l_tail) {
+		memcpy(ctg->seq, t->l_tail->seq, t->l_tail->len);
+		ctg->len = t->l_tail->len;
+	}
+	memcpy(ctg->seq + ctg->len, t->ctg->seq, t->ctg->len);
+	ctg->len += t->len;
+	if (t->r_tail) {
+		memcpy(ctg->seq + ctg->len, t->r_tail->seq, t->r_tail->len);
+		ctg->len += t->r_tail->len;
+	}
+	set_rev_com(ctg);
+
+	/**
+	 show_debug_msg(__func__, "Template seq: %d\n", t->id);
+	 p_ctg_seq(__func__, t->ctg);
+	 p_ctg_seq(__func__, ctg);
+	 **/
+
+	for (i = 0; i <= ctg->len - read_len; i++) {
+		seq = new_seq(ctg, read_len, i);
+		hits = align_full_seq(seq, hm, N_MISMATCHES);
 		for (j = 0; j < hits->len; j++) {
 			read = (bwa_seq_t*) g_ptr_array_index(hits, j);
-			add_read_to_tpl(t, read, i);
+			add_read_to_tpl(t, read, i - l_len);
 			//p_query(__func__, read);
+			// Mark less frequent kmers on the read as used
 			for (k = 0; k <= read->len - kmer_len; k++) {
 				kmer_int = get_kmer_int(read->seq, k, 1, kmer_len);
-				if (get_kmer_count(kmer_int, hm, 0) <= 2)
+				if (get_kmer_count(kmer_int, hm, 0) <= MIN_WEIGHT)
 					mark_kmer_used(kmer_int, hm, t->id, i + k, t->len);
 			}
 		}
 		g_ptr_array_free(hits, TRUE);
 		bwa_free_read_seq(1, seq);
 	}
+	bwa_free_read_seq(1, ctg);
 	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
-}
-
-void cal_coverage(tpl *t, hash_map *hm) {
-	int i = 0, *counters = NULL;
-	uint64_t query_int = 0;
-	float sum = 0;
-	if (!t || t->len <= 0)
-		return;
-	for (i = 0; i < t->len - kmer_len; i++) {
-		query_int = get_kmer_int(t->ctg->seq, i, 1, kmer_len);
-		counters = count_next_kmers(hm, query_int, 1, 0);
-		sum += counters[get_max_index(counters)];
-		free(counters);
-	}
-	t->coverage = sum / t->len;
 }
 
 /**
@@ -275,10 +302,11 @@ int val_branching(hash_map *hm, tpl *main_tpl, tpl_hash *all_tpls,
 }
 
 /**
- * Validate the junction by checking mate pairs
+ * Validate the junction by checking mate pairs.
+ * Depending on ori and con_pos, only partial reads on the main template are counted
  */
-int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, GPtrArray *junc_reads, hash_map *hm,
-		const int con_pos, const int ori) {
+int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, GPtrArray *junc_reads,
+		hash_map *hm, const int con_pos, const int ori) {
 	int start = con_pos, end = main_tpl->len;
 	int is_valid = 0;
 	GPtrArray *tmp = NULL;
@@ -290,30 +318,35 @@ int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, GPtrArray *junc_reads, has
 	}
 	if (ori) {
 		start = 0;
-		end = con_pos;
+		end = con_pos - hm->o->read_len;
 	}
 	/**
-	show_debug_msg(__func__, "Range [%d, %d]; ORI: %d\n", start, end, ori);
-	show_debug_msg(__func__, "Main template %d reads: %d\n", main_tpl->id,
-			main_tpl->reads->len);
-	p_readarray(main_tpl->reads, 1);
-	show_debug_msg(__func__, "Branch template %d reads: %d\n", branch_tpl->id,
-			branch_tpl->reads->len);
-	p_readarray(branch_tpl->reads, 1);
+	 show_debug_msg(__func__, "Checking pairs of %d and %d: [%d, %d]\n",
+	 main_tpl->id, branch_tpl->id, start, end);
+	 show_debug_msg(__func__, "Range [%d, %d]; ORI: %d\n", start, end, ori);
+	 show_debug_msg(__func__, "Main template %d reads: %d\n", main_tpl->id,
+	 main_tpl->reads->len);
+	 p_readarray(main_tpl->reads, 1);
+	 show_debug_msg(__func__, "Branch template %d reads: %d\n", branch_tpl->id,
+	 branch_tpl->reads->len);
+	 p_readarray(branch_tpl->reads, 1);
 	 **/
 
 	is_valid = vld_tpl_mates(branch_tpl, main_tpl, start, end, MIN_PAIRS);
 	if (!is_valid) {
 		g_ptr_array_sort(junc_reads, (GCompareFunc) cmp_reads_by_name);
 		/**
-		show_debug_msg(__func__, "Tag 1 \n");
-		p_readarray(main_tpl->reads, 1);
-		show_debug_msg(__func__, "Tag 2\n");
-		p_readarray(junc_reads, 1);
-		**/
+		 show_debug_msg(__func__, "Tag 1 \n");
+		 p_readarray(main_tpl->reads, 1);
+		 show_debug_msg(__func__, "Tag 2\n");
+		 p_readarray(junc_reads, 1);
+		 **/
+		// Maybe exon shorter than read length, the mates located at the junction
 		is_valid = find_pairs(junc_reads, main_tpl->reads, 0, main_tpl->id,
 				start, end, MIN_PAIRS);
 		if (!is_valid) {
+			is_valid = find_pairs(junc_reads, branch_tpl->reads, 0,
+					branch_tpl->id, 0, branch_tpl->len, MIN_PAIRS);
 		}
 	}
 	return is_valid;
@@ -413,30 +446,30 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 		const int ori) {
 	int *counters = NULL, locus = 0, i = 0, connected = 0, eg_id = 0,
 			valid = 0, weight = 0, con_pos = 0, exist_ori = 0,
-			parent_locus = 0, borrow_bases = 0;
+			parent_locus = 0, borrow_bases = 0, on_main = 0, to_destroy = 0;
+	int loop_len = 0, j = 0;
 	uint64_t value = 0, query_copy = query_int;
 	tpl *existing = NULL, *parent_existing = NULL;
 	GPtrArray *junc_reads = NULL;
-
-	show_debug_msg(__func__,
-			"---------- Connecting to existing, ori %d ----------\n", ori);
+	junction *right_junc = NULL;
 
 	counters = count_next_kmers(hm, query_int, 0, ori);
 
-	/**
-	 p_ctg_seq(__func__, branch->ctg);
-	 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
-	 p_query(__func__, debug);
-	 bwa_free_read_seq(1, debug);
-	 show_debug_msg(__func__, "Counters: %d,%d,%d,%d\n", counters[0],
-	 counters[1], counters[2], counters[3]);
-	 **/
+	p_ctg_seq(__func__, branch->ctg);
+	bwa_seq_t *debug = get_kmer_seq(query_int, 25);
+	p_query(__func__, debug);
+	bwa_free_read_seq(1, debug);
+	show_debug_msg(__func__, "Counters: %d,%d,%d,%d\n", counters[0],
+			counters[1], counters[2], counters[3]);
 
 	// In case connecting to the template itself
 	mark_tpl_kmers_used(branch, hm, hm->o->k, 0);
 	for (i = 0; i < 4; i++) {
 		if (counters[i] < MIN_WEIGHT)
 			continue;
+		show_debug_msg(__func__,
+				"---------- Connecting to existing, ori %d ----------\n", ori);
+
 		query_int = shift_bit(query_copy, i, hm->o->k, ori);
 		read_tpl_using_kmer(query_int, hm->hash, &eg_id, &locus, &value);
 
@@ -446,25 +479,56 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 			// It happens when 'existing' and 'branch' are the same.
 			// And the same template has been trimmed before.
 
-			/**
-			 show_debug_msg(__func__, "Existing tpl %d: %d\n", existing->id,
-			 existing->len);
-			 show_debug_msg(__func__,
-			 "Locus: %d; existing->len: %d; hm->o->k: %d\n", locus,
-			 existing->len, hm->o->k);
-			 **/
+
+			show_debug_msg(__func__, "Existing tpl %d: %d\n", existing->id,
+					existing->len);
+			show_debug_msg(__func__,
+					"Locus: %d; existing->len: %d; hm->o->k: %d\n", locus,
+					existing->len, hm->o->k);
+			p_ctg_seq("MAIN", existing->ctg);
+			p_ctg_seq("BRANCH", branch->ctg);
+
 			//if (locus > existing->len - hm->o->k)
 			//	continue;
 			con_pos = ori ? (locus + 1) : (locus + hm->o->k - 1);
+			exist_ori = ori ? 0 : 1;
 
-			/**
-			 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
-			 p_query(__func__, debug);
-			 bwa_free_read_seq(1, debug);
-			 show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
-			 locus);
-			 **/
+			bwa_seq_t *debug = get_kmer_seq(query_int, 25);
+			p_query(__func__, debug);
+			bwa_free_read_seq(1, debug);
+			show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
+					locus);
 
+			// If the branch is can be merged to main template, skip
+			// Only check when it is extending to the left and
+			//		its right end is not connected to anywhere.
+			if (branch->len < 100 && branch->r_tail) {
+				show_debug_msg(__func__, "Main template: %d; pos: %d \n",
+						existing->id, con_pos);
+				show_debug_msg(__func__, "Branch template: %d; ori: %d \n",
+						branch->id, exist_ori);
+				p_ctg_seq("Right Tail", branch->r_tail);
+
+				right_junc = (junction*) g_ptr_array_index(branch->b_juncs, 0);
+				if (0 - N_MISMATCHES <= right_junc->locus - con_pos
+						&& right_junc->locus - con_pos <= N_MISMATCHES) {
+					on_main = branch_on_main(existing->ctg, branch->ctg,
+							con_pos, (branch->len / hm->o->k + 2) * 3,
+							exist_ori);
+					valid = on_main ? 0 : 1;
+					if (!valid) {
+						// Mark it as 'dead', will be destroyed in kmer_ext_thread.
+						branch->alive = 0;
+						// Remove its right junction from the global junctions
+						// @TODO: here it works only if it is single thread
+						g_ptr_array_remove_index_fast(branching_events,
+								branching_events->len - 1);
+						break;
+					}
+				}
+			}
+
+			// If the main_template is too short, maybe should connect to its main connector
 			if (existing->len < hm->o->k) {
 				parent_existing = connect_to_small_tpl(hm, query_int, branch,
 						existing, &parent_locus, &borrow_bases, ori);
@@ -473,50 +537,74 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 					con_pos = parent_locus;
 				}
 			}
+
+			// If no enough junction reads, skip
 			junc_reads = find_junc_reads_w_tails(hm, existing, branch, con_pos,
 					(hm->o->read_len - SHORT_BRANCH_SHIFT) * 2, ori, &weight);
 			valid = (junc_reads->len >= MIN_JUNCTION_READS) ? 1 : 0;
-			p_readarray(junc_reads, 1);
+			//p_readarray(junc_reads, 0);
 			if (!valid)
 				continue;
-			valid = vld_junc_by_mates(existing, branch, junc_reads, hm, con_pos, ori);
+
+			// If no pairs, skip
+			valid = vld_junc_by_mates(existing, branch, junc_reads, hm,
+					con_pos, ori);
 			g_ptr_array_free(junc_reads, TRUE);
-			if (valid) {
-				exist_ori = ori ? 0 : 1;
-				if (branch->len < hm->o->k) {
-					if (exist_ori)
-						con_pos -= branch->len;
-					else
-						con_pos = locus + branch->len + 1;
-					branch->len = 0;
-					branch->ctg->len = 0;
-					set_rev_com(branch->ctg);
+			if (!valid)
+				continue;
+
+			// Trim the branch
+			if (branch->len < hm->o->k) {
+				if (exist_ori)
+					con_pos -= branch->len;
+				else
+					con_pos = locus + branch->len + 1;
+				branch->len = 0;
+				branch->ctg->len = 0;
+				set_rev_com(branch->ctg);
+			} else {
+				// Make the branch not sharing a 24-mer with the main
+				if (exist_ori) {
+					con_pos -= (hm->o->k - 1 - borrow_bases);
 				} else {
-					// Make the branch not sharing a 24-mer with the main
-					if (exist_ori) {
-						con_pos -= (hm->o->k - 1 - borrow_bases);
-					} else {
-						con_pos += (hm->o->k - 1 - borrow_bases);
-						memmove(branch->ctg->seq, branch->ctg->seq + (hm->o->k
-								- 1 - borrow_bases), sizeof(ubyte_t)
-								* (branch->len - (hm->o->k - 1) - borrow_bases));
-					}
-					branch->len -= (hm->o->k - 1 - borrow_bases);
-					branch->ctg->len = branch->len;
-					set_rev_com(branch->ctg);
+					con_pos += (hm->o->k - 1 - borrow_bases);
+					memmove(branch->ctg->seq, branch->ctg->seq + (hm->o->k - 1
+							- borrow_bases), sizeof(ubyte_t) * (branch->len
+							- (hm->o->k - 1) - borrow_bases));
 				}
-				show_debug_msg(__func__,
-						"Connect existing [%d, %d] to [%d, %d] at %d. \n",
-						branch->id, branch->len, existing->id, existing->len,
-						con_pos);
-				set_tail(branch, existing, con_pos, hm->o->read_len
-						- SHORT_BRANCH_SHIFT, exist_ori);
-				//p_ctg_seq("Right tail", branch->r_tail);
-				//p_ctg_seq("Left  tail", branch->l_tail);
-				add_a_junction(existing, branch, query_int, con_pos, exist_ori,
-						weight);
-				connected = 1;
+				branch->len -= (hm->o->k - 1 - borrow_bases);
+				branch->ctg->len = branch->len;
+				set_rev_com(branch->ctg);
 			}
+			// If there is a small loop, erase it.
+			if (ori && branch->b_juncs && branch->b_juncs->len == 1) {
+				right_junc = (junction*) g_ptr_array_index(branch->b_juncs, 0);
+				if (right_junc->main_tpl == existing && right_junc->ori == 1) {
+					loop_len = con_pos - right_junc->locus;
+					show_debug_msg(__func__, "Erasing small loop... \n");
+					p_junction(right_junc);
+					if (loop_len > 0 && loop_len < hm->o->k) {
+						// Copy the small loop to the head of the branch, adjust the connecting position
+						for (j = right_junc->locus + loop_len - 1; j
+								>= right_junc->locus; j--) {
+							ext_con(branch->ctg, existing->ctg->seq[j], 1);
+						}
+						branch->len = branch->ctg->len;
+						con_pos = right_junc->locus;
+					}
+				}
+			}
+			show_debug_msg(__func__,
+					"Connect existing [%d, %d] to [%d, %d] at %d. \n",
+					branch->id, branch->len, existing->id, existing->len,
+					con_pos);
+			set_tail(branch, existing, con_pos, hm->o->read_len
+					- SHORT_BRANCH_SHIFT, exist_ori);
+			//p_ctg_seq("Right tail", branch->r_tail);
+			//p_ctg_seq("Left  tail", branch->l_tail);
+			add_a_junction(existing, branch, query_int, con_pos, exist_ori,
+					weight);
+			connected = 1;
 		}
 	}
 	free(counters);
@@ -681,7 +769,6 @@ void kmer_ext_branch(tpl *t, hash_map *hm, tpl_hash *all_tpls, const int ori) {
 			g_mutex_unlock(kmer_id_mutex);
 			con_existing
 					= kmer_ext_tpl(branch, branch_query, hm, all_tpls, ori);
-			cal_coverage(branch, hm);
 			// If the branch can be merged into main template, erase the branch
 			if (branch_on_main(t->ctg, branch->ctg, con_pos, (branch->len
 					/ hm->o->k + 2) * 3, ori)) {
@@ -706,15 +793,15 @@ void kmer_ext_branch(tpl *t, hash_map *hm, tpl_hash *all_tpls, const int ori) {
 				free_eg_seq(branch);
 				branch->alive = 0;
 			} else {
-//				valid = vld_junc_by_mates(t, branch, hm, con_pos, ori);
-//				if (valid) {
-					add_a_junction(t, branch, query_int, con_pos, ori, weight);
-					mark_tpl_kmers_used(branch, hm, kmer_len, 0);
-					upd_tpl_jun_locus(branch, branching_events, kmer_len);
-					// Try to extend branches of current branch
-					kmer_ext_branch(branch, hm, all_tpls, 0);
-					kmer_ext_branch(branch, hm, all_tpls, 1);
-//				}
+				//				valid = vld_junc_by_mates(t, branch, hm, con_pos, ori);
+				//				if (valid) {
+				add_a_junction(t, branch, query_int, con_pos, ori, weight);
+				mark_tpl_kmers_used(branch, hm, kmer_len, 0);
+				upd_tpl_jun_locus(branch, branching_events, kmer_len);
+				// Try to extend branches of current branch
+				kmer_ext_branch(branch, hm, all_tpls, 0);
+				kmer_ext_branch(branch, hm, all_tpls, 1);
+				//				}
 			}
 		}
 		free(counters);
@@ -768,7 +855,11 @@ int kmer_ext_tpl(tpl *t, uint64_t query_int, hash_map *hm, tpl_hash *all_tpls,
 				break;
 			}
 		}
-
+		// Maybe marked as not alive in existing_connect
+		//		if (!t->alive) {
+		//			free(counters);
+		//			break;
+		//		}
 		if (max_c == -1) {
 			if (!existing_connect(t, hm, all_tpls, query_int, ori))
 				show_debug_msg(__func__, "[%d, %d] No hits, stop here. \n",
@@ -816,6 +907,12 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	c = get_kmer_rf_count(kmer_int, params->hm, 0);
 	query = get_kmer_seq(kmer_int, opt->k);
 
+	/**
+	 show_debug_msg("TAG",
+	 "============= %" ID64 ": %" ID64 " ============ \n", kmer_int, c);
+	 p_query(__func__, query);
+	 **/
+
 	if (kmer_int < 64 || rev_kmer_int < 64 || c <= 1 || is_repetitive_q(query)
 			|| is_biased_q(query) || kmer_is_used(kmer_int, params->hm)) {
 		bwa_free_read_seq(1, query);
@@ -858,18 +955,15 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	 }
 	 **/
 
-	if (!connected && t->len <= opt->k) {
+	if (!t->alive || (!connected && t->len <= opt->k)) {
 		g_mutex_lock(kmer_id_mutex);
 		all_tpls->erase(t->id);
 		g_mutex_unlock(kmer_id_mutex);
 		destroy_eg(t);
 	} else {
 		mark_tpl_kmers_used(t, params->hm, opt->k, 0);
-		//mark_reads_on_tpl(t, params->hm);
+		mark_reads_on_tpl(t, params->hm);
 		upd_tpl_jun_locus(t, branching_events, opt->k);
-		cal_coverage(t, params->hm);
-		//kmer_ext_branch(t, params->hm, all_tpls, 0);
-		//kmer_ext_branch(t, params->hm, all_tpls, 1);
 		t->start_kmer = *((uint64_t*) data);
 	}
 	return NULL;
@@ -902,7 +996,7 @@ void kmer_threads(kmer_t_meta *params) {
 	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, params, 1, TRUE,
 			NULL);
 	for (i = 0; i < start_kmers->len; i++) {
-		if (i % 10000 == 0)
+		if (i % 100000 == 0)
 		show_debug_msg(__func__, "Extending %" ID64 "-th kmer... \n ", i);
 		counter = (kmer_counter*) g_ptr_array_index(start_kmers, i);
 		kmer_ext_thread(counter, params);
@@ -1099,10 +1193,10 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 }
 
 int pe_kmer(int argc, char *argv[]) {
-	process_only("../SRR097897_out/paired.junctions.nolen",
-				"../SRR097897_out/paired.fa",
-				"/home/ariyaratnep/shaojiang/peta/rnaseq/Spombe/SRR097897/SRR097897.fa");
-		return 0;
+	//	process_only("../SRX011545_out/paired.junctions.nolen",
+	//			"../SRX011545_out/paired.fa",
+	//			"/home/ariyaratnep/shaojiang/peta/rnaseq/hg19/SRX011545/both.fa");
+	//	return 0;
 
 	int c = 0;
 	clock_gettime(CLOCK_MONOTONIC, &kmer_start_time);
