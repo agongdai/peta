@@ -36,6 +36,7 @@ extern "C" {
 junction *new_junction(tpl *main_tpl, tpl *branch_tpl, uint64_t kmer,
 		int locus, int ori, int weight);
 void p_tpl_juncs(tpl *t, GPtrArray *t_juncs);
+int same_main_juncs(junction *jun_1, junction *jun_2);
 GPtrArray *find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 		const int max_len, int *weight);
 GPtrArray *find_junc_reads_w_tails(hash_map *hm, tpl *left, tpl *right,

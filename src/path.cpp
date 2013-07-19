@@ -895,6 +895,7 @@ GPtrArray *comp_paths(comp *c, hash_map *hm) {
 	destory_levels(levels);
 	assign_path_attrs(paths, hm);
 
+
 	validate_short_exons(paths, hm);
 
 	paths_prob = init_path_prob(paths, hm->o->read_len);

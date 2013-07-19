@@ -200,6 +200,17 @@ edge *new_edge(vertex *left, vertex *right) {
 	return e;
 }
 
+edge *bridge_edge(vertex *left, vertex *right) {
+	edge *e = NULL;
+	uint32_t i = 0;
+	for (i = 0; i < left->outs->len; i++) {
+		e = (edge*) g_ptr_array_index(left->outs, i);
+		if (e->right == right)
+			return NULL;
+	}
+	return new_edge(left, right);
+}
+
 void destroy_edge(edge *eg) {
 	if (eg) {
 		bwa_free_read_seq(1, eg->junc_seq);
@@ -346,7 +357,9 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 	for (i = 0; i < this_vs->len - 1; i++) {
 		left = (vertex*) g_ptr_array_index(this_vs, i);
 		right = (vertex*) g_ptr_array_index(this_vs, i + 1);
-		e = new_edge(left, right);
+		e = bridge_edge(left, right);
+		if (!e)
+			continue;
 		e->junc_seq = get_junc_seq(t, pre_start, &e->left_len, t, pre_start,
 				&e->right_len, max_len);
 		e->len = e->left_len + e->right_len;
@@ -426,7 +439,9 @@ void remove_zero_vertexes(tpl *t, GPtrArray *main_juncs, int read_len,
 					right = find_vertex_by_locus(t, right_locus, 0);
 					if (!left || !right)
 						continue;
-					e = new_edge(left, right);
+					e = bridge_edge(left, right);
+					if (!e)
+						continue;
 					e->junc_seq = get_junc_seq(t, left_locus, &e->left_len, t,
 							right_locus, &e->right_len, max_len);
 					g_ptr_array_add(left->outs, e);
@@ -482,7 +497,9 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
 			right = find_vertex_by_locus(t, j->locus, 0);
 			if (!right)
 				continue;
-			e = new_edge(branch_v, right);
+			e = bridge_edge(branch_v, right);
+			if (!e)
+				continue;
 			e->junc_seq = get_junc_seq(j->branch_tpl, j->branch_tpl->len,
 					&e->left_len, t, j->locus, &e->right_len, max_len);
 			g_ptr_array_add(branch_v->outs, e);
@@ -493,7 +510,9 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
 			left = find_vertex_by_locus(t, j->locus, 1);
 			if (!left)
 				continue;
-			e = new_edge(left, branch_v);
+			e = bridge_edge(left, branch_v);
+			if (!e)
+				continue;
 			e->junc_seq = get_junc_seq(t, j->locus, &e->left_len,
 					j->branch_tpl, 0, &e->right_len, max_len);
 			g_ptr_array_add(left->outs, e);

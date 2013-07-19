@@ -61,6 +61,14 @@ gint cmp_junc_by_branch_id(gpointer a, gpointer b) {
 	return ((c_a->branch_tpl->id) - c_b->branch_tpl->id);
 }
 
+int same_main_juncs(junction *jun_1, junction *jun_2) {
+	if (!jun_1 || !jun_2)
+		return 0;
+	if (jun_1->main_tpl == jun_2->main_tpl && jun_1->locus == jun_2->locus
+			&& jun_1->ori == jun_2->ori)
+		return 1;
+}
+
 /**
  * Get junctions whose branch tpl is the given tpl branch
  */
@@ -117,8 +125,9 @@ bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
 	return junc_seq;
 }
 
-GPtrArray *find_junc_reads_w_tails(hash_map *hm, tpl *main_tpl, tpl *branch_tpl,
-		const int pos, const int max_len, const int ori, int *weight) {
+GPtrArray *find_junc_reads_w_tails(hash_map *hm, tpl *main_tpl,
+		tpl *branch_tpl, const int pos, const int max_len, const int ori,
+		int *weight) {
 	bwa_seq_t *left_seq = NULL, *right_seq = NULL;
 	tpl *left_eg = branch_tpl, *right_eg = main_tpl;
 	int l_pos = branch_tpl->len, r_pos = pos;
