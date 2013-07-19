@@ -413,7 +413,7 @@ tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
 			bwa_free_read_seq(1, junc_seq);
 			if (ori) {
 				if (i >= left_seq->len) {
-					*parent_locus = i - left_seq->len + 1;
+					*parent_locus = i - left_seq->len;
 					parent = short_tpl;
 				} else {
 					*parent_locus = left_j->locus;
@@ -422,12 +422,11 @@ tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
 				}
 			} else {
 				if (i > left_seq->len) {
-					*parent_locus = i - left_seq->len - 1;
+					*parent_locus = i - left_seq->len;
 					parent = short_tpl;
 				} else {
-					*parent_locus = right_j->locus + (i + hm->o->k
-							- left_seq->len - short_tpl->len) - 1;
-					*borrow_bases = hm->o->k - right_seq->len;
+					*parent_locus = right_j->locus; 
+					*borrow_bases = hm->o->k - short_tpl->len - (left_seq->len - i); 
 					parent = right_j->main_tpl;
 					show_debug_msg(
 							__func__,
@@ -507,6 +506,19 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 			show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
 					locus);
 
+            // If the existing is too short, maybe need to connect to its connector instead.
+            if (existing->len < hm->o->k) {
+                parent_existing = connect_to_small_tpl(hm, query_int, branch,
+                    existing, &parent_locus, &borrow_bases, ori);
+                if (parent_existing) {
+                    show_debug_msg(__func__,"TAG: Existing changed from [%d, %d] to [%d, %d]\n",
+                    existing->id, existing->len, parent_existing->id,parent_existing->len);
+                    show_debug_msg(__func__,"TAG: Connect position changed from %d to %d\n",con_pos, parent_locus);
+                    existing = parent_existing;
+                    con_pos = parent_locus;
+                }
+            }
+
 			// If the branch is can be merged to main template, skip
 			// Only check when it is extending to the left and
 			//		its right end is not connected to anywhere.
@@ -520,8 +532,14 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 				 **/
 
 				right_junc = (junction*) g_ptr_array_index(branch->b_juncs, 0);
-				if (0 - N_MISMATCHES <= right_junc->locus - con_pos
-						&& right_junc->locus - con_pos <= N_MISMATCHES) {
+                p_junction(right_junc);
+                if (get_abs(right_junc->locus - con_pos) <= N_MISMATCHES
+                    && branch->len <= N_MISMATCHES) {
+                    branch->alive = 0;
+                    break;
+                }
+                loop_len = get_abs(branch->len - (right_junc->locus - con_pos));
+                if (loop_len <= N_MISMATCHES) {
 					on_main = branch_on_main(existing->ctg, branch->ctg,
 							con_pos, (branch->len / hm->o->k + 2) * 3,
 							exist_ori);
@@ -535,24 +553,6 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 								branching_events->len - 1);
 						break;
 					}
-				}
-			}
-
-			// If the main_template is too short, maybe should connect to its main connector
-			if (existing->len < hm->o->k) {
-				parent_existing = connect_to_small_tpl(hm, query_int, branch,
-						existing, &parent_locus, &borrow_bases, ori);
-				if (parent_existing) {
-					show_debug_msg(
-							__func__,
-							"TAG: Existing changed from [%d, %d] to [%d, %d]\n",
-							existing->id, existing->len, parent_existing->id,
-							parent_existing->len);
-					show_debug_msg(__func__,
-							"TAG: Connect position changed from %d to %d\n",
-							con_pos, parent_locus);
-					existing = parent_existing;
-					con_pos = parent_locus;
 				}
 			}
 
@@ -589,9 +589,8 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 				// Make the branch not sharing a 24-mer with the main
 				if (borrow_bases) {
 					if (exist_ori) {
-
+                        branch->len -= borrow_bases;
 					} else {
-						con_pos += borrow_bases;
 						show_debug_msg(__func__, "Connecting position: %d\n",
 								con_pos);
 						memmove(branch->ctg->seq, branch->ctg->seq
@@ -614,6 +613,8 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 				branch->ctg->len = branch->len;
 				p_ctg_seq("TRUNCATED", branch->ctg);
 				set_rev_com(branch->ctg);
+                if (borrow_bases && branch->id > 626)
+                    exit(1);
 			}
 			// If there is a small loop, erase it.
 			if (ori && branch->b_juncs && branch->b_juncs->len == 1) {
@@ -1005,8 +1006,6 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		upd_tpl_jun_locus(t, branching_events, opt->k);
 		t->start_kmer = *((uint64_t*) data);
 	}
-	if (t->id == 1120)
-		exit(1);
 	return NULL;
 }
 
