@@ -865,6 +865,9 @@ def cmp_psl(args):
 		print 'psl_2 bases covered:      %.2f' % (n_base_both / (n_base_2 + n_base_both))
 	print 'Check file: %s.base' % args.psl_2
 
+def comps(args):
+    pass
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')

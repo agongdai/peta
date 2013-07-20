@@ -166,11 +166,11 @@ void mark_reads_on_tpl(tpl *t, hash_map *hm, int start, int end) {
 	start -= read_len;
 	start = start < 0 ? 0 : start;
 	end = (end > ctg->len - read_len) ? (ctg->len - read_len) : end;
-    /**
+	/**
 	 show_debug_msg(__func__, "Start~End: [%d, %d] \n", start, end);
 	 p_ctg_seq(__func__, t->ctg);
 	 p_ctg_seq(__func__, ctg);
-    **/
+	 **/
 	for (i = start; i <= end; i++) {
 		seq = new_seq(ctg, read_len, i);
 		hits = align_full_seq(seq, hm, N_MISMATCHES);
@@ -347,7 +347,7 @@ int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, GPtrArray *junc_reads,
 
 	/**
 	 show_debug_msg(__func__, "Main: [%d, %d]; Branch: [%d, %d]; Start~End: [%d, %d]\n",
-		main_tpl->id, main_tpl->len, branch_tpl->id, branch_tpl->len, start, end);
+	 main_tpl->id, main_tpl->len, branch_tpl->id, branch_tpl->len, start, end);
 	 show_debug_msg(__func__, "Range [%d, %d]; ORI: %d\n", start, end, ori);
 	 show_debug_msg(__func__, "Main template %d reads: %d\n", main_tpl->id,
 	 main_tpl->reads->len);
@@ -431,15 +431,16 @@ tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
 		kmer_int = get_kmer_int(junc_seq->seq, i, 1, hm->o->k);
 
 		/**
-		show_debug_msg(__func__, "Debug %d: left_len: %d; right_len: %d \n", i,
-				left_seq->len, right_seq->len);
-		bwa_seq_t *debug = get_kmer_seq(kmer_int, 25);
-		p_query(__func__, debug);
-		bwa_free_read_seq(1, debug);
-		**/
+		 show_debug_msg(__func__, "Debug %d: left_len: %d; right_len: %d \n", i,
+		 left_seq->len, right_seq->len);
+		 bwa_seq_t *debug = get_kmer_seq(kmer_int, 25);
+		 p_query(__func__, debug);
+		 bwa_free_read_seq(1, debug);
+		 **/
 
 		if (kmer_int == query_int) {
 			bwa_free_read_seq(1, junc_seq);
+			junc_seq = NULL;
 			if (ori) {
 				if (i >= left_seq->len) {
 					*parent_locus = i - left_seq->len;
@@ -463,6 +464,8 @@ tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
 			break;
 		}
 	}
+	if (junc_seq)
+		bwa_free_read_seq(1, junc_seq);
 	bwa_free_read_seq(1, left_seq);
 	bwa_free_read_seq(1, right_seq);
 	return parent;
@@ -526,16 +529,16 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 			exist_ori = ori ? 0 : 1;
 
 			/**
-			bwa_seq_t *debug = get_kmer_seq(query_int, 25);
-			p_query(__func__, debug);
-			bwa_free_read_seq(1, debug);
-			show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
-					locus);
-			if (branch->b_juncs && branch->b_juncs->len > 0) {
-				right_junc = (junction*) g_ptr_array_index(branch->b_juncs, 0);
-				p_junction(right_junc);
-			}
-			**/
+			 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
+			 p_query(__func__, debug);
+			 bwa_free_read_seq(1, debug);
+			 show_debug_msg(__func__, "connect pos: %d; locus: %d \n", con_pos,
+			 locus);
+			 if (branch->b_juncs && branch->b_juncs->len > 0) {
+			 right_junc = (junction*) g_ptr_array_index(branch->b_juncs, 0);
+			 p_junction(right_junc);
+			 }
+			 **/
 
 			// If the existing is too short, maybe need to connect to its connector instead.
 			if (existing->len < hm->o->k) {
@@ -543,15 +546,15 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 						existing, &parent_locus, &borrow_bases, ori);
 				if (parent_existing) {
 					/**
-					show_debug_msg(
-							__func__,
-							"TAG: Existing changed from [%d, %d] to [%d, %d]\n",
-							existing->id, existing->len, parent_existing->id,
-							parent_existing->len);
-					show_debug_msg(__func__,
-							"TAG: Connect position changed from %d to %d\n",
-							con_pos, parent_locus);
-					**/
+					 show_debug_msg(
+					 __func__,
+					 "TAG: Existing changed from [%d, %d] to [%d, %d]\n",
+					 existing->id, existing->len, parent_existing->id,
+					 parent_existing->len);
+					 show_debug_msg(__func__,
+					 "TAG: Connect position changed from %d to %d\n",
+					 con_pos, parent_locus);
+					 **/
 					existing = parent_existing;
 					con_pos = parent_locus;
 				}
@@ -625,12 +628,12 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 				set_rev_com(branch->ctg);
 			} else {
 				/**
-				p_ctg_seq("EXISTING", existing->ctg);
-				p_ctg_seq("BRANCH", branch->ctg);
-				show_debug_msg(__func__, "Borrow bases: %d\n", borrow_bases);
-				show_debug_msg(__func__, "Branch length: %d \n", branch->len);
-				show_debug_msg(__func__, "ORI: %d \n", ori);
-				**/
+				 p_ctg_seq("EXISTING", existing->ctg);
+				 p_ctg_seq("BRANCH", branch->ctg);
+				 show_debug_msg(__func__, "Borrow bases: %d\n", borrow_bases);
+				 show_debug_msg(__func__, "Branch length: %d \n", branch->len);
+				 show_debug_msg(__func__, "ORI: %d \n", ori);
+				 **/
 				// Make the branch not sharing a 24-mer with the main
 				if (borrow_bases) {
 					if (exist_ori) {
@@ -914,8 +917,6 @@ int kmer_ext_tpl(tpl *t, uint64_t query_int, hash_map *hm, tpl_hash *all_tpls,
 		weight = 0;
 		counters = count_next_kmers(hm, query_int, 1, ori);
 		max_c = get_max_index(counters);
-		counters_all = count_next_kmers(hm, query_int, 0, ori);
-		max_c_all = get_max_index(counters_all);
 
 		/**
 		 if (t->id == 3) {
@@ -935,19 +936,23 @@ int kmer_ext_tpl(tpl *t, uint64_t query_int, hash_map *hm, tpl_hash *all_tpls,
 		 }
 		 **/
 
-		// If the max direction is taken already, connect to it.
-		if (max_c_all != max_c) {
-			if (existing_connect(t, hm, all_tpls, query_int, ori)) {
-				con_existing = 1;
-				free(counters_all);
-				break;
-			}
-		}
-		// Maybe marked as not alive in existing_connect
-		if (!t->alive) {
-			free(counters);
-			break;
-		}
+		/**
+		 counters_all = count_next_kmers(hm, query_int, 0, ori);
+		 max_c_all = get_max_index(counters_all);
+		 // If the max direction is taken already, connect to it.
+		 if (max_c_all != max_c) {
+		 if (existing_connect(t, hm, all_tpls, query_int, ori)) {
+		 con_existing = 1;
+		 free(counters_all);
+		 break;
+		 }
+		 }
+		 // Maybe marked as not alive in existing_connect
+		 if (!t->alive) {
+		 free(counters);
+		 break;
+		 }
+		 **/
 		if (max_c == -1) {
 			if (!existing_connect(t, hm, all_tpls, query_int, ori))
 				show_debug_msg(__func__, "[%d, %d] No hits, stop here. \n",
@@ -960,7 +965,7 @@ int kmer_ext_tpl(tpl *t, uint64_t query_int, hash_map *hm, tpl_hash *all_tpls,
 		}
 		t->kmer_freq += counters[max_c];
 		free(counters);
-		free(counters_all);
+		//free(counters_all);
 		ext_con(t->ctg, max_c, 0);
 		t->len = t->ctg->len;
 		// In case the template has repeats, so mark kmers used TEMPERARIALY. The locus is incorrect.
@@ -982,9 +987,11 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	tpl *t = NULL;
 	int round_1_len = 0, round_2_len = 0, connected = 0, ori = 1, flag = 0;
 	uint64_t kmer_int = 0, rev_kmer_int = 0, c = 0;
+	uint32_t i = 0;
 	map_opt *opt = NULL;
 	kmer_counter *counter = NULL;
 	bwa_seq_t *query = NULL;
+	junction *jun = NULL;
 	kmer_t_meta *params = (kmer_t_meta*) thread_params;
 	tpl_hash *all_tpls = params->all_tpls;
 	opt = params->hm->o;
@@ -1001,7 +1008,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	 p_query(__func__, query);
 	 **/
 
-	if (kmer_int < 64 || rev_kmer_int < 64 || c <= 1 || is_repetitive_q(query)
+	if (kmer_int < 64 || rev_kmer_int < 64 || c < 4 || is_repetitive_q(query)
 			|| is_biased_q(query) || kmer_is_used(kmer_int, params->hm)) {
 		bwa_free_read_seq(1, query);
 		return NULL;
@@ -1043,10 +1050,18 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	 }
 	 **/
 
-	if (!t->alive || (!connected && t->len <= opt->k)) {
+	if (!t->alive || (t->len <= opt->k && (!t->b_juncs || t->b_juncs->len < 2))) {
 		g_mutex_lock(kmer_id_mutex);
 		all_tpls->erase(t->id);
 		g_mutex_unlock(kmer_id_mutex);
+		if (t->b_juncs) {
+			for (i = 0; i < t->b_juncs->len; i++) {
+				jun = (junction*) g_ptr_array_index(t->b_juncs, i);
+				destroy_junction(jun);
+				g_ptr_array_remove_index_fast(branching_events,
+						branching_events->len - 1);
+			}
+		}
 		destroy_eg(t);
 	} else {
 		mark_tpl_kmers_used(t, params->hm, opt->k, 0);

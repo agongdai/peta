@@ -903,7 +903,7 @@ GPtrArray *comp_paths(comp *c, hash_map *hm) {
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
 		// If the probability of the paths is small, mark it as not alive.
-		if (paths_prob[i] <= 0.02 && paths_prob[i] * paths->len < 0.8)
+		if (paths_prob[i] <= 0.02 && paths_prob[i] * paths->len < 0.5)
 			p->status = 1;
 	}
 	free(paths_prob);
