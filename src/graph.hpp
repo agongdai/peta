@@ -73,5 +73,6 @@ void p_edge(edge *e);
 void p_comp(comp *c);
 GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_map *hm, const int n_mismatch);
 int vertex_in_scc(splice_graph *g, vertex *v);
+void save_vertexes(GPtrArray *vertexes, char *fn);
 
 #endif /* GRAPH_HPP_ */

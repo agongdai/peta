@@ -866,7 +866,72 @@ def cmp_psl(args):
 	print 'Check file: %s.base' % args.psl_2
 
 def comps(args):
-    pass
+    ref_hits = read_blat_hits(args.psl, 'ref')
+    not_touched = []
+    components = {}
+    with open(args.csv) as csv:
+        for line in csv:
+            line = line.strip()
+            fs = line.split("\t")
+            components[fs[0]] = fs[1]
+    with open(args.id_file) as ids:
+        for line in ids:
+            ref = line.strip()
+            hit_str = ref
+            if not ref in ref_hits:
+                hit_str += '\t0\t0\t0\n'
+            else:
+                comps = {}
+                hits = ref_hits[ref]
+                hit_str += '\t%d' % len(hits)
+                n_vertexes = 0
+                hits.sort(key=lambda x: x.rstart)
+                for h in hits:
+                    id_str = h.qname
+                    fs = id_str.split("_")
+                    comp_id = fs[2]
+                    if comp_id in comps:
+                        comps[comp_id] += 1
+                    else:
+                        n_vertexes += int(components[comp_id])
+                        comps[comp_id] = 1
+                hit_str += '\t%d' % len(comps)
+                hit_str += '\t%d' % n_vertexes
+
+                smaller_than_k = False
+                gap_in_between = False
+                if len(hits) > 0:
+                    h = hits[0]
+                    if h.rstart > 0:
+                        gap_in_between = True
+
+                for i in range(len(hits) - 1):
+                    pre = hits[i]
+                    post = hits[i + 1]
+                    if post.rstart > pre.rend:
+                        gap_in_between = True
+                    if abs(pre.rend - post.rstart) < 25:
+                        smaller_than_k = True 
+                if smaller_than_k:
+                    hit_str += '\t<25'
+                else:
+                    hit_str += '\tMixed'
+                if gap_in_between:
+                    hit_str += '\tGap'
+                else:
+                    hit_str += '\tCovered'
+
+                splicing_error = False
+                if len(comps) < 5 and n_vertexes < 5:
+                    for h in hits:
+                        if h.n_ref_gap > 0 or h.n_query_gap > 0:
+                            splicing_error = True
+                if splicing_error:
+                    hit_str += '\tSplicing error'
+                else:
+                    hit_str += '\tMixed'
+                print hit_str
+
 
 def main():
     parser = ArgumentParser()
@@ -918,6 +983,7 @@ def main():
     parser_comps.set_defaults(func=comps)
     parser_comps.add_argument('psl', help='component-to-ref PSL file')
     parser_comps.add_argument('id_file', help='file of id list to check')
+    parser_comps.add_argument('csv', help='components.csv')
 	
     args = parser.parse_args()
     args.func(args)

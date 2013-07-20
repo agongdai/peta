@@ -156,6 +156,8 @@ void p_comp(comp *c) {
 	FILE *dot = xopen(fn, "w");
 	p_comp_dot(c->vertexes, c->edges, dot);
 	fclose(dot);
+    sprintf(fn, "../SRR097897_out/components/comp.%d.fa", c->id);
+    save_vertexes(c->vertexes, fn);
 }
 
 void p_comps(splice_graph *g) {
@@ -173,11 +175,11 @@ void p_graph(splice_graph *g, char *fn) {
 	fclose(dot);
 }
 
-void save_vertexes(GPtrArray *vertexes) {
+void save_vertexes(GPtrArray *vertexes, char *fn) {
 	int i = 0;
 	vertex *v = NULL;
 	char entry[BUFSIZ];
-	FILE *v_fp = xopen("../SRR097897_out/vertexes.fa", "w");
+	FILE *v_fp = xopen(fn, "w");
 	for (i = 0; i < vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(vertexes, i);
 		sprintf(entry, ">%d length: %d\n", v->id, v->len);
@@ -814,7 +816,7 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	show_msg(__func__, "Simplifying the splice graph...\n");
 	p_graph(g, "graph.ori.dot");
 	clean_graph(g);
-	save_vertexes(g->vertexes);
+	save_vertexes(g->vertexes, "../SRR097897_out/vertexes.fa");
 
 	show_msg(__func__, "Breaking into components...\n");
 	break_to_comps(g);

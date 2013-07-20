@@ -263,10 +263,11 @@ def app(args):
     out_fa = FastaFile()
     count = 0
     for infile in glob.glob(os.path.join(args.dir, '*.fa')):
-        comp_id = os.path.basename(infile[:-3])
+        comp_id = os.path.basename(infile)
+        comp_id = comp_id[5:-3]
         fa = FastaFile(infile)
         for id, seq in fa.seqs.iteritems():
-            out_fa.seqs[id + '_' + comp_id] = seq
+            out_fa.seqs[id + '_comp_' + comp_id] = seq
             count += 1
     out_fa.save_to_disk(args.out)
     print 'Check %d seqs in file %s' % (count, args.out)
