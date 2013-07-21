@@ -473,6 +473,7 @@ tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
 
 /**
  * If the template reaches some kmer which is used, stop the extension and add a branching event
+ * The branch template make be marked 'dead' when ori is 1, then its junctions will be removed in kmer_ext_thread
  */
 int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 		const int ori) {
@@ -527,6 +528,13 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 			//	continue;
 			con_pos = ori ? (locus + 1) : (locus + hm->o->k - 1);
 			exist_ori = ori ? 0 : 1;
+            
+            // If extending to the left, while its right is not connected and it is too short, ignore
+            if (ori && (!branch->b_juncs || branch->b_juncs->len == 0) && branch->len <= 2 * hm->o->k) {
+                branch->alive = 0;
+                break;
+            }
+
 
 			/**
 			 bwa_seq_t *debug = get_kmer_seq(query_int, 25);
@@ -562,7 +570,7 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 
 			// If the branch is can be merged to main template, skip
 			// Only check when it is extending to the left and
-			//		its right end is not connected to anywhere.
+			//		its right end is connected. 
 			if (branch->len < 100 && branch->r_tail) {
 				/**
 				 show_debug_msg(__func__, "Main template: %d; pos: %d \n",
@@ -573,30 +581,28 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 				 **/
 
 				right_junc = (junction*) g_ptr_array_index(branch->b_juncs, 0);
-				if (get_abs(right_junc->locus - con_pos) <= N_MISMATCHES
+                // If right and left connections are too close, just ignore.
+				if (right_junc->main_tpl == existing) {
+                    if (get_abs(right_junc->locus - con_pos) <= N_MISMATCHES
 						&& branch->len <= N_MISMATCHES) {
-					branch->alive = 0;
-					g_ptr_array_remove_index_fast(branching_events,
-							branching_events->len - 1);
-					break;
-				}
-				loop_len = get_abs(branch->len - (right_junc->locus - con_pos));
-				if (loop_len <= N_MISMATCHES) {
-					on_main = branch_on_main(existing->ctg, branch->ctg,
+					    branch->alive = 0;
+					    break;
+				    }
+                    // If the branch is likely to be merged to the main template, try it
+				    loop_len = get_abs(branch->len - (right_junc->locus - con_pos));
+				    if (loop_len <= N_MISMATCHES) {
+					    on_main = branch_on_main(existing->ctg, branch->ctg,
 							con_pos, (branch->len / hm->o->k + 2) * 3,
 							exist_ori);
-					valid = on_main ? 0 : 1;
-					if (!valid) {
-						// Mark it as 'dead', will be destroyed in kmer_ext_thread.
-						branch->alive = 0;
-						// Remove its right junction from the global junctions
-						// @TODO: here it works only if it is single thread
-						g_ptr_array_remove_index_fast(branching_events,
-								branching_events->len - 1);
-						break;
-					}
-				}
-			}
+					    valid = on_main ? 0 : 1;
+					    if (!valid) {
+						    // Mark it as 'dead', will be destroyed in kmer_ext_thread.
+						    branch->alive = 0;
+						    break;
+					    }
+				    }
+			    }
+            }
 
 			// If no enough junction reads, skip
 			junc_reads = find_junc_reads_w_tails(hm, existing, branch, con_pos,
@@ -1027,7 +1033,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	round_1_len = t->len;
 	show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 
-	// Its reverse complement is connected to an existing template
+	// Its reverse complement is Connected to an existing template
 	if (connected == 2) {
 		ori = 0;
 		kmer_int = rev_kmer_int;
@@ -1035,20 +1041,6 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	connected |= kmer_ext_tpl(t, kmer_int, params->hm, all_tpls, ori);
 	show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 
-	/**
-	 if (!connected && t->len - round_1_len > 2) {
-	 kmer_int = get_kmer_int(t->ctg->seq, t->len - opt->k, 1, opt->k);
-	 round_2_len = t->len;
-	 flag = kmer_ext_tpl(t, kmer_int, params->hm, all_tpls, 0);
-	 show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
-	 if (t->len - round_2_len > 2) {
-	 kmer_int = get_kmer_int(t->ctg->seq, 0, 1, opt->k);
-	 connected |= kmer_ext_tpl(t, kmer_int, params->hm, all_tpls, 1);
-	 show_debug_msg(__func__, "tpl %d with length: %d \n", t->id,
-	 t->len);
-	 }
-	 }
-	 **/
 
 	if (!t->alive || (t->len <= opt->k && (!t->b_juncs || t->b_juncs->len < 2))) {
 		g_mutex_lock(kmer_id_mutex);

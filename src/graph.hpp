@@ -24,6 +24,7 @@ typedef struct {
 	int status;				// 0 means good.
 	int index;				// To determine strongly connected components in the graph
 	int lowlink;			// http://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
+    tpl *from;              // From which template it is from
 } vertex;
 
 typedef struct {

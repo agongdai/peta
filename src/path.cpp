@@ -871,6 +871,23 @@ void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 	free(this_Ns);
 }
 
+gint cmp_paths_by_cov(gpointer a, gpointer b) {
+    path *p_a = *((path**) a);
+    path *p_b = *((path**) b);
+    if (p_a->coverage >= p_b->coverage)
+        return 1;
+    else
+        return -1;
+}
+
+void high_cov_paths(GPtrArray *paths, const int max_n_paths) {
+    uint32_t i = 0;
+    path *p = NULL;
+    g_ptr_array_sort(paths, (GCompareFunc) cmp_paths_by_cov);
+    while(paths->len > max_n_paths) 
+        g_ptr_array_remove_index_fast(paths, paths->len - 1);
+}
+
 /**
  * Determine the paths of the component
  */
@@ -894,9 +911,12 @@ GPtrArray *comp_paths(comp *c, hash_map *hm) {
 	GPtrArray *paths = combinatorial_paths(levels);
 	destory_levels(levels);
 	assign_path_attrs(paths, hm);
-
-
 	validate_short_exons(paths, hm);
+
+    if (paths->len > 2000) {
+        high_cov_paths(paths, 3);
+        return paths;
+    }
 
 	paths_prob = init_path_prob(paths, hm->o->read_len);
 	diffsplice_em(c, paths, hm->o->read_len, paths_prob);
@@ -919,6 +939,26 @@ void append_paths(GPtrArray *all_paths, GPtrArray *paths) {
 	}
 }
 
+GPtrArray *paths_from_tpl(comp *c) {
+    tpl *from = NULL;
+    uint32_t i = 0;
+    vertex *v = NULL;
+    path *p = NULL;
+    GPtrArray *paths = g_ptr_array_sized_new(4);
+    for (i = 0; i < c->vertexes->len; i++) {
+        v = (vertex*) g_ptr_array_index(c->vertexes, i);
+        from = v->from;
+        if (from->alive) {
+            p = new_path();
+            p->ctg = new_seq(from->ctg, from->len, 0);
+            g_ptr_array_add(paths, p);
+            // Mark it as 'dead', in case duplicated
+            from->alive = 0;
+        }
+    }
+    return paths;
+}
+
 void determine_paths(splice_graph *g, hash_map *hm) {
 	comp *c = NULL;
 	uint32_t i = 0;
@@ -927,10 +967,11 @@ void determine_paths(splice_graph *g, hash_map *hm) {
 			g->vertexes->len / 10);
 	for (i = 0; i < g->components->len; i++) {
 		c = (comp*) g_ptr_array_index(g->components, i);
-		if (c->vertexes->len >= 50)
-			continue;
-		p_comp(c);
-		paths = comp_paths(c, hm);
+        p_comp(c);
+		if (c->vertexes->len >= MAX_VS_IN_COMP)
+            paths = paths_from_tpl(c);
+        else 
+		    paths = comp_paths(c, hm);
 		append_paths(all_paths, paths);
 	}
 	p_paths(all_paths);

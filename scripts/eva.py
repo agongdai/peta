@@ -913,7 +913,7 @@ def comps(args):
                     if abs(pre.rend - post.rstart) < 25:
                         smaller_than_k = True 
                 if smaller_than_k:
-                    hit_str += '\t<25'
+                    hit_str += '\t25'
                 else:
                     hit_str += '\tMixed'
                 if gap_in_between:

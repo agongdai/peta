@@ -101,6 +101,7 @@ vertex *new_vertex(tpl *t, int start, int len, hash_map *hm) {
 	v->id = ++vertex_id;
 	v->index = 0;
 	v->lowlink = 0;
+    v->from = t;
 	return v;
 }
 
