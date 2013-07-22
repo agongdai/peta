@@ -14,14 +14,7 @@
 #include <glib.h>
 #include "bwtaln.h"
 #include "utils.h"
-
-#define N_POS_BITS			16
-#define HASH_VALUE_HIGHER	281474976710655 // 48 1's
-#define HASH_VALUE_LOWER	65535
-
-typedef uint64_t hash_key;
-typedef uint64_t hash_value;
-typedef int16_t read_pos;
+#include "k_hash.h"
 
 using namespace std;
 typedef unordered_map<uint64_t, uint64_t*> mer_hash;
@@ -53,12 +46,6 @@ typedef struct {
 extern "C" {
 #endif
 
-	hash_key get_hash_key(const ubyte_t *seq, const int start,
-			const int interleaving, const int len);
-	uint64_t get_kmer_int(const ubyte_t *seq, const int start,
-				const int interleaving, const int len);
-	hash_value get_hash_value(const index64 seq_id, const int pos_start);
-	void read_hash_value(index64 *seq_id, int *pos_start, hash_value value);
 	void destroy_hm(hash_map *hm);
 	void build_kmers_hash(const char *fa_fn, const int k, const int with_reads);
 	void build_tpl_hash(mer_hash& hash, GPtrArray *tpls, const int k);

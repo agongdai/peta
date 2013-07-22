@@ -148,8 +148,8 @@ bwa_seq_t *merge_seq(bwa_seq_t *s1, bwa_seq_t *s2, const int shift) {
 	s1->full_len = (s1->len + s2->len + 1 - shift);
 	kroundup32(s1->full_len);
 	s1->seq = (ubyte_t*) realloc(s1->seq, sizeof(ubyte_t) * s1->full_len);
-	memcpy(&s1->seq[s1->len], &s2->seq[shift], sizeof(ubyte_t) * (s2->len
-			- shift));
+	memcpy(&s1->seq[s1->len], &s2->seq[shift],
+			sizeof(ubyte_t) * (s2->len - shift));
 	s1->len += s2->len - shift;
 	s1->seq[s1->len] = '\0';
 	return s1;
@@ -230,6 +230,39 @@ bwa_seq_t *get_left_mate(const bwa_seq_t *right, bwa_seq_t *seqs) {
 		return 0;
 }
 
+void p_shift_query(const bwa_seq_t *q, const int locus) {
+	int i = 0;
+	if (!q) {
+		printf("Query is NULL \n");
+		return;
+	}
+	for (i = 0; i < q->len - locus; i++) {
+		printf(" ");
+	}
+	for (i = 0; i < q->len; i++) {
+		if (q->rev_com) {
+			if (q->rseq[i] > 4)
+				printf("%c", q->rseq[i]);
+			else
+				printf("%c", "ACGTN"[(int) q->rseq[i]]);
+		} else {
+			if (q->seq[i] > 4)
+				printf("%c", q->seq[i]);
+			else
+				printf("%c", "ACGTN"[(int) q->seq[i]]);
+		}
+	}
+	for (i = 0; i < locus + 4; i++) {
+		printf(" ");
+	}
+	if (q->rev_com)
+		printf(" %s[reverse@%d]", q->name, q->pos);
+	else
+		printf(" %s[forward@%d]", q->name, q->pos);
+	printf(" [%d: %d]", q->contig_id, q->contig_locus);
+	printf("\n");
+}
+
 void p_query(const char *header, const bwa_seq_t *q) {
 	unsigned int i = 0;
 	if (!q) {
@@ -251,9 +284,9 @@ void p_query(const char *header, const bwa_seq_t *q) {
 		}
 	}
 	if (q->rev_com)
-		printf(" [forward@%d]", q->pos);
-	else
 		printf(" [reverse@%d]", q->pos);
+	else
+		printf(" [forward@%d]", q->pos);
 	printf(" [%d: %d]", q->contig_id, q->contig_locus);
 	//	printf("\n[rev_com] ");
 	//	for (i = 0; i < q->len; i++) {
@@ -300,8 +333,8 @@ void ext_con(bwa_seq_t *contig, const ubyte_t c, const int ori) {
 	if (contig->full_len <= contig->len + 2) {
 		contig->full_len = contig->len + 2;
 		kroundup32(contig->full_len);
-		contig->seq = (ubyte_t*) realloc(contig->seq, sizeof(ubyte_t)
-				* contig->full_len);
+		contig->seq = (ubyte_t*) realloc(contig->seq,
+				sizeof(ubyte_t) * contig->full_len);
 	}
 	if (ori) {
 		memmove(&contig->seq[1], contig->seq, contig->len);
@@ -370,7 +403,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 /**
  * Noted: to avoid segfault when calling realloc, 
  * 			here use memcpy, do not simply swap the address
-**/
+ **/
 void switch_fr(bwa_seq_t *s) {
 	ubyte_t *b = (ubyte_t*) malloc(sizeof(ubyte_t) * s->len);
 	memcpy(b, s->seq, sizeof(ubyte_t) * s->len);
@@ -489,7 +522,7 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 		}
 		printf("Previous row: \n");
 		for (j = 0; j < columns; j++) {
-				printf("%d,", previous_row[j]);
+			printf("%d,", previous_row[j]);
 			previous_row[j] = current_row[j];
 			max_score = current_row[j] > max_score ? current_row[j] : max_score;
 		}
@@ -685,6 +718,29 @@ int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 			return 0;
 	}
 	return 1;
+}
+
+int head_tail_similar(bwa_seq_t *ref, bwa_seq_t *query, const int len,
+		int mismatches) {
+	bwa_seq_t *r_tail = NULL, *q_tail = NULL;
+	int similar = 1;
+	if (!ref || !query || ref->len < len || query->len < len)
+		return 0;
+	r_tail = new_seq(ref, len, 0);
+	q_tail = new_seq(query, len, 0);
+	if (!seq_ol(r_tail, q_tail, len, mismatches))
+		similar = 0;
+	bwa_free_read_seq(1, r_tail);
+	bwa_free_read_seq(1, q_tail);
+	if (similar) {
+		r_tail = new_seq(ref, len, ref->len - len);
+		q_tail = new_seq(query, len, query->len - len);
+		if (!seq_ol(r_tail, q_tail, len, mismatches))
+			similar = 0;
+		bwa_free_read_seq(1, r_tail);
+		bwa_free_read_seq(1, q_tail);
+	}
+	return similar;
 }
 
 int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tpl,

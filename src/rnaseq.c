@@ -30,10 +30,11 @@ unsigned char nst_nt4_table[256] = {
 	4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
 };
 
-bwa_seq_t *load_reads(const char *fa_fn, uint32_t *n_reads) {
+bwa_seq_t *load_reads(const char *fa_fn, uint64_t *n_reads) {
 	bwa_seq_t *seqs, *part_seqs;
 	bwa_seqio_t *ks;
-	int n_part_seqs = 0, n_seqs_full = 0, n_seqs_loaded = 0;
+	int n_part_seqs = 0, n_seqs_full = 0;
+	uint64_t n_seqs_loaded = 0;
 	clock_t t = clock();
 
 	ks = bwa_open_reads(BWA_MODE, fa_fn);

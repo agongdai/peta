@@ -24,7 +24,6 @@
 #include "ass.hpp"
 #include "junction.hpp"
 #include "graph.hpp"
-#include "samtools/bam.h"
 
 using namespace std;
 
@@ -1231,7 +1230,7 @@ void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,
 		GPtrArray *all_junctions) {
 	FILE *junc_fp = xopen(junc_fn, "r");
 	bwa_seq_t *seqs = NULL, *ctg = NULL;
-	uint32_t n_ctgs = 0, i = 0, id = 0;
+	uint64_t n_ctgs = 0, i = 0, id = 0;
 	seqs = load_reads(pair_fa, &n_ctgs);
 	tpl *t = NULL, *main_tpl = NULL, *branch = NULL;
 	tpl_hash tpls;

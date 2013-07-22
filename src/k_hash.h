@@ -4,35 +4,57 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <glib.h>
-#include "bwase.h"
+#include "bwtaln.h"
 #include "utils.h"
 
-#define ID64                    PRId64
-#define K_N_POS_BITS            64
-#define K_HASH_VALUE_HIGHER     281474976710655 // 48 1's
-#define K_HASH_VALUE_LOWER      65535
+#define ID64                  	PRId64
+#define N_POS_BITS            	16
+#define HASH_VALUE_HIGHER     	281474976710655 	// 48 1's
+#define HASH_VALUE_LOWER      	65535
+#define N_CHUNK_SEQS			4194304 			// # of reads read in every time
+#define BWA_MODE				3
 
 typedef uint64_t hash_key;
 typedef uint64_t hash_value;
 typedef int16_t read_pos;
 
 typedef struct {
-    int k;
-    int mode;           // For sequences reading using BWA
-    int read_len;
-    int interleaving;   // If 2, means hash pattern "10101010...", which is k-weight
-    int n_hash_block;   // How many blocks to hash. Each block varies the size of k/2 from the previous one
-    int block_size;     // How many bases in one block
-    uint64_t n_k_mers;
-    uint64_t n_pos;
+	int k;				// k value, 25 by default
+	int mode; 			// For sequences reading using BWA
+	int read_len;		// Read length
+	int interleaving; 	// If 2, means hash pattern "10101010...", which is k-weight
+	int n_hash_block; 	// How many blocks to hash. Each block varies the size of k/2 from the previous one
+	int block_size; 	// How many bases in one block
+	index64 n_k_mers;	// # of kmers
+	index64 n_pos;		// # of pos list
 } hash_opt;
 
 typedef struct {
-    hash_opt *o;
-    hash_key *k_mers_occ_acc;
-    hash_value *pos;
-    bwa_seq_t *seqs;
-    uint64_t n_seqs;
+	hash_opt *o;
+	hash_key *k_mers_occ_acc;
+	hash_value *pos;
+	bwa_seq_t *seqs;
+	index64 n_seqs;
 } hash_table;
 
-hash_table *load_k_hash(char *hash_fn);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+	hash_table *load_k_hash(char *hash_fn);
+	uint64_t get_kmer_int(const ubyte_t *seq, const int start,
+			const int interleaving, const int len);
+	hash_value get_hash_value(const index64 seq_id, const int pos_start);
+	void read_hash_value(index64 *seq_id, int *pos_start, hash_value value);
+	void k_hash_core(const char *fa_fn, hash_opt *opt);
+	int k_hash(int argc, char *argv[]);
+	hash_key get_hash_key(ubyte_t *seq, const int start,
+			const int interleaving, const int len);
+	GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
+			const int mismatches);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

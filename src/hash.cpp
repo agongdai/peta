@@ -19,41 +19,7 @@
 #include "tpl.hpp"
 #include "kmers.hpp"
 #include "peseq.h"
-
-uint64_t get_kmer_int(const ubyte_t *seq, const int start,
-		const int interleaving, const int len) {
-	uint64_t key = 0;
-	int i = 0;
-	for (i = 0; i < len * interleaving; i += interleaving) {
-		if (seq[i + start] < 0 || seq[i + start] > 4) {
-			return 0;
-		}
-		key <<= 2;
-		// printf("%d \n", seq[i + start]);
-		// Keep the last two digits and perform 'or' oepration
-		key = key | (3 & seq[i + start]);
-		// printf("%d: key = %" ID64 "\n", i, key);
-	}
-	return key;
-}
-
-/**
- * The elements in pos array are 64bits, where upper 48 bits representing the rna-seq id,
- * 	and lower 16 bits representing the starting position of hashing sub-sequence.
- */
-hash_value get_hash_value(const index64 seq_id, const int pos_start) {
-	hash_value value = seq_id;
-	value <<= N_POS_BITS;
-	value = value | pos_start;
-	// printf("[get_hash_value] (%" ID64 ", %d) => %" ID64 "\n", seq_id, pos_start, value);
-	return value;
-}
-
-void read_hash_value(index64 *seq_id, int *pos_start, hash_value value) {
-	*seq_id = value >> N_POS_BITS;
-	*seq_id = *seq_id & HASH_VALUE_HIGHER;
-	*pos_start = value & HASH_VALUE_LOWER;
-}
+#include "k_hash.h"
 
 map_opt *new_map_opt() {
 	map_opt *o = (map_opt*) malloc(sizeof(map_opt));
@@ -85,7 +51,7 @@ void destroy_hm(hash_map *hm) {
  */
 void build_kmers_hash(const char *fa_fn, const int k, const int with_reads) {
 	clock_t t = clock();
-	uint32_t n_reads = 0, i = 0;
+	uint64_t n_reads = 0, i = 0;
 	int j = 0;
 	uint64_t mer_v = 0, *kmer_freq = NULL;
 	mer_counter counter;
@@ -221,7 +187,7 @@ hash_map *load_hash_map(const char *fa_fn, const int with_reads,
 	FILE *map_fp = NULL;
 	map_opt *opt = NULL;
 	uint64_t i = 0, *count = NULL, *freq = NULL, *kmer_int = NULL;
-	uint32_t n_reads = 0;
+	uint64_t n_reads = 0;
 	int rs = 0;
 	bwa_seq_t *seqs = NULL;
 	char *map_fn = (char*) malloc(BUFSIZE);
@@ -263,7 +229,7 @@ hash_map *load_hash_map(const char *fa_fn, const int with_reads,
 }
 
 void export_frequency(const char *kmer_fa, const char *contigs_fn, const int k) {
-	uint32_t n_ctgs = 0;
+	uint64_t n_ctgs = 0;
 	uint64_t kmer = 0;
 	uint64_t count = 0, i = 0, j = 0, x = 0;
 	mer_hash map;

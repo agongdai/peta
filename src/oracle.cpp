@@ -67,7 +67,7 @@ float tx_is_expressed(bwa_seq_t *transcript, hash_map *hm) {
 int oracle_set(int argc, char *argv[]) {
 	int c;
 	float rpkm = 0.0;
-	uint32_t n_tx = 0, i = 0;
+	uint64_t n_tx = 0, i = 0;
 	mer_hash map;
 	bwa_seq_t *transcripts = NULL, *tx = NULL;
 	hash_map *hm = NULL;
@@ -180,7 +180,7 @@ GPtrArray *determine_splicing(mer_hash *hash, hash_map *hm, GPtrArray *exons) {
 int genome_splicings(int argc, char *argv[]) {
 	int c;
 	bwa_seq_t *chromosomes = NULL;
-	uint32_t n_chr = 0, i = 0;
+	uint64_t n_chr = 0, i = 0;
 	mer_hash hash, map;
 	hash_map *hm = NULL;
 	GPtrArray *exons = NULL;

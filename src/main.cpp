@@ -8,10 +8,13 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <glib.h>
 #include "main.h"
 #include "ass.hpp"
 #include "kmers.hpp"
 #include "oracle.hpp"
+#include "k_hash.h"
+#include "read.h"
 
 #ifndef PACKAGE_VERSION
 #define PACKAGE_VERSION "0.1"
@@ -33,10 +36,12 @@ static int usage() {
 }
 
 int main(int argc, char *argv[]) {
-//	test_kmer_hash(
-//			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897_corrected.fa");
-//	build_kmers_hash("/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa", 25, 1);
-//	return 1;
+	//	test_kmer_hash(
+	//			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897_corrected.fa");
+	//	build_kmers_hash("/home/carl/Projects/peta/rnaseq/hg19/SRX011545/SRR027876.fa", 25, 1);
+	//	return 1;
+	if (!g_thread_supported())
+		g_thread_init( NULL);
 	if (argc < 2)
 		return usage();
 	else if (strcmp(argv[1], "ass") == 0)
@@ -49,6 +54,10 @@ int main(int argc, char *argv[]) {
 		return genome_splicings(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "freq") == 0)
 		return export_frequency(argc - 1, argv + 1);
+	else if (strcmp(argv[1], "k_hash") == 0)
+		return k_hash(argc - 1, argv + 1);
+	else if (strcmp(argv[1], "group") == 0)
+		return group_main(argc - 1, argv + 1);
 	else {
 		fprintf(stderr, "[main] unrecognized command '%s'\n", argv[1]);
 		return 1;
