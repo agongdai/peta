@@ -166,8 +166,10 @@ void save_paths(GPtrArray *paths, char *fn, const int to_save_all) {
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
 		// If we are not saving all paths and the status is not 0, skip
-		if (!to_save_all && p->status != 0)
-			continue;
+		if (to_save_all) {
+            if (p->status == 0 || p->len < 100)
+			    continue;
+        }
 		sprintf(entry, ">%d length: %d\n", p->id, p->len);
 		save_con(entry, p->ctg, p_fp);
 	}
@@ -884,6 +886,12 @@ void high_cov_paths(GPtrArray *paths, const int max_n_paths) {
     uint32_t i = 0;
     path *p = NULL;
     g_ptr_array_sort(paths, (GCompareFunc) cmp_paths_by_cov);
+    for (i = 0; i < paths->len; i++) {
+        if (i >= max_n_paths - 1)
+            break;
+        p = (path*) g_ptr_array_index(paths, i);
+        show_debug_msg(__func__, "Path [%d, %d] with coverage %.2f obtained\n", p->id, p->len, p->coverage);
+    }
     while(paths->len > max_n_paths) 
         g_ptr_array_remove_index_fast(paths, paths->len - 1);
 }
@@ -949,6 +957,7 @@ GPtrArray *paths_from_tpl(comp *c) {
         v = (vertex*) g_ptr_array_index(c->vertexes, i);
         from = v->from;
         if (from->alive) {
+            show_debug_msg(__func__, "Component too complicated, graph template [%d, %d] only. \n", from->id, from->len);
             p = new_path();
             p->ctg = new_seq(from->ctg, from->len, 0);
             g_ptr_array_add(paths, p);

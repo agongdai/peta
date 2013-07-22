@@ -319,7 +319,7 @@ int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, GPtrArray *junc_reads,
 	int start = con_pos, end = main_tpl->len;
 	int is_valid = 0, seg_len = 0;
 	GPtrArray *tmp = NULL;
-	return 1;
+	//return 1;
 	seg_len += branch_tpl->len;
 	if (ori) {
 		seg_len += con_pos;
@@ -367,7 +367,6 @@ int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, GPtrArray *junc_reads,
 		 show_debug_msg(__func__, "Tag 2\n");
 		 p_readarray(junc_reads, 1);
 		 **/
-		p_readarray(junc_reads, 1);
 		// Maybe exon shorter than read length, the mates located at the junction
 		is_valid = find_pairs(junc_reads, main_tpl->reads, 0, main_tpl->id,
 				start, end, MIN_PAIRS);
@@ -530,7 +529,7 @@ int connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls, uint64_t query_int,
 			exist_ori = ori ? 0 : 1;
             
             // If extending to the left, while its right is not connected and it is too short, ignore
-            if (ori && (!branch->b_juncs || branch->b_juncs->len == 0) && branch->len <= 2 * hm->o->k) {
+            if (ori && (!branch->b_juncs || branch->b_juncs->len == 0) && branch->len <= 3 * hm->o->k) {
                 branch->alive = 0;
                 break;
             }
@@ -1288,11 +1287,12 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 }
 
 int pe_kmer(int argc, char *argv[]) {
-	//	process_only("../SRX011545_out/paired.junctions.nolen",
-	//			"../SRX011545_out/paired.fa",
-	//			"/home/ariyaratnep/shaojiang/peta/rnaseq/hg19/SRX011545/both.fa");
-	//	return 0;
-
+    /**
+		process_only("../SRR097897_out/paired.junctions.nolen",
+				"../SRR097897_out/paired.fa",
+			"/home/carl/peta/rnaseq/Spombe/SRR097897/SRR097897.fa");
+		return 0;
+    **/
 	int c = 0;
 	clock_gettime(CLOCK_MONOTONIC, &kmer_start_time);
 	while ((c = getopt(argc, argv, "k:m:s:o:t:")) >= 0) {

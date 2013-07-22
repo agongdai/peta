@@ -12,6 +12,7 @@
 #                out.write(line)
 
 import sys, os
+from eva import *
 from argparse import ArgumentParser
 
 def char2bit(args):
@@ -46,6 +47,14 @@ def to_files(args):
                     line_no += 1
     print 'Check %s and %s' % (left, right)
 
+def count_small_seqs(args):
+    fa = FastaFile(args.fa)
+    count = 0
+    for name, seq in fa.seqs.iteritems():
+        if len(seq) >= 100:
+            count += 1
+    print 'Longer than 100 in %s: %d' % (args.fa, count)
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -57,6 +66,10 @@ def main():
     parser_2files = subparsers.add_parser('2files', help='Split shuffled FASTQ file into two')
     parser_2files.set_defaults(func=to_files)
     parser_2files.add_argument('fq', help='fastq')
+
+    parser_count = subparsers.add_parser('count', help='counting')
+    parser_count.add_argument('fa', help='fasta')
+    parser_count.set_defaults(func=count_small_seqs)
     
     args = parser.parse_args()
     args.func(args)
