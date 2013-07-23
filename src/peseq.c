@@ -22,7 +22,7 @@ extern unsigned char nst_nt4_table[256];
 gint cmp_reads_by_name(gpointer a, gpointer b) {
 	bwa_seq_t *seq_a = *((bwa_seq_t**) a);
 	bwa_seq_t *seq_b = *((bwa_seq_t**) b);
-	return ((atoi(seq_a->name)) - atoi(seq_b->name));
+	return (atoi(seq_a->name) - atoi(seq_b->name));
 }
 
 gint cmp_reads_by_contig_id(gpointer a, gpointer b) {
@@ -34,17 +34,26 @@ gint cmp_reads_by_contig_id(gpointer a, gpointer b) {
 /**
  * Remove duplicate reads in an array
  */
-void rm_duplicate(GPtrArray *reads) {
-	uint64_t i = 0;
+GPtrArray *rm_duplicates(GPtrArray *reads) {
+	int i = 0;
 	bwa_seq_t *pre = NULL, *post = NULL;
+	GPtrArray *uni_reads = NULL;
+	if (!reads || reads->len < 2) {
+		return reads;
+	}
+	uni_reads = g_ptr_array_sized_new(reads->len);
 	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_name);
-	for (i = 0; i < reads->len - 1; i++) {
-		pre = (bwa_seq_t*) g_ptr_array_index(reads, i);
-		post = (bwa_seq_t*) g_ptr_array_index(reads, i + 1);
-		if (post == pre) {
-			g_ptr_array_remove_index_fast(reads, i--);
+	pre = (bwa_seq_t*) g_ptr_array_index(reads, 0);
+	g_ptr_array_add(uni_reads, pre);
+	for (i = 1; i < reads->len; i++) {
+		post = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		if (post != pre) {
+			g_ptr_array_add(uni_reads, post);
+			pre = post;
 		}
 	}
+	g_ptr_array_free(reads, TRUE);
+	return uni_reads;
 }
 
 /**
@@ -412,6 +421,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	memcpy(p->rseq, p->seq, p->len);
 	seq_reverse(p->len, p->rseq, 1);
 	p->rseq[ol] = '\0';
+	p->cursor = query->cursor;
 
 	return p;
 }

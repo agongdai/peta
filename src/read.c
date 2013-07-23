@@ -25,6 +25,10 @@ read_hash *new_rh(uint64_t n_seqs) {
 	return rh;
 }
 
+void p_read_hash(read_hash *rh) {
+
+}
+
 void destroy_rh(read_hash *rh) {
 	int i = 0;
 	GPtrArray *hits = NULL;
@@ -50,17 +54,14 @@ void dump_read_hash(char *fa, read_hash *rh) {
 	group = xopen(dump_fn, "w");
 
 	show_msg(__func__, "Dumping read groups to file %s ...\n", dump_fn);
-	fwrite(rh->n_seqs, sizeof(uint64_t), 1, group);
-	for (i = 0; i < rh->n_seqs; i++) {
-		fwrite(rh->similar_reads_count[i], sizeof(index64), 1, group);
-	}
+	fwrite(&rh->n_seqs, sizeof(index64), 1, group);
+	fwrite(rh->similar_reads_count, sizeof(index64), rh->n_seqs, group);
 	show_msg(__func__, "Similar read counts dumped to file %s. \n", dump_fn);
 	fclose(group);
 }
 
 read_hash *load_read_hash(char *fa) {
 	uint64_t n_seqs = 0;
-	int i = 0;
 	char dump_fn[BUFSIZ];
 	FILE *group = NULL;
 	sprintf(dump_fn, "%s.group", fa);
@@ -69,9 +70,8 @@ read_hash *load_read_hash(char *fa) {
 	show_msg(__func__, "Loading read groups from %s ...\n", dump_fn);
 	fread(&n_seqs, sizeof(index64), 1, group);
 	read_hash *rh = new_rh(n_seqs);
-	for (i = 0; i < rh->n_seqs; i++) {
-		fread(&rh->similar_reads_count[i], sizeof(uint64_t), 1, group);
-	}
+	fread(rh->similar_reads_count, sizeof(uint64_t), n_seqs, group);
+	fclose(group);
 	return rh;
 }
 
@@ -82,12 +82,18 @@ gint align_read_thread(gpointer r, gpointer para) {
 	bwa_seq_t *query = (bwa_seq_t*) r;
 	align_para *p = (align_para*) para;
 	hash_table *ht = p->ht;
-	GPtrArray *hits = NULL;
+	GPtrArray *hits = g_ptr_array_sized_new(0);
+	p_query(__func__, query);
+	show_debug_msg(__func__, "# of n_seqs: %d\n", ht->n_seqs);
 	index64 *similar_reads_count = p->rh->similar_reads_count;
-	if (atol(query->name) < 0 || atol(query->name) >= ht->n_seqs)
+	index64 read_id = 0;
+	read_id = atol(query->name);
+	if (read_id < 0 || read_id >= ht->n_seqs)
 		return 1;
-	hits = find_both_fr_full_reads(ht, query, hits, N_MISMATCHES);
-	similar_reads_count[atol(query->name)] = hits->len;
+	find_both_fr_full_reads(ht, query, hits, N_MISMATCHES);
+	show_debug_msg(__func__, "Hits: %d\n", hits->len);
+	show_debug_msg(__func__, "Query id: %d\n", read_id);
+	similar_reads_count[read_id] = hits->len;
 	g_ptr_array_free(hits, TRUE);
 	return 0;
 }
@@ -105,11 +111,13 @@ read_hash *group_reads(hash_table *ht, const int n_threads) {
 	para->ht = ht;
 	para->rh = rh;
 
-	show_msg(__func__, "Aligning %d reads on %d threads ...\n", ht->n_seqs, n_threads);
+	show_msg(__func__, "Aligning %d reads on %d threads ...\n", ht->n_seqs,
+			n_threads);
 	thread_pool = g_thread_pool_new((GFunc) align_read_thread, para, n_threads,
 			TRUE, NULL);
 	for (i = 0; i < ht->n_seqs; i++) {
 		r = (bwa_seq_t*) &ht->seqs[i];
+		//align_read_thread((gpointer)r, (gpointer)para);
 		g_thread_pool_push(thread_pool, (gpointer) r, NULL);
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
@@ -127,6 +135,10 @@ int group_reads_core(char *fa, int n_threads) {
 	destroy_ht(ht);
 	free(fa_copy);
 	free(fa_copy2);
+}
+
+void test_group(char *fa, int n_threads) {
+
 }
 
 int group_main(int argc, char *argv[]) {
@@ -150,11 +162,13 @@ int group_main(int argc, char *argv[]) {
 		return group_usage();
 	}
 
+	if (!g_thread_supported())
+		g_thread_init(NULL);
 	//test_group(argv[optind], n_threads);
 	fa = strdup(argv[optind]);
 	group_reads_core(fa, n_threads);
 	free(fa);
-	fprintf(stderr, "[group_main] Grouping done: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	fprintf(stderr, "[group_main] Grouping done: %.2f sec\n", (float) (clock()
+			- t) / CLOCKS_PER_SEC);
 	return 0;
 }

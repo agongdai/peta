@@ -173,7 +173,45 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 	fresh_reads = align_tpl_tail(ht, t, tail, mismatches, FRESH, ori);
 	for (i = 0; i < fresh_reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(fresh_reads, i);
+		//show_debug_msg(__func__, "Read %s cursor: %d\n", r->name, r->cursor);
 		add2pool(p, r);
 	}
 	g_ptr_array_free(fresh_reads, TRUE);
+}
+
+void correct_tpl_base(pool *p, tpl *t, int t_len) {
+	int i = 0, j = 0, pos = 0;
+	int8_t c = 0, max_c = 0, max = 0;
+	bwa_seq_t *r = NULL;
+	int counter[4];
+	if (!p || !p->reads || p->reads->len < 3)
+		return;
+	//p_ctg_seq("BEFORE", t->ctg);
+	r = (bwa_seq_t*) g_ptr_array_index(p->reads, 0);
+	for (i = 0; i < t->len; i++) {
+		max = 0;
+		max_c = 0;
+		for (j = 0; j < 4; j++) {
+			counter[j] = 0;
+		}
+		for (j = 0; j < p->reads->len; j++) {
+			r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
+			pos = r->cursor - t->len + i;
+			if (pos >= 0 && pos < r->len) {
+				c = r->rev_com ? r->rseq[pos] : r->seq[pos];
+				counter[c]++;
+			}
+		}
+		for (j = 0; j < 4; j++) {
+			//show_debug_msg(__func__, "%d: BASE %c: %d\n", i, "ACGTN"[j], counter[j]);
+			if (counter[j] > max) {
+				max = counter[j];
+				max_c = j;
+			}
+		}
+		if (max > 0)
+			t->ctg->seq[i] = max_c;
+	}
+	set_rev_com(t->ctg);
+	//p_ctg_seq("AFTER ", t->ctg);
 }

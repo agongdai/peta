@@ -388,9 +388,9 @@ GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 
 GPtrArray *find_both_fr_full_reads(hash_table *ht, bwa_seq_t *query,
 		GPtrArray *hits, const int mismatches) {
-	find_reads_on_ht(ht, query, hits, mismatches, 0);
+	hits = find_reads_on_ht(ht, query, hits, mismatches, 0);
 	set_rev_com(query);
-	find_reads_on_ht(ht, query, hits, mismatches, 1);
+	hits = find_reads_on_ht(ht, query, hits, mismatches, 1);
 	return hits;
 }
 
@@ -399,7 +399,7 @@ GPtrArray *find_both_fr_full_reads(hash_table *ht, bwa_seq_t *query,
  */
 GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 		ubyte_t *seq, index64 len) {
-	int64_t i = 0, start = 0, end = 0, seq_id = 0;
+	int64_t i = 0, j = 0, start = 0, end = 0, seq_id = 0;
 	int64_t abs_locus = 0;
 	int locus = 0;
 	hash_key key = 0;
@@ -411,18 +411,23 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 	// For every possible kmer
 	for (i = 0; i <= len - opt->k * opt->interleaving; i++) {
 		key = get_hash_key(seq, i, opt->interleaving, opt->k);
+		//show_debug_msg(__func__, "KEY: %" ID64 ". \n", key);
 		start = ht->k_mers_occ_acc[key];
 		end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers - 1]
 				: ht->k_mers_occ_acc[key + 1];
+		//show_debug_msg(__func__, "Start~End: [%" ID64 ", %" ID64 "]\n", start, end);
 		if (end > start) {
-			for (i = start; i < end; i++) {
-				value = ht->pos[i];
+			for (j = start; j < end; j++) {
+				value = ht->pos[j];
 				read_hash_value(&seq_id, &locus, value);
 				r = &seqs[seq_id];
+				//p_query(__func__, r);
 				abs_locus = locus - i;
 				if (abs_locus >= 0 && abs_locus < r->len) {
-					if (status == ANY_STATUS || r->status == status)
+					if (status == ANY_STATUS || r->status == status) {
+						r->pos = abs_locus;
 						g_ptr_array_add(hits, r);
+					}
 				}
 			}
 		}
@@ -440,10 +445,10 @@ GPtrArray *align_query(hash_table *ht, GPtrArray *hits, bwa_seq_t *query,
 	bwa_seq_t *r = NULL;
 	if (!hits)
 		hits = g_ptr_array_sized_new(0);
-	find_reads_with_kmer(ht, hits, status, query->seq, query->len);
+	hits = find_reads_with_kmer(ht, hits, status, query->seq, query->len);
 	set_rev_com(query);
-	find_reads_with_kmer(ht, hits, status, query->rseq, query->len);
-	rm_duplicate(hits);
+	hits = find_reads_with_kmer(ht, hits, status, query->rseq, query->len);
+	hits = rm_duplicates(hits);
 	return hits;
 }
 

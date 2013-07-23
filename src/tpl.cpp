@@ -252,6 +252,9 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 				similar = seq_ol(t->ctg, r, ol, mismatches);
 			}
 			if (similar) {
+				//show_debug_msg(__func__, "Cursor: %d\n", cursor);
+				r->cursor = cursor;
+				//p_query(__func__, r);
 				g_ptr_array_add(fresh_reads, r);
 			}
 		}

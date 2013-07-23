@@ -563,17 +563,27 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
 
 	p = new_pool();
 	next_pool(ht, p, t, tail, N_MISMATCHES, ori);
+	if (!ori)
+		correct_tpl_base(p, t, tail->len);
 	p_pool("INITIAL_POOL", p, NULL);
 	if (ori)
 		seq_reverse(t->len, t->ctg->seq, 0);
 	while (1) {
 		max_c = get_next_char(p, t, ori);
-		if (max_c == -1)
+		if (max_c == -1) {
+			show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n", ori, t->id, t->len);
 			break;
+		}
+
+		p_pool(__func__, p, NULL);
+		show_debug_msg(__func__, "Next char: %c \n", "ACGTN"[max_c]);
+		p_ctg_seq("TEMPLATE", t->ctg);
 
 		ext_con(t->ctg, max_c, 0);
 		t->len = t->ctg->len;
 		ext_que(tail, max_c, ori);
+		forward(p, t, ori);
+		next_pool(ht, p, t, tail, N_MISMATCHES, ori);
 		if (t->len % 100 == 0)
 			show_debug_msg(__func__, "Ori %d, tpl %d, length %d \n", ori,
 					t->id, t->len);
@@ -581,6 +591,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
 	if (ori)
 		seq_reverse(t->len, t->ctg->seq, 0);
 	bwa_free_read_seq(1, tail);
+	destroy_pool(p);
 	return con_existing;
 }
 
@@ -616,10 +627,11 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		return NULL;
 	}
 	// Make a clone of the original starting read, which is global
-	query = new_seq(read, kmer_len, 0);
+	query = new_seq(read, kmer_len, read->len - kmer_len);
 
 	show_debug_msg(__func__, "============= %s: %" ID64 " ============ \n",
 			read->name, counter->count);
+	p_query(__func__, read);
 	t = blank_tpl(read, read->len, 0);
 	t->kmer_freq = counter->count;
 	// Insert first, in case it connects to itself during extension
@@ -631,7 +643,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 
 	bwa_free_read_seq(1, query);
-	query = new_seq(read, kmer_len, read->len - kmer_len);
+	query = new_seq(read, kmer_len, 0);
 	// Its reverse complement is Connected to an existing template
 	if (connected == 2) {
 		ori = 0;
@@ -686,7 +698,7 @@ void kmer_threads(kmer_t_meta *params) {
 			NULL);
 	for (i = 0; i < starting_reads->len; i++) {
 		if (i % 100000 == 0)
-			show_debug_msg(__func__, "Extending %" ID64 "-th read... \n ", i);
+			show_debug_msg(__func__, "Extending %" ID64 "-th read... \n", i);
 		counter = (kmer_counter*) g_ptr_array_index(starting_reads, i);
 		kmer_ext_thread(counter, params);
 		free(counter);
