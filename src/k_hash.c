@@ -245,8 +245,8 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 
 				key = get_hash_key(s->seq, hash_start + opt->interleaving - 1,
 						opt->interleaving, opt->k);
-				value = get_hash_value(i_acc,
-						hash_start + opt->interleaving - 1);
+				value = get_hash_value(i_acc, hash_start + opt->interleaving
+						- 1);
 				pos_index = k_mers_occ_acc[key] + n_occ[key];
 				pos[pos_index] = value;
 				n_occ[key]++;
@@ -307,20 +307,26 @@ hash_table *load_k_hash(char *fa_fn) {
 	if (!fread(opt, sizeof(hash_opt), 1, fp)) {
 		err_fatal(__func__, "Unable to read from the hash file %s! \n", hash_fn);
 	}
-	show_msg(__func__, "Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 "...\n", opt->k, opt->read_len, opt->n_k_mers, opt->n_pos);
+	show_msg(
+			__func__,
+			"Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 "...\n",
+			opt->k, opt->read_len, opt->n_k_mers, opt->n_pos);
 	h->k_mers_occ_acc = (hash_key*) calloc(opt->n_k_mers, sizeof(hash_key));
 	h->pos = (hash_value*) calloc(opt->n_pos, sizeof(hash_value));
 	h->o = opt;
 	fread(h->k_mers_occ_acc, sizeof(hash_key), opt->n_k_mers, fp);
 	fread(h->pos, sizeof(hash_value), opt->n_pos, fp);
 	fclose(fp);
-	show_msg(__func__, "Hash table loaded, k-mer records: %" ID64 ", positions: %" ID64 " %.2f sec\n", opt->n_k_mers, opt->n_pos, (float) (clock() - t) / CLOCKS_PER_SEC);
+	show_msg(
+			__func__,
+			"Hash table loaded, k-mer records: %" ID64 ", positions: %" ID64 " %.2f sec\n",
+			opt->n_k_mers, opt->n_pos, (float) (clock() - t) / CLOCKS_PER_SEC);
 	free(hash_fn);
 	return h;
 }
 
 GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
-		const int mismatches) {
+		const int mismatches, const int rev) {
 	hash_key key = 0;
 	hash_value value = 0;
 	int i = 0, j = 0, locus = 0, start = 0, end = 0;
@@ -329,7 +335,7 @@ GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 	hash_opt *opt = ht->o;
 	int block_no = 0, hash_start = 0;
 	if (!hits)
-		hits = g_ptr_array_sized_new(1);
+		hits = g_ptr_array_sized_new(0);
 	//p_shift_query(query, 0);
 	while (block_no < opt->n_hash_block && hash_start <= opt->read_len - opt->k
 			* (opt->interleaving)) {
@@ -367,12 +373,77 @@ GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 		if (r->pos >= block_no / 2 && head_tail_similar(r, query, opt->k,
 				mismatches)) {
 			//p_shift_query(r, 0);
+			// It is no use for grouping reads;
+			// For assembling, it helps because one read is likely to be on one template
+			if (rev)
+				r->rev_com = 1;
 		} else {
 			g_ptr_array_remove_index_fast(hits, i--);
 		}
 		r->pos = -1;
 	}
 	//show_debug_msg(__func__, "----------------------\n");
+	return hits;
+}
+
+GPtrArray *find_both_fr_full_reads(hash_table *ht, bwa_seq_t *query,
+		GPtrArray *hits, const int mismatches) {
+	find_reads_on_ht(ht, query, hits, mismatches, 0);
+	set_rev_com(query);
+	find_reads_on_ht(ht, query, hits, mismatches, 1);
+	return hits;
+}
+
+/**
+ * Find all reads containing the kmers in seq
+ */
+GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
+		ubyte_t *seq, index64 len) {
+	int64_t i = 0, start = 0, end = 0, seq_id = 0;
+	int64_t abs_locus = 0;
+	int locus = 0;
+	hash_key key = 0;
+	hash_value value = 0;
+	hash_opt *opt = ht->o;
+	bwa_seq_t *r = NULL, *seqs = ht->seqs;
+	if (!hits)
+		hits = g_ptr_array_sized_new(0);
+	// For every possible kmer
+	for (i = 0; i <= len - opt->k * opt->interleaving; i++) {
+		key = get_hash_key(seq, i, opt->interleaving, opt->k);
+		start = ht->k_mers_occ_acc[key];
+		end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers - 1]
+				: ht->k_mers_occ_acc[key + 1];
+		if (end > start) {
+			for (i = start; i < end; i++) {
+				value = ht->pos[i];
+				read_hash_value(&seq_id, &locus, value);
+				r = &seqs[seq_id];
+				abs_locus = locus - i;
+				if (abs_locus >= 0 && abs_locus < r->len) {
+					if (status == ANY_STATUS || r->status == status)
+						g_ptr_array_add(hits, r);
+				}
+			}
+		}
+	}
+	return hits;
+}
+
+/**
+ * Align query to the hash_table;
+ * The query length is shorter than read length
+ */
+GPtrArray *align_query(hash_table *ht, GPtrArray *hits, bwa_seq_t *query,
+		int8_t status, int mismatches) {
+	index64 i = 0;
+	bwa_seq_t *r = NULL;
+	if (!hits)
+		hits = g_ptr_array_sized_new(0);
+	find_reads_with_kmer(ht, hits, status, query->seq, query->len);
+	set_rev_com(query);
+	find_reads_with_kmer(ht, hits, status, query->rseq, query->len);
+	rm_duplicate(hits);
 	return hits;
 }
 
@@ -426,7 +497,7 @@ int k_hash(int argc, char *argv[]) {
 
 	k_hash_core(argv[optind], opt);
 	//test_k_hash(argv[optind], opt);
-	fprintf(stderr, "[pe_hash] Hashing done: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	fprintf(stderr, "[pe_hash] Hashing done: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
 	return 0;
 }

@@ -14,6 +14,7 @@
 #include "tpl.hpp"
 #include "peseq.h"
 #include "bwtaln.h"
+#include "k_hash.h"
 
 using namespace std;
 
@@ -220,10 +221,43 @@ void set_tail(tpl *branch, tpl *parent_eg, const int shift, const int tail_len,
 	bwa_free_read_seq(1, tmp);
 }
 
-void add_read_to_tpl(tpl *t, bwa_seq_t *r, const int locus) {
+/**
+ * Add a read to the template
+ */
+void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
 	r->contig_id = t->id;
 	r->contig_locus = locus;
+	r->status = USED;
 	g_ptr_array_add(t->reads, r);
+}
+
+/**
+ * Align the tail of template to find fresh reads
+ */
+GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
+		int mismatches, int8_t status, int ori) {
+	int64_t i = 0, cursor = 0, ol = 0;
+	int similar = 0;
+	bwa_seq_t *r = NULL;
+	GPtrArray *hits = align_query(ht, NULL, tail, status, mismatches);
+	GPtrArray *fresh_reads = g_ptr_array_sized_new(hits->len);
+	for (i = 0; i < hits->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
+		cursor = ori ? (r->pos - 1) : (r->pos + tail->len);
+		if (cursor >= 0 && cursor <= r->len - 1) {
+			ol = ori ? (tail->len - cursor + 1) : cursor;
+			if (ori) {
+				similar = seq_ol(r, t, ol, mismatches);
+			} else {
+				similar = seq_ol(t, r, ol, mismatches);
+			}
+			if (similar) {
+				g_ptr_array_add(fresh_reads, r);
+			}
+		}
+	}
+	g_ptr_array_free(hits);
+	return fresh_reads;
 }
 
 void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
@@ -242,8 +276,8 @@ void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 			contig = t->ctg;
 			if (ori)
 				seq_reverse(contig->len, contig->seq, 0);
-			sprintf(h, ">%d length: %d start: %d\n", t->id,
-					contig->len, t->start_kmer);
+			sprintf(h, ">%d length: %d start: %d\n", t->id, contig->len,
+					t->start_kmer);
 			save_con(h, contig, ass_fa);
 		}
 	}

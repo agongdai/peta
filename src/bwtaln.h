@@ -29,15 +29,16 @@ typedef int8_t	tf_flag;
 typedef unsigned char ubyte_t;
 
 typedef struct {
-	char *name;
-	ubyte_t *seq, *rseq;
-	int len;
-	int full_len;
-	tf_flag rev_com; 	// Whether use reverse complement in pool
-	int contig_id;		// The template using this read
-	int contig_locus;	// The locus of read on the template
-	tf_flag status;
-	short pos;			// Position of some kmer on this read, used by kmer_find_reads
+	char *name;				// Name
+	ubyte_t *seq, *rseq;	// Nucleotide sequence
+	int len;				// Real length
+	int full_len;			// Full length: allocated space
+	tf_flag rev_com; 		// Whether use reverse complement in pool
+	int contig_id;			// The template using this read
+	int contig_locus;		// The locus of read on the template
+	tf_flag status;			// Status: defined in peseq.h
+	int32_t pos;			// Position of some kmer on this read, used by kmer_find_reads
+	int32_t cursor;			// Cursor in the pool
 } bwa_seq_t;
 
 #define BWA_MODE_GAPE       0x01

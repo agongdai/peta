@@ -16,6 +16,12 @@ int group_usage() {
 	return 1;
 }
 
+gint cmp_hits_by_count(gpointer a, gpointer b) {
+	GPtrArray *hit_a = *((GPtrArray**) a);
+	GPtrArray *hit_b = *((GPtrArray**) b);
+	return (hit_b->len - hit_a->len);
+}
+
 read_hash *new_rh(bwa_seq_t *seqs, uint64_t n_seqs) {
 	GPtrArray *hits = NULL;
 	int i = 0;
@@ -146,7 +152,7 @@ gint align_read_thread(gpointer r, gpointer para) {
 	if (atoi(query->name) < 0 || atoi(query->name) >= ht->n_seqs)
 		return 1;
 	hits = (GPtrArray*) g_ptr_array_index(read_groups, atoi(query->name));
-	find_reads_on_ht(ht, query, hits, N_MISMATCHES);
+	find_both_fr_reads(ht, query, hits, N_MISMATCHES);
 	return 0;
 }
 
@@ -199,6 +205,8 @@ int group_reads_core(char *fa, int n_threads) {
 	hash_table *ht = load_k_hash(fa_copy);
 	read_hash *rh = group_reads(ht, n_threads);
 	dump_read_hash(fa_copy2, rh);
+	free(fa_copy);
+	free(fa_copy2);
 }
 
 int group_main(int argc, char *argv[]) {

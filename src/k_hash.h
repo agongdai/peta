@@ -13,6 +13,7 @@
 #define HASH_VALUE_LOWER      	65535
 #define N_CHUNK_SEQS			4194304 			// # of reads read in every time
 #define BWA_MODE				3
+#define ANY_STATUS				127
 
 typedef uint64_t hash_key;
 typedef uint64_t hash_value;
@@ -52,6 +53,10 @@ extern "C" {
 			const int interleaving, const int len);
 	GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 			const int mismatches);
+	GPtrArray *find_both_fr_full_reads(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
+			const int mismatches);
+	GPtrArray *align_query(hash_table *ht, GPtrArray *hits, bwa_seq_t *query,
+			int8_t status, int mismatches);
 
 #ifdef __cplusplus
 }

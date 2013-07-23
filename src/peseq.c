@@ -32,6 +32,22 @@ gint cmp_reads_by_contig_id(gpointer a, gpointer b) {
 }
 
 /**
+ * Remove duplicate reads in an array
+ */
+void rm_duplicate(GPtrArray *reads) {
+	uint64_t i = 0;
+	bwa_seq_t *pre = NULL, *post = NULL;
+	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_name);
+	for (i = 0; i < reads->len - 1; i++) {
+		pre = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		post = (bwa_seq_t*) g_ptr_array_index(reads, i + 1);
+		if (post == pre) {
+			g_ptr_array_remove_index_fast(reads, i--);
+		}
+	}
+}
+
+/**
  * Save the query into disk.
  */
 void save_fq(const bwa_seq_t *seqs, const char *fp_fn, const uint16_t ol) {
@@ -413,7 +429,8 @@ void switch_fr(bwa_seq_t *s) {
 }
 
 void set_rev_com(bwa_seq_t *s) {
-	free(s->rseq);
+	if (s->rseq)
+		free(s->rseq);
 	s->rseq = (ubyte_t*) malloc(s->len + 1);
 	memcpy(s->rseq, s->seq, s->len);
 	seq_reverse(s->len, s->rseq, 1);

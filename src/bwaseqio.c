@@ -97,6 +97,7 @@ bwa_seq_t *bwa_read_seq(bwa_seqio_t *bs, int n_needed, int *n, int mode,
 		p->contig_locus = 0;
 		p->rev_com = 0;
 		p->pos = -1;
+		p->cursor = -1;
 
 		for (i = 0; i != p->full_len; ++i) {
 			//			fprintf(stderr, "%c", seq->seq.s[i]);

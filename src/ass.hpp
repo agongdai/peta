@@ -12,9 +12,7 @@
 #include <unordered_map>
 #include "kmers.hpp"
 #include "tpl.hpp"
-
-#define		ERROR_RATE			0.02
-#define		BRANCH_THRE			0.1
+#include "read.h"
 
 using namespace std;
 typedef unordered_map<int, tpl*> tpl_hash;

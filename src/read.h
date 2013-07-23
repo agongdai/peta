@@ -24,6 +24,7 @@ extern "C" {
 #endif
 
 	int group_main(int argc, char *argv[]);
+	read_hash *load_read_hash(char *fa);
 
 #ifdef __cplusplus
 }

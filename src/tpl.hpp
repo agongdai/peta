@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <glib.h>
 #include "bwtaln.h"
+#include "k_hash.h"
 
 #define MAX_N_tpl_OUT 				7
 #define MAX_N_tpl_IN 				7
@@ -66,7 +67,9 @@ extern "C" {
 			const int p_all, const int min_len);
 	int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
 			const int min_n_pairs);
-	void add_read_to_tpl(tpl *t, bwa_seq_t *r, const int locus);
+	void add2tpl(tpl *t, bwa_seq_t *r, const int locus);
+	GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
+			int mismatches, int8_t status, int ori);
 	int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,
 			int start_2, int end_2, const int min_n_pairs);
 
