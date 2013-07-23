@@ -9,8 +9,7 @@
 #include "k_hash.h"
 
 typedef struct {
-	GPtrArray *read_groups;
-	bwa_seq_t *seqs;
+	index64 *similar_reads_count;
 	index64 n_seqs;
 } read_hash;
 
@@ -23,6 +22,7 @@ typedef struct {
 extern "C" {
 #endif
 
+	void destroy_rh(read_hash *rh);
 	int group_main(int argc, char *argv[]);
 	read_hash *load_read_hash(char *fa);
 

@@ -456,7 +456,7 @@ int test_k_hash(char *fa, hash_opt *opt) {
 	int i = 0, j = 0;
 	for (i = 0; i < ht->n_seqs; i++) {
 		query = &ht->seqs[i];
-		hits = find_reads_on_ht(ht, query, hits, N_MISMATCHES);
+		hits = find_reads_on_ht(ht, query, hits, N_MISMATCHES, 0);
 		if (hits->len > 100)
 			break;
 	}

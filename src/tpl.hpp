@@ -57,7 +57,7 @@ extern "C" {
 	gint cmp_tpl_by_id(gpointer a, gpointer b);
 	eg_gap *init_gap(int s_index, int size, int ori);
 	void free_eg_gap(eg_gap *gap);
-	tpl *new_eg();
+	tpl *new_tpl();
 	void reset_tid(tpl *t);
 	void destroy_eg(tpl *t);
 	void free_eg_seq(tpl *t);

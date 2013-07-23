@@ -18,7 +18,8 @@ using namespace std;
 typedef unordered_map<int, tpl*> tpl_hash;
 
 typedef struct {
-	hash_map *hm;
+	hash_table *ht;
+	read_hash *rh;
 	tpl_hash *all_tpls;
 } kmer_t_meta;
 
@@ -27,7 +28,6 @@ extern "C" {
 #endif
 
 	int pe_kmer(int argc, char *argv[]);
-	int kmer_ext_tpl(tpl *t, uint64_t query_int, hash_map *hm, tpl_hash *all_tpls, const int ori);
 
 #ifdef __cplusplus
 }

@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "pool.h"
+#include "pool.hpp"
 #include "peseq.h"
 #include "utils.h"
 #include "pechar.h"
@@ -36,7 +36,7 @@ void destroy_pool(pool *p) {
 			if (r->status == IN_POOL)
 				r->status = FRESH;
 		}
-		g_ptr_array_free(r->reads, TRUE);
+		g_ptr_array_free(p->reads, TRUE);
 		free(p);
 	}
 }
@@ -110,14 +110,14 @@ void add2pool(pool *p, bwa_seq_t *r) {
  * Count frequencies of next characters, get the most frequent one.
  * If -1: all of them are 0
  */
-int get_next_char(pool *p, const int ori, tpl *t) {
+int get_next_char(pool *p, tpl *t, const int ori) {
 	readarray *reads = p->reads;
 	int *c = (int*) calloc(5, sizeof(int));
 	int i = 0, next_char = -1, max_c = 0;
 	bwa_seq_t *r;
 	c[0] = c[1] = c[2] = c[3] = c[4] = 0;
 	for (i = 0; i < reads->len; i++) {
-		r = g_ptr_array_index(reads, i);
+		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
 		if (r->rev_com)
 			c[r->rseq[r->cursor]]++;
 		else
@@ -163,7 +163,7 @@ void forward(pool *p, tpl *t, const int ori) {
 /**
  * Align the tail to the RNA-seq reads, add fresh reads to current pool
  */
-void next_pool(pool *p, tpl *t, hash_table *ht, bwa_seq_t *tail,
+void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 		int mismatches, const int ori) {
 	GPtrArray *fresh_reads = NULL;
 	index64 i = 0;

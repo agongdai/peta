@@ -10,6 +10,7 @@
 #include <glib.h>
 #include "bwtaln.h"
 #include "k_hash.h"
+#include "tpl.hpp"
 
 using namespace std;
 
@@ -27,9 +28,9 @@ extern "C" {
 	void p_pool(const char *header, const pool *r_pool, const int *next);
 
 	void add2pool(pool *p, bwa_seq_t *r);
-	int get_next_char(pool *p, const int ori, tpl *t);
+	int get_next_char(pool *p, tpl *t, const int ori);
 	void forward(pool *p, tpl *t, const int ori);
-	void next_pool(pool *p, tpl *t, hash_table *ht, bwa_seq_t *tail,
+	void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 			int mismatches, const int ori);
 
 #ifdef __cplusplus

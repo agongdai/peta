@@ -31,7 +31,7 @@ void free_eg_gap(eg_gap *gap) {
 		free(gap);
 }
 
-tpl *new_eg() {
+tpl *new_tpl() {
 	tpl *t = (tpl*) malloc(sizeof(tpl));
 	t->ctg = NULL;
 	t->l_tail = NULL;
@@ -247,16 +247,16 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 		if (cursor >= 0 && cursor <= r->len - 1) {
 			ol = ori ? (tail->len - cursor + 1) : cursor;
 			if (ori) {
-				similar = seq_ol(r, t, ol, mismatches);
+				similar = seq_ol(r, t->ctg, ol, mismatches);
 			} else {
-				similar = seq_ol(t, r, ol, mismatches);
+				similar = seq_ol(t->ctg, r, ol, mismatches);
 			}
 			if (similar) {
 				g_ptr_array_add(fresh_reads, r);
 			}
 		}
 	}
-	g_ptr_array_free(hits);
+	g_ptr_array_free(hits, TRUE);
 	return fresh_reads;
 }
 
