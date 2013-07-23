@@ -25,6 +25,7 @@
 #include "hash.hpp"
 #include "graph.hpp"
 #include "path.hpp"
+#include "k_hash.h"
 
 int comp_id = 0;
 int edge_id = 0;
@@ -33,21 +34,22 @@ int vertex_id = 0;
 /**
  * Get the reads on a sequence allowing N_MISMATCHES
  */
-GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_map *hm, const int n_mismatch) {
-	int j = 0, i = 0, read_len = hm->o->read_len;
+GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch) {
+	int j = 0, i = 0, read_len = ht->o->read_len;
 	bwa_seq_t *part = NULL, *r = NULL;
 	GPtrArray *hits = NULL;
 	GPtrArray *reads = g_ptr_array_sized_new(32);
 
 	for (i = 0; i <= seq->len - read_len; i++) {
 		part = new_seq(seq, read_len, i);
-		hits = align_full_seq(part, hm, n_mismatch);
+		hits = find_both_fr_full_reads(ht, part, hits, n_mismatch);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
 			g_ptr_array_add(reads, r);
 		}
 		bwa_free_read_seq(1, part);
 		g_ptr_array_free(hits, TRUE);
+		hits = NULL;
 	}
 	return reads;
 }
@@ -89,13 +91,13 @@ void destroy_comp(comp *c) {
 	}
 }
 
-vertex *new_vertex(tpl *t, int start, int len, hash_map *hm) {
+vertex *new_vertex(tpl *t, int start, int len, hash_table *ht) {
 	vertex *v = (vertex*) malloc(sizeof(vertex));
 	v->ctg = new_seq(t->ctg, len, start);
 	v->len = len;
 	v->ins = g_ptr_array_sized_new(0);
 	v->outs = g_ptr_array_sized_new(0);
-	v->reads = reads_on_seq(v->ctg, hm, N_MISMATCHES);
+	v->reads = reads_on_seq(v->ctg, ht, N_MISMATCHES);
 	v->weight = (float) v->reads->len;
 	v->status = 0;
 	v->id = ++vertex_id;
@@ -153,11 +155,11 @@ void p_comp_dot(GPtrArray *vertexes, GPtrArray *edges, FILE *dot) {
 
 void p_comp(comp *c) {
 	char fn[128];
-	sprintf(fn, "../SRR097897_out/components/comp.%d.dot", c->id);
+	sprintf(fn, "../simu_out/components/comp.%d.dot", c->id);
 	FILE *dot = xopen(fn, "w");
 	p_comp_dot(c->vertexes, c->edges, dot);
 	fclose(dot);
-    sprintf(fn, "../SRR097897_out/components/comp.%d.fa", c->id);
+    sprintf(fn, "../simu_out/components/comp.%d.fa", c->id);
     save_vertexes(c->vertexes, fn);
 }
 
@@ -318,12 +320,12 @@ void remove_edge_from_c(comp *c, edge *rmv_e) {
 /**
  * Break a template into a set of edges and vertexes
  */
-void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
+void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_table *ht) {
 	junction *j = NULL;
 	vertex *v = NULL, *left = NULL, *right = NULL;
 	edge *e = NULL;
 	int i = 0, pre_start = 0;
-	int max_len = (hm->o->read_len - SHORT_BRANCH_SHIFT) * 2;
+	int max_len = (ht->o->read_len - SHORT_BRANCH_SHIFT) * 2;
 	GPtrArray *this_vs = NULL;
 
 	if (t->len <= 0)
@@ -341,7 +343,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 		if (j->main_tpl != t || (j->main_tpl == t && j->branch_tpl == t)
 				|| j->locus == pre_start)
 			continue;
-		v = new_vertex(t, pre_start, j->locus - pre_start, hm);
+		v = new_vertex(t, pre_start, j->locus - pre_start, ht);
 		g_ptr_array_add(g->vertexes, v);
 		g_ptr_array_add(this_vs, v);
 		pre_start = j->locus;
@@ -349,7 +351,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 	}
 
 	// Create the last vertex
-	v = new_vertex(t, pre_start, t->len - pre_start, hm);
+	v = new_vertex(t, pre_start, t->len - pre_start, ht);
 	g_ptr_array_add(g->vertexes, v);
 	g_ptr_array_add(this_vs, v);
 
@@ -367,7 +369,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
 				&e->right_len, max_len);
 		e->len = e->left_len + e->right_len;
         show_debug_msg(__func__, "Aligning reads to edge %d...\n", e->id);
-		e->reads = reads_on_seq(e->junc_seq, hm, N_MISMATCHES);
+		e->reads = reads_on_seq(e->junc_seq, ht, N_MISMATCHES);
 		g_ptr_array_add(left->outs, e);
 		g_ptr_array_add(right->ins, e);
 		g_ptr_array_add(g->edges, e);
@@ -466,10 +468,10 @@ void remove_zero_vertexes(tpl *t, GPtrArray *main_juncs, int read_len,
 /**
  * Add edges to connect different vertexes on templates
  */
-void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) {
+void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_table *ht) {
 	junction *j = NULL;
 	int i = 0, n_zeros = 0, nth_zero = 0;
-	int max_len = (hm->o->read_len - SHORT_BRANCH_SHIFT) * 2;
+	int max_len = (ht->o->read_len - SHORT_BRANCH_SHIFT) * 2;
 	edge *e = NULL;
 	vertex *branch_v = NULL, *left = NULL, *right = NULL;
 	GPtrArray *branch_vs = NULL, *main_vs = NULL;
@@ -524,7 +526,7 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
 		}
 		e->len = e->left_len + e->right_len;
 		// The weight is not set because of probable alternative paths.
-		//e->reads = reads_on_seq(e->junc_seq, hm);
+		//e->reads = reads_on_seq(e->junc_seq, ht);
 		//e->weight = (float) e->reads->len;
 		g_ptr_array_add(g->edges, e);
 	}
@@ -534,7 +536,7 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_map *hm) 
  * Build the graph from the templates and junctions
  */
 splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
-		hash_map *hm) {
+		hash_table *ht) {
 	splice_graph *g = new_graph();
 	GPtrArray *t_juncs = NULL;
 	vertex *v = NULL;
@@ -547,7 +549,7 @@ splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 		t_juncs = tpl_junctions(t, all_juncs, start_index, 1);
 		g_ptr_array_sort(t_juncs, (GCompareFunc) cmp_junc_by_locus);
 		start_index += t_juncs->len;
-		break_tpl(t, t_juncs, g, hm);
+		break_tpl(t, t_juncs, g, ht);
 		//p_tpl_juncs(t, t_juncs);
 		g_ptr_array_free(t_juncs, TRUE);
 	}
@@ -559,8 +561,8 @@ splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 		t_juncs = tpl_junctions(t, all_juncs, start_index, 1);
 		g_ptr_array_sort(t_juncs, (GCompareFunc) cmp_junc_by_locus);
 		start_index += t_juncs->len;
-		remove_zero_vertexes(t, t_juncs, hm->o->read_len, g);
-		connect_tpls(t, t_juncs, g, hm);
+		remove_zero_vertexes(t, t_juncs, ht->o->read_len, g);
+		connect_tpls(t, t_juncs, g, ht);
 		//p_tpl_juncs(t, t_juncs);
 		g_ptr_array_free(t_juncs, TRUE);
 	}
@@ -811,14 +813,14 @@ void calc_comp_stat(splice_graph *g) {
 			"Statistics of components are output to components.csv.\n");
 }
 
-void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
+void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_table *ht) {
 	splice_graph *g = NULL;
 	show_msg(__func__, "Building the splice graph...\n");
-	g = build_graph(all_tpls, all_juncs, hm);
+	g = build_graph(all_tpls, all_juncs, ht);
 	show_msg(__func__, "Simplifying the splice graph...\n");
 	p_graph(g, "graph.ori.dot");
 	clean_graph(g);
-	save_vertexes(g->vertexes, "../SRR097897_out/vertexes.fa");
+	save_vertexes(g->vertexes, "../simu_out/vertexes.fa");
 
 	show_msg(__func__, "Breaking into components...\n");
 	break_to_comps(g);
@@ -829,6 +831,6 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_map *hm) {
 	calc_comp_stat(g);
 	reset_status(g);
 	show_msg(__func__, "Running EM to get paths...\n");
-	determine_paths(g, hm);
+	determine_paths(g, ht);
 	destroy_graph(g);
 }

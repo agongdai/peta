@@ -83,16 +83,16 @@ gint align_read_thread(gpointer r, gpointer para) {
 	align_para *p = (align_para*) para;
 	hash_table *ht = p->ht;
 	GPtrArray *hits = g_ptr_array_sized_new(0);
-	p_query(__func__, query);
-	show_debug_msg(__func__, "# of n_seqs: %d\n", ht->n_seqs);
+	//p_query(__func__, query);
+	//show_debug_msg(__func__, "# of n_seqs: %d\n", ht->n_seqs);
 	index64 *similar_reads_count = p->rh->similar_reads_count;
 	index64 read_id = 0;
 	read_id = atol(query->name);
 	if (read_id < 0 || read_id >= ht->n_seqs)
 		return 1;
 	find_both_fr_full_reads(ht, query, hits, N_MISMATCHES);
-	show_debug_msg(__func__, "Hits: %d\n", hits->len);
-	show_debug_msg(__func__, "Query id: %d\n", read_id);
+	//show_debug_msg(__func__, "Hits: %d\n", hits->len);
+	//show_debug_msg(__func__, "Query id: %d\n", read_id);
 	similar_reads_count[read_id] = hits->len;
 	g_ptr_array_free(hits, TRUE);
 	return 0;

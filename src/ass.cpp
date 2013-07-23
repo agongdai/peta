@@ -557,27 +557,37 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
 	pool *p = NULL;
 	bwa_seq_t *tail = new_seq(query, query->len, 0);
 
+	if (ori)
+		seq_reverse(t->len, t->ctg->seq, 0);
+
 	show_debug_msg(__func__,
 			"------ Started extending tpl %d to ori %d... ------\n", t->id, ori);
 	p_query(__func__, tail);
+	p_ctg_seq("TEMPLATE", t->ctg);
 
 	p = new_pool();
 	next_pool(ht, p, t, tail, N_MISMATCHES, ori);
 	if (!ori)
 		correct_tpl_base(p, t, tail->len);
-	p_pool("INITIAL_POOL", p, NULL);
-	if (ori)
-		seq_reverse(t->len, t->ctg->seq, 0);
+	//p_pool("INITIAL_POOL", p, NULL);
 	while (1) {
 		max_c = get_next_char(p, t, ori);
 		if (max_c == -1) {
-			show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n", ori, t->id, t->len);
+			show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n", ori,
+					t->id, t->len);
 			break;
 		}
 
+		/**
+		if (ori)
+			seq_reverse(t->len, t->ctg->seq, 0);
+		p_query(__func__, tail);
 		p_pool(__func__, p, NULL);
 		show_debug_msg(__func__, "Next char: %c \n", "ACGTN"[max_c]);
 		p_ctg_seq("TEMPLATE", t->ctg);
+		if (ori)
+			seq_reverse(t->len, t->ctg->seq, 0);
+		**/
 
 		ext_con(t->ctg, max_c, 0);
 		t->len = t->ctg->len;
@@ -638,7 +648,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	g_mutex_lock(kmer_id_mutex);
 	all_tpls->insert(make_pair<int, tpl*> ((int) t->id, (tpl*) t));
 	g_mutex_unlock(kmer_id_mutex);
-	connected = kmer_ext_tpl(ht, all_tpls, t, query, 0);
+	//connected = kmer_ext_tpl(ht, all_tpls, t, query, 0);
 	round_1_len = t->len;
 	show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 
@@ -651,6 +661,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 	connected |= kmer_ext_tpl(ht, all_tpls, t, query, ori);
 	show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
+	p_ctg_seq("TEMPLATE", t->ctg);
 
 	if (!t->alive || (t->len <= query->len && (!t->b_juncs || t->b_juncs->len
 			< 2))) {
@@ -704,7 +715,7 @@ void kmer_threads(kmer_t_meta *params) {
 		free(counter);
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		//if (i >= 100100)
-		break;
+		//break;
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
 	g_ptr_array_free(starting_reads, TRUE);
@@ -720,7 +731,6 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	tpl_hash all_tpls;
 	GPtrArray *read_tpls = NULL;
 	hash_table *ht = NULL;
-	;
 
 	show_msg(__func__, "Library: %s \n", lib_file);
 
@@ -750,11 +760,11 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	fflush(contigs);
 	fclose(contigs);
 
-	//	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junc_by_id);
-	//	clean_junctions(branching_events);
-	//	store_features(get_output_file("paired.junctions", kmer_out),
-	//			branching_events, read_tpls);
-	//process_graph(kmer_tpls, branching_events, hm);
+	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junc_by_id);
+	clean_junctions(branching_events);
+	store_features(get_output_file("paired.junctions", kmer_out),
+			branching_events, read_tpls);
+	process_graph(read_tpls, branching_events, ht);
 	//	reset_tpl_ids(all_kmer_tpls);
 	//	merge_ol_tpls(all_kmer_tpls, ins_size, sd_ins_size, hm->seqs,
 	//			kmer_n_threads);
@@ -825,18 +835,17 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 	junction *j = NULL;
 	read_juncs_from_file(junc_fn, pair_fa, all_tpls, all_junctions);
 	uint32_t i = 0;
-	mer_hash map;
-	hash_map *hm = load_hash_map(hash_fn, 1, map);
-	filter_junctions(all_junctions, all_tpls, hm);
-	process_graph(all_tpls, all_junctions, hm);
+	hash_table *ht = load_k_hash(hash_fn);
+	filter_junctions(all_junctions, all_tpls, ht);
+	process_graph(all_tpls, all_junctions, ht);
 }
 
 int pe_kmer(int argc, char *argv[]) {
 
-//	process_only("../SRR097897_out/paired.junctions.nolen",
-//			"../SRR097897_out/paired.fa",
-//			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa");
-//	return 0;
+	//	process_only("../SRR097897_out/paired.junctions.nolen",
+	//			"../SRR097897_out/paired.fa",
+	//			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa");
+	//	return 0;
 
 	int c = 0;
 	clock_gettime(CLOCK_MONOTONIC, &kmer_start_time);

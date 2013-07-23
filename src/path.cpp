@@ -17,6 +17,7 @@
 #include "graph.hpp"
 #include "path.hpp"
 #include "junction.hpp"
+#include "k_hash.h"
 
 int path_id = 0;
 
@@ -364,12 +365,12 @@ GPtrArray *combinatorial_paths(GPtrArray *levels) {
  * If an exon is shorter than k,
  * 		verify whether there are reads covering this vertex and its left and right vertexes
  */
-void validate_short_exons(GPtrArray *paths, hash_map *hm) {
+void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 	uint32_t i = 0, j = 0;
 	int start = 0, end = 0, n_reads = 0;
 	bwa_seq_t *seq = NULL;
 	GPtrArray *reads = NULL;
-	int read_len = hm->o->read_len;
+	int read_len = ht->o->read_len;
 	path *p = NULL;
 	vertex *v = NULL;
 	edge *e = NULL;
@@ -400,13 +401,13 @@ void validate_short_exons(GPtrArray *paths, hash_map *hm) {
 		for (j = 1; j < p->vertexes->len; j++) {
 			v = (vertex*) g_ptr_array_index(p->vertexes, j);
 			// If the vertex is smaller than the k value (25)
-			if (v->len < hm->o->k + N_MISMATCHES) {
+			if (v->len < ht->o->k + N_MISMATCHES) {
 				end = start + read_len - N_MISMATCHES * 2;
 				end = end > p->len ? p->len : end;
 				start = start - (read_len - v->len) + N_MISMATCHES * 2;
 				start = start < 0 ? 0 : start;
 				seq = new_seq(p->ctg, end - start, start);
-				reads = reads_on_seq(seq, hm, N_MISMATCHES);
+				reads = reads_on_seq(seq, ht, N_MISMATCHES);
 
 				/**
 				 show_debug_msg(__func__, "Path %d exon %d: [%d, %d)\n", p->id, v->id, start, end);
@@ -433,7 +434,7 @@ void validate_short_exons(GPtrArray *paths, hash_map *hm) {
 /**
  * Initialize attributes to paths
  */
-void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
+void assign_path_attrs(GPtrArray *paths, hash_table *ht) {
 	uint32_t i = 0, j = 0, len = 0;
 	path *p = NULL;
 	vertex *v = NULL;
@@ -461,9 +462,9 @@ void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 		p->ctg->len = len;
 		p->len = len;
 		// The coverage, given all reads are from this path
-		p->reads = reads_on_seq(p->ctg, hm, N_MISMATCHES);
+		p->reads = reads_on_seq(p->ctg, ht, N_MISMATCHES);
 		g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_name);
-		p->coverage = ((float) p->reads->len) * ((float) hm->o->read_len)
+		p->coverage = ((float) p->reads->len) * ((float) ht->o->read_len)
 				/ ((float) p->len);
 		// Determine the junction points
 		points = (int*) malloc(sizeof(int) * (p->vertexes->len - 1));
@@ -486,9 +487,9 @@ void assign_path_attrs(GPtrArray *paths, hash_map *hm) {
 		}
 		for (j = 0; j < p->edges->len; j++) {
 			e = (edge*) g_ptr_array_index(p->edges, j);
-			seq = get_breaking_seq(p, j, hm->o->read_len);
+			seq = get_breaking_seq(p, j, ht->o->read_len);
 			// Stringent in junctions, 0 mismatches.
-			reads = reads_on_seq(seq, hm, N_MISMATCHES);
+			reads = reads_on_seq(seq, ht, N_MISMATCHES);
 
 			/**
 			 show_debug_msg(__func__, "=== Path %d, Breaking point: %d ===\n",
@@ -899,7 +900,7 @@ void high_cov_paths(GPtrArray *paths, const int max_n_paths) {
 /**
  * Determine the paths of the component
  */
-GPtrArray *comp_paths(comp *c, hash_map *hm) {
+GPtrArray *comp_paths(comp *c, hash_table *ht) {
 	show_debug_msg(__func__, "Getting vertexes in component %d...\n", c->id);
 	GPtrArray *levels = get_vertex_levels(c);
 	uint32_t j = 0, i = 0;
@@ -918,16 +919,16 @@ GPtrArray *comp_paths(comp *c, hash_map *hm) {
 	}
 	GPtrArray *paths = combinatorial_paths(levels);
 	destory_levels(levels);
-	assign_path_attrs(paths, hm);
-	validate_short_exons(paths, hm);
+	assign_path_attrs(paths, ht);
+	validate_short_exons(paths, ht);
 
     if (paths->len > 2000) {
         high_cov_paths(paths, 3);
         return paths;
     }
 
-	paths_prob = init_path_prob(paths, hm->o->read_len);
-	diffsplice_em(c, paths, hm->o->read_len, paths_prob);
+	paths_prob = init_path_prob(paths, ht->o->read_len);
+	diffsplice_em(c, paths, ht->o->read_len, paths_prob);
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
 		// If the probability of the paths is small, mark it as not alive.
@@ -968,7 +969,7 @@ GPtrArray *paths_from_tpl(comp *c) {
     return paths;
 }
 
-void determine_paths(splice_graph *g, hash_map *hm) {
+void determine_paths(splice_graph *g, hash_table *ht) {
 	comp *c = NULL;
 	uint32_t i = 0;
 	path *p = NULL;
@@ -980,11 +981,11 @@ void determine_paths(splice_graph *g, hash_map *hm) {
 		if (c->vertexes->len >= MAX_VS_IN_COMP)
             paths = paths_from_tpl(c);
         else 
-		    paths = comp_paths(c, hm);
+		    paths = comp_paths(c, ht);
 		append_paths(all_paths, paths);
 	}
 	p_paths(all_paths);
-	save_paths(all_paths, "../SRR097897_out/paths.fa", 1);
-	save_paths(all_paths, "../SRR097897_out/peta.fa", 0);
+	save_paths(all_paths, "../simu_out/paths.fa", 1);
+	save_paths(all_paths, "../simu_out/peta.fa", 0);
 	destroy_paths(all_paths);
 }

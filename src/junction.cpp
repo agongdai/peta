@@ -23,6 +23,7 @@
 #include "peseq.h"
 #include "junction.hpp"
 #include "graph.hpp"
+#include "k_hash.h"
 
 using namespace std;
 
@@ -84,10 +85,10 @@ GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch) {
 	return hits;
 }
 
-GPtrArray *find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
+GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 		const int max_len, int *weight) {
 	int left_len = 0, right_len = 0, n_reads = 0;
-	GPtrArray *reads = NULL;
+	GPtrArray *reads = g_ptr_array_sized_new(0);
 	bwa_seq_t *junction_seq = blank_seq(max_len);
 
 	left_len = (left->len > max_len / 2) ? (max_len / 2) : left->len;
@@ -101,7 +102,7 @@ GPtrArray *find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
 	//p_query("Left  seq", left);
 	//p_query("Right seq", right);
 	//p_query("Junction seq", junction_seq);
-	reads = kmer_find_reads(junction_seq, hm, N_MISMATCHES, 0);
+	reads = align_query(ht, reads, junction_seq, ANY_STATUS, N_MISMATCHES);
 	n_reads = reads->len;
 	//show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
 	*weight = n_reads;
@@ -125,7 +126,7 @@ bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
 	return junc_seq;
 }
 
-GPtrArray *find_junc_reads_w_tails(hash_map *hm, tpl *main_tpl,
+GPtrArray *find_junc_reads_w_tails(hash_table *ht, tpl *main_tpl,
 		tpl *branch_tpl, const int pos, const int max_len, const int ori,
 		int *weight) {
 	bwa_seq_t *left_seq = NULL, *right_seq = NULL;
@@ -145,7 +146,7 @@ GPtrArray *find_junc_reads_w_tails(hash_map *hm, tpl *main_tpl,
 	right_seq = cut_tpl_tail(right_eg, r_pos, max_len / 2, 1);
 	//p_query("Right  seq", right_eg->ctg);
 	//p_query("Right tail", right_seq);
-	reads = find_junc_reads(hm, left_seq, right_seq, max_len, weight);
+	reads = find_junc_reads(ht, left_seq, right_seq, max_len, weight);
 	bwa_free_read_seq(1, left_seq);
 	bwa_free_read_seq(1, right_seq);
 	return reads;
@@ -450,7 +451,7 @@ void prune_short_branches(GPtrArray *junctions, GPtrArray *tpls,
  * 	- template length 0, connect to the same template at same locus
  *  - hanging branch template can be merged to the main template
  */
-void filter_junctions(GPtrArray *junctions, GPtrArray *tpls, hash_map *hm) {
+void filter_junctions(GPtrArray *junctions, GPtrArray *tpls, hash_table *ht) {
 	uint32_t i = 0, j = 0, start_index = 0;
 	junction *junc = NULL;
 	tpl *t = NULL;
@@ -462,7 +463,7 @@ void filter_junctions(GPtrArray *junctions, GPtrArray *tpls, hash_map *hm) {
 		junc = (junction*) g_ptr_array_index(junctions, start_index);
 		t = junc->main_tpl;
 		main_junctions = tpl_junctions(t, junctions, start_index, 1);
-		filter_branches(main_junctions, hm->o->read_len);
+		filter_branches(main_junctions, ht->o->read_len);
 		start_index += main_junctions->len;
 		g_ptr_array_free(main_junctions, TRUE);
 	}

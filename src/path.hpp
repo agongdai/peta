@@ -7,6 +7,7 @@
 #include "bwtaln.h"
 #include "hash.hpp"
 #include "graph.hpp"
+#include "k_hash.h"
 
 using namespace std;
 typedef unordered_map<vertex*, float> vertex_p_hash;
@@ -25,6 +26,6 @@ typedef struct {
 	uint8_t status;			// 0 means good
 } path;
 
-void determine_paths(splice_graph *g, hash_map *hm);
+void determine_paths(splice_graph *g, hash_table *ht);
 
 #endif /* GRAPH_HPP_ */

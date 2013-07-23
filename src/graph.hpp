@@ -12,6 +12,7 @@
 #include "tpl.hpp"
 #include "bwtaln.h"
 #include "hash.hpp"
+#include "k_hash.h"
 
 typedef struct {
 	int id;					// Vertex id
@@ -66,13 +67,13 @@ typedef struct {
 	GPtrArray *edges;
 } ASM;
 
-void assign_reads2tpl(tpl *eg, hash_map *hm);
+void assign_reads2tpl(tpl *eg, hash_table *ht);
 void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
-		hash_map *hm);
+		hash_table *ht);
 void p_vertex(vertex *v);
 void p_edge(edge *e);
 void p_comp(comp *c);
-GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_map *hm, const int n_mismatch);
+GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch);
 int vertex_in_scc(splice_graph *g, vertex *v);
 void save_vertexes(GPtrArray *vertexes, char *fn);
 

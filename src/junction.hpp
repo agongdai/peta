@@ -37,9 +37,9 @@ junction *new_junction(tpl *main_tpl, tpl *branch_tpl, uint64_t kmer,
 		int locus, int ori, int weight);
 void p_tpl_juncs(tpl *t, GPtrArray *t_juncs);
 int same_main_juncs(junction *jun_1, junction *jun_2);
-GPtrArray *find_junc_reads(hash_map *hm, bwa_seq_t *left, bwa_seq_t *right,
+GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 		const int max_len, int *weight);
-GPtrArray *find_junc_reads_w_tails(hash_map *hm, tpl *left, tpl *right,
+GPtrArray *find_junc_reads_w_tails(hash_table *ht, tpl *left, tpl *right,
 		const int shift, const int max_len, const int ori, int *weight);
 void upd_tpl_jun_locus(tpl *t, GPtrArray *branching_events, const int kmer_len);
 void store_features(char *name, GPtrArray *branching_events,
@@ -57,7 +57,7 @@ gint cmp_junc_by_branch_id(gpointer a, gpointer b);
 gint cmp_junc_by_locus(gpointer a, gpointer b);
 GPtrArray *tpl_junctions(tpl *t, GPtrArray *all_juncs, int start_index,
 		int to_get_main);
-void filter_junctions(GPtrArray *junctions, GPtrArray *tpls, hash_map *hm);
+void filter_junctions(GPtrArray *junctions, GPtrArray *tpls, hash_table *ht);
 
 #ifdef __cplusplus
 }

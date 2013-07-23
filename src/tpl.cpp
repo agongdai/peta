@@ -241,11 +241,17 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 	bwa_seq_t *r = NULL;
 	GPtrArray *hits = align_query(ht, NULL, tail, status, mismatches);
 	GPtrArray *fresh_reads = g_ptr_array_sized_new(hits->len);
+	if (ori)
+		seq_reverse(t->len, t->ctg->seq, 0);
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
+		//p_query(__func__, r);
 		cursor = ori ? (r->pos - 1) : (r->pos + tail->len);
 		if (cursor >= 0 && cursor <= r->len - 1) {
-			ol = ori ? (tail->len - cursor + 1) : cursor;
+			ol = ori ? (r->len - cursor - 1) : cursor;
+			if (ol < tail->len)
+				continue;
+			//show_debug_msg(__func__, "Should have overlap: %d\n", ol);
 			if (ori) {
 				similar = seq_ol(r, t->ctg, ol, mismatches);
 			} else {
@@ -259,6 +265,9 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 			}
 		}
 	}
+	if (ori)
+		seq_reverse(t->len, t->ctg->seq, 0);
+	//show_debug_msg(__func__, "Reads with the tail: %d\n", fresh_reads->len);
 	g_ptr_array_free(hits, TRUE);
 	return fresh_reads;
 }
