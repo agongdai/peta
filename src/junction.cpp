@@ -102,7 +102,7 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	//p_query("Left  seq", left);
 	//p_query("Right seq", right);
 	//p_query("Junction seq", junction_seq);
-	reads = align_query(ht, reads, junction_seq, ANY_STATUS, N_MISMATCHES);
+	reads = align_query(ht, junction_seq, ANY_STATUS, N_MISMATCHES);
 	n_reads = reads->len;
 	//show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
 	*weight = n_reads;
@@ -310,7 +310,7 @@ int branch_on_main(const bwa_seq_t *main_seq, const bwa_seq_t *branch,
 	p_ctg_seq("FULL", main_seq);
 	p_ctg_seq(__func__, sub);
 	p_ctg_seq(__func__, branch);
-	similar = seq_ol(sub, branch, branch->len, mismatches);
+	similar = (seq_ol(sub, branch, branch->len, mismatches) == -1) ? 0 : 1;
 	free_read_seq(sub);
 	show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,
 			similar);
@@ -377,7 +377,7 @@ void filter_branches(GPtrArray *junctions, const int read_len) {
 				main_seq = new_seq(cur->main_tpl->ctg, end - start, start);
 				similar = seq_ol(main_seq, branch_seq, main_seq->len,
 						N_MISMATCHES * 2);
-				if (similar) {
+				if (similar >= 0) {
 					pre->status = 1;
 					cur->status = 1;
 				}

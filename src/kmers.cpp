@@ -390,7 +390,7 @@ GPtrArray *align_full_seq(const bwa_seq_t *query, const hash_map *hm,
 			read = (bwa_seq_t*) g_ptr_array_index(hits, j);
 			if (read->rev_com)
 				switch_fr(part);
-			if (!seq_ol(read, part, read->len, mismatch)) {
+			if (seq_ol(read, part, read->len, mismatch) == -1) {
 				read->pos = -1;
 				g_ptr_array_remove_index_fast(hits, j--);
 			}
@@ -427,7 +427,7 @@ GPtrArray *kmer_find_reads(const bwa_seq_t *query, const hash_map *hm,
 		//p_query(__func__, read);
 		//p_query(__func__, part);
 		//show_debug_msg(__func__, "---\n");
-		if (!seq_ol(read, part, read->len, mismatch)) {
+		if (seq_ol(read, part, read->len, mismatch) == -1) {
 			read->pos = -1;
 			g_ptr_array_remove_index_fast(hits, i--);
 		} else {

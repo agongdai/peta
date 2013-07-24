@@ -23,6 +23,7 @@ extern "C" {
 	void rescue_reads(bwa_seq_t *seqs, const int n_seqs);
 	gint cmp_reads_by_name(gpointer a, gpointer b);
 	gint cmp_reads_by_contig_id(gpointer a, gpointer b);
+	gint cmp_reads_by_contig_locus(gpointer a, gpointer b);
 	GPtrArray *rm_duplicates(GPtrArray *reads);
 	void save_fq(const bwa_seq_t *seqs, const char *fp_fn, const uint16_t ol);
 	bwa_seq_t *merge_seq_to_right(bwa_seq_t *s1, bwa_seq_t *s2, const int gap);
@@ -46,6 +47,7 @@ extern "C" {
 	int has_n(const bwa_seq_t *read, int max);
 	bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift);
 	void set_rev_com(bwa_seq_t *s);
+	void reset_to_fresh(bwa_seq_t *r);
 	bwa_seq_t *blank_seq(const int len);
 	bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol,
 			const int shift);
@@ -72,8 +74,12 @@ extern "C" {
 			const bwa_seq_t *seq_2, const int mismatches, const int ol);
 	int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 			int mismatches);
+	int similar_bytes(ubyte_t *b_1, ubyte_t *b_2, int len, int mismatches);
 	int head_tail_similar(bwa_seq_t *ref, bwa_seq_t *query, const int len,
-			int mismatches);
+			int mismatches, int *rev_com);
+	int find_fr_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tail,
+			const int mismatches, const int min_len, const int max_len,
+			const int ori, const int *rev_com);
 	int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,
 			const int mismatches);
 	void switch_fr(bwa_seq_t *s);

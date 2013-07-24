@@ -332,7 +332,7 @@ def simu(args):
         for i in range(len(seq) - args.read_len + 1):
             reads.seqs[read_id] = seq[i:i+args.read_len]
             read_id += 1
-            reads.seqs[read_id] = seq[i:i+args.read_len]
+            reads.seqs[read_id] = rev_comp(seq[i:i+args.read_len])
             read_id += 1
     reads.save_to_disk(out)
     part_fa.save_to_disk(part)

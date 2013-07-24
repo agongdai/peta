@@ -59,7 +59,7 @@ extern "C" {
 	void free_eg_gap(eg_gap *gap);
 	tpl *new_tpl();
 	void reset_tid(tpl *t);
-	void destroy_eg(tpl *t);
+	void destroy_tpl(tpl *t);
 	void free_eg_seq(tpl *t);
 	bwa_seq_t *cut_tpl_tail(tpl *t, const int tail_len, const int pos, const int ori);
 	void set_tail(tpl *branch, tpl *parent_eg, const int shift, const int tail_len, const int ori);
@@ -67,11 +67,13 @@ extern "C" {
 			const int p_all, const int min_len);
 	int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
 			const int min_n_pairs);
+	void upd_locus_on_tpl(tpl *t, int pre_t_len, int pre_n_reads);
 	void add2tpl(tpl *t, bwa_seq_t *r, const int locus);
 	GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 			int mismatches, int8_t status, int ori);
 	int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,
 			int start_2, int end_2, const int min_n_pairs);
+	void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read, int mismatches);
 
 #ifdef __cplusplus
 }

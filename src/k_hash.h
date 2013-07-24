@@ -53,10 +53,10 @@ extern "C" {
 	hash_key get_hash_key(ubyte_t *seq, const int start,
 			const int interleaving, const int len);
 	GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
-			const int mismatches, int rev);
+			const int mismatches);
 	GPtrArray *find_both_fr_full_reads(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 			const int mismatches);
-	GPtrArray *align_query(hash_table *ht, GPtrArray *hits, bwa_seq_t *query,
+	GPtrArray *align_query(hash_table *ht, bwa_seq_t *query,
 			int8_t status, int mismatches);
 
 #ifdef __cplusplus

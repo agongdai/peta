@@ -552,13 +552,10 @@ gint cmp_kmers_by_count(gpointer a, gpointer b) {
  */
 int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
 		const int ori) {
-	int max_c = 0, *counters = NULL, weight = 0, con_existing = 0;
+	int max_c = -1, *counters = NULL, weight = 0, con_existing = 0;
 	int max_c_all = 0, *counters_all = NULL;
 	pool *p = NULL;
 	bwa_seq_t *tail = new_seq(query, query->len, 0);
-
-	if (ori)
-		seq_reverse(t->len, t->ctg->seq, 0);
 
 	show_debug_msg(__func__,
 			"------ Started extending tpl %d to ori %d... ------\n", t->id, ori);
@@ -579,27 +576,25 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
 		}
 
 		/**
-		if (ori)
-			seq_reverse(t->len, t->ctg->seq, 0);
-		p_query(__func__, tail);
-		p_pool(__func__, p, NULL);
-		show_debug_msg(__func__, "Next char: %c \n", "ACGTN"[max_c]);
-		p_ctg_seq("TEMPLATE", t->ctg);
-		if (ori)
-			seq_reverse(t->len, t->ctg->seq, 0);
+		if (!ori) {
+			p_query(__func__, tail);
+			p_pool(__func__, p, NULL);
+			show_debug_msg(__func__, "Next char: %c \n", "ACGTN"[max_c]);
+			p_ctg_seq("TEMPLATE", t->ctg);
+		}
 		**/
 
-		ext_con(t->ctg, max_c, 0);
+		ext_con(t->ctg, max_c, ori);
 		t->len = t->ctg->len;
 		ext_que(tail, max_c, ori);
+		// If the overlapped region between t and r has too many mismatches, remove from pool
+		rm_half_clip_reads(p, t, max_c, N_MISMATCHES, ori);
 		forward(p, t, ori);
 		next_pool(ht, p, t, tail, N_MISMATCHES, ori);
 		if (t->len % 100 == 0)
 			show_debug_msg(__func__, "Ori %d, tpl %d, length %d \n", ori,
 					t->id, t->len);
 	}
-	if (ori)
-		seq_reverse(t->len, t->ctg->seq, 0);
 	bwa_free_read_seq(1, tail);
 	destroy_pool(p);
 	return con_existing;
@@ -611,6 +606,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
 void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	tpl *t = NULL;
 	int round_1_len = 0, round_2_len = 0, connected = 0, ori = 1, flag = 0;
+	int round_1_n_reads = 0;
 	uint64_t read_id = 0;
 	uint32_t i = 0;
 	kmer_counter *counter = NULL;
@@ -626,11 +622,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	read_id = counter->kmer;
 	read = &seqs[read_id];
 
-	/**
-	 show_debug_msg("TAG",
-	 "============= %" ID64 ": %" ID64 " ============ \n", kmer_int, c);
-	 p_query(__func__, query);
-	 **/
+	//show_debug_msg(__func__, "============= %s: %" ID64 " ============ \n",
+	//		read->name, counter->count);
 
 	if (is_biased_q(read) || counter->count < 2 || is_repetitive_q(read)
 			|| is_biased_q(read) || read->status != FRESH) {
@@ -648,8 +641,12 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	g_mutex_lock(kmer_id_mutex);
 	all_tpls->insert(make_pair<int, tpl*> ((int) t->id, (tpl*) t));
 	g_mutex_unlock(kmer_id_mutex);
-	//connected = kmer_ext_tpl(ht, all_tpls, t, query, 0);
+	mark_init_reads_used(ht, t, read, N_MISMATCHES);
+
+	// Extend to the right first
+	connected = kmer_ext_tpl(ht, all_tpls, t, query, 0);
 	round_1_len = t->len;
+	round_1_n_reads = t->reads->len;
 	show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 
 	bwa_free_read_seq(1, query);
@@ -659,7 +656,12 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		ori = 0;
 		switch_fr(query);
 	}
+
+	// Then extend to the left
 	connected |= kmer_ext_tpl(ht, all_tpls, t, query, ori);
+	upd_locus_on_tpl(t, round_1_len, round_1_n_reads);
+	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+	//p_readarray(t->reads, 1);
 	show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 	p_ctg_seq("TEMPLATE", t->ctg);
 
@@ -676,7 +678,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 						branching_events->len - 1);
 			}
 		}
-		destroy_eg(t);
+		// The reads on it marked as TRIED
+		destroy_tpl(t);
 	} else {
 		//upd_tpl_jun_locus(t, branching_events, opt->k);
 	}

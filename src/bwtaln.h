@@ -37,8 +37,8 @@ typedef struct {
 	int contig_id;			// The template using this read
 	int contig_locus;		// The locus of read on the template
 	tf_flag status;			// Status: defined in peseq.h
-	int32_t pos;			// Position of some kmer on this read, used by kmer_find_reads
-	int32_t cursor;			// Cursor in the pool
+	int32_t pos;			// Position of some kmer on this read; n_mismatches in the pool
+	int32_t cursor;			// Cursor in the pool, used for extension
 } bwa_seq_t;
 
 #define BWA_MODE_GAPE       0x01

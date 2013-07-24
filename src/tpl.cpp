@@ -222,13 +222,54 @@ void set_tail(tpl *branch, tpl *parent_eg, const int shift, const int tail_len,
 }
 
 /**
+ * Update the contig_locus value after left extension
+ */
+void upd_locus_on_tpl(tpl *t, int pre_t_len, int pre_n_reads) {
+	index64 i = 0;
+	bwa_seq_t *r = NULL;
+
+	if (!t || !t->reads || pre_n_reads < 0 || pre_t_len < 0)
+		return;
+	for (i = 0; i < pre_n_reads; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		r->contig_locus += t->len - pre_t_len;
+	}
+	for (i = pre_n_reads; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		r->contig_locus = t->len - r->contig_locus;
+	}
+}
+
+/**
  * Add a read to the template
  */
 void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
 	r->contig_id = t->id;
 	r->contig_locus = locus;
+	r->pos = -1;
 	r->status = USED;
 	g_ptr_array_add(t->reads, r);
+}
+
+/**
+ * Read extension starts from some read, mark this read and its close reads as used first
+ */
+void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read,
+		int mismatches) {
+	GPtrArray *hits = NULL;
+	bwa_seq_t *r = NULL;
+	index64 i = 0;
+
+	hits = find_both_fr_full_reads(ht, read, hits, mismatches);
+	for (i = 0; i < hits->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
+		//p_query(__func__, r);
+		if (r->status == FRESH) {
+			add2tpl(t, r, 0);
+		}
+	}
+	p_readarray(t->reads, 1);
+	g_ptr_array_free(hits, TRUE);
 }
 
 /**
@@ -237,36 +278,49 @@ void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
 GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 		int mismatches, int8_t status, int ori) {
 	int64_t i = 0, cursor = 0, ol = 0;
-	int similar = 0;
+	int n_mis = 0, added = 0;
 	bwa_seq_t *r = NULL;
-	GPtrArray *hits = align_query(ht, NULL, tail, status, mismatches);
+	GPtrArray *hits = align_query(ht, tail, status, mismatches);
 	GPtrArray *fresh_reads = g_ptr_array_sized_new(hits->len);
-	if (ori)
-		seq_reverse(t->len, t->ctg->seq, 0);
+	// These reads are not duplicated
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		//p_query(__func__, r);
+		added = 0;
+		// pos is the kmer position on the read
 		cursor = ori ? (r->pos - 1) : (r->pos + tail->len);
+//		p_query(__func__, r);
+//		show_debug_msg(__func__, "CURSOR: %d\n", cursor);
 		if (cursor >= 0 && cursor <= r->len - 1) {
 			ol = ori ? (r->len - cursor - 1) : cursor;
-			if (ol < tail->len)
-				continue;
-			//show_debug_msg(__func__, "Should have overlap: %d\n", ol);
-			if (ori) {
-				similar = seq_ol(r, t->ctg, ol, mismatches);
-			} else {
-				similar = seq_ol(t->ctg, r, ol, mismatches);
-			}
-			if (similar) {
-				//show_debug_msg(__func__, "Cursor: %d\n", cursor);
-				r->cursor = cursor;
-				//p_query(__func__, r);
-				g_ptr_array_add(fresh_reads, r);
+			if (ol >= tail->len) {
+				if (ori) {
+					n_mis = seq_ol(r, t->ctg, ol, mismatches);
+				} else {
+					n_mis = seq_ol(t->ctg, r, ol, mismatches);
+				}
+//				if (!ori) {
+//					p_query(__func__, r);
+//					p_ctg_seq(__func__, t->ctg);
+//					show_debug_msg(__func__, "Should have overlap: %d\n", ol);
+//					show_debug_msg(__func__, "N_MISMATCHES: %d\n", n_mis);
+//				}
+				if (n_mis >= 0) {
+					//show_debug_msg(__func__, "Cursor: %d\n", cursor);
+					r->cursor = cursor;
+					// In the pool, 'pos' stores how many mismatches between read and template
+					r->pos = n_mis;
+					//p_query("ADDED", r);
+					g_ptr_array_add(fresh_reads, r);
+					added = 1;
+				}
 			}
 		}
+		// If not added, reset the pos to be -1
+		if (!added) {
+			r->pos = -1;
+			r->rev_com = 0;
+		}
 	}
-	if (ori)
-		seq_reverse(t->len, t->ctg->seq, 0);
 	//show_debug_msg(__func__, "Reads with the tail: %d\n", fresh_reads->len);
 	g_ptr_array_free(hits, TRUE);
 	return fresh_reads;
@@ -296,7 +350,9 @@ void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 	free(h);
 }
 
-void destroy_eg(tpl *t) {
+void destroy_tpl(tpl *t) {
+	index64 i = 0;
+	bwa_seq_t *r = NULL;
 	if (t) {
 		show_debug_msg(__func__, "Freeing tpl [%d, %d] \n", t->id, t->len);
 		bwa_free_read_seq(1, t->ctg);
@@ -304,8 +360,16 @@ void destroy_eg(tpl *t) {
 		bwa_free_read_seq(1, t->l_tail);
 		if (t->vertexes)
 			g_ptr_array_free(t->vertexes, TRUE);
-		if (t->reads)
+		if (t->reads) {
+			for (i = 0; i < t->reads->len; i++) {
+				r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+				r->contig_id = -1;
+				r->contig_locus = -1;
+				r->pos = -1;
+				r->status = TRIED;
+			}
 			g_ptr_array_free(t->reads, TRUE);
+		}
 		if (t->m_juncs)
 			g_ptr_array_free(t->m_juncs, TRUE);
 		if (t->b_juncs)

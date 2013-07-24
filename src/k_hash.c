@@ -325,11 +325,15 @@ hash_table *load_k_hash(char *fa_fn) {
 	return h;
 }
 
+/**
+ * The query length is the same as read length.
+ * Return a read half of the hashed kmers are matched.
+ */
 GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
-		const int mismatches, const int rev) {
+		const int mismatches) {
 	hash_key key = 0;
 	hash_value value = 0;
-	int i = 0, j = 0, locus = 0, start = 0, end = 0;
+	int i = 0, j = 0, locus = 0, start = 0, end = 0, n_block_kmers = 2;
 	index64 seq_id = 0;
 	bwa_seq_t *r = NULL, *seqs = ht->seqs, *tmp = NULL;
 	hash_opt *opt = ht->o;
@@ -339,58 +343,71 @@ GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 	//p_shift_query(query, 0);
 	while (block_no < opt->n_hash_block && hash_start <= opt->read_len - opt->k
 			* (opt->interleaving)) {
-		hash_start = block_no * opt->block_size;
 		// Hash two keys for the starting region of a read, interleaving by 1 by default.
-		key = get_hash_key(query->seq, hash_start, opt->interleaving, opt->k);
+		for (j = 0; j < n_block_kmers; j++) {
+			hash_start = block_no * opt->block_size + j;
+			if (hash_start <= opt->read_len - opt->k * (opt->interleaving)) {
+				key = get_hash_key(query->seq, hash_start, opt->interleaving,
+						opt->k);
 
-		/**
-		 tmp = get_kmer_seq(key, 25);
-		 p_query("KMER", tmp);
-		 bwa_free_read_seq(1, tmp);
-		 **/
-
-		start = ht->k_mers_occ_acc[key];
-		end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers - 1]
-				: ht->k_mers_occ_acc[key + 1];
-		if (end > start) {
-			for (i = start; i < end; i++) {
-				value = ht->pos[i];
-				read_hash_value(&seq_id, &locus, value);
-				r = &seqs[seq_id];
-				if (locus == hash_start) {
-					r->pos = (r->pos <= 0) ? 1 : r->pos + 1;
-					g_ptr_array_add(hits, r);
+				start = ht->k_mers_occ_acc[key];
+				end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers
+						- 1] : ht->k_mers_occ_acc[key + 1];
+				if (end > start) {
+					for (i = start; i < end; i++) {
+						value = ht->pos[i];
+						read_hash_value(&seq_id, &locus, value);
+						r = &seqs[seq_id];
+						if (locus == hash_start) {
+							// Here 'pos' stores how many kmers this query contains
+							r->pos = (r->pos <= 0) ? 1 : r->pos + 1;
+							g_ptr_array_add(hits, r);
+						}
+					}
 				}
-				//r->pos = locus;
-				//p_shift_query(r, locus);
-				//g_ptr_array_add(hits, r);
 			}
 		}
 		block_no++;
 	}
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		if (r->pos >= block_no / 2 && head_tail_similar(r, query, opt->k,
-				mismatches)) {
-			//p_shift_query(r, 0);
-			// It is no use for grouping reads;
-			// For assembling, it helps because one read is likely to be on one template
-			if (rev)
-				r->rev_com = 1;
-		} else {
+		// p_query(__func__, r);
+		// If half of the kmers are obtained, go for head_tail_similar in find_both_fr_full_reads
+		if (r->pos < block_no) {
+			// Remove the read from hits and reset the pos
 			g_ptr_array_remove_index_fast(hits, i--);
+			r->pos = -1;
 		}
-		r->pos = -1;
 	}
 	//show_debug_msg(__func__, "----------------------\n");
 	return hits;
 }
 
+/**
+ * The query length is exactly the same as read length
+ * Report a hit if a read:
+ * 	1. Half of the hashed kmers are present;
+ *  2. Head and tail 11 bases are similar
+ */
 GPtrArray *find_both_fr_full_reads(hash_table *ht, bwa_seq_t *query,
 		GPtrArray *hits, const int mismatches) {
-	hits = find_reads_on_ht(ht, query, hits, mismatches, 0);
-	set_rev_com(query);
-	hits = find_reads_on_ht(ht, query, hits, mismatches, 1);
+	index64 i = 0;
+	int rev_com = 0;
+	bwa_seq_t *r = NULL;
+	hits = find_reads_on_ht(ht, query, hits, mismatches);
+	switch_fr(query);
+	hits = find_reads_on_ht(ht, query, hits, mismatches);
+	switch_fr(query);
+
+	for (i = 0; i < hits->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
+		r->pos = -1;
+		if (head_tail_similar(r, query, ht->o->k, mismatches, &rev_com)) {
+			r->rev_com = rev_com;
+		} else {
+			g_ptr_array_remove_index_fast(hits, i--);
+		}
+	}
 	return hits;
 }
 
@@ -423,7 +440,9 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 				r = &seqs[seq_id];
 				//p_query(__func__, r);
 				abs_locus = locus - i;
-				if (abs_locus >= 0 && abs_locus < r->len) {
+				if (abs_locus >= 0 && abs_locus <= r->len + 1
+						- opt->interleaving * opt->k) {
+					// If the status of read is as requested
 					if (status == ANY_STATUS || r->status == status) {
 						r->pos = abs_locus;
 						g_ptr_array_add(hits, r);
@@ -439,15 +458,35 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
  * Align query to the hash_table;
  * The query length is shorter than read length
  */
-GPtrArray *align_query(hash_table *ht, GPtrArray *hits, bwa_seq_t *query,
-		int8_t status, int mismatches) {
+GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
+		int mismatches) {
 	index64 i = 0;
 	bwa_seq_t *r = NULL;
-	if (!hits)
-		hits = g_ptr_array_sized_new(0);
+	GPtrArray *hits = g_ptr_array_sized_new(0), *rev_hits = NULL;
+
 	hits = find_reads_with_kmer(ht, hits, status, query->seq, query->len);
 	set_rev_com(query);
-	hits = find_reads_with_kmer(ht, hits, status, query->rseq, query->len);
+	rev_hits = find_reads_with_kmer(ht, NULL, status, query->rseq, query->len);
+
+	// If reverse complement, update the pos
+	for (i = 0; i < rev_hits->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(rev_hits, i);
+		// To make sure the 'pos' will be changed once only
+		//p_query(__func__, r);
+		if (!r->rev_com) {
+			r->rev_com = 1;
+			r->pos = (ht->o->read_len - query->len) - r->pos;
+			if (r->pos >= 0 && r->pos <= r->len + 1 - ht->o->interleaving
+					* ht->o->k) {
+				g_ptr_array_add(hits, r);
+			} else {
+				// If not added ok, reset to 0
+				r->rev_com = 0;
+			}
+
+		}
+	}
+	g_ptr_array_free(rev_hits, TRUE);
 	hits = rm_duplicates(hits);
 	return hits;
 }
@@ -461,7 +500,7 @@ int test_k_hash(char *fa, hash_opt *opt) {
 	int i = 0, j = 0;
 	for (i = 0; i < ht->n_seqs; i++) {
 		query = &ht->seqs[i];
-		hits = find_reads_on_ht(ht, query, hits, N_MISMATCHES, 0);
+		hits = find_reads_on_ht(ht, query, hits, N_MISMATCHES);
 		if (hits->len > 100)
 			break;
 	}

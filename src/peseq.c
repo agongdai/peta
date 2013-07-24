@@ -31,6 +31,12 @@ gint cmp_reads_by_contig_id(gpointer a, gpointer b) {
 	return (seq_b->contig_id - seq_a->contig_id);
 }
 
+gint cmp_reads_by_contig_locus(gpointer a, gpointer b) {
+	bwa_seq_t *seq_a = *((bwa_seq_t**) a);
+	bwa_seq_t *seq_b = *((bwa_seq_t**) b);
+	return (seq_a->contig_locus - seq_b->contig_locus);
+}
+
 /**
  * Remove duplicate reads in an array
  */
@@ -173,8 +179,8 @@ bwa_seq_t *merge_seq(bwa_seq_t *s1, bwa_seq_t *s2, const int shift) {
 	s1->full_len = (s1->len + s2->len + 1 - shift);
 	kroundup32(s1->full_len);
 	s1->seq = (ubyte_t*) realloc(s1->seq, sizeof(ubyte_t) * s1->full_len);
-	memcpy(&s1->seq[s1->len], &s2->seq[shift],
-			sizeof(ubyte_t) * (s2->len - shift));
+	memcpy(&s1->seq[s1->len], &s2->seq[shift], sizeof(ubyte_t) * (s2->len
+			- shift));
 	s1->len += s2->len - shift;
 	s1->seq[s1->len] = '\0';
 	return s1;
@@ -309,9 +315,9 @@ void p_query(const char *header, const bwa_seq_t *q) {
 		}
 	}
 	if (q->rev_com)
-		printf(" [reverse@%d]", q->pos);
+		printf(" [    <<<<@%d]", q->pos);
 	else
-		printf(" [forward@%d]", q->pos);
+		printf(" [>>>>    @%d]", q->pos);
 	printf(" [%d: %d]", q->contig_id, q->contig_locus);
 	//	printf("\n[rev_com] ");
 	//	for (i = 0; i < q->len; i++) {
@@ -358,8 +364,8 @@ void ext_con(bwa_seq_t *contig, const ubyte_t c, const int ori) {
 	if (contig->full_len <= contig->len + 2) {
 		contig->full_len = contig->len + 2;
 		kroundup32(contig->full_len);
-		contig->seq = (ubyte_t*) realloc(contig->seq,
-				sizeof(ubyte_t) * contig->full_len);
+		contig->seq = (ubyte_t*) realloc(contig->seq, sizeof(ubyte_t)
+				* contig->full_len);
 	}
 	if (ori) {
 		memmove(&contig->seq[1], contig->seq, contig->len);
@@ -405,6 +411,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
 	p->status = query->status;
 	p->contig_id = query->contig_id;
+	p->contig_locus = query->contig_locus;
 	p->full_len = p->len = ol;
 	p->rev_com = query->rev_com;
 	p->pos = query->pos;
@@ -445,6 +452,15 @@ void set_rev_com(bwa_seq_t *s) {
 	memcpy(s->rseq, s->seq, s->len);
 	seq_reverse(s->len, s->rseq, 1);
 	s->rseq[s->len] = '\0';
+}
+
+void reset_to_fresh(bwa_seq_t *r) {
+	r->status = FRESH;
+	r->pos = -1;
+	r->cursor = -1;
+	r->contig_id = -1;
+	r->contig_locus = -1;
+	r->rev_com = 0;
 }
 
 bwa_seq_t *blank_seq(const int len) {
@@ -511,7 +527,7 @@ void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp) {
 int same_q(const bwa_seq_t *query, const bwa_seq_t *seq) {
 	if (query->len != seq->len)
 		return 0;
-	return seq_ol(query, seq, query->len, 0);
+	return seq_ol(query, seq, query->len, 0) == -1 ? 0 : 1;
 }
 
 int same_bytes(const ubyte_t *s, const int k) {
@@ -730,61 +746,108 @@ int share_subseq_byte(const ubyte_t *seq_1, const int len,
 
 /**
  * Check whether two sequences share similar regions (length 'ol') with max 'mismatches'.
+ * If the a seq is rev_com, use its reverse complement to match
  */
 int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 		int mismatches) {
 	int i = 0;
+	int n_mis = 0;
+	ubyte_t *left = NULL, *right = NULL;
 	if (!left_seq || !right_seq || ol <= 0 || ol > left_seq->len || ol
 			> right_seq->len)
-		return 0;
+		return -1;
+	left = left_seq->rev_com ? left_seq->rseq : left_seq->seq;
+	right = right_seq->rev_com ? right_seq->rseq : right_seq->seq;
 	for (i = 0; i < ol; i++) {
-		if (left_seq->seq[i + (left_seq->len - ol)] != right_seq->seq[i]) {
-			mismatches--;
+		if (left[i + (left_seq->len - ol)] != right[i]) {
+			n_mis++;
 		}
+		if (n_mis > mismatches)
+			return -1;
+	}
+	return n_mis;
+}
+
+int similar_bytes(ubyte_t *b_1, ubyte_t *b_2, int len, int mismatches) {
+	int i = 0;
+	for (i = 0; i < len; i++) {
+		if (b_1[i] != b_2[i])
+			mismatches--;
 		if (mismatches < 0)
 			return 0;
 	}
 	return 1;
 }
 
+/**
+ * If both the ref and query have similar heads and tails, return true.
+ */
 int head_tail_similar(bwa_seq_t *ref, bwa_seq_t *query, const int len,
-		int mismatches) {
-	bwa_seq_t *r_tail = NULL, *q_tail = NULL;
-	int similar = 1;
+		int mismatches, int *rev_com) {
+	int similar = 0;
 	if (!ref || !query || ref->len < len || query->len < len)
 		return 0;
-	r_tail = new_seq(ref, len, 0);
-	q_tail = new_seq(query, len, 0);
-	if (!seq_ol(r_tail, q_tail, len, mismatches))
-		similar = 0;
-	bwa_free_read_seq(1, r_tail);
-	bwa_free_read_seq(1, q_tail);
-	if (similar) {
-		r_tail = new_seq(ref, len, ref->len - len);
-		q_tail = new_seq(query, len, query->len - len);
-		if (!seq_ol(r_tail, q_tail, len, mismatches))
-			similar = 0;
-		bwa_free_read_seq(1, r_tail);
-		bwa_free_read_seq(1, q_tail);
+	// Check whether forward sequences are similar
+	if (similar_bytes(ref->seq, query->seq, len, mismatches) && similar_bytes(
+			ref->seq + (ref->len - len), query->seq + (query->len - len), len,
+			mismatches)) {
+		similar = 1;
+		*rev_com = 0;
+	} else { // Check reverse sequence
+		if (similar_bytes(ref->seq, query->rseq, len, mismatches)
+				&& similar_bytes(ref->seq + (ref->len - len), query->rseq
+						+ (query->len - len), len, mismatches)) {
+			similar = 1;
+			*rev_com = 1;
+		}
 	}
 	return similar;
 }
 
+/**
+ * Find the maximum overlap between the mate and template;
+ * The overlap length is limited within [min_len, max_len] to save comparison time
+ */
 int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tpl,
 		const int mismatches, const int min_len, const int max_len,
 		const int ori) {
-	int i = 0, olpped = 0;
-	if (!mate || !tpl)
+	int i = 0, olpped = -1;
+	if (!mate || !tpl || min_len <= 0 || max_len <= 0 || max_len < min_len)
 		return 0;
-	for (i = max_len; i > min_len; i--) {
+	for (i = max_len; i >= min_len; i--) {
 		olpped = ori ? seq_ol(mate, tpl, i, mismatches) : seq_ol(tpl, mate, i,
 				mismatches);
-		if (olpped > 0) {
+		if (olpped >= 0) {
 			olpped = i;
 			break;
 		}
 	}
 	return olpped;
+}
+
+/**
+ * Find the maximum overlapping length between two sequences
+ */
+int find_fr_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tail,
+		const int mismatches, const int min_len, const int max_len,
+		const int ori, const int *rev_com) {
+	int olpped = 0;
+	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori);
+	if (olpped >= min_len && olpped <= max_len) {
+		*rev_com = 0;
+		return olpped;
+	}
+	// Switch the forward and reverse sequences temply
+	// Make sure to switch back before returning.
+	switch_fr(mate);
+	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori);
+	if (olpped >= min_len && olpped <= max_len) {
+		*rev_com = 1;
+		switch_fr(mate);
+		return olpped;
+	}
+	switch_fr(mate);
+	return -1;
 }
 
 int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,
@@ -796,13 +859,13 @@ int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,
 	min_len = (left_seq->len < right_seq->len) ? min_len : right_seq->len;
 	for (i = mismatches; i < mismatches * 2; i++) {
 		olpped = seq_ol(left_seq, right_seq, i, 1);
-		if (olpped > 0) {
+		if (olpped >= 0) {
 			return i;
 		}
 	}
 	for (i = min_len; i >= mismatches * 2; i--) {
 		olpped = seq_ol(left_seq, right_seq, i, mismatches);
-		if (olpped > 0) {
+		if (olpped >= 0) {
 			olpped = i;
 			break;
 		}

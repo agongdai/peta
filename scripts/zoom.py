@@ -232,7 +232,7 @@ def get_hit_str(hit, reads):
             hit_str += read_seq[hit.qend:hit.qlen]
         else:
             hit_str += rev_read_seq[hit.qend:hit.qlen]
-    hit_str += SEP + hit.qname + ':' + str(len(read_seq)) + ' [' + str(hit.qstart) + '@' + str(hit.rstart) + 'M' + str(hit.n_match) + ',Ins' + str(hit.n_ref_gap_bases) + str(hit.strand) + str(hit.n_mismatch) + ']'
+    hit_str += SEP + hit.qname + ':' + str(len(read_seq)) + ' [' + str(hit.qstart) + '@' + str(hit.rstart) + 'M' + str(hit.n_match) + ',Ins' + str(hit.n_query_gap_bases) + str(hit.strand) + str(hit.n_mismatch) + ']'
     return hit_str
 
 def get_pair_hit_str(mate_h_1, mate_h_2, reads):

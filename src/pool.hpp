@@ -33,6 +33,7 @@ extern "C" {
 	void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 			int mismatches, const int ori);
 	void correct_tpl_base(pool *p, tpl *t, int t_len);
+	void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori);
 
 #ifdef __cplusplus
 }
