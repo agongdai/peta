@@ -123,24 +123,39 @@ void rm_from_pool(pool *p, int index) {
  */
 int get_next_char(pool *p, tpl *t, const int ori) {
 	readarray *reads = p->reads;
-	int *c = (int*) calloc(5, sizeof(int));
+	int *c = NULL;
 	int i = 0, next_char = -1, max_c = 0;
 	bwa_seq_t *r = NULL;
-	int pre_cursor = 0, this_c = 0, pre_c = 0;
+	int pre_cursor = 0, this_c = 0, pre_c = 0, empty = 1;
 	int pre_t_c = ori ? t->ctg->seq[0] : t->ctg->seq[t->len - 1];
 
+	if (!p->reads || p->reads == 0)
+		return -1;
+
+	c = (int*) calloc(5, sizeof(int));
 	c[0] = c[1] = c[2] = c[3] = c[4] = 0;
 	for (i = 0; i < reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
 		pre_cursor = ori ? (r->cursor + 1) : (r->cursor - 1);
+		// Check only if there are more than 2 reads
 		// If in the previous round, this read has a mismatch, then does not count it this time
 		if (pre_t_c > -1 && pre_cursor >= 0 && pre_cursor < r->len) {
 			pre_c = r->rev_com ? r->rseq[pre_cursor] : r->seq[pre_cursor];
+			// If there is only one read left, extend it anyway
 			if (pre_c != pre_t_c)
 				continue;
 		}
 		this_c = r->rev_com ? r->rseq[r->cursor] : r->seq[r->cursor];
 		c[this_c]++;
+		empty = 0;
+	}
+	// In case only few reads in pool, and all of them not support the previous base
+	if (empty) {
+		for (i = 0; i < reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(reads, i);
+			this_c = r->rev_com ? r->rseq[r->cursor] : r->seq[r->cursor];
+			c[this_c]++;
+		}
 	}
 	for (i = 0; i < 5; i++) {
 		if (c[i] > max_c) {
@@ -274,12 +289,13 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 	bwa_seq_t *m = NULL, *r = NULL, *tail = NULL;
 	index64 i = 0;
 	int ol = 0, rev_com = 0;
-	tail = ori ? new_seq(t->ctg, tail_len, 0) : new_seq(t->ctg, tail_len, t->len
-			- tail_len);
+	tail = ori ? new_seq(t->ctg, tail_len, 0) : new_seq(t->ctg, tail_len,
+			t->len - tail_len);
 
-	for (i = 0; i < p->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		m = get_mate(r, ht->seqs);
+
 		// If the mate is used already
 		if (m->status != FRESH)
 			continue;
@@ -287,7 +303,11 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		if (is_paired(r, ori))
 			continue;
 		// Find the overlapping between mate and tail
-		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k, tail_len - 1, ori, &rev_com);
+		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k, tail_len - 1,
+				ori, &rev_com);
+		p_query("USED ", r);
+		p_query("FRESH", m);
+		show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 		if (ol >= ht->o->k) {
 			m->rev_com = rev_com;
 			m->cursor = ori ? (m->len - ol - 1) : ol;

@@ -34,6 +34,8 @@ extern "C" {
 			int mismatches, const int ori);
 	void correct_tpl_base(pool *p, tpl *t, int t_len);
 	void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori);
+	void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
+			int mismatches, int ori);
 
 #ifdef __cplusplus
 }

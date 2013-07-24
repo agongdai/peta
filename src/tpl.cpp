@@ -268,7 +268,7 @@ void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read,
 			add2tpl(t, r, 0);
 		}
 	}
-	p_readarray(t->reads, 1);
+	//p_readarray(t->reads, 1);
 	g_ptr_array_free(hits, TRUE);
 }
 

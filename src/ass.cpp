@@ -564,25 +564,35 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
 
 	p = new_pool();
 	next_pool(ht, p, t, tail, N_MISMATCHES, ori);
-	if (!ori)
+	// The correction is done only once
+	if (!ori && t->len == ht->o->read_len)
 		correct_tpl_base(p, t, tail->len);
 	//p_pool("INITIAL_POOL", p, NULL);
 	while (1) {
 		max_c = get_next_char(p, t, ori);
+		// If cannot extend, try to add mates into the pool
 		if (max_c == -1) {
-			show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n", ori,
-					t->id, t->len);
-			break;
+			//p_ctg_seq("TEMPLATE", t->ctg);
+			find_match_mates(ht, p, t, tail->len, N_MISMATCHES, ori);
+			max_c = get_next_char(p, t, ori);
+			if (max_c == -1) {
+				show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
+						ori, t->id, t->len);
+				break;
+			} else {
+				//show_debug_msg(__func__, "Added %d mates to the pool. \n", p->reads->len);
+				p_pool("MATE_POOL", p, NULL);
+			}
 		}
 
 		/**
-		if (!ori) {
-			p_query(__func__, tail);
-			p_pool(__func__, p, NULL);
-			show_debug_msg(__func__, "Next char: %c \n", "ACGTN"[max_c]);
-			p_ctg_seq("TEMPLATE", t->ctg);
-		}
-		**/
+		 if (!ori) {
+		 p_query(__func__, tail);
+		 p_pool(__func__, p, NULL);
+		 show_debug_msg(__func__, "Next char: %c \n", "ACGTN"[max_c]);
+		 p_ctg_seq("TEMPLATE", t->ctg);
+		 }
+		 **/
 
 		ext_con(t->ctg, max_c, ori);
 		t->len = t->ctg->len;
@@ -591,6 +601,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
 		rm_half_clip_reads(p, t, max_c, N_MISMATCHES, ori);
 		forward(p, t, ori);
 		next_pool(ht, p, t, tail, N_MISMATCHES, ori);
+
 		if (t->len % 100 == 0)
 			show_debug_msg(__func__, "Ori %d, tpl %d, length %d \n", ori,
 					t->id, t->len);
@@ -605,8 +616,8 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
  */
 void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	tpl *t = NULL;
-	int round_1_len = 0, round_2_len = 0, connected = 0, ori = 1, flag = 0;
-	int round_1_n_reads = 0;
+	int pre_len = 0, round_2_len = 0, connected = 0, ori = 1, flag = 0;
+	int pre_n_reads = 0;
 	uint64_t read_id = 0;
 	uint32_t i = 0;
 	kmer_counter *counter = NULL;
@@ -629,8 +640,6 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 			|| is_biased_q(read) || read->status != FRESH) {
 		return NULL;
 	}
-	// Make a clone of the original starting read, which is global
-	query = new_seq(read, kmer_len, read->len - kmer_len);
 
 	show_debug_msg(__func__, "============= %s: %" ID64 " ============ \n",
 			read->name, counter->count);
@@ -641,29 +650,38 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	g_mutex_lock(kmer_id_mutex);
 	all_tpls->insert(make_pair<int, tpl*> ((int) t->id, (tpl*) t));
 	g_mutex_unlock(kmer_id_mutex);
+
 	mark_init_reads_used(ht, t, read, N_MISMATCHES);
+	// Right->left->right->left...until not extendable
+	while (t->len > pre_len) {
+		// Extend to the right first
+		// Make a clone of the original starting read, which is global
+		query = new_seq(t->ctg, kmer_len, t->len - kmer_len);
+		connected = kmer_ext_tpl(ht, all_tpls, t, query, 0);
+		pre_len = t->len;
+		pre_n_reads = t->reads->len;
+		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 
-	// Extend to the right first
-	connected = kmer_ext_tpl(ht, all_tpls, t, query, 0);
-	round_1_len = t->len;
-	round_1_n_reads = t->reads->len;
-	show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
+		// Then extend to the left
+		bwa_free_read_seq(1, query);
+		query = new_seq(t->ctg, kmer_len, 0);
+		// Its reverse complement is Connected to an existing template
+		ori = 1;
+		if (connected == 2) {
+			ori = 0;
+			switch_fr(query);
+		}
 
-	bwa_free_read_seq(1, query);
-	query = new_seq(read, kmer_len, 0);
-	// Its reverse complement is Connected to an existing template
-	if (connected == 2) {
-		ori = 0;
-		switch_fr(query);
+		connected |= kmer_ext_tpl(ht, all_tpls, t, query, ori);
+		bwa_free_read_seq(1, query);
+		upd_locus_on_tpl(t, pre_len, pre_n_reads);
+
+		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
+		p_ctg_seq("TEMPLATE", t->ctg);
 	}
 
-	// Then extend to the left
-	connected |= kmer_ext_tpl(ht, all_tpls, t, query, ori);
-	upd_locus_on_tpl(t, round_1_len, round_1_n_reads);
-	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+	//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 	//p_readarray(t->reads, 1);
-	show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
-	p_ctg_seq("TEMPLATE", t->ctg);
 
 	if (!t->alive || (t->len <= query->len && (!t->b_juncs || t->b_juncs->len
 			< 2))) {
@@ -683,7 +701,6 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	} else {
 		//upd_tpl_jun_locus(t, branching_events, opt->k);
 	}
-	bwa_free_read_seq(1, query);
 	return NULL;
 }
 
@@ -763,11 +780,11 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	fflush(contigs);
 	fclose(contigs);
 
-	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junc_by_id);
-	clean_junctions(branching_events);
-	store_features(get_output_file("paired.junctions", kmer_out),
-			branching_events, read_tpls);
-	process_graph(read_tpls, branching_events, ht);
+	//g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junc_by_id);
+	//clean_junctions(branching_events);
+	//store_features(get_output_file("paired.junctions", kmer_out),
+	//		branching_events, read_tpls);
+	//process_graph(read_tpls, branching_events, ht);
 	//	reset_tpl_ids(all_kmer_tpls);
 	//	merge_ol_tpls(all_kmer_tpls, ins_size, sd_ins_size, hm->seqs,
 	//			kmer_n_threads);

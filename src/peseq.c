@@ -830,7 +830,7 @@ int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tpl,
  */
 int find_fr_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tail,
 		const int mismatches, const int min_len, const int max_len,
-		const int ori, const int *rev_com) {
+		const int ori, int *rev_com) {
 	int olpped = 0;
 	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori);
 	if (olpped >= min_len && olpped <= max_len) {
