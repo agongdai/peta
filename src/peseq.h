@@ -79,13 +79,13 @@ extern "C" {
 			int mismatches, int *rev_com);
 	int find_fr_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tail,
 			const int mismatches, const int min_len, const int max_len,
-			const int ori, int *rev_com);
+			const int ori, int *rev_com, int *n_mis);
 	int find_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq,
 			const int mismatches);
 	void switch_fr(bwa_seq_t *s);
 	int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *temp,
 			const int mismatches, const int min_len, const int max_len,
-			const int ori);
+			const int ori, int *n_mis);
 	int is_repetitive_q(const bwa_seq_t *query);
 	void pe_reverse_seqs(bwa_seq_t *seqs, const int n_seqs);
 	int is_paired(const bwa_seq_t *read, const int ori);

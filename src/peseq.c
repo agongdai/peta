@@ -810,7 +810,7 @@ int head_tail_similar(bwa_seq_t *ref, bwa_seq_t *query, const int len,
  */
 int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tpl,
 		const int mismatches, const int min_len, const int max_len,
-		const int ori) {
+		const int ori, int *n_mis) {
 	int i = 0, olpped = -1;
 	if (!mate || !tpl || min_len <= 0 || max_len <= 0 || max_len < min_len)
 		return 0;
@@ -818,6 +818,8 @@ int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tpl,
 		olpped = ori ? seq_ol(mate, tpl, i, mismatches) : seq_ol(tpl, mate, i,
 				mismatches);
 		if (olpped >= 0) {
+			// How many mismatches in the overlap
+			*n_mis = olpped;
 			olpped = i;
 			break;
 		}
@@ -830,9 +832,9 @@ int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tpl,
  */
 int find_fr_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tail,
 		const int mismatches, const int min_len, const int max_len,
-		const int ori, int *rev_com) {
+		const int ori, int *rev_com, int *n_mis) {
 	int olpped = 0;
-	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori);
+	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori, n_mis);
 	if (olpped >= min_len && olpped <= max_len) {
 		*rev_com = 0;
 		return olpped;
@@ -840,7 +842,7 @@ int find_fr_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tail,
 	// Switch the forward and reverse sequences temply
 	// Make sure to switch back before returning.
 	switch_fr(mate);
-	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori);
+	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori, n_mis);
 	if (olpped >= min_len && olpped <= max_len) {
 		*rev_com = 1;
 		switch_fr(mate);

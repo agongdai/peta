@@ -49,6 +49,7 @@ tpl *new_tpl() {
 	t->in_connect = 0;
 	t->vertexes = g_ptr_array_sized_new(0);
 	t->reads = g_ptr_array_sized_new(0);
+	t->tried = g_ptr_array_sized_new(0);
 	return t;
 }
 
@@ -251,6 +252,23 @@ void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
 	g_ptr_array_add(t->reads, r);
 }
 
+void add2tried(tpl *t, bwa_seq_t *r) {
+	r->contig_id = t->id;
+	r->contig_locus = -1;
+	r->status = TRIED;
+	r->pos = -1;
+	g_ptr_array_add(t->tried, r);
+}
+
+void unfrozen_tried(tpl *t) {
+	index64 i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < t->tried->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
+		reset_to_fresh(r);
+	}
+}
+
 /**
  * Read extension starts from some read, mark this read and its close reads as used first
  */
@@ -370,6 +388,18 @@ void destroy_tpl(tpl *t) {
 			}
 			g_ptr_array_free(t->reads, TRUE);
 		}
+
+		if (t->tried) {
+			for (i = 0; i < t->tried->len; i++) {
+				r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
+				r->contig_id = -1;
+				r->contig_locus = -1;
+				r->pos = -1;
+				r->status = TRIED;
+			}
+			g_ptr_array_free(t->tried, TRUE);
+		}
+
 		if (t->m_juncs)
 			g_ptr_array_free(t->m_juncs, TRUE);
 		if (t->b_juncs)

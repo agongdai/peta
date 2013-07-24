@@ -104,6 +104,9 @@ void p_pool(const char *header, const pool *p, const int *next) {
 void add2pool(pool *p, bwa_seq_t *r) {
 	g_ptr_array_add(p->reads, r);
 	r->status = IN_POOL;
+	// Indicates how many mismatches between the read and template
+	if (r->pos == -1)
+		r->pos = 0;
 }
 
 /**
@@ -216,6 +219,8 @@ void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori) {
 		if (r->pos > mismatches) {
 			//p_query("REMOVED", r);
 			rm_from_pool(p, i--);
+			// Set status to TRIED first. Will be reset to FRESH after this template is done.
+			add2tried(t, r);
 		}
 	}
 
@@ -245,14 +250,13 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
  * Correct bases on the template to the concensus base
  */
 void correct_tpl_base(pool *p, tpl *t, int t_len) {
-	int i = 0, j = 0, pos = 0;
-	int8_t c = 0, max_c = 0, max = 0;
+	int i = 0, pos = 0;
+	ubyte_t c = 0, j = 0, max_c = 0, max = 0;
 	bwa_seq_t *r = NULL;
 	int counter[4];
 	if (!p || !p->reads || p->reads->len < 3)
 		return;
 	//p_ctg_seq("BEFORE", t->ctg);
-	r = (bwa_seq_t*) g_ptr_array_index(p->reads, 0);
 	for (i = 0; i < t->len; i++) {
 		max = 0;
 		max_c = 0;
@@ -288,7 +292,7 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		int mismatches, int ori) {
 	bwa_seq_t *m = NULL, *r = NULL, *tail = NULL;
 	index64 i = 0;
-	int ol = 0, rev_com = 0;
+	int ol = 0, rev_com = 0, n_mis = 0;
 	tail = ori ? new_seq(t->ctg, tail_len, 0) : new_seq(t->ctg, tail_len,
 			t->len - tail_len);
 
@@ -304,13 +308,14 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 			continue;
 		// Find the overlapping between mate and tail
 		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k, tail_len - 1,
-				ori, &rev_com);
-		p_query("USED ", r);
-		p_query("FRESH", m);
-		show_debug_msg(__func__, "OVERLAP: %d\n", ol);
+				ori, &rev_com, &n_mis);
+		//p_query("USED ", r);
+		//p_query("FRESH", m);
+		//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 		if (ol >= ht->o->k) {
 			m->rev_com = rev_com;
 			m->cursor = ori ? (m->len - ol - 1) : ol;
+			m->pos = n_mis;
 			add2pool(p, m);
 		}
 	}

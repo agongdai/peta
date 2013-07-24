@@ -41,6 +41,7 @@ typedef struct {
 	uint64_t start_kmer;	// The starting kmer
 	uint32_t kmer_freq;		// Sum of all kmer frequencies
 	GPtrArray *reads;		// Reads on it. Used for paired validation
+	GPtrArray *tried;		// Reads that loaded to pool once, then removed, marked as TRIED
 	GPtrArray *vertexes;	// The template be broken into vertexes linearly
 } tpl;
 
@@ -74,6 +75,8 @@ extern "C" {
 	int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,
 			int start_2, int end_2, const int min_n_pairs);
 	void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read, int mismatches);
+	void unfrozen_tried(tpl *t);
+	void add2tried(tpl *t, bwa_seq_t *r);
 
 #ifdef __cplusplus
 }

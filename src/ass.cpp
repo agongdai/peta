@@ -515,37 +515,33 @@ gint cmp_kmers_by_count(gpointer a, gpointer b) {
  *         1: forward connected
  *         2: reverse complement connected
  **/
-/**
- int existing_connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls,
- uint64_t query_int, int ori) {
- int connected = 0, rev_ori = 0;
- uint64_t rev_query = 0;
- // During extension, the sequence is actually reversed, here reverse back temp
- if (ori)
- seq_reverse(branch->len, branch->ctg->seq, 0);
- set_rev_com(branch->ctg);
- connected = connect(branch, hm, all_tpls, query_int, ori);
- // Try the reverse complement of the branch and connect
- //	, if there is no other template connecting to it currently
- if (!connected && !branch->in_connect) {
- //show_debug_msg(__func__, "ATTENTION: going to connect reverse complement\n");
- switch_fr(branch->ctg);
- rev_ori = ori ? 0 : 1;
- rev_query = rev_comp_kmer(query_int, hm->o->k);
- connected = connect(branch, hm, all_tpls, rev_query, rev_ori);
- // If connected, no need to reverse back, because the extending will be always stopped
- if (!connected)
- switch_fr(branch->ctg);
- else {
- connected = 2; // Indicates that its rev-comp connectes to existing template
- //show_debug_msg(__func__, "ATTENTION: connected reverse complement\n");
- }
- }
- if (ori)
- seq_reverse(branch->len, branch->ctg->seq, 0);
- return connected;
- }
- **/
+
+int existing_connect(tpl *branch, hash_map *hm, tpl_hash *all_tpls,
+		uint64_t query_int, int ori) {
+	int connected = 0, rev_ori = 0;
+	uint64_t rev_query = 0;
+
+//	set_rev_com(branch->ctg);
+//	connected = connect(branch, hm, all_tpls, query_int, ori);
+//	// Try the reverse complement of the branch and connect
+//	//	, if there is no other template connecting to it currently
+//	if (!connected && !branch->in_connect) {
+//		//show_debug_msg(__func__, "ATTENTION: going to connect reverse complement\n");
+//		switch_fr(branch->ctg);
+//		rev_ori = ori ? 0 : 1;
+//		rev_query = rev_comp_kmer(query_int, hm->o->k);
+//		connected = connect(branch, hm, all_tpls, rev_query, rev_ori);
+//		// If connected, no need to reverse back, because the extending will be always stopped
+//		if (!connected)
+//			switch_fr(branch->ctg);
+//		else {
+//			connected = 2; // Indicates that its rev-comp connectes to existing template
+//			//show_debug_msg(__func__, "ATTENTION: connected reverse complement\n");
+//		}
+//	}
+
+	return connected;
+}
 
 /**
  * Extend a template until no next kmer
@@ -565,8 +561,8 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
 	p = new_pool();
 	next_pool(ht, p, t, tail, N_MISMATCHES, ori);
 	// The correction is done only once
-	if (!ori && t->len == ht->o->read_len)
-		correct_tpl_base(p, t, tail->len);
+	//if (!ori && t->len == ht->o->read_len)
+	//	correct_tpl_base(p, t, tail->len);
 	//p_pool("INITIAL_POOL", p, NULL);
 	while (1) {
 		max_c = get_next_char(p, t, ori);
@@ -699,6 +695,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		// The reads on it marked as TRIED
 		destroy_tpl(t);
 	} else {
+		unfrozen_tried(t);
 		//upd_tpl_jun_locus(t, branching_events, opt->k);
 	}
 	return NULL;
