@@ -11,6 +11,27 @@
 #include "rnaseq.h"
 #include "utils.h"
 
+bwa_seq_t *get_key_seq(uint64_t kmer, const int k) {
+	ubyte_t *seq = NULL;
+	bwa_seq_t *read = NULL;
+	int i = 0;
+	uint64_t copy = kmer, index = 0;
+	read = blank_seq(k);
+	seq = read->seq;
+	for (i = 0; i < k; i++) {
+		index = copy;
+		index &= 3; // Keep only the last two bits
+		seq[k - 1 - i] = index;
+		copy >>= 2;
+	}
+	read->len = k;
+	read->status = FRESH;
+	read->name = (char*) malloc(64);
+	sprintf(read->name, "%" ID64, kmer);
+	set_rev_com(read);
+	return read;
+}
+
 int hash_usage() {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Usage:   peta hash [options] <rnaseq.fa> \n");
@@ -426,9 +447,16 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 	if (!hits)
 		hits = g_ptr_array_sized_new(0);
 	// For every possible kmer
-	for (i = 0; i <= len - opt->k * opt->interleaving - 1; i++) {
+	for (i = 0; i <= len - opt->k * opt->interleaving + 1; i++) {
 		key = get_hash_key(seq, i, opt->interleaving, opt->k);
 		//show_debug_msg(__func__, "KEY: %" ID64 ". \n", key);
+
+		/**
+		bwa_seq_t *key_seq = get_key_seq(key, 11);
+		p_query(__func__, key_seq);
+		bwa_free_read_seq(1, key_seq);
+		**/
+
 		start = ht->k_mers_occ_acc[key];
 		end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers - 1]
 				: ht->k_mers_occ_acc[key + 1];
@@ -439,6 +467,7 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 				read_hash_value(&seq_id, &locus, value);
 				r = &seqs[seq_id];
 				//p_query(__func__, r);
+				//show_debug_msg(__func__, "Locus: %d\n", locus);
 				abs_locus = locus - i;
 				if (abs_locus >= 0 && abs_locus <= r->len + 1
 						- opt->interleaving * opt->k) {
@@ -464,7 +493,15 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 	bwa_seq_t *r = NULL;
 	GPtrArray *hits = g_ptr_array_sized_new(0), *rev_hits = NULL;
 
+	//p_query(__func__, query);
+
 	hits = find_reads_with_kmer(ht, hits, status, query->seq, query->len);
+
+	//bwa_seq_t *rev = new_seq(query, query->len, 0);
+	//switch_fr(rev);
+	//p_query("REV", rev);
+	//bwa_free_read_seq(1, rev);
+
 	set_rev_com(query);
 	rev_hits = find_reads_with_kmer(ht, NULL, status, query->rseq, query->len);
 

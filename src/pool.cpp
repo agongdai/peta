@@ -227,6 +227,42 @@ void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori) {
 }
 
 /**
+ * Align read length template tails to get initial pool
+ */
+void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
+		const int ori) {
+	bwa_seq_t *r = NULL, *tail = NULL, *read = NULL;
+	index64 i = 0, j = 0;
+	GPtrArray *hits = NULL;
+	int cursor = 0;
+
+	// Must be some error happens!
+	if (!t->start_read || t->start_read->len <= 0)
+		return;
+	if (t->len > ht->o->read_len) {
+		read = ori ? new_seq(t->ctg, ht->o->read_len, 0) : new_seq(t->ctg,
+				ht->o->read_len, t->len - ht->o->read_len);
+	} else {
+		read = new_seq(t->start_read, ht->o->read_len, 0);
+	}
+	for (i = 0; i <= read->len - tail_len; i++) {
+		tail = new_seq(read, tail_len, i);
+		hits = align_tpl_tail(ht, t, tail, mismatches, FRESH, ori);
+		for (j = 0; j < hits->len; j++) {
+			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
+			cursor = ori ? r->cursor - i : r->cursor + (read->len - tail_len
+					- i);
+			if (cursor >= 0 && cursor < read->len) {
+				add2pool(p, r);
+			}
+		}
+		bwa_free_read_seq(1, tail);
+		g_ptr_array_free(hits, TRUE);
+	}
+	bwa_free_read_seq(1, read);
+}
+
+/**
  * Align the tail to the RNA-seq reads, add fresh reads to current pool
  */
 void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,

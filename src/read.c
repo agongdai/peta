@@ -89,14 +89,15 @@ gint align_read_thread(gpointer r, gpointer para) {
 	//show_debug_msg(__func__, "# of n_seqs: %d\n", ht->n_seqs);
 	index64 *similar_reads_count = p->rh->similar_reads_count;
 	index64 read_id = 0;
-	read_id = atol(query->name);
-	if (read_id < 0 || read_id >= ht->n_seqs)
+	read_id = atoll(query->name);
+	if (read_id < 0 || read_id >= ht->n_seqs || query->pos != -1)
 		return 1;
 	find_both_fr_full_reads(ht, query, hits, N_MISMATCHES);
-	// Conservative programming, reset pos to -1
+	// Mark 'pos' as not -1, to save time
 	for (i = 0; i < hits->len; i++) {
 		tmp = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		tmp->pos = -1;
+		tmp->pos = hits->len;
+		similar_reads_count[atoll(tmp->name)] = hits->len;
 	}
 	//show_debug_msg(__func__, "Hits: %d\n", hits->len);
 	//show_debug_msg(__func__, "Query id: %d\n", read_id);

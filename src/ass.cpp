@@ -331,7 +331,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	con_reads = find_connected_reads(ht, all_tpls, branch, ori);
 	for (i = 0; i < con_reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(con_reads, i);
-		p_query(__func__, r);
+		//p_query(__func__, r);
 		tpl_hash::iterator it = all_tpls->find(r->contig_id);
 		if (it == all_tpls->end()) {
 			continue;
@@ -342,7 +342,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		con_pos = ori ? (locus + 1) : (locus + ht->o->read_len - 1);
 		exist_ori = ori ? 0 : 1;
 
-		p_tpl(main_tpl);
+		//p_tpl(main_tpl);
 
 		// If right and left connections are too close, just ignore.
 		if (branch->b_juncs && branch->b_juncs->len > 0) {
@@ -445,7 +445,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		}
 
 		// Finally! Go to add the junction!
-		p_tpl(branch);
+		//p_tpl(branch);
 		show_debug_msg(__func__,
 				"Connect existing [%d, %d] to [%d, %d] at %d. \n", branch->id,
 				branch->len, main_tpl->id, main_tpl->len, con_pos);
@@ -464,12 +464,11 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 /**
  * Extend a template until no next kmer
  */
-int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
-		const int ori) {
+int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
+		bwa_seq_t *query, const int ori) {
 	int max_c = -1, *counters = NULL, weight = 0, con_existing = 0;
 	int max_c_all = 0, *counters_all = NULL;
 	int connected = 0;
-	pool *p = NULL;
 	bwa_seq_t *tail = new_seq(query, query->len, 0);
 
 	show_debug_msg(__func__,
@@ -477,36 +476,30 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
 	//p_query(__func__, tail);
 	//p_ctg_seq("TEMPLATE", t->ctg);
 
-	p = new_pool();
-	next_pool(ht, p, t, tail, N_MISMATCHES, ori);
-	p_pool("INITIAL_POOL", p, NULL);
-	// The correction is done only once
-	if (!ori && t->len == ht->o->read_len)
-		correct_tpl_base(p, t, tail->len);
 	while (1) {
 		max_c = get_next_char(p, t, ori);
 		// If cannot extend, try to add mates into the pool
 		if (max_c == -1) {
 			//p_ctg_seq("TEMPLATE", t->ctg);
-//			find_match_mates(ht, p, t, tail->len, LESS_MISMATCH, ori);
-//			max_c = get_next_char(p, t, ori);
-//			if (max_c == -1) {
-//				con_existing = connect_by_full_reads(ht, all_tpls, t, ori);
+			find_match_mates(ht, p, t, tail->len, LESS_MISMATCH, ori);
+			max_c = get_next_char(p, t, ori);
+			if (max_c == -1) {
+				con_existing = connect_by_full_reads(ht, all_tpls, t, ori);
 				show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
 						ori, t->id, t->len);
 				break;
-//			} else {
-//				show_debug_msg(__func__, "Added mates: ori %d \n", ori);
-//				p_query("TAIL", tail);
-//				p_pool("MATE_POOL", p, NULL);
-//			}
+			} else {
+				show_debug_msg(__func__, "Added mates: ori %d \n", ori);
+				p_query("TAIL", tail);
+				p_pool("MATE_POOL", p, NULL);
+			}
 		}
-
+		/**
 		 p_query(__func__, tail);
 		 show_debug_msg(__func__, "Next char: %c \n", "ACGTN"[max_c]);
 		 p_ctg_seq("TEMPLATE", t->ctg);
 		 p_pool(__func__, p, NULL);
-
+		 **/
 		ext_con(t->ctg, max_c, ori);
 		t->len = t->ctg->len;
 		ext_que(tail, max_c, ori);
@@ -520,7 +513,6 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
 					t->id, t->len);
 	}
 	bwa_free_read_seq(1, tail);
-	destroy_pool(p);
 	return con_existing;
 }
 
@@ -536,6 +528,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	kmer_counter *counter = NULL;
 	bwa_seq_t *read = NULL, *query = NULL, *seqs = NULL;
 	junction *jun = NULL;
+	pool *p = NULL;
 
 	kmer_t_meta *params = (kmer_t_meta*) thread_params;
 	tpl_hash *all_tpls = params->all_tpls;
@@ -570,8 +563,16 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	while (t->len > pre_len) {
 		// Extend to the right first
 		// Make a clone of the original starting read, which is global
+		p = new_pool();
+		init_pool(ht, p, t, kmer_len, N_MISMATCHES, 0);
+		//p_pool("INITIAL_POOL", p, NULL);
+		// The correction is done only once
+		if (pre_len == 0)
+			correct_tpl_base(p, t, kmer_len);
+
 		query = get_tail(t, kmer_len, 0);
-		connected = kmer_ext_tpl(ht, all_tpls, t, query, 0);
+		connected = kmer_ext_tpl(ht, all_tpls, p, t, query, 0);
+		destroy_pool(p);
 		pre_len = t->len;
 		pre_n_reads = t->reads->len;
 		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
@@ -586,7 +587,12 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 			switch_fr(query);
 		}
 
-		connected |= kmer_ext_tpl(ht, all_tpls, t, query, ori);
+		p = new_pool();
+		init_pool(ht, p, t, kmer_len, N_MISMATCHES, ori);
+		//p_pool("INITIAL_POOL", p, NULL);
+
+		connected |= kmer_ext_tpl(ht, all_tpls, p, t, query, ori);
+		destroy_pool(p);
 		bwa_free_read_seq(1, query);
 		upd_locus_on_tpl(t, pre_len, pre_n_reads);
 

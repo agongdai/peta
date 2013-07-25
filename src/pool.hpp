@@ -30,6 +30,7 @@ extern "C" {
 	void add2pool(pool *p, bwa_seq_t *r);
 	int get_next_char(pool *p, tpl *t, const int ori);
 	void forward(pool *p, tpl *t, const int ori);
+	void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches, const int ori);
 	void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 			int mismatches, const int ori);
 	void correct_tpl_base(pool *p, tpl *t, int t_len);

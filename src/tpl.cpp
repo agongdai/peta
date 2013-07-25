@@ -392,12 +392,12 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 				} else {
 					n_mis = seq_ol(t->ctg, r, ol, mismatches);
 				}
-				//				if (!ori) {
-				//					p_query(__func__, r);
-				//					p_ctg_seq(__func__, t->ctg);
-				//					show_debug_msg(__func__, "Should have overlap: %d\n", ol);
-				//					show_debug_msg(__func__, "N_MISMATCHES: %d\n", n_mis);
-				//				}
+//				if (!ori) {
+//					p_query(__func__, r);
+//					p_ctg_seq(__func__, t->ctg);
+//					show_debug_msg(__func__, "Should have overlap: %d\n", ol);
+//					show_debug_msg(__func__, "N_MISMATCHES: %d\n", n_mis);
+//				}
 				// n_mis >= 0 means similar with n_mis mismatches; -1 means not similar
 				if (n_mis >= 0) {
 					//show_debug_msg(__func__, "Cursor: %d\n", cursor);
