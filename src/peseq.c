@@ -28,7 +28,7 @@ gint cmp_reads_by_name(gpointer a, gpointer b) {
 gint cmp_reads_by_contig_id(gpointer a, gpointer b) {
 	bwa_seq_t *seq_a = *((bwa_seq_t**) a);
 	bwa_seq_t *seq_b = *((bwa_seq_t**) b);
-	return (seq_b->contig_id - seq_a->contig_id);
+	return (seq_a->contig_id - seq_b->contig_id);
 }
 
 gint cmp_reads_by_contig_locus(gpointer a, gpointer b) {

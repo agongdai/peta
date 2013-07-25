@@ -366,6 +366,7 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 		int mismatches, int ori) {
 	int tail_len = ht->o->k * 2;
 	int i = 0, ol = 0, rev_com = 0, n_mis = 0;
+	int added = 0;
 	bwa_seq_t *seqs = ht->seqs;
 	bwa_seq_t *tail = 0, *r = NULL, *m = NULL;
 	GPtrArray *mates = NULL;
@@ -396,11 +397,12 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 			m->cursor = ori ? (m->len - ol - 1) : ol;
 			m->pos = n_mis;
 			add2pool(p, m);
+			added = 1;
 		}
 	}
 	// With even shorter overlap and less mismatches allow.
 	// Base by base checking.
-	if (p->reads->len == 0) {
+	if (!added) {
 		find_match_mates(ht, p, t, tail_len, 0, ori);
 	}
 	g_ptr_array_free(mates, TRUE);

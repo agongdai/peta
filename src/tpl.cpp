@@ -32,7 +32,6 @@ void p_tpl(tpl *t) {
 	}
 	show_debug_msg(__func__, "---- Template %d ----\n", t->id);
 	show_debug_msg(__func__, "\t Length: %d \n", t->len);
-	show_debug_msg(__func__, "\t Start from: Read %d \n", t->start_kmer);
 	if (t->reads)
 		show_debug_msg(__func__, "\t Reads: %d\n", t->reads->len);
 	if (t->tried)
@@ -42,6 +41,10 @@ void p_tpl(tpl *t) {
 	if (t->b_juncs)
 		show_debug_msg(__func__, "\t Junctions as branch: %d \n",
 				t->b_juncs->len);
+	if (t->start_read)
+		p_query(__func__, t->start_read);
+	if (t->ctg)
+		p_ctg_seq(__func__, t->ctg);
 	show_debug_msg(__func__, "---- Template %d ---- \n", t->id);
 }
 
@@ -62,7 +65,7 @@ tpl *new_tpl() {
 	t->alive = 1;
 	t->is_root = 0;
 	t->ori = 0;
-	t->start_kmer = 0;
+	t->start_read = NULL;
 	t->tid = 0;
 	t->kmer_freq = 0;
 	t->in_connect = 0;
@@ -70,6 +73,24 @@ tpl *new_tpl() {
 	t->reads = g_ptr_array_sized_new(0);
 	t->tried = g_ptr_array_sized_new(0);
 	return t;
+}
+
+/**
+ * Get the tail for extension.
+ * The only chance that the template is shorter than len is after timmed by junction.
+ */
+bwa_seq_t *get_tail(tpl *t, int len, const int ori) {
+	bwa_seq_t *tail = NULL;
+	// Must be something wrong!
+	if (!t || t->len < 0 || len < 0)
+		return NULL;
+	if (t->len >= len) {
+		return ori ? new_seq(t->ctg, len, 0) : new_seq(t->ctg, len, t->len
+				- len);
+	} else {
+		return ori ? new_seq(t->start_read, len, 0) : new_seq(t->start_read,
+				len, t->start_read->len - len);
+	}
 }
 
 void free_readarray(readarray *ra) {
@@ -87,26 +108,26 @@ gint cmp_tpl_by_id(gpointer a, gpointer b) {
 /**
  * Remove duplicates in an array
  */
-GPtrArray *rm_dup_tpls(GPtrArray *tpls) {
+GPtrArray *rm_dup_reads_on_tpl(GPtrArray *reads) {
 	int i = 0;
-	tpl *pre = NULL, *post = NULL;
-	GPtrArray *uni_tpls = NULL;
-	if (!tpls || tpls->len < 2) {
-		return tpls;
+	bwa_seq_t *pre = NULL, *post = NULL;
+	GPtrArray *uni_reads = NULL;
+	if (!reads || reads->len < 2) {
+		return reads;
 	}
-	uni_tpls = g_ptr_array_sized_new(tpls->len);
-	g_ptr_array_sort(tpls, (GCompareFunc) cmp_tpl_by_id);
-	pre = (tpl*) g_ptr_array_index(tpls, 0);
-	g_ptr_array_add(uni_tpls, pre);
-	for (i = 1; i < tpls->len; i++) {
-		post = (tpl*) g_ptr_array_index(tpls, i);
-		if (post != pre) {
-			g_ptr_array_add(uni_tpls, post);
+	uni_reads = g_ptr_array_sized_new(reads->len);
+	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_contig_id);
+	pre = (bwa_seq_t*) g_ptr_array_index(reads, 0);
+	g_ptr_array_add(uni_reads, pre);
+	for (i = 1; i < reads->len; i++) {
+		post = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		if (post->contig_id != pre->contig_id) {
+			g_ptr_array_add(uni_reads, post);
 			pre = post;
 		}
 	}
-	g_ptr_array_free(tpls, TRUE);
-	return uni_tpls;
+	g_ptr_array_free(reads, TRUE);
+	return uni_reads;
 }
 
 /**
@@ -416,8 +437,8 @@ void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 			contig = t->ctg;
 			if (ori)
 				seq_reverse(contig->len, contig->seq, 0);
-			sprintf(h, ">%d length: %d start: %d\n", t->id, contig->len,
-					t->start_kmer);
+			sprintf(h, ">%d length: %d start: %s\n", t->id, contig->len,
+					t->start_read->name);
 			save_con(h, contig, ass_fa);
 		}
 	}

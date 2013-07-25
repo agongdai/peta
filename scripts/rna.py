@@ -354,8 +354,8 @@ def simu_pair(args):
         part_fa.seqs[tx] = seq
         for i in range(len(seq) - args.read_len + 1):
             if (i + args.read_len + args.ins_size <= len(seq)):
-                if i > 170 and i < 360:
-                    continue
+#                if i > 170 and i < 360:
+#                    continue
                 reads.seqs[read_id] = seq[i:i+args.read_len]
                 read_id += 1
                 reads.seqs[read_id] = seq[i+args.ins_size:i+args.ins_size+args.read_len]

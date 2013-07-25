@@ -776,12 +776,12 @@ def paths(args):
 	for tx_name, hits in all_hits.iteritems():
 		paths = []
 		for h in hits:
-			if h.n_mismatch == 0 and h.n_match == h.rlen and h.n_ref_gap == 0 and h.n_query_gap == 0:
-				paths.append(h.qname)
+			if h.n_mismatch <= 10 and h.n_match >= h.rlen - 10 and h.n_ref_gap == 0 and h.n_query_gap == 0:
+				paths.append((h.qname, h.n_mismatch))
 		if len(paths) > 0:
 			print no, tx_name
-			for p in paths:
-				print '\tPath %s' % p
+			for (p, n_mis) in paths:
+				print '\tPath %s: mismatch %d' % (p, n_mis)
 			no+=1
 
 def diff_novo(args):
