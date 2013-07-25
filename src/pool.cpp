@@ -253,14 +253,14 @@ void correct_tpl_base(pool *p, tpl *t, int t_len) {
 	int i = 0, j = 0, pos = 0;
 	ubyte_t c = 0, max_c = 0, rev_c = 0;
 	bwa_seq_t *r = NULL;
-	int counter[4], max = 0;
+	int counter[5], max = 0;
 	if (!p || t_len <= 0 || t->len < t_len || !p->reads || p->reads->len < 3)
 		return;
 	p_ctg_seq("BEFORE", t->ctg);
-	for (i = 1; i < p->reads->len; i++) {
+	for (i = 1; i < t->len; i++) {
 		max = 0;
 		max_c = 0;
-		for (j = 0; j < 4; j++) {
+		for (j = 0; j < 5; j++) {
 			counter[j] = 0;
 		}
 		for (j = 0; j < p->reads->len; j++) {
