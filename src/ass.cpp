@@ -555,28 +555,29 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *query,
 
 	show_debug_msg(__func__,
 			"------ Started extending tpl %d to ori %d... ------\n", t->id, ori);
-	p_query(__func__, tail);
-	p_ctg_seq("TEMPLATE", t->ctg);
+	//p_query(__func__, tail);
+	//p_ctg_seq("TEMPLATE", t->ctg);
 
 	p = new_pool();
 	next_pool(ht, p, t, tail, N_MISMATCHES, ori);
+	p_pool("INITIAL_POOL", p, NULL);
 	// The correction is done only once
-	//if (!ori && t->len == ht->o->read_len)
-	//	correct_tpl_base(p, t, tail->len);
-	//p_pool("INITIAL_POOL", p, NULL);
+	if (!ori && t->len == ht->o->read_len)
+		correct_tpl_base(p, t, tail->len);
 	while (1) {
 		max_c = get_next_char(p, t, ori);
 		// If cannot extend, try to add mates into the pool
 		if (max_c == -1) {
 			//p_ctg_seq("TEMPLATE", t->ctg);
-			find_match_mates(ht, p, t, tail->len, N_MISMATCHES, ori);
+			find_match_mates(ht, p, t, tail->len, LESS_MISMATCH, ori);
 			max_c = get_next_char(p, t, ori);
 			if (max_c == -1) {
 				show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
 						ori, t->id, t->len);
 				break;
 			} else {
-				//show_debug_msg(__func__, "Added %d mates to the pool. \n", p->reads->len);
+				show_debug_msg(__func__, "Added mates: ori %d \n", ori);
+				p_query("TAIL", tail);
 				p_pool("MATE_POOL", p, NULL);
 			}
 		}
@@ -632,7 +633,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	//show_debug_msg(__func__, "============= %s: %" ID64 " ============ \n",
 	//		read->name, counter->count);
 
-	if (is_biased_q(read) || counter->count < 2 || is_repetitive_q(read)
+	if (is_biased_q(read) || has_n(read, 1) || counter->count < 2 || is_repetitive_q(read)
 			|| is_biased_q(read) || read->status != FRESH) {
 		return NULL;
 	}
@@ -679,7 +680,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 	//p_readarray(t->reads, 1);
 
-	if (!t->alive || (t->len <= query->len && (!t->b_juncs || t->b_juncs->len
+	if (!t->alive || (t->len <= read->len && (!t->b_juncs || t->b_juncs->len
 			< 2))) {
 		g_mutex_lock(kmer_id_mutex);
 		all_tpls->erase(t->id);
@@ -732,7 +733,7 @@ void kmer_threads(kmer_t_meta *params) {
 		free(counter);
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		//if (i >= 100100)
-		//break;
+		break;
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
 	g_ptr_array_free(starting_reads, TRUE);

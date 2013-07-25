@@ -31,6 +31,7 @@
 #define	MISMATCH_SCORE			-1
 #define	INDEL_SCORE				-2
 #define N_MISMATCHES			2
+#define LESS_MISMATCH			1
 #define MIN_PAIRS				2
 #define MIN_JUNCTION_READS	    2	
 #define MIN_WEIGHT				2
