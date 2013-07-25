@@ -26,6 +26,25 @@ eg_gap *init_gap(int s_index, int size, int ori) {
 	return gap;
 }
 
+void p_tpl(tpl *t) {
+	if (!t) {
+		show_debug_msg(__func__, "---- Template is NULL ----\n");
+	}
+	show_debug_msg(__func__, "---- Template %d ----\n", t->id);
+	show_debug_msg(__func__, "\t Length: %d \n", t->len);
+	show_debug_msg(__func__, "\t Start from: Read %d \n", t->start_kmer);
+	if (t->reads)
+		show_debug_msg(__func__, "\t Reads: %d\n", t->reads->len);
+	if (t->tried)
+		show_debug_msg(__func__, "\t Tried: %d\n", t->tried->len);
+	if (t->m_juncs)
+		show_debug_msg(__func__, "\t Junctions as main: %d \n", t->m_juncs->len);
+	if (t->b_juncs)
+		show_debug_msg(__func__, "\t Junctions as branch: %d \n",
+				t->b_juncs->len);
+	show_debug_msg(__func__, "---- Template %d ---- \n", t->id);
+}
+
 void free_eg_gap(eg_gap *gap) {
 	if (gap)
 		free(gap);
@@ -63,6 +82,31 @@ gint cmp_tpl_by_id(gpointer a, gpointer b) {
 	tpl *c_a = *((tpl**) a);
 	tpl *c_b = *((tpl**) b);
 	return (c_a->id - c_b->id);
+}
+
+/**
+ * Remove duplicates in an array
+ */
+GPtrArray *rm_dup_tpls(GPtrArray *tpls) {
+	int i = 0;
+	tpl *pre = NULL, *post = NULL;
+	GPtrArray *uni_tpls = NULL;
+	if (!tpls || tpls->len < 2) {
+		return tpls;
+	}
+	uni_tpls = g_ptr_array_sized_new(tpls->len);
+	g_ptr_array_sort(tpls, (GCompareFunc) cmp_tpl_by_id);
+	pre = (tpl*) g_ptr_array_index(tpls, 0);
+	g_ptr_array_add(uni_tpls, pre);
+	for (i = 1; i < tpls->len; i++) {
+		post = (tpl*) g_ptr_array_index(tpls, i);
+		if (post != pre) {
+			g_ptr_array_add(uni_tpls, post);
+			pre = post;
+		}
+	}
+	g_ptr_array_free(tpls, TRUE);
+	return uni_tpls;
 }
 
 /**
@@ -252,6 +296,17 @@ void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
 	g_ptr_array_add(t->reads, r);
 }
 
+/**
+ * Remove a read from the pool and reset the the read status
+ */
+void rm_from_tpl(tpl *t, int index) {
+	if (index < 0 || !t || !t->reads || index >= t->reads->len)
+		return;
+	bwa_seq_t * r = (bwa_seq_t*) g_ptr_array_index(t->reads, index);
+	reset_to_fresh(r);
+	g_ptr_array_remove_index_fast(t->reads, index);
+}
+
 void add2tried(tpl *t, bwa_seq_t *r) {
 	r->contig_id = t->id;
 	r->contig_locus = -1;
@@ -306,8 +361,8 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 		added = 0;
 		// pos is the kmer position on the read
 		cursor = ori ? (r->pos - 1) : (r->pos + tail->len);
-//		p_query(__func__, r);
-//		show_debug_msg(__func__, "CURSOR: %d\n", cursor);
+		//		p_query(__func__, r);
+		//		show_debug_msg(__func__, "CURSOR: %d\n", cursor);
 		if (cursor >= 0 && cursor <= r->len - 1) {
 			ol = ori ? (r->len - cursor - 1) : cursor;
 			if (ol >= tail->len) {
@@ -316,12 +371,13 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 				} else {
 					n_mis = seq_ol(t->ctg, r, ol, mismatches);
 				}
-//				if (!ori) {
-//					p_query(__func__, r);
-//					p_ctg_seq(__func__, t->ctg);
-//					show_debug_msg(__func__, "Should have overlap: %d\n", ol);
-//					show_debug_msg(__func__, "N_MISMATCHES: %d\n", n_mis);
-//				}
+				//				if (!ori) {
+				//					p_query(__func__, r);
+				//					p_ctg_seq(__func__, t->ctg);
+				//					show_debug_msg(__func__, "Should have overlap: %d\n", ol);
+				//					show_debug_msg(__func__, "N_MISMATCHES: %d\n", n_mis);
+				//				}
+				// n_mis >= 0 means similar with n_mis mismatches; -1 means not similar
 				if (n_mis >= 0) {
 					//show_debug_msg(__func__, "Cursor: %d\n", cursor);
 					r->cursor = cursor;

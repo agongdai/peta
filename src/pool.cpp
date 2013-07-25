@@ -256,7 +256,7 @@ void correct_tpl_base(pool *p, tpl *t, int t_len) {
 	int counter[5], max = 0;
 	if (!p || t_len <= 0 || t->len < t_len || !p->reads || p->reads->len < 3)
 		return;
-	p_ctg_seq("BEFORE", t->ctg);
+	//p_ctg_seq("BEFORE", t->ctg);
 	for (i = 1; i < t->len; i++) {
 		max = 0;
 		max_c = 0;
@@ -271,32 +271,34 @@ void correct_tpl_base(pool *p, tpl *t, int t_len) {
 				counter[c]++;
 			}
 		}
-		show_debug_msg(__func__, "BASES at %d \n", i);
+		//show_debug_msg(__func__, "BASES at %d \n", i);
 		for (j = 0; j < 4; j++) {
-			show_debug_msg(__func__, "\t%d BASE %c: %d\n", i, "ACGTN"[j],
-					counter[j]);
+			//show_debug_msg(__func__, "\t%d BASE %c: %d\n", i, "ACGTN"[j],
+			//		counter[j]);
 			if (counter[j] > max) {
 				max = counter[j];
 				max_c = j;
 			}
 		}
-		show_debug_msg(__func__, "Max at %d: [%c, %d] \n", i, "ACGTN"[max_c],
-				max);
-		if (max > 0) {
-			t->ctg->seq[i] = max_c;
-			rev_c = 3 - max_c;
-			// If more than HIGH_N_READS (50) reads in pool, correct the reads as well
-			if (p->reads->len >= HIGH_N_READS) {
-				for (j = 0; j < p->reads->len; j++) {
-					r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
-					pos = r->cursor - t->len + i;
-					if (pos >= 0 && pos < r->len) {
-						c = r->rev_com ? r->rseq[pos] : r->seq[pos];
-						if (c != max_c) {
-							show_debug_msg(__func__,
-									"Read %s at pos %d: %c => %c \n", r->name,
-									pos, "ACGTN"[c], "ACGTN"[max_c]);
-						}
+		//show_debug_msg(__func__, "Max at %d: [%c, %d] \n", i, "ACGTN"[max_c],
+		//		max);
+		if (max <= 0)
+			continue;
+		t->ctg->seq[i] = max_c;
+		rev_c = 3 - max_c;
+		// If more than HIGH_N_READS (50) reads in pool, correct the reads as well
+		if (p->reads->len >= HIGH_N_READS) {
+			for (j = 0; j < p->reads->len; j++) {
+				r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
+				// Number of mismatches against the template is 0 now.
+				r->pos = 0;
+				pos = r->cursor - t->len + i;
+				if (pos >= 0 && pos < r->len) {
+					c = r->rev_com ? r->rseq[pos] : r->seq[pos];
+					if (c != max_c) {
+						//show_debug_msg(__func__,
+						//		"Read %s at pos %d: %c => %c \n", r->name,
+						//		pos, "ACGTN"[c], "ACGTN"[max_c]);
 						if (r->rev_com) {
 							r->rseq[pos] = max_c;
 							r->seq[r->len - pos - 1] = rev_c;
@@ -305,16 +307,16 @@ void correct_tpl_base(pool *p, tpl *t, int t_len) {
 							r->rseq[r->len - pos - 1] = rev_c;
 						}
 					}
-				}
-			}
-		}
-	}
+				} // End of correction of a read
+			} // End of reads loop
+		} // End of correcting bases on reads
+	} // End of template base correction
 	set_rev_com(t->ctg);
-	p_ctg_seq("AFTER ", t->ctg);
+	//p_ctg_seq("AFTER ", t->ctg);
 }
 
 /**
- * Find the fresh mates which overlap with the template tail
+ * Find the fresh mates which overlap with the template tail, at least 11bp with 0 mismatches
  */
 void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		int mismatches, int ori) {
@@ -323,6 +325,12 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 	int ol = 0, rev_com = 0, n_mis = 0;
 	tail = ori ? new_seq(t->ctg, tail_len, 0) : new_seq(t->ctg, tail_len,
 			t->len - tail_len);
+
+	// In case the tail is an biased seq like: TTTTCTTTTTT
+	if (is_biased_q(tail) || has_n(tail, 1)) {
+		bwa_free_read_seq(1, tail);
+		return;
+	}
 
 	for (i = 0; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
@@ -347,5 +355,54 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 			add2pool(p, m);
 		}
 	}
+	bwa_free_read_seq(1, tail);
+}
+
+/**
+ * Find those reads with at least 11 * 2 overlap with the template,
+ * 	by searching the hash table with LESS_MISMATCH
+ */
+void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
+		int mismatches, int ori) {
+	int tail_len = ht->o->k * 2;
+	int i = 0, ol = 0, rev_com = 0, n_mis = 0;
+	bwa_seq_t *seqs = ht->seqs;
+	bwa_seq_t *tail = 0, *r = NULL, *m = NULL;
+	GPtrArray *mates = NULL;
+
+	if (t->len < tail_len || t->len < 0)
+		return;
+	tail = ori ? new_seq(t->ctg, tail_len, 0) : new_seq(t->ctg, tail_len,
+			t->len - tail_len);
+	// In case the tail is an biased seq like: TTTTCTTTTTT
+	if (is_biased_q(tail) || has_n(tail, 1)) {
+		bwa_free_read_seq(1, tail);
+		return;
+	}
+
+	mates = align_tpl_tail(ht, t, tail, mismatches, FRESH, ori);
+	for (i = 0; i < mates->len; i++) {
+		m = (bwa_seq_t*) g_ptr_array_index(mates, i);
+		r = get_mate(m, seqs);
+		// Keep those reads whose mate is used by current template
+		if (!r || r->contig_id != t->id || r->status != USED) {
+			continue;
+		}
+		// Find the overlapping between mate and tail
+		ol = find_fr_ol_within_k(m, tail, mismatches, tail_len, full_tail_len
+				- 1, ori, &rev_com, &n_mis);
+		if (ol >= ht->o->k) {
+			m->rev_com = rev_com;
+			m->cursor = ori ? (m->len - ol - 1) : ol;
+			m->pos = n_mis;
+			add2pool(p, m);
+		}
+	}
+	// With even shorter overlap and less mismatches allow.
+	// Base by base checking.
+	if (p->reads->len == 0) {
+		find_match_mates(ht, p, t, tail_len, 0, ori);
+	}
+	g_ptr_array_free(mates, TRUE);
 	bwa_free_read_seq(1, tail);
 }

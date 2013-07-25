@@ -38,7 +38,7 @@ gint cmp_reads_by_contig_locus(gpointer a, gpointer b) {
 }
 
 /**
- * Remove duplicate reads in an array
+ * Remove duplicates in an array
  */
 GPtrArray *rm_duplicates(GPtrArray *reads) {
 	int i = 0;

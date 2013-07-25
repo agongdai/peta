@@ -426,7 +426,7 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 	if (!hits)
 		hits = g_ptr_array_sized_new(0);
 	// For every possible kmer
-	for (i = 0; i <= len - opt->k * opt->interleaving; i++) {
+	for (i = 0; i <= len - opt->k * opt->interleaving - 1; i++) {
 		key = get_hash_key(seq, i, opt->interleaving, opt->k);
 		//show_debug_msg(__func__, "KEY: %" ID64 ". \n", key);
 		start = ht->k_mers_occ_acc[key];

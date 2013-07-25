@@ -56,6 +56,8 @@ extern "C" {
 #endif
 
 	gint cmp_tpl_by_id(gpointer a, gpointer b);
+	GPtrArray *rm_dup_tpls(GPtrArray *tpls);
+	void p_tpl(tpl *t);
 	eg_gap *init_gap(int s_index, int size, int ori);
 	void free_eg_gap(eg_gap *gap);
 	tpl *new_tpl();
@@ -77,6 +79,7 @@ extern "C" {
 	void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read, int mismatches);
 	void unfrozen_tried(tpl *t);
 	void add2tried(tpl *t, bwa_seq_t *r);
+	void rm_from_tpl(tpl *t, int index);
 
 #ifdef __cplusplus
 }

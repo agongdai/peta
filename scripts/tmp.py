@@ -49,11 +49,15 @@ def to_files(args):
 
 def count_small_seqs(args):
     fa = FastaFile(args.fa)
+    out = FastaFile()
     count = 0
     for name, seq in fa.seqs.iteritems():
         if len(seq) >= 100:
             count += 1
-    print 'Longer than 100 in %s: %d' % (args.fa, count)
+            out.seqs[name] = seq
+    out.save_to_disk(args.fa[:-3] + '.100.fa')
+    print 'Check %s.100.fa' % (args.fa[:-3])
+    print 'Longer than 100 in %s: %d / %d' % (args.fa, count, len(fa.seqs))
 
 def main():
     parser = ArgumentParser()
