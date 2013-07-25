@@ -250,14 +250,14 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
  * Correct bases on the template to the concensus base
  */
 void correct_tpl_base(pool *p, tpl *t, int t_len) {
-	int i = 0, pos = 0;
-	ubyte_t c = 0, j = 0, max_c = 0;
+	int i = 0, j = 0, pos = 0;
+	ubyte_t c = 0, max_c = 0, rev_c = 0;
 	bwa_seq_t *r = NULL;
 	int counter[4], max = 0;
-	if (!p || !p->reads || p->reads->len < 3)
+	if (!p || t_len <= 0 || t->len < t_len || !p->reads || p->reads->len < 3)
 		return;
 	p_ctg_seq("BEFORE", t->ctg);
-	for (i = 0; i < t->len; i++) {
+	for (i = 1; i < p->reads->len; i++) {
 		max = 0;
 		max_c = 0;
 		for (j = 0; j < 4; j++) {
@@ -273,15 +273,41 @@ void correct_tpl_base(pool *p, tpl *t, int t_len) {
 		}
 		show_debug_msg(__func__, "BASES at %d \n", i);
 		for (j = 0; j < 4; j++) {
-			show_debug_msg(__func__, "\t% BASE %c: %d\n", i, "ACGTN"[j], counter[j]);
+			show_debug_msg(__func__, "\t%d BASE %c: %d\n", i, "ACGTN"[j],
+					counter[j]);
 			if (counter[j] > max) {
 				max = counter[j];
 				max_c = j;
 			}
 		}
-		show_debug_msg(__func__, "Max at %d: [%d, %d] \n", i, "ACGTN"[max_c], max);
-		if (max > 0)
+		show_debug_msg(__func__, "Max at %d: [%c, %d] \n", i, "ACGTN"[max_c],
+				max);
+		if (max > 0) {
 			t->ctg->seq[i] = max_c;
+			rev_c = 3 - max_c;
+			// If more than HIGH_N_READS (50) reads in pool, correct the reads as well
+			if (p->reads->len >= HIGH_N_READS) {
+				for (j = 0; j < p->reads->len; j++) {
+					r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
+					pos = r->cursor - t->len + i;
+					if (pos >= 0 && pos < r->len) {
+						c = r->rev_com ? r->rseq[pos] : r->seq[pos];
+						if (c != max_c) {
+							show_debug_msg(__func__,
+									"Read %s at pos %d: %c => %c \n", r->name,
+									pos, "ACGTN"[c], "ACGTN"[max_c]);
+						}
+						if (r->rev_com) {
+							r->rseq[pos] = max_c;
+							r->seq[r->len - pos - 1] = rev_c;
+						} else {
+							r->seq[pos] = max_c;
+							r->rseq[r->len - pos - 1] = rev_c;
+						}
+					}
+				}
+			}
+		}
 	}
 	set_rev_com(t->ctg);
 	p_ctg_seq("AFTER ", t->ctg);

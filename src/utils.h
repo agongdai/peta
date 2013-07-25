@@ -25,6 +25,8 @@
 #define BUFSIZE 				1023
 #define FNLEN 					1023
 #define LINELEN					50
+#define MAX_LOOP_N_READS		5000
+#define HIGH_N_READS			50
 #define NO_REPEAT_BASES			4
 #define NO_REPEAT_LEN 			15
 #define	MATCH_SCORE				2
