@@ -901,12 +901,12 @@ int is_repetitive_q(const bwa_seq_t *query) {
 int is_biased_q(const bwa_seq_t *query) {
 	int *c = (int*) calloc(5, sizeof(int));
 	int i = 0, is_biased = 0;
-	int thre = query->len / 4 / 3;
+	int thre = query->len * 3 / 4;
 	for (i = 0; i < query->len; i++) {
 		c[query->seq[i]]++;
 	}
 	for (i = 0; i < 4; i++) {
-		if (c[i] < thre) {
+		if (c[i] >= thre) {
 			is_biased = 1;
 			break;
 		}
