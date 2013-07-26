@@ -73,8 +73,8 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 void p_vertex(vertex *v);
 void p_edge(edge *e);
 void p_comp(comp *c);
-GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch);
 int vertex_in_scc(splice_graph *g, vertex *v);
 void save_vertexes(GPtrArray *vertexes, char *fn);
+GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch);
 
 #endif /* GRAPH_HPP_ */

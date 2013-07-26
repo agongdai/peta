@@ -42,6 +42,7 @@ GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch) {
 
 	for (i = 0; i <= seq->len - read_len; i++) {
 		part = new_seq(seq, read_len, i);
+		hits = g_ptr_array_sized_new(4);
 		hits = find_both_fr_full_reads(ht, part, hits, n_mismatch);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);

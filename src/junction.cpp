@@ -88,25 +88,38 @@ GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch) {
 GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 		const int max_len, int *weight) {
 	int left_len = 0, right_len = 0, n_reads = 0;
-	GPtrArray *reads = g_ptr_array_sized_new(0);
-	bwa_seq_t *junction_seq = blank_seq(max_len);
+	GPtrArray *reads = g_ptr_array_sized_new(0), *hits = NULL;
+	bwa_seq_t *window = NULL, *junc_seq = blank_seq(max_len), *r = NULL;
+	int i = 0, j = 0;
 
 	left_len = (left->len > max_len / 2) ? (max_len / 2) : left->len;
-	memcpy(junction_seq->seq, left->seq + (left->len - left_len),
+	memcpy(junc_seq->seq, left->seq + (left->len - left_len),
 			sizeof(ubyte_t) * left_len);
 	right_len = (right->len) > (max_len / 2) ? (max_len / 2) : (right->len);
-	memcpy(junction_seq->seq + left_len, right->seq, sizeof(ubyte_t)
+	memcpy(junc_seq->seq + left_len, right->seq, sizeof(ubyte_t)
 			* right_len);
-	junction_seq->len = left_len + right_len;
-	set_rev_com(junction_seq);
+	junc_seq->len = left_len + right_len;
+	set_rev_com(junc_seq);
 	p_query("Left  seq", left);
 	p_query("Right seq", right);
-	p_query("Junction seq", junction_seq);
-	reads = align_query(ht, junction_seq, FRESH, N_MISMATCHES);
+	p_query("Junction seq", junc_seq);
+
+	for (i = 0; i <= junc_seq->len - ht->o->read_len; i++) {
+		window = new_seq(junc_seq, ht->o->read_len, i);
+		hits = g_ptr_array_sized_new(4);
+		hits = find_both_fr_full_reads(ht, window, hits, N_MISMATCHES);
+		for (j = 0; j < hits->len; j++) {
+			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
+			g_ptr_array_add(reads, r);
+		}
+		g_ptr_array_free(hits, TRUE);
+		bwa_free_read_seq(1, window);
+	}
+
 	n_reads = reads->len;
 	show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
 	*weight = n_reads;
-	bwa_free_read_seq(1, junction_seq);
+	bwa_free_read_seq(1, junc_seq);
 	return reads;
 }
 
@@ -132,7 +145,7 @@ GPtrArray *find_junc_reads_w_tails(hash_table *ht, tpl *main_tpl,
 	bwa_seq_t *left_seq = NULL, *right_seq = NULL;
 	tpl *left_eg = branch_tpl, *right_eg = main_tpl;
 	int l_pos = branch_tpl->len, r_pos = pos;
-	GPtrArray *reads = NULL;
+	GPtrArray *reads = g_ptr_array_sized_new(4);
 	if (ori) {
 		left_eg = main_tpl;
 		l_pos = pos;

@@ -314,6 +314,7 @@ void p_query(const char *header, const bwa_seq_t *q) {
 				printf("%c", "ACGTN"[(int) q->seq[i]]);
 		}
 	}
+	printf(" [status: %d] ", q->status);
 	if (q->rev_com)
 		printf(" [    <<<<@%d]", q->pos);
 	else

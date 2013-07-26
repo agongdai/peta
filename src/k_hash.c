@@ -479,7 +479,7 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 		 bwa_seq_t *key_seq = get_key_seq(key, 11);
 		 p_query(__func__, key_seq);
 		 bwa_free_read_seq(1, key_seq);
-		 **/
+		**/
 
 		start = ht->k_mers_occ_acc[key];
 		end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers - 1]
@@ -490,13 +490,16 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 				value = ht->pos[j];
 				read_hash_value(&seq_id, &locus, value);
 				r = &seqs[seq_id];
-				//p_query(__func__, r);
-				//show_debug_msg(__func__, "Locus: %d\n", locus);
+				// To avoid duplicate adding
+				if (r->pos != -1)
+					continue;
 				abs_locus = locus - i;
 				if (abs_locus >= 0 && abs_locus <= r->len + 1
 						- opt->interleaving * opt->k) {
 					// If the status of read is as requested
 					if (status == ANY_STATUS || r->status == status) {
+						//p_query(__func__, r);
+						//show_debug_msg(__func__, "Locus: %d\n", locus);
 						r->pos = abs_locus;
 						g_ptr_array_add(hits, r);
 					}
@@ -533,10 +536,14 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 	for (i = 0; i < rev_hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(rev_hits, i);
 		// To make sure the 'pos' will be changed once only
-		//p_query(__func__, r);
+		//p_query("REV_COM", r);
 		if (!r->rev_com) {
 			r->rev_com = 1;
-			r->pos = (ht->o->read_len - query->len) - r->pos;
+			// Adjust the locus due to reverse complement
+			//show_debug_msg(__func__, "Query->len: %d; r->pos: %d \n", query->len, r->pos);
+
+			//r->pos = (ht->o->read_len - query->len) - r->pos;
+
 			if (r->pos >= 0 && r->pos <= r->len + 1 - ht->o->interleaving
 					* ht->o->k) {
 				g_ptr_array_add(hits, r);

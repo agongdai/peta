@@ -73,6 +73,8 @@ extern "C" {
 			const int min_n_pairs);
 	void upd_locus_on_tpl(tpl *t, int pre_t_len, int pre_n_reads);
 	void add2tpl(tpl *t, bwa_seq_t *r, const int locus);
+	GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch);
+	void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches);
 	GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 			int mismatches, int8_t status, int ori);
 	int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,

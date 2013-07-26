@@ -231,7 +231,8 @@ void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori) {
 		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
 		if (r->pos > mismatches) {
 			//p_query("REMOVED", r);
-			rm_from_pool(p, i--);
+			//p_pool("BEFORE", p, NULL);
+			//rm_from_pool(p, i--);
 			// Set status to TRIED first. Will be reset to FRESH after this template is done.
 			add2tried(t, r);
 		}
@@ -263,10 +264,13 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 		hits = align_tpl_tail(ht, t, tail, mismatches, FRESH, ori);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
+
 			cursor = ori ? r->cursor - i : r->cursor + (read->len - tail_len
 					- i);
 			if (cursor >= 0 && cursor < read->len) {
 				add2pool(p, r);
+			} else {
+				reset_to_fresh(r);
 			}
 		}
 		bwa_free_read_seq(1, tail);
@@ -447,6 +451,8 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 			m->pos = n_mis;
 			add2pool(p, m);
 			added = 1;
+		} else {
+			reset_to_fresh(m);
 		}
 	}
 	// With even shorter overlap and less mismatches allow.
