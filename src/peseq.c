@@ -524,19 +524,48 @@ void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp) {
 		fputc('\n', tx_fp);
 }
 
+
 int same_q(const bwa_seq_t *query, const bwa_seq_t *seq) {
 	if (query->len != seq->len)
 		return 0;
 	return seq_ol(query, seq, query->len, 0) == -1 ? 0 : 1;
 }
 
-int same_bytes(const ubyte_t *s, const int k) {
-	int i = 0;
-	for (i = 0; i < k - 1; i++) {
-		if (s[i] != s[i + 1])
-			return 0;
+/**
+ * Check whether too many N's in the sequence
+ */
+int too_many_ns(const ubyte_t *s, const int k) {
+	int n_n = 0, i = 0;
+	for (i = 0; i < k; i++) {
+		if (s[i] == 4)
+			n_n++;
 	}
-	return 1;
+	if (n_n * 2 >= k)
+		return 1;
+	else
+		return 0;
+}
+
+/**
+ * Check whether all bases are the same, allow one base different
+ */
+int same_bytes(const ubyte_t *s, const int k) {
+	int *c = (int*) calloc(5, sizeof(int));
+	int i = 0, is_same = 0;
+	int thre = k - 1;
+	for (i = 0; i < k; i++) {
+		c[s[i]]++;
+	}
+	if (c[4] >= thre)
+		is_same = 1;
+	for (i = 0; i < 4; i++) {
+		if (c[i] + c[4] >= thre) {
+			is_same = 1;
+			break;
+		}
+	}
+	free(c);
+	return is_same;
 }
 
 /**
@@ -716,6 +745,9 @@ int is_sub_seq_byte(const ubyte_t *query, const int q_len, const int shift,
 	for (offset = 0; offset <= seq->len - (end - start); offset++) {
 		nm = mismatches;
 		for (i = start; i < end; i++) {
+			// If either base is 'N', treat them as the same
+			if (query[i] == 4 || seq->seq[i + offset - shift])
+				continue;
 			if (query[i] != seq->seq[i + offset - shift]) {
 				nm--;
 			}
@@ -759,6 +791,9 @@ int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 	left = left_seq->rev_com ? left_seq->rseq : left_seq->seq;
 	right = right_seq->rev_com ? right_seq->rseq : right_seq->seq;
 	for (i = 0; i < ol; i++) {
+		// If there is an 'N' on either seq, just treat them as the same
+		if (left[i + (left_seq->len - ol)] == 4 || right[i] == 4)
+			continue;
 		if (left[i + (left_seq->len - ol)] != right[i]) {
 			n_mis++;
 		}
@@ -768,9 +803,14 @@ int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 	return n_mis;
 }
 
+/**
+ * All 'N's would be ignored.
+ */
 int similar_bytes(ubyte_t *b_1, ubyte_t *b_2, int len, int mismatches) {
 	int i = 0;
 	for (i = 0; i < len; i++) {
+		if (b_1[i] == 4 || b_2[i] == 4)
+			continue;
 		if (b_1[i] != b_2[i])
 			mismatches--;
 		if (mismatches < 0)
@@ -905,7 +945,7 @@ int is_biased_q(const bwa_seq_t *query) {
 	for (i = 0; i < query->len; i++) {
 		c[query->seq[i]]++;
 	}
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 5; i++) {
 		if (c[i] >= thre) {
 			is_biased = 1;
 			break;

@@ -21,7 +21,7 @@ read_hash *new_rh(uint64_t n_seqs) {
 	int i = 0;
 	read_hash *rh = (read_hash*) malloc(sizeof(read_hash));
 	rh->n_seqs = n_seqs;
-	rh->similar_reads_count = (index64*) calloc(n_seqs, sizeof(index64));
+	rh->similar_reads_count = (uint32_t*) calloc(n_seqs, sizeof(uint32_t));
 	return rh;
 }
 

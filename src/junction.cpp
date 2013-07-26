@@ -99,12 +99,12 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 			* right_len);
 	junction_seq->len = left_len + right_len;
 	set_rev_com(junction_seq);
-	//p_query("Left  seq", left);
-	//p_query("Right seq", right);
-	//p_query("Junction seq", junction_seq);
-	reads = align_query(ht, junction_seq, ANY_STATUS, N_MISMATCHES);
+	p_query("Left  seq", left);
+	p_query("Right seq", right);
+	p_query("Junction seq", junction_seq);
+	reads = align_query(ht, junction_seq, FRESH, N_MISMATCHES);
 	n_reads = reads->len;
-	//show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
+	show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
 	*weight = n_reads;
 	bwa_free_read_seq(1, junction_seq);
 	return reads;

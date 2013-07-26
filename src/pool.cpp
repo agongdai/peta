@@ -126,16 +126,16 @@ void rm_from_pool(pool *p, int index) {
  */
 int get_next_char(pool *p, tpl *t, const int ori) {
 	readarray *reads = p->reads;
-	int *c = NULL;
-	int i = 0, next_char = -1, max_c = 0;
+	float *c = NULL, weight = 0.0, max_c = 0.0;
+	int i = 0, next_char = -1;
 	bwa_seq_t *r = NULL;
-	int pre_cursor = 0, this_c = 0, pre_c = 0, empty = 1;
+	int pre_cursor = 0, this_c = 0, pre_c = 0, counted = 0;
 	int pre_t_c = ori ? t->ctg->seq[0] : t->ctg->seq[t->len - 1];
 
 	if (!p->reads || p->reads == 0)
 		return -1;
 
-	c = (int*) calloc(5, sizeof(int));
+	c = (float*) calloc(5, sizeof(float));
 	c[0] = c[1] = c[2] = c[3] = c[4] = 0;
 	for (i = 0; i < reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
@@ -144,29 +144,41 @@ int get_next_char(pool *p, tpl *t, const int ori) {
 		// If in the previous round, this read has a mismatch, then does not count it this time
 		if (pre_t_c > -1 && pre_cursor >= 0 && pre_cursor < r->len) {
 			pre_c = r->rev_com ? r->rseq[pre_cursor] : r->seq[pre_cursor];
-			// If there is only one read left, extend it anyway
-			if (pre_c != pre_t_c)
+			if (pre_c != 4 && pre_c != pre_t_c)
 				continue;
 		}
 		this_c = r->rev_com ? r->rseq[r->cursor] : r->seq[r->cursor];
-		c[this_c]++;
-		empty = 0;
+		// Simply ignore 'N's
+		if (this_c == 4)
+			continue;
+		// The overlap length with template
+		weight = ori ? (r->len - r->cursor - 1) : r->cursor;
+		// Minus the mismatches with the template
+		weight -= r->pos * MISMATCH_WEIGHT;
+		c[this_c] += weight;
+		counted++;
+		// At most count MAX_POOL_N_READS reads, in case the pool is large
+		if (counted >= MAX_POOL_N_READS)
+			break;
 	}
 	// In case only few reads in pool, and all of them not support the previous base
-	if (empty) {
+	if (counted == 0) {
 		for (i = 0; i < reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(reads, i);
 			this_c = r->rev_com ? r->rseq[r->cursor] : r->seq[r->cursor];
-			c[this_c]++;
+			weight = ori ? (r->len - r->cursor - 1) : r->cursor;
+			weight -= r->pos * MISMATCH_WEIGHT;
+			c[this_c] += weight;
 		}
 	}
-	for (i = 0; i < 5; i++) {
+	// Do not count the 'N's
+	for (i = 0; i < 4; i++) {
 		if (c[i] > max_c) {
 			max_c = c[i];
 			next_char = i;
 		}
 	}
-	if (max_c == 0)
+	if (max_c == 0.0)
 		next_char = -1;
 	free(c);
 	return next_char;
@@ -210,7 +222,8 @@ void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori) {
 	for (i = 0; i < p->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
 		read_c = r->rev_com ? r->rseq[r->cursor] : r->seq[r->cursor];
-		if (read_c != tpl_c)
+		// If the character in read is 'N', do not count it as mismatch
+		if (read_c != 4 && read_c != tpl_c)
 			r->pos++;
 	}
 
@@ -373,11 +386,10 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		m = get_mate(r, ht->seqs);
 
 		// If the mate is used already
-		if (m->status != FRESH)
-			continue;
 		// If the orientation is not correct
-		if (is_paired(r, ori))
+		if (m->status != FRESH || is_paired(r, ori) || is_biased_q(m)) {
 			continue;
+		}
 		// Find the overlapping between mate and tail
 		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k, tail_len - 1,
 				ori, &rev_com, &n_mis);
@@ -422,7 +434,8 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 		m = (bwa_seq_t*) g_ptr_array_index(mates, i);
 		r = get_mate(m, seqs);
 		// Keep those reads whose mate is used by current template
-		if (!r || r->contig_id != t->id || r->status != USED) {
+		if (!r || r->contig_id != t->id || r->status != USED || is_biased_q(m)) {
+			reset_to_fresh(m);
 			continue;
 		}
 		// Find the overlapping between mate and tail
@@ -437,7 +450,7 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 		}
 	}
 	// With even shorter overlap and less mismatches allow.
-	// Base by base checking.
+	// Base by base overlapping.
 	if (!added) {
 		find_match_mates(ht, p, t, tail_len, 0, ori);
 	}

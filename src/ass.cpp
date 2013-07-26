@@ -24,7 +24,6 @@
 #include "ass.hpp"
 #include "junction.hpp"
 #include "graph.hpp"
-#include "read.h"
 #include "pool.hpp"
 
 using namespace std;
@@ -278,6 +277,12 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 
 	tail = ori ? new_seq(branch->ctg, read_len, 0) : new_seq(branch->ctg,
 			read_len, branch->len - read_len);
+	// If the tail is like 'AAAAAAATAAAA', ignore
+	if (is_biased_q(tail)) {
+		bwa_free_read_seq(1, tail);
+		return mains;
+	}
+
 	// Try ACGT four directions
 	for (x = 0; x < 4; x++) {
 		tail_shift = new_seq(tail, tail->len, 0);
@@ -331,16 +336,22 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	con_reads = find_connected_reads(ht, all_tpls, branch, ori);
 	for (i = 0; i < con_reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(con_reads, i);
-		//p_query(__func__, r);
+
 		tpl_hash::iterator it = all_tpls->find(r->contig_id);
 		if (it == all_tpls->end()) {
 			continue;
 		}
+
 		// The candidate template to connect
 		main_tpl = (tpl*) it->second;
 		locus = r->contig_locus;
 		con_pos = ori ? (locus + 1) : (locus + ht->o->read_len - 1);
 		exist_ori = ori ? 0 : 1;
+
+		show_debug_msg(__func__, "Trying to connect [%d, %d] and [%d, %d] ...\n", main_tpl->id, main_tpl->len, branch->id, branch->len);
+		p_query(__func__, r);
+		p_tpl(main_tpl);
+		p_tpl(branch);
 
 		//p_tpl(main_tpl);
 
@@ -372,7 +383,9 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		junc_reads = find_junc_reads_w_tails(ht, main_tpl, branch, con_pos,
 				(ht->o->read_len - SHORT_BRANCH_SHIFT) * 2, ori, &weight);
 		valid = (junc_reads->len >= MIN_JUNCTION_READS) ? 1 : 0;
-		//p_readarray(junc_reads, 0);
+
+		p_readarray(junc_reads, 1);
+
 		if (!valid) {
 			show_debug_msg(__func__,
 					"No enough junction reads. Check mates now...\n");
@@ -381,11 +394,13 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 			if (!valid) {
 				show_debug_msg(__func__,
 						"Not passed the pair validation. Free it later.\n");
-				g_ptr_array_free(junc_reads, TRUE);
+				unhold_reads_array(junc_reads);
 				continue;
 			}
 		} // End of checking junction reads and pairs
-		g_ptr_array_free(junc_reads, TRUE);
+		// If junction added, the junction reads should be added to branch later
+		// Not only free them, but reset the them to FRESH
+		unhold_reads_array(junc_reads);
 
 		// Trim the branch
 		if (branch->len < ht->o->read_len) {
@@ -455,7 +470,6 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		//p_ctg_seq("Left  tail", branch->l_tail);
 		add_a_junction(main_tpl, branch, 0, con_pos, exist_ori, weight);
 		connected = 1;
-
 	} // End of connecting all probable templates
 	g_ptr_array_free(con_reads, TRUE);
 	return connected;
@@ -507,6 +521,12 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		rm_half_clip_reads(p, t, max_c, N_MISMATCHES, ori);
 		forward(p, t, ori);
 		next_pool(ht, p, t, tail, N_MISMATCHES, ori);
+
+		if (same_bytes(tail->seq, tail->len)) {
+			show_debug_msg(__func__, "Repeatitive tail, stop.\n");
+			p_query(__func__, tail);
+			break;
+		}
 
 		if (t->len % 100 == 0)
 			show_debug_msg(__func__, "Ori %d, tpl %d, length %d \n", ori,
@@ -600,8 +620,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		p_ctg_seq("TEMPLATE", t->ctg);
 	}
 
-	//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
-	//p_readarray(t->reads, 1);
+	p_readarray(t->tried, 1);
 
 	if (!t->alive || (t->len <= read->len && (!t->b_juncs || t->b_juncs->len
 			< 2))) {
@@ -619,7 +638,10 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		// The reads on it marked as TRIED
 		destroy_tpl(t);
 	} else {
-		unfrozen_tried(t);
+		// Remove all reads, realign from the hash table
+		//refresh_tpl_reads(ht, t, N_MISMATCHES);
+		//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+		//p_readarray(t->reads, 1);
 		//upd_tpl_jun_locus(t, branching_events, opt->k);
 	}
 	return NULL;
@@ -629,20 +651,18 @@ void kmer_threads(kmer_t_meta *params) {
 	GThreadPool *thread_pool = NULL;
 	uint64_t i = 0;
 	hash_table *ht = params->ht;
-	read_hash *rh = params->rh;
-	GPtrArray *starting_reads = g_ptr_array_sized_new(rh->n_seqs);
 	bwa_seq_t *r = NULL, *seqs = ht->seqs;
 	kmer_counter *counter = NULL;
+	GPtrArray *starting_reads = g_ptr_array_sized_new(ht->n_seqs);
 
-	for (i = 0; i < rh->n_seqs; i++) {
+	for (i = 0; i < ht->n_seqs; i++) {
 		r = &seqs[i];
 		counter = (kmer_counter*) malloc(sizeof(kmer_counter));
 		counter->kmer = i;
-		counter->count = rh->similar_reads_count[i];
+		counter->count = ht->n_kmers[i];
 		g_ptr_array_add(starting_reads, counter);
 	}
 
-	destroy_rh(rh);
 	show_msg(__func__, "Sorting %d initial reads... \n", starting_reads->len);
 	g_ptr_array_sort(starting_reads, (GCompareFunc) cmp_kmers_by_count);
 	show_msg(__func__, "Extending by reads...\n");
@@ -655,7 +675,7 @@ void kmer_threads(kmer_t_meta *params) {
 		kmer_ext_thread(counter, params);
 		free(counter);
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
-		if (kmer_ctg_id >= 100)
+		if (branching_events->len >= 2)
 			break;
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
@@ -666,7 +686,6 @@ void test_kmer_ext(kmer_t_meta *params) {
 }
 
 void ext_by_kmers_core(char *lib_file, const char *solid_file) {
-	read_hash *rh = NULL;
 	FILE *contigs = NULL;
 	kmer_t_meta *params = (kmer_t_meta*) calloc(1, sizeof(kmer_t_meta));
 	tpl_hash all_tpls;
@@ -676,7 +695,6 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	show_msg(__func__, "Library: %s \n", lib_file);
 
 	ht = load_k_hash(lib_file);
-	rh = load_read_hash(lib_file);
 
 	clock_gettime(CLOCK_MONOTONIC, &kmer_finish_time);
 	show_msg(__func__, "Done loading read hash table: %.2f sec\n",
@@ -684,7 +702,6 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 
 	branching_events = g_ptr_array_sized_new(BUFSIZ);
 	params->ht = ht;
-	params->rh = rh;
 	params->all_tpls = &all_tpls;
 
 	//test_kmer_ext(params);

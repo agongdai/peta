@@ -12,14 +12,12 @@
 #include <unordered_map>
 #include "kmers.hpp"
 #include "tpl.hpp"
-#include "read.h"
 
 using namespace std;
 typedef unordered_map<int, tpl*> tpl_hash;
 
 typedef struct {
 	hash_table *ht;
-	read_hash *rh;
 	tpl_hash *all_tpls;
 } kmer_t_meta;
 

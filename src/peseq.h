@@ -58,6 +58,7 @@ extern "C" {
 	void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp);
 	int save_unpaired_seqs(const char *part_solid_fn, bwa_seq_t *seqs,
 			const int n_seqs);
+	int too_many_ns(const ubyte_t *s, const int k);
 	int same_q(const bwa_seq_t *query, const bwa_seq_t *seq);
 	int same_bytes(const ubyte_t *s, const int k);
 	int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,

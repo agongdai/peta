@@ -9,7 +9,7 @@
 #include "k_hash.h"
 
 typedef struct {
-	index64 *similar_reads_count;
+	uint32_t *similar_reads_count;
 	index64 n_seqs;
 } read_hash;
 

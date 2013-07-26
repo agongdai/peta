@@ -81,6 +81,9 @@ extern "C" {
 	void unfrozen_tried(tpl *t);
 	void add2tried(tpl *t, bwa_seq_t *r);
 	void rm_from_tpl(tpl *t, int index);
+	void unhold_reads_array(GPtrArray *reads);
+	bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len);
+	void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches);
 
 #ifdef __cplusplus
 }

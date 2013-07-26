@@ -43,6 +43,10 @@ void p_tpl(tpl *t) {
 				t->b_juncs->len);
 	if (t->start_read)
 		p_query(__func__, t->start_read);
+	if (t->l_tail)
+		p_query(__func__, t->l_tail);
+	if (t->r_tail)
+		p_query(__func__, t->r_tail);
 	if (t->ctg)
 		p_ctg_seq(__func__, t->ctg);
 	show_debug_msg(__func__, "---- Template %d ---- \n", t->id);
@@ -91,12 +95,6 @@ bwa_seq_t *get_tail(tpl *t, int len, const int ori) {
 		return ori ? new_seq(t->start_read, len, 0) : new_seq(t->start_read,
 				len, t->start_read->len - len);
 	}
-}
-
-void free_readarray(readarray *ra) {
-	if (!ra)
-		return;
-	g_ptr_array_free(ra, TRUE);
 }
 
 gint cmp_tpl_by_id(gpointer a, gpointer b) {
@@ -188,6 +186,9 @@ int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,
 			if (is_mates(r1->name, r2->name)) {
 				//p_query(__func__, r1);
 				//p_query(__func__, r2);
+				// Ignore if either one of them is like: "AAATAAAAAA"
+				if (is_biased_q(r1) || is_biased_q(r2))
+					continue;
 				n_pairs++;
 			}
 			if (atoi(r2->name) - atoi(r1->name) >= 1) {
@@ -318,6 +319,36 @@ void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
 }
 
 /**
+ * Reset the reads on the template
+ */
+void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
+	bwa_seq_t *r = NULL, *seq = NULL, *window = NULL;
+	int left_len = 0, counted_len = 0, right_len = 0;
+	index64 i = 0, j = 0;
+	GPtrArray *refresh = NULL, *hits = NULL;
+	if (!t || !t->reads || t->reads->len <= 0 || t->len < 0)
+		return;
+	unfrozen_tried(t);
+	refresh = g_ptr_array_sized_new(t->reads->len);
+	unhold_reads_array(t->reads);
+	t->reads = refresh;
+
+	seq = get_tpl_ctg_wt(t, &left_len, &right_len, &counted_len);
+	for (i = 0; i < seq->len; i++) {
+		window = new_seq(seq, ht->o->read_len, i);
+		hits = g_ptr_array_sized_new(4);
+		hits = find_both_fr_full_reads(ht, window, hits, mismatches);
+		for (j = 0; j < hits->len; j++) {
+			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
+			// For reads partially on left tail, the locus is negative
+			add2tpl(t, r, i - left_len);
+		}
+		g_ptr_array_free(hits, TRUE);
+		bwa_free_read_seq(1, window);
+	}
+}
+
+/**
  * Remove a read from the pool and reset the the read status
  */
 void rm_from_tpl(tpl *t, int index) {
@@ -328,6 +359,9 @@ void rm_from_tpl(tpl *t, int index) {
 	g_ptr_array_remove_index_fast(t->reads, index);
 }
 
+/**
+ * Add to TRIED, pretend from using for this template
+ */
 void add2tried(tpl *t, bwa_seq_t *r) {
 	r->contig_id = t->id;
 	r->contig_locus = -1;
@@ -336,13 +370,22 @@ void add2tried(tpl *t, bwa_seq_t *r) {
 	g_ptr_array_add(t->tried, r);
 }
 
-void unfrozen_tried(tpl *t) {
+void reset_reads_to_fresh(GPtrArray *reads) {
 	index64 i = 0;
 	bwa_seq_t *r = NULL;
-	for (i = 0; i < t->tried->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
+	for (i = 0; i < reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
 		reset_to_fresh(r);
 	}
+}
+
+void unfrozen_tried(tpl *t) {
+	reset_reads_to_fresh(t->tried);
+}
+
+void unhold_reads_array(GPtrArray *reads) {
+	reset_reads_to_fresh(reads);
+	g_ptr_array_free(reads, TRUE);
 }
 
 /**
@@ -392,12 +435,12 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 				} else {
 					n_mis = seq_ol(t->ctg, r, ol, mismatches);
 				}
-//				if (!ori) {
-//					p_query(__func__, r);
-//					p_ctg_seq(__func__, t->ctg);
-//					show_debug_msg(__func__, "Should have overlap: %d\n", ol);
-//					show_debug_msg(__func__, "N_MISMATCHES: %d\n", n_mis);
-//				}
+				//				if (!ori) {
+				//					p_query(__func__, r);
+				//					p_ctg_seq(__func__, t->ctg);
+				//					show_debug_msg(__func__, "Should have overlap: %d\n", ol);
+				//					show_debug_msg(__func__, "N_MISMATCHES: %d\n", n_mis);
+				//				}
 				// n_mis >= 0 means similar with n_mis mismatches; -1 means not similar
 				if (n_mis >= 0) {
 					//show_debug_msg(__func__, "Cursor: %d\n", cursor);
@@ -485,16 +528,26 @@ void destroy_tpl(tpl *t) {
 	}
 }
 
+
 /**
- * Free the tpl contigs first, will be destoryed later.
+ * Get the sequence with left/right tails.
  */
-void free_eg_seq(tpl *t) {
-	if (t) {
-		free_read_seq(t->ctg);
-		t->ctg = NULL;
-		free_read_seq(t->r_tail);
-		t->r_tail = NULL;
-		free_read_seq(t->l_tail);
-		t->l_tail = NULL;
+bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len) {
+	bwa_seq_t *s = NULL;
+	int counted_len = 0;
+	*l_len = (t->l_tail) ? (t->l_tail->len) : 0;
+	*r_len = (t->r_tail) ? (t->r_tail->len) : 0;
+	*t_len = *l_len + t->len + *r_len;
+	s = blank_seq(*t_len);
+	if (t->l_tail) {
+		memcpy(s->seq, t->l_tail->seq, t->l_tail->len * sizeof(ubyte_t));
+		s->len = *l_len;
 	}
+	memcpy(s->seq + s->len, t->ctg->seq, t->len);
+	s->len += t->len;
+	if (t->r_tail) {
+		memcpy(s->seq + s->len, t->r_tail->seq, t->r_tail->len * sizeof(ubyte_t));
+	}
+	set_rev_com(s);
+	return s;
 }

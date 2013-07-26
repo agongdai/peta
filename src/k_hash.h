@@ -35,6 +35,7 @@ typedef struct {
 	hash_key *k_mers_occ_acc;
 	hash_value *pos;
 	bwa_seq_t *seqs;
+	uint32_t *n_kmers;
 	index64 n_seqs;
 } hash_table;
 
