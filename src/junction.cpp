@@ -27,7 +27,7 @@
 
 using namespace std;
 
-junction *new_junction(tpl *main_tpl, tpl *branch_tpl, uint64_t kmer,
+junction *new_junction(tpl *main_tpl, tpl *branch_tpl, bwa_seq_t * connector,
 		int locus, int ori, int weight) {
 	junction *j = (junction*) malloc(sizeof(junction));
 	j->main_tpl = main_tpl;
@@ -36,7 +36,7 @@ junction *new_junction(tpl *main_tpl, tpl *branch_tpl, uint64_t kmer,
 	j->ori = ori;
 	j->locus = locus;
 	j->weight = weight;
-	j->kmer = kmer;
+	j->connector = connector;
 	j->reads = g_ptr_array_sized_new(0);
 	j->status = 0;
 	return j;
@@ -184,24 +184,15 @@ GPtrArray *find_junc_reads_w_tails(hash_table *ht, tpl *main_tpl,
  * ====------------------
  * Locus should be 8 + 4
  */
-void upd_tpl_jun_locus(tpl *t, GPtrArray *branching_events, const int kmer_len) {
+void upd_tpl_jun_locus(tpl *t, GPtrArray *branching_events, const int extra_len) {
 	int i = 0;
 	uint64_t query_int = 0, k = 0;
 	junction *jun = NULL;
-	if (t->len < kmer_len)
+	if (!t->b_juncs || t->b_juncs->len <= 0 || !branching_events || branching_events->len <= 0)
 		return;
-	for (k = 0; k < branching_events->len; k++) {
-		jun = (junction*) g_ptr_array_index(branching_events, k);
-		if (jun->main_tpl == t && jun->branch_tpl == t) {
-			for (i = 0; i < t->len - kmer_len; i++) {
-				query_int = get_kmer_int(t->ctg->seq, i, 1, kmer_len);
-				if (query_int == jun->kmer) {
-					jun->locus = i;
-					break;
-				}
-			}
-		}
-	}
+	jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
+	if (jun->branch_tpl == jun->main_tpl)
+		jun->locus += extra_len;
 }
 
 gint cmp_junc_by_id(gpointer a, gpointer b) {
@@ -282,7 +273,7 @@ void clean_junctions(GPtrArray *junctions) {
 		}
 		if (pre) {
 			if (pre->branch_tpl == junc->branch_tpl && pre->main_tpl
-					== junc->main_tpl && pre->kmer == junc->kmer && pre->locus
+					== junc->main_tpl && pre->locus
 					== junc->locus && pre->ori == junc->ori) {
 				junc->status = 1;
 				continue;

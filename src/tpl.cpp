@@ -97,6 +97,24 @@ bwa_seq_t *get_tail(tpl *t, int len, const int ori) {
 	}
 }
 
+/**
+ * When connecting, need to check whether its reverse-complement or not
+ * So need to get the subseq on branch and main to compare base-by-base
+ * Its length is read_len - 1.
+ */
+bwa_seq_t *get_ol_with_connector(tpl *branch, const int read_len, const int ori) {
+	bwa_seq_t *ol = NULL;
+	if (!branch || !branch->start_read)
+		return blank_seq(0);
+	if (branch->len < read_len) {
+		return ori ? new_seq(branch->start_read, read_len - 1, 0) : new_seq(
+				branch->start_read, read_len - 1, 1);
+	} else {
+		return ori ? new_seq(branch->ctg, read_len - 1, 0) : new_seq(
+				branch->ctg, read_len - 1, branch->len - (read_len - 1));
+	}
+}
+
 gint cmp_tpl_by_id(gpointer a, gpointer b) {
 	tpl *c_a = *((tpl**) a);
 	tpl *c_b = *((tpl**) b);
@@ -136,7 +154,7 @@ int binary_search_read(GPtrArray *reads, bwa_seq_t *q) {
 	bwa_seq_t *r = NULL, *m = NULL;
 	//p_readarray(reads, 1);
 	//p_query(__func__, q);
-	while (start < end - 2) {
+	while (start < end - 1) {
 		middle = (start + end) / 2;
 		//show_debug_msg(__func__, "[%d, %d, %d]\n", start, middle, end);
 		m = (bwa_seq_t*) g_ptr_array_index(reads, middle);
@@ -145,11 +163,12 @@ int binary_search_read(GPtrArray *reads, bwa_seq_t *q) {
 			return middle;
 		} else {
 			if (atoi(m->name) - atoi(q->name) > 0) {
-				end = middle + 1;
+				end = middle;
 			} else {
-				start = middle;
+				start = middle + 1;
 			}
 		}
+		//show_debug_msg(__func__, "[%d, %d, %d]\n", start, middle, end);
 	}
 	return middle;
 }
@@ -166,7 +185,19 @@ int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,
 	if (!reads_1 || !reads_2 || reads_1->len == 0 || reads_2->len == 0)
 		return 0;
 	r1 = (bwa_seq_t*) g_ptr_array_index(reads_2, 0);
+	//show_debug_msg(__func__, "Searching %s in reads_1 \n", r1->name);
 	index_1 = binary_search_read(reads_1, r1);
+	//show_debug_msg(__func__, "Index_1: %d\n", index_1);
+
+	r2 = (bwa_seq_t*) g_ptr_array_index(reads_1, 0);
+	//show_debug_msg(__func__, "Searching %s in reads_2 \n", r2->name);
+	index_2 = binary_search_read(reads_2, r2);
+	//show_debug_msg(__func__, "Index_1: %d\n", index_2);
+
+	//show_debug_msg(__func__, "Reads 1 \n");
+	//p_readarray(reads_1, 1);
+	//show_debug_msg(__func__, "Reads 2 \n");
+	//p_readarray(reads_2, 1);
 
 	for (i = index_1; i < reads_1->len; i++) {
 		r1 = (bwa_seq_t*) g_ptr_array_index(reads_1, i);
@@ -324,7 +355,7 @@ void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
 void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	bwa_seq_t *r = NULL, *seq = NULL, *window = NULL;
 	int left_len = 0, counted_len = 0, right_len = 0;
-	index64 i = 0, j = 0;
+	int i = 0, j = 0;
 	GPtrArray *refresh = NULL, *hits = NULL;
 	if (!t || !t->reads || t->reads->len <= 0 || t->len < 0)
 		return;
@@ -334,6 +365,19 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	t->reads = refresh;
 
 	seq = get_tpl_ctg_wt(t, &left_len, &right_len, &counted_len);
+
+	// If it happens, means something wrong
+	if (seq->len < ht->o->read_len) {
+		show_debug_msg(
+				"[WARNING]",
+				"The sequence with tails shorter than read length: [%d, %d] \n",
+				t->id, t->len);
+		p_tpl(t);
+		bwa_free_read_seq(1, seq);
+		return;
+	}
+
+	p_tpl(t);
 	for (i = 0; i <= seq->len - ht->o->read_len; i++) {
 		window = new_seq(seq, ht->o->read_len, i);
 		hits = g_ptr_array_sized_new(4);
@@ -341,11 +385,14 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
 			// For reads partially on left tail, the locus is negative
-			add2tpl(t, r, i - left_len);
+			if (r->status == FRESH)
+				add2tpl(t, r, i - left_len);
 		}
 		g_ptr_array_free(hits, TRUE);
 		bwa_free_read_seq(1, window);
 	}
+	bwa_free_read_seq(1, seq);
+	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
 }
 
 /**
@@ -374,7 +421,8 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 			for (j = 0; j < hits->len; j++) {
 				r = (bwa_seq_t*) g_ptr_array_index(hits, j);
 				// For reads partially on left tail, the locus is negative
-				add2tpl(t, r, i - t->l_tail->len);
+				if (r->status == FRESH)
+					add2tpl(t, r, i - t->l_tail->len);
 			}
 			g_ptr_array_free(hits, TRUE);
 			bwa_free_read_seq(1, window);
@@ -447,8 +495,17 @@ void unfrozen_tried(tpl *t) {
 		g_ptr_array_remove_index_fast(t->tried, 0);
 }
 
+/**
+ * If some read is already used some template, do not reset
+ */
 void unhold_reads_array(GPtrArray *reads) {
-	reset_reads_to_fresh(reads);
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		if (r->status == FRESH)
+			reset_to_fresh(r);
+	}
 	g_ptr_array_free(reads, TRUE);
 }
 
@@ -484,7 +541,7 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 	GPtrArray *hits = align_query(ht, tail, status, mismatches);
 	GPtrArray *fresh_reads = g_ptr_array_sized_new(hits->len);
 
-	// Smaller than read length happens when it is trimmed to connect at the right side
+	// Smaller than read length happens when it is trimmed to connect at the right/left side
 	tpl_seq = (t->len < ht->o->read_len) ? t->start_read : t->ctg;
 	if (t->len < ht->o->read_len) {
 		tpl_seq = blank_seq(ht->o->read_len);
@@ -517,10 +574,10 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 					n_mis = seq_ol(tpl_seq, r, ol, mismatches);
 				}
 				// if (!ori) {
-						//p_query(__func__, r);
-						//p_ctg_seq(__func__, t->ctg);
-						//show_debug_msg(__func__, "Should have overlap: %d\n", ol);
-						//show_debug_msg(__func__, "N_MISMATCHES: %d\n", n_mis);
+				//p_query(__func__, r);
+				//p_ctg_seq(__func__, t->ctg);
+				//show_debug_msg(__func__, "Should have overlap: %d\n", ol);
+				//show_debug_msg(__func__, "N_MISMATCHES: %d\n", n_mis);
 				//	}
 				// n_mis >= 0 means similar with n_mis mismatches; -1 means not similar
 				if (n_mis >= 0) {
@@ -631,6 +688,7 @@ bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len) {
 	if (t->r_tail) {
 		memcpy(s->seq + s->len, t->r_tail->seq, t->r_tail->len
 				* sizeof(ubyte_t));
+		s->len += t->r_tail->len;
 	}
 	set_rev_com(s);
 	return s;

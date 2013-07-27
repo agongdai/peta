@@ -86,6 +86,7 @@ extern "C" {
 	void unhold_reads_array(GPtrArray *reads);
 	bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len);
 	void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches);
+	bwa_seq_t *get_ol_with_connector(tpl *branch, const int read_len, const int ori);
 
 #ifdef __cplusplus
 }

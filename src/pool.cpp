@@ -29,12 +29,14 @@ void destroy_pool(pool *p) {
 	uint32_t i = 0;
 	bwa_seq_t *r = NULL;
 	if (p) {
-		for (i = 0; i < p->reads->len; i++) {
-			r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
-			r->pos = -1;
-			r->cursor = -1;
-			if (r->status == IN_POOL)
-				r->status = FRESH;
+		if (p->reads) {
+			for (i = 0; i < p->reads->len; i++) {
+				r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
+				r->pos = -1;
+				r->cursor = -1;
+				if (r->status == IN_POOL)
+					r->status = FRESH;
+			}
 		}
 		g_ptr_array_free(p->reads, TRUE);
 		free(p);
@@ -132,7 +134,7 @@ int get_next_char(pool *p, tpl *t, const int ori) {
 	int pre_cursor = 0, this_c = 0, pre_c = 0, counted = 0;
 	int pre_t_c = ori ? t->ctg->seq[0] : t->ctg->seq[t->len - 1];
 
-	if (!p->reads || p->reads == 0)
+	if (!p->reads || p->reads->len == 0)
 		return -1;
 
 	c = (float*) calloc(5, sizeof(float));
@@ -232,7 +234,7 @@ void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori) {
 		if (r->pos > mismatches) {
 			//p_query("REMOVED", r);
 			//p_pool("BEFORE", p, NULL);
-			//rm_from_pool(p, i--);
+			rm_from_pool(p, i--);
 			// Set status to TRIED first. Will be reset to FRESH after this template is done.
 			add2tried(t, r);
 		}
@@ -261,6 +263,8 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 	}
 	for (i = 0; i <= read->len - tail_len; i++) {
 		tail = new_seq(read, tail_len, i);
+		//p_query(__func__, tail);
+		hits = g_ptr_array_sized_new(4);
 		hits = align_tpl_tail(ht, t, tail, mismatches, FRESH, ori);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
@@ -307,6 +311,7 @@ void correct_tpl_base(pool *p, tpl *t, int t_len) {
 	ubyte_t c = 0, max_c = 0, rev_c = 0;
 	bwa_seq_t *r = NULL;
 	int counter[5], max = 0;
+	int n_counted = 0;
 	if (!p || t_len <= 0 || t->len < t_len || !p->reads || p->reads->len < 3)
 		return;
 	//p_ctg_seq("BEFORE", t->ctg);
@@ -321,7 +326,13 @@ void correct_tpl_base(pool *p, tpl *t, int t_len) {
 			pos = r->cursor - t->len + i;
 			if (pos >= 0 && pos < r->len) {
 				c = r->rev_com ? r->rseq[pos] : r->seq[pos];
+				// If 'N', ignore
+				if (c == 4)
+					continue;
 				counter[c]++;
+				n_counted++;
+				if (n_counted >= MAX_POOL_N_READS)
+					break;
 			}
 		}
 		//show_debug_msg(__func__, "BASES at %d \n", i);
@@ -340,7 +351,8 @@ void correct_tpl_base(pool *p, tpl *t, int t_len) {
 		t->ctg->seq[i] = max_c;
 		rev_c = 3 - max_c;
 		// If more than HIGH_N_READS (50) reads in pool, correct the reads as well
-		if (p->reads->len >= HIGH_N_READS) {
+		// This could be slow if too many reads in pool
+		if (n_counted >= HIGH_N_READS) {
 			for (j = 0; j < p->reads->len; j++) {
 				r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
 				// Number of mismatches against the template is 0 now.
@@ -376,8 +388,7 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 	bwa_seq_t *m = NULL, *r = NULL, *tail = NULL;
 	index64 i = 0;
 	int ol = 0, rev_com = 0, n_mis = 0;
-	tail = ori ? new_seq(t->ctg, tail_len, 0) : new_seq(t->ctg, tail_len,
-			t->len - tail_len);
+	tail = get_tail(t, tail_len, ori);
 
 	// In case the tail is an biased seq like: TTTTCTTTTTT
 	if (is_biased_q(tail) || has_n(tail, 1)) {

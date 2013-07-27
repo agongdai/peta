@@ -24,7 +24,7 @@ typedef struct {
 	int locus;
 	int weight;
 	uint8_t ori;
-	uint64_t kmer; 		// Kmer when branching
+	bwa_seq_t *connector; 		// Kmer when branching
 	GPtrArray *reads;	// Reads at the junction
 	int8_t status; 		// 0 means good status
 } junction;
@@ -33,7 +33,7 @@ typedef struct {
 extern "C" {
 #endif
 
-junction *new_junction(tpl *main_tpl, tpl *branch_tpl, uint64_t kmer,
+junction *new_junction(tpl *main_tpl, tpl *branch_tpl,  bwa_seq_t *connector,
 		int locus, int ori, int weight);
 void p_tpl_juncs(tpl *t, GPtrArray *t_juncs);
 int same_main_juncs(junction *jun_1, junction *jun_2);
