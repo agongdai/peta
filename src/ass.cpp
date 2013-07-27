@@ -407,7 +407,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 			if (exist_junc->main_tpl == main_tpl) {
 				// If all of them simply too short, or two short same-direction junctions
 				if ((get_abs(exist_junc->locus - con_pos) <= IGNORE_DIFF
-						&& branch->len <= IGNORE_DIFF + ht->o->read_len)
+						&& branch->len <= IGNORE_DIFF + ht->o->k * 3)
 						|| exist_junc->ori == exist_ori) {
 					branch->alive = 0;
 					show_debug_msg(
