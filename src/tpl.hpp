@@ -75,6 +75,7 @@ extern "C" {
 	void add2tpl(tpl *t, bwa_seq_t *r, const int locus);
 	GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch);
 	void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches);
+	void correct_tpl_base(tpl *t, const int read_len);
 	GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 			int mismatches, int8_t status, int ori);
 	int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,
@@ -86,7 +87,6 @@ extern "C" {
 	void unhold_reads_array(GPtrArray *reads);
 	bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len);
 	void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches);
-	bwa_seq_t *get_ol_with_connector(tpl *branch, const int read_len, const int ori);
 
 #ifdef __cplusplus
 }

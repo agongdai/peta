@@ -80,39 +80,59 @@ tpl *new_tpl() {
 }
 
 /**
+ * Add to TRIED, pretend from using for this template
+ */
+void add2tried(tpl *t, bwa_seq_t *r) {
+	r->contig_id = t->id;
+	r->contig_locus = -1;
+	r->status = TRIED;
+	r->pos = -1;
+	g_ptr_array_add(t->tried, r);
+}
+
+void reset_reads_to_fresh(GPtrArray *reads) {
+	index64 i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		reset_to_fresh(r);
+	}
+}
+
+void unfrozen_tried(tpl *t) {
+	reset_reads_to_fresh(t->tried);
+	while (t->tried->len > 0)
+		g_ptr_array_remove_index_fast(t->tried, 0);
+}
+
+/**
  * Get the tail for extension.
  * The only chance that the template is shorter than len is after timmed by junction.
  */
 bwa_seq_t *get_tail(tpl *t, int len, const int ori) {
 	bwa_seq_t *tail = NULL;
+	bwa_seq_t *real_seq = NULL;
+	int l_len = 0, r_len = 0, t_len = 0;
 	// Must be something wrong!
 	if (!t || t->len < 0 || len < 0)
 		return NULL;
-	if (t->len >= len) {
-		return ori ? new_seq(t->ctg, len, 0) : new_seq(t->ctg, len, t->len
-				- len);
-	} else {
-		return ori ? new_seq(t->start_read, len, 0) : new_seq(t->start_read,
+	real_seq = get_tpl_ctg_wt(t, &l_len, &r_len, &t_len);
+	//p_query(__func__, real_seq);
+	if (real_seq->len < len) {
+		show_debug_msg(
+				__func__,
+				"[WARNING] Tail of template [%d, %d] shows a wrong sequence.\n",
+				t->id, t->len);
+		tail = ori ? new_seq(t->start_read, len, 0) : new_seq(t->start_read,
 				len, t->start_read->len - len);
-	}
-}
-
-/**
- * When connecting, need to check whether its reverse-complement or not
- * So need to get the subseq on branch and main to compare base-by-base
- * Its length is read_len - 1.
- */
-bwa_seq_t *get_ol_with_connector(tpl *branch, const int read_len, const int ori) {
-	bwa_seq_t *ol = NULL;
-	if (!branch || !branch->start_read)
-		return blank_seq(0);
-	if (branch->len < read_len) {
-		return ori ? new_seq(branch->start_read, read_len - 1, 0) : new_seq(
-				branch->start_read, read_len - 1, 1);
+		//p_tpl(t);
 	} else {
-		return ori ? new_seq(branch->ctg, read_len - 1, 0) : new_seq(
-				branch->ctg, read_len - 1, branch->len - (read_len - 1));
+		tail = ori ? new_seq(real_seq, len, 0) : new_seq(real_seq, len,
+				real_seq->len - len);
 	}
+	//p_query(__func__, tail);
+	bwa_free_read_seq(1, real_seq);
+	return tail;
 }
 
 gint cmp_tpl_by_id(gpointer a, gpointer b) {
@@ -361,7 +381,7 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 		return;
 	unfrozen_tried(t);
 	refresh = g_ptr_array_sized_new(t->reads->len);
-	unhold_reads_array(t->reads);
+	reset_reads_to_fresh(t->reads);
 	t->reads = refresh;
 
 	seq = get_tpl_ctg_wt(t, &left_len, &right_len, &counted_len);
@@ -372,12 +392,13 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 				"[WARNING]",
 				"The sequence with tails shorter than read length: [%d, %d] \n",
 				t->id, t->len);
-		p_tpl(t);
+		//p_tpl(t);
 		bwa_free_read_seq(1, seq);
 		return;
 	}
 
-	p_tpl(t);
+	//p_tpl(t);
+	//p_query(__func__, seq);
 	for (i = 0; i <= seq->len - ht->o->read_len; i++) {
 		window = new_seq(seq, ht->o->read_len, i);
 		hits = g_ptr_array_sized_new(4);
@@ -449,13 +470,89 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 			for (j = 0; j < hits->len; j++) {
 				r = (bwa_seq_t*) g_ptr_array_index(hits, j);
 				// For reads partially on left tail, the locus is negative
-				add2tpl(t, r, t->len - borrow_len + i);
+				if (r->status == FRESH)
+					add2tpl(t, r, t->len - borrow_len + i);
 			}
 			g_ptr_array_free(hits, TRUE);
 			bwa_free_read_seq(1, window);
 		}
 		bwa_free_read_seq(1, s);
 	}
+}
+
+/**
+ * Assumption: the reads on the template are sorted by contig locus.
+ * Correct template bases.
+ */
+void correct_tpl_base(tpl *t, const int read_len) {
+	int counter[5], max = 0, n_counted = 0;
+	ubyte_t c = 0, max_c = 0, rev_c = 0;
+	int i = 0, j = 0, start = 0, locus = 0;
+	int l_len = 0, r_len = 0, t_len = 0;
+	bwa_seq_t *r = NULL, *real_seq = NULL;
+	if (!t->reads || t->reads->len == 0)
+		return;
+	real_seq = get_tpl_ctg_wt(t, &l_len, &r_len, &t_len);
+	p_query(__func__, real_seq);
+	for (i = 0; i < t_len; i++) {
+		max = 0;
+		max_c = 0;
+		for (j = 0; j < 5; j++) {
+			counter[j] = 0;
+		}
+		for (j = start; j < t->reads->len; j++) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->reads, j);
+			if (r->contig_locus > i || r->contig_locus + read_len - 1 > i)
+				break;
+			locus = i - l_len - r->contig_locus;
+			if (locus < 0 || locus >= r->len)
+				continue;
+			c = r->rev_com ? r->rseq[locus] : r->seq[locus];
+			show_debug_msg(__func__, "Correcting base %d...\n", i);
+			p_query(__func__, r);
+			show_debug_msg(__func__, "Read locus: %d \n", locus);
+			// If 'N', ignore
+			if (c == 4)
+				continue;
+			counter[c]++;
+			n_counted++;
+			if (n_counted >= CORRECT_N_READS)
+				break;
+		}
+		if (i < t_len - read_len && j < t->reads->len - 1) {
+			start = j;
+		}
+		show_debug_msg(__func__, "Start: %d\n", start);
+
+		for (j = 0; j < 4; j++) {
+			if (counter[j] > max) {
+				max = counter[j];
+				max_c = j;
+			}
+		}
+
+		if (max <= 0)
+			continue;
+		// Correct the template sequences
+		if (l_len > 0 && i < l_len) {
+			show_debug_msg(__func__, "POS %d: %c => %c \n", i,
+								"ACGTN"[t->l_tail->seq[i]], "ACGTN"[max_c]);
+			t->l_tail->seq[i] = max_c;
+		} else if (r_len > 0 && i >= l_len + t->len) {
+			show_debug_msg(__func__, "POS %d: %c => %c \n", i,
+					"ACGTN"[t->r_tail->seq[i - l_len - t->len]], "ACGTN"[max_c]);
+			t->r_tail->seq[i - l_len - t->len] = max_c;
+		} else
+			t->ctg->seq[i - l_len] = max_c;
+	}
+	bwa_free_read_seq(1, real_seq);
+	set_rev_com(t->ctg);
+	set_rev_com(t->l_tail);
+	set_rev_com(t->r_tail);
+
+	real_seq = get_tpl_ctg_wt(t, &l_len, &r_len, &t_len);
+	p_query("AFTER", real_seq);
+	bwa_free_read_seq(1, real_seq);
 }
 
 /**
@@ -470,33 +567,7 @@ void rm_from_tpl(tpl *t, int index) {
 }
 
 /**
- * Add to TRIED, pretend from using for this template
- */
-void add2tried(tpl *t, bwa_seq_t *r) {
-	r->contig_id = t->id;
-	r->contig_locus = -1;
-	r->status = TRIED;
-	r->pos = -1;
-	g_ptr_array_add(t->tried, r);
-}
-
-void reset_reads_to_fresh(GPtrArray *reads) {
-	index64 i = 0;
-	bwa_seq_t *r = NULL;
-	for (i = 0; i < reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
-		reset_to_fresh(r);
-	}
-}
-
-void unfrozen_tried(tpl *t) {
-	reset_reads_to_fresh(t->tried);
-	while (t->tried->len > 0)
-		g_ptr_array_remove_index_fast(t->tried, 0);
-}
-
-/**
- * If some read is already used some template, do not reset
+ * If some read is already used by some template, do not reset
  */
 void unhold_reads_array(GPtrArray *reads) {
 	int i = 0;

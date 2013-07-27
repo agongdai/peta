@@ -306,7 +306,7 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 /**
  * Correct bases on the template to the concensus base
  */
-void correct_tpl_base(pool *p, tpl *t, int t_len) {
+void correct_init_tpl_base(pool *p, tpl *t, int t_len) {
 	int i = 0, j = 0, pos = 0;
 	ubyte_t c = 0, max_c = 0, rev_c = 0;
 	bwa_seq_t *r = NULL;
@@ -318,6 +318,7 @@ void correct_tpl_base(pool *p, tpl *t, int t_len) {
 	for (i = 1; i < t->len; i++) {
 		max = 0;
 		max_c = 0;
+		n_counted = 0;
 		for (j = 0; j < 5; j++) {
 			counter[j] = 0;
 		}
@@ -352,7 +353,7 @@ void correct_tpl_base(pool *p, tpl *t, int t_len) {
 		rev_c = 3 - max_c;
 		// If more than HIGH_N_READS (50) reads in pool, correct the reads as well
 		// This could be slow if too many reads in pool
-		if (n_counted >= HIGH_N_READS) {
+		if (n_counted >= HIGH_N_READS && n_counted < MAX_POOL_N_READS) {
 			for (j = 0; j < p->reads->len; j++) {
 				r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
 				// Number of mismatches against the template is 0 now.

@@ -446,6 +446,7 @@ GPtrArray *find_both_fr_full_reads(hash_table *ht, bwa_seq_t *query,
 
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
+		//p_query(__func__, r);
 		r->pos = -1;
 		if (head_tail_similar(r, query, ht->o->k, mismatches, &rev_com)) {
 			r->rev_com = rev_com;

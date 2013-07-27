@@ -133,10 +133,16 @@ void p_paths(GPtrArray *paths) {
 	fputs("graph [rankdir=LR];\n", dot);
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
+		if (p->status == 0)
 		sprintf(
 				entry,
 				"%d [label=\"Path %d\" style=filled fillcolor=\"yellow\" shape=box]; \n",
 				p->id, p->id);
+		else
+			sprintf(
+					entry,
+					"%d [label=\"Path %d\" style=filled fillcolor=\"gray\" shape=box]; \n",
+					p->id, p->id);
 		fputs(entry, dot);
 		for (j = 0; j < p->vertexes->len; j++) {
 			v = (vertex*) g_ptr_array_index(p->vertexes, j);
@@ -167,8 +173,8 @@ void save_paths(GPtrArray *paths, char *fn, const int to_save_all) {
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
 		// If we are not saving all paths and the status is not 0, skip
-		if (to_save_all) {
-            if (p->status == 0 || p->len < 100)
+		if (!to_save_all) {
+            if (p->status != 0 || p->len < 100)
 			    continue;
         }
 		sprintf(entry, ">%d length: %d\n", p->id, p->len);

@@ -100,9 +100,9 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 			* right_len);
 	junc_seq->len = left_len + right_len;
 	set_rev_com(junc_seq);
-	p_query("Left  seq", left);
-	p_query("Right seq", right);
-	p_query("Junction seq", junc_seq);
+	//p_query("Left  seq", left);
+	//p_query("Right seq", right);
+	//p_query("Junction seq", junc_seq);
 
 	for (i = 0; i <= junc_seq->len - ht->o->read_len; i++) {
 		window = new_seq(junc_seq, ht->o->read_len, i);
@@ -117,7 +117,7 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	}
 
 	n_reads = reads->len;
-	show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
+	//show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
 	*weight = n_reads;
 	bwa_free_read_seq(1, junc_seq);
 	return reads;

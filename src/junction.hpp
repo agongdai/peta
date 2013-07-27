@@ -14,7 +14,6 @@
 #include "bwtaln.h"
 #include "tpl.hpp"
 
-#define		SHORT_BRANCH_SHIFT	4
 typedef 	unordered_map<int, int> junc_count;
 
 using namespace std;

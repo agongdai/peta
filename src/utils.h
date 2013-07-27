@@ -26,10 +26,12 @@
 #define FNLEN 					1023
 #define LINELEN					50
 #define MAX_POOL_N_READS		2000
+#define CORRECT_N_READS			500
 #define HIGH_N_READS			50
-#define	IGNORE_DIFF				8
+#define	IGNORE_DIFF				11
 #define NO_REPEAT_BASES			4
 #define NO_REPEAT_LEN 			15
+#define	SHORT_BRANCH_SHIFT		4
 #define	MATCH_SCORE				2
 #define MISMATCH_WEIGHT			2
 #define	MISMATCH_SCORE			-1

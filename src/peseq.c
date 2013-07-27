@@ -447,6 +447,8 @@ void switch_fr(bwa_seq_t *s) {
 }
 
 void set_rev_com(bwa_seq_t *s) {
+	if (!s)
+		return;
 	if (s->rseq)
 		free(s->rseq);
 	s->rseq = (ubyte_t*) malloc(s->len + 1);
@@ -829,6 +831,8 @@ int head_tail_similar(bwa_seq_t *ref, bwa_seq_t *query, const int len,
 	if (!ref || !query || ref->len < len || query->len < len)
 		return 0;
 	// Check whether forward sequences are similar
+	//p_query("REF", ref);
+	//p_query("QUE", query);
 	if (similar_bytes(ref->seq, query->seq, len, mismatches) && similar_bytes(
 			ref->seq + (ref->len - len), query->seq + (query->len - len), len,
 			mismatches)) {
@@ -842,6 +846,7 @@ int head_tail_similar(bwa_seq_t *ref, bwa_seq_t *query, const int len,
 			*rev_com = 1;
 		}
 	}
+	//show_debug_msg(__func__, "SIMILAR: %d\n", similar);
 	return similar;
 }
 
