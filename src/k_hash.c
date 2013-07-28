@@ -149,6 +149,7 @@ void read_hash_value(index64 *seq_id, int *pos_start, hash_value value) {
 
 void k_hash_core(const char *fa_fn, hash_opt *opt) {
 	bwa_seq_t *s, *part_seqs;
+	bwa_seq_t *key_seq = NULL;
 	bwa_seqio_t *ks;
 	index64 n_k_mers = 0;
 	hash_value value;
@@ -159,7 +160,7 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 	FILE *hash_fp = NULL;
 	hash_key *k_mers_occ_acc, key = 0ULL;
 	hash_value *pos;
-	char *hash_fn = (char*)malloc(BUFSIZE);
+	char *hash_fn = (char*) malloc(BUFSIZE);
 	int *n_occ;
 	uint32_t *kmer_occ_on_reads = NULL;
 
@@ -176,7 +177,7 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 	ks = bwa_open_reads(opt->mode, fa_fn);
 	// Round 1: count occurrences of all k-mers
 	fprintf(stderr,
-			"[pe_hash_core] Round 1/2: Counting occurrences of k-mers ... \n");
+			"[pe_hash_core] Round 1/3: Counting occurrences of k-mers ... \n");
 	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, opt->mode,
 			0)) != 0) {
 		pe_reverse_seqs(part_seqs, n_part_seqs);
@@ -184,8 +185,7 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 		for (i = 0; i < n_part_seqs; i++) {
 			s = &part_seqs[i];
 			if (s->len != opt->read_len) {
-				err_fatal(
-						__func__,
+				err_fatal(__func__,
 						"Sequence length of %s is not as specified: %d vs %d! \n",
 						s->name, s->len, opt->read_len);
 			}
@@ -195,8 +195,9 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 			//	continue;
 
 			//p_query(__func__, s);
-			while (block_no < opt->n_hash_block && hash_start <= opt->read_len
-					- opt->k * (opt->interleaving)) {
+			while (block_no < opt->n_hash_block
+					&& hash_start
+							<= opt->read_len - opt->k * (opt->interleaving)) {
 				hash_start = block_no * opt->block_size;
 				key = get_hash_key(s->seq, hash_start, opt->interleaving,
 						opt->k);
@@ -228,10 +229,64 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 		bwa_free_read_seq(n_part_seqs, part_seqs);
 	}
 	bwa_seq_close(ks);
+
 	// To store the # of kmers every read contains
 	kmer_occ_on_reads = (uint32_t*) calloc(n_seqs, sizeof(uint32_t));
+	hash_start = 0;
+	block_no = 0;
 	n_seqs = 0;
+	ks = bwa_open_reads(opt->mode, fa_fn);
+	// Round 1: count occurrences of all k-mers
+	fprintf(stderr,
+			"[pe_hash_core] Round 2/3: Storing occurrences of k-mers for reads ... \n");
+	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, opt->mode,
+			0)) != 0) {
+		pe_reverse_seqs(part_seqs, n_part_seqs);
+		n_seqs += n_part_seqs;
+		for (i = 0; i < n_part_seqs; i++) {
+			s = &part_seqs[i];
+			if (s->len != opt->read_len) {
+				err_fatal(__func__,
+						"Sequence length of %s is not as specified: %d vs %d! \n",
+						s->name, s->len, opt->read_len);
+			}
 
+			// Ignore the reads all 'AAAAATAAAA', etc
+			if (has_n(s, 1) || is_biased_q(s))
+				continue;
+
+			while (block_no < opt->n_hash_block
+					&& hash_start
+							<= opt->read_len - opt->k * (opt->interleaving)) {
+				hash_start = block_no * opt->block_size;
+				key = get_hash_key(s->seq, hash_start, opt->interleaving,
+						opt->k);
+				// Ignore those keys with "AAAAAA"
+				key_seq = get_key_seq(key, opt->k);
+				if (!is_biased_q(key_seq) && !has_n(key_seq, 1))
+					kmer_occ_on_reads[atoll(s->name)] += k_mers_occ_acc[key];
+				bwa_free_read_seq(1, key_seq);
+
+				key = get_hash_key(s->seq, hash_start + opt->interleaving - 1,
+						opt->interleaving, opt->k);
+				key_seq = get_key_seq(key, opt->k);
+				if (!is_biased_q(key_seq) && !has_n(key_seq, 1))
+					kmer_occ_on_reads[atoll(s->name)] += k_mers_occ_acc[key];
+				bwa_free_read_seq(1, key_seq);
+
+				block_no++;
+			}
+			hash_start = 0;
+			block_no = 0;
+		}
+		fprintf(stderr,
+				"[pe_hash_core] %"ID64" sequences counted: %.2f sec ... \n",
+				n_seqs, (float) (clock() - t) / CLOCKS_PER_SEC);
+		bwa_free_read_seq(n_part_seqs, part_seqs);
+	}
+	bwa_seq_close(ks);
+
+	n_seqs = 0;
 	// Example:
 	//	k-mers: 1, 2, 3, 4;
 	//	occurrences for each k-mer: 2, 4, 6, 8;
@@ -253,7 +308,7 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 
 	hash_start = 0;
 	block_no = 0;
-	fprintf(stderr, "[pe_hash_core] Round 2/2: Store k-mer pointers %s ... \n",
+	fprintf(stderr, "[pe_hash_core] Round 3/3: Store k-mer pointers %s ... \n",
 			fa_fn);
 	ks = bwa_open_reads(opt->mode, fa_fn);
 	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, opt->mode,
@@ -266,8 +321,9 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 			//if (same_bytes(s->seq, s->len) || too_many_ns(s->seq, s->len))
 			//	continue;
 
-			while (block_no < opt->n_hash_block && hash_start <= opt->read_len
-					- opt->k * (opt->interleaving)) {
+			while (block_no < opt->n_hash_block
+					&& hash_start
+							<= opt->read_len - opt->k * (opt->interleaving)) {
 				hash_start = block_no * opt->block_size;
 				// Hash two keys for the starting region of a read, interleaving by 1 by default.
 				key = get_hash_key(s->seq, hash_start, opt->interleaving,
@@ -275,16 +331,14 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 				value = get_hash_value(i_acc, hash_start);
 				pos_index = k_mers_occ_acc[key] + n_occ[key];
 				pos[pos_index] = value;
-				kmer_occ_on_reads[atoll(s->name)] += value;
 				n_occ[key]++;
 
 				key = get_hash_key(s->seq, hash_start + opt->interleaving - 1,
 						opt->interleaving, opt->k);
-				value = get_hash_value(i_acc, hash_start + opt->interleaving
-						- 1);
+				value = get_hash_value(i_acc,
+						hash_start + opt->interleaving - 1);
 				pos_index = k_mers_occ_acc[key] + n_occ[key];
 				pos[pos_index] = value;
-				kmer_occ_on_reads[atoll(s->name)] += value;
 				n_occ[key]++;
 
 				block_no++;
@@ -347,8 +401,10 @@ hash_table *load_k_hash(char *fa_fn) {
 	opt = (hash_opt*) malloc(sizeof(hash_opt));
 	fp = xopen(hash_fn, "rb");
 	if (!fread(opt, sizeof(hash_opt), 1, fp)) {
-		err_fatal(__func__, "Unable to read from the hash file %s! \n", hash_fn);
-	} show_msg(
+		err_fatal(__func__, "Unable to read from the hash file %s! \n",
+				hash_fn);
+	}
+	show_msg(
 			__func__,
 			"Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 "...\n",
 			opt->k, opt->read_len, opt->n_k_mers, opt->n_pos);
@@ -383,8 +439,8 @@ GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 	if (!hits)
 		hits = g_ptr_array_sized_new(0);
 	//p_shift_query(query, 0);
-	while (block_no < opt->n_hash_block && hash_start <= opt->read_len - opt->k
-			* (opt->interleaving)) {
+	while (block_no < opt->n_hash_block
+			&& hash_start <= opt->read_len - opt->k * (opt->interleaving)) {
 		// Hash two keys for the starting region of a read, interleaving by 1 by default.
 		for (j = 0; j < n_block_kmers; j++) {
 			hash_start = block_no * opt->block_size + j;
@@ -393,8 +449,9 @@ GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 						opt->k);
 
 				start = ht->k_mers_occ_acc[key];
-				end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers
-						- 1] : ht->k_mers_occ_acc[key + 1];
+				end = (key >= opt->n_k_mers) ?
+						ht->k_mers_occ_acc[opt->n_k_mers - 1] :
+						ht->k_mers_occ_acc[key + 1];
 				if (end > start) {
 					for (i = start; i < end; i++) {
 						value = ht->pos[i];
@@ -480,11 +537,12 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 		 bwa_seq_t *key_seq = get_key_seq(key, 11);
 		 p_query(__func__, key_seq);
 		 bwa_free_read_seq(1, key_seq);
-		**/
+		 **/
 
 		start = ht->k_mers_occ_acc[key];
-		end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers - 1]
-				: ht->k_mers_occ_acc[key + 1];
+		end = (key >= opt->n_k_mers) ?
+				ht->k_mers_occ_acc[opt->n_k_mers - 1] :
+				ht->k_mers_occ_acc[key + 1];
 		//show_debug_msg(__func__, "Start~End: [%" ID64 ", %" ID64 "]\n", start, end);
 		if (end > start) {
 			for (j = start; j < end; j++) {
@@ -495,8 +553,9 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 				if (r->pos != -1)
 					continue;
 				abs_locus = locus - i;
-				if (abs_locus >= 0 && abs_locus <= r->len + 1
-						- opt->interleaving * opt->k) {
+				if (abs_locus >= 0
+						&& abs_locus
+								<= r->len + 1 - opt->interleaving * opt->k) {
 					// If the status of read is as requested
 					if (status == ANY_STATUS || r->status == status) {
 						//p_query(__func__, r);
@@ -545,8 +604,8 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 
 			//r->pos = (ht->o->read_len - query->len) - r->pos;
 
-			if (r->pos >= 0 && r->pos <= r->len + 1 - ht->o->interleaving
-					* ht->o->k) {
+			if (r->pos >= 0
+					&& r->pos <= r->len + 1 - ht->o->interleaving * ht->o->k) {
 				g_ptr_array_add(hits, r);
 			} else {
 				// If not added ok, reset to 0
@@ -610,7 +669,7 @@ int k_hash(int argc, char *argv[]) {
 
 	k_hash_core(argv[optind], opt);
 	//test_k_hash(argv[optind], opt);
-	fprintf(stderr, "[pe_hash] Hashing done: %.2f sec\n", (float) (clock() - t)
-			/ CLOCKS_PER_SEC);
+	fprintf(stderr, "[pe_hash] Hashing done: %.2f sec\n",
+			(float) (clock() - t) / CLOCKS_PER_SEC);
 	return 0;
 }

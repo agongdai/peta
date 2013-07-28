@@ -637,7 +637,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	tpl *t = NULL;
 	int pre_len = 0, round_2_len = 0, connected = 0, ori = 1, flag = 0;
-	int pre_n_reads = 0;
+	int pre_n_reads = 0, iter = 0;
 	uint64_t read_id = 0;
 	uint32_t i = 0;
 	kmer_counter *counter = NULL;
@@ -676,7 +676,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	mark_init_reads_used(ht, t, read, N_MISMATCHES);
 	// Right->left->right->left...until not extendable
 	// If it is connected to somewhere, simply stop
-	while (t->len > pre_len && (!t->b_juncs || t->b_juncs->len == 0)) {
+	while (iter++ <= 2 && t->len > pre_len && (!t->b_juncs || t->b_juncs->len == 0)) {
 		// Extend to the right first
 		// Make a clone of the original starting read, which is global
 		p = new_pool();
