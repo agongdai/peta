@@ -331,6 +331,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	int connected = 0, is_rev = 0;
 	// If the branch is reverse complement connected, the direction needs to be switch
 	int adj_ori = 0;
+	int max_trial = 0;
 	junction *exist_junc = NULL;
 
 	// If extending to the left, and it's not connected to any template, mark it 'dead'
@@ -343,7 +344,8 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	con_reads = find_connected_reads(ht, all_tpls, branch, ori);
 	//show_debug_msg(__func__, "Connecting reads: \n");
 	//p_readarray(con_reads, 1);
-	for (i = 0; i < con_reads->len; i++) {
+	max_trial = con_reads->len > 8 ? 8 : con_reads->len;
+	for (i = 0; i < max_trial; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(con_reads, i);
 
 		tpl_hash::iterator it = all_tpls->find(r->contig_id);
@@ -585,7 +587,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			find_hashed_mates(ht, p, t, tail->len, LESS_MISMATCH, ori);
 			max_c = get_next_char(p, t, ori);
 			if (max_c == -1) {
-				con_existing = connect_by_full_reads(ht, all_tpls, t, ori);
+				//con_existing = connect_by_full_reads(ht, all_tpls, t, ori);
 				show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
 						ori, t->id, t->len);
 				break;
@@ -653,6 +655,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	counter = (kmer_counter*) data;
 	read_id = counter->kmer;
 	read = &seqs[read_id];
+	//read = &seqs[4374716];
 
 	//show_debug_msg(__func__, "============= %s: %" ID64 " ============ \n",
 	//		read->name, counter->count);
@@ -676,7 +679,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	mark_init_reads_used(ht, t, read, N_MISMATCHES);
 	// Right->left->right->left...until not extendable
 	// If it is connected to somewhere, simply stop
-	while (iter++ <= 2 && t->len > pre_len && (!t->b_juncs || t->b_juncs->len == 0)) {
+	while (iter++ <= 4 && t->len > pre_len && (!t->b_juncs || t->b_juncs->len == 0)) {
 		// Extend to the right first
 		// Make a clone of the original starting read, which is global
 		p = new_pool();
@@ -754,7 +757,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		//	due to not full sensitive hashing.
 		//	If not redo aligning, there would be many false junctions
 		//refresh_tpl_reads(ht, t, N_MISMATCHES);
-		//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+		//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
 		//p_readarray(t->reads, 1);
 		//upd_tpl_jun_locus(t, branching_events, opt->k);
 	}
@@ -771,6 +774,7 @@ void kmer_threads(kmer_t_meta *params) {
 
 	for (i = 0; i < ht->n_seqs; i++) {
 		r = &seqs[i];
+		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
 		if (r->status == FRESH) {
 			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
 			counter->kmer = i;
@@ -791,7 +795,7 @@ void kmer_threads(kmer_t_meta *params) {
 		kmer_ext_thread(counter, params);
 		free(counter);
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
-		//if (branching_events->len >= 2)
+		//if (kmer_ctg_id >= 2000)
 		//	break;
 	}
 	g_thread_pool_free(thread_pool, 0, 1);

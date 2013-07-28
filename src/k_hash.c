@@ -11,6 +11,8 @@
 #include "rnaseq.h"
 #include "utils.h"
 
+int n_threads = 4;
+
 bwa_seq_t *get_key_seq(uint64_t kmer, const int k) {
 	ubyte_t *seq = NULL;
 	bwa_seq_t *read = NULL;
@@ -163,6 +165,7 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 	char *hash_fn = (char*) malloc(BUFSIZE);
 	int *n_occ;
 	uint32_t *kmer_occ_on_reads = NULL;
+	GThreadPool *thread_pool = NULL;
 
 	// All k-mer combinations
 	n_k_mers = (1 << (opt->k * 2)) + 1;
@@ -177,7 +180,7 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 	ks = bwa_open_reads(opt->mode, fa_fn);
 	// Round 1: count occurrences of all k-mers
 	fprintf(stderr,
-			"[pe_hash_core] Round 1/3: Counting occurrences of k-mers ... \n");
+			"[pe_hash_core] Round 1/2: Counting occurrences of k-mers ... \n");
 	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, opt->mode,
 			0)) != 0) {
 		pe_reverse_seqs(part_seqs, n_part_seqs);
@@ -229,62 +232,7 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 		bwa_free_read_seq(n_part_seqs, part_seqs);
 	}
 	bwa_seq_close(ks);
-
-	// To store the # of kmers every read contains
 	kmer_occ_on_reads = (uint32_t*) calloc(n_seqs, sizeof(uint32_t));
-	hash_start = 0;
-	block_no = 0;
-	n_seqs = 0;
-	ks = bwa_open_reads(opt->mode, fa_fn);
-	// Round 1: count occurrences of all k-mers
-	fprintf(stderr,
-			"[pe_hash_core] Round 2/3: Storing occurrences of k-mers for reads ... \n");
-	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, opt->mode,
-			0)) != 0) {
-		pe_reverse_seqs(part_seqs, n_part_seqs);
-		n_seqs += n_part_seqs;
-		for (i = 0; i < n_part_seqs; i++) {
-			s = &part_seqs[i];
-			if (s->len != opt->read_len) {
-				err_fatal(__func__,
-						"Sequence length of %s is not as specified: %d vs %d! \n",
-						s->name, s->len, opt->read_len);
-			}
-
-			// Ignore the reads all 'AAAAATAAAA', etc
-			if (has_n(s, 1) || is_biased_q(s))
-				continue;
-
-			while (block_no < opt->n_hash_block
-					&& hash_start
-							<= opt->read_len - opt->k * (opt->interleaving)) {
-				hash_start = block_no * opt->block_size;
-				key = get_hash_key(s->seq, hash_start, opt->interleaving,
-						opt->k);
-				// Ignore those keys with "AAAAAA"
-				key_seq = get_key_seq(key, opt->k);
-				if (!is_biased_q(key_seq) && !has_n(key_seq, 1))
-					kmer_occ_on_reads[atoll(s->name)] += k_mers_occ_acc[key];
-				bwa_free_read_seq(1, key_seq);
-
-				key = get_hash_key(s->seq, hash_start + opt->interleaving - 1,
-						opt->interleaving, opt->k);
-				key_seq = get_key_seq(key, opt->k);
-				if (!is_biased_q(key_seq) && !has_n(key_seq, 1))
-					kmer_occ_on_reads[atoll(s->name)] += k_mers_occ_acc[key];
-				bwa_free_read_seq(1, key_seq);
-
-				block_no++;
-			}
-			hash_start = 0;
-			block_no = 0;
-		}
-		fprintf(stderr,
-				"[pe_hash_core] %"ID64" sequences counted: %.2f sec ... \n",
-				n_seqs, (float) (clock() - t) / CLOCKS_PER_SEC);
-		bwa_free_read_seq(n_part_seqs, part_seqs);
-	}
-	bwa_seq_close(ks);
 
 	n_seqs = 0;
 	// Example:
@@ -308,7 +256,7 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 
 	hash_start = 0;
 	block_no = 0;
-	fprintf(stderr, "[pe_hash_core] Round 3/3: Store k-mer pointers %s ... \n",
+	fprintf(stderr, "[pe_hash_core] Round 2/2: Store k-mer pointers %s ... \n",
 			fa_fn);
 	ks = bwa_open_reads(opt->mode, fa_fn);
 	while ((part_seqs = bwa_read_seq(ks, N_CHUNK_SEQS, &n_part_seqs, opt->mode,
@@ -366,6 +314,7 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 	fwrite(pos, sizeof(hash_value), n_pos, hash_fp);
 
 	fprintf(stderr, "[pe_hash_core] Saving kmer counts on reads ... \n");
+	// In first round, just store all zero values
 	fwrite(kmer_occ_on_reads, sizeof(uint32_t), n_seqs, hash_fp);
 	free(kmer_occ_on_reads);
 
@@ -404,8 +353,7 @@ hash_table *load_k_hash(char *fa_fn) {
 		err_fatal(__func__, "Unable to read from the hash file %s! \n",
 				hash_fn);
 	}
-	show_msg(
-			__func__,
+	show_msg(__func__,
 			"Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 "...\n",
 			opt->k, opt->read_len, opt->n_k_mers, opt->n_pos);
 	h->k_mers_occ_acc = (hash_key*) calloc(opt->n_k_mers, sizeof(hash_key));
@@ -415,8 +363,7 @@ hash_table *load_k_hash(char *fa_fn) {
 	fread(h->pos, sizeof(hash_value), opt->n_pos, fp);
 	fread(h->n_kmers, sizeof(uint32_t), n_seqs, fp);
 	fclose(fp);
-	show_msg(
-			__func__,
+	show_msg(__func__,
 			"Hash table loaded, k-mer records: %" ID64 ", positions: %" ID64 " %.2f sec\n",
 			opt->n_k_mers, opt->n_pos, (float) (clock() - t) / CLOCKS_PER_SEC);
 	free(hash_fn);
@@ -619,20 +566,96 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 	return hits;
 }
 
+/**
+ * The thread to align one read to the RNA-seq library
+ */
+gint align_read_thread(gpointer r, gpointer para) {
+	bwa_seq_t *query = (bwa_seq_t*) r;
+	hash_table *ht = para;
+	GPtrArray *hits = g_ptr_array_sized_new(0);
+	index64 i = 0;
+	bwa_seq_t *tmp = NULL;
+	uint32_t *n_kmers = ht->n_kmers;
+	index64 read_id = 0;
+	read_id = atoll(query->name);
+	if (read_id < 0 || read_id >= ht->n_seqs || query->pos != -1)
+		return 0;
+	if (is_biased_q(query) || too_many_ns(query, query->len))
+		return 0;
+	p_query("QUERY", query);
+	find_both_fr_full_reads(ht, query, hits, N_MISMATCHES);
+	// Mark 'pos' as not -1, to save time
+	show_debug_msg(__func__, "Hits: %d\n", hits->len);
+	for (i = 0; i < hits->len; i++) {
+		tmp = (bwa_seq_t*) g_ptr_array_index(hits, i);
+		tmp->pos = hits->len;
+		n_kmers[atoll(tmp->name)] = hits->len;
+		//p_query(__func__, tmp);
+	}
+	//show_debug_msg(__func__, "---------------------\n");
+	n_kmers[read_id] = hits->len;
+	g_ptr_array_free(hits, TRUE);
+	return 0;
+}
+
+void group_reads(hash_table *ht, const int n_threads) {
+	GThreadPool *thread_pool = NULL;
+	int i = 0;
+	bwa_seq_t *r = NULL;
+
+	show_msg(__func__, "Aligning %d reads on %d threads ...\n", ht->n_seqs,
+			n_threads);
+	thread_pool = g_thread_pool_new((GFunc) align_read_thread, ht, n_threads,
+			TRUE, NULL);
+	for (i = 0; i < ht->n_seqs; i++) {
+		r = (bwa_seq_t*) &ht->seqs[i];
+		ht->n_kmers[atoll(r->name)] = 0;
+	}
+	for (i = 0; i < ht->n_seqs; i++) {
+		r = (bwa_seq_t*) &ht->seqs[i];
+		//align_read_thread((gpointer)r, (gpointer)para);
+		g_thread_pool_push(thread_pool, (gpointer) r, NULL);
+		//if (i > 100)
+		//	break;
+	}
+	g_thread_pool_free(thread_pool, 0, 1);
+}
+
+void re_hash(const char *fa_fn) {
+	char rehash_fn[BUFSIZ];
+	FILE *fp = NULL;
+
+	hash_table *ht = load_k_hash(fa_fn);
+	group_reads(ht, n_threads);
+
+	sprintf(rehash_fn, "%s.hash", fa_fn);
+	fp = xopen(rehash_fn, "w");
+
+	fprintf(stderr, "[re_hash] Saving to %s ... \n", rehash_fn);
+	fwrite(ht->o, sizeof(hash_opt), 1, fp);
+	fprintf(stderr, "[re_hash] Saving k-mers ... \n");
+	fwrite(ht->k_mers_occ_acc, sizeof(hash_key), ht->o->n_k_mers, fp);
+	fprintf(stderr, "[re_hash] Saving occurrences ... \n");
+	fwrite(ht->pos, sizeof(hash_value), ht->o->n_pos, fp);
+
+	fprintf(stderr, "[re_hash] Saving kmer counts on reads ... \n");
+	// In first round, just store all zero values
+	fwrite(ht->n_kmers, sizeof(uint32_t), ht->n_seqs, fp);
+	fclose(fp);
+}
+
 int test_k_hash(char *fa, hash_opt *opt) {
 	//k_hash_core(fa, opt);
 	hash_table *ht = load_k_hash(fa);
 	//p_hash_table(ht);
 	bwa_seq_t *query = NULL, *h = NULL;
-	GPtrArray *hits = NULL;
 	int i = 0, j = 0;
 	for (i = 0; i < ht->n_seqs; i++) {
-		query = &ht->seqs[i];
-		hits = find_reads_on_ht(ht, query, hits, N_MISMATCHES);
-		if (hits->len > 100)
-			break;
+		query = &ht->seqs[99];
+		p_query(__func__, query);
+		show_debug_msg(__func__, "HITS: %d \n", ht->n_kmers[99]);
+		break;
 	}
-	g_ptr_array_free(hits, TRUE);
 }
 
 int k_hash(int argc, char *argv[]) {
@@ -641,7 +664,7 @@ int k_hash(int argc, char *argv[]) {
 	t = clock();
 	hash_opt *opt = init_hash_opt();
 
-	while ((c = getopt(argc, argv, "k:l:i:b:s:")) >= 0) {
+	while ((c = getopt(argc, argv, "k:l:i:b:s:t")) >= 0) {
 		switch (c) {
 		case 'k':
 			opt->k = atoi(optarg);
@@ -658,6 +681,9 @@ int k_hash(int argc, char *argv[]) {
 		case 's':
 			opt->block_size = atoi(optarg);
 			break;
+		case 't':
+			n_threads = atoi(optarg);
+			break;
 		default:
 			return 1;
 		}
@@ -667,7 +693,11 @@ int k_hash(int argc, char *argv[]) {
 		return hash_usage();
 	}
 
-	k_hash_core(argv[optind], opt);
+	if (!g_thread_supported())
+		g_thread_init(NULL);
+
+	//k_hash_core(argv[optind], opt);
+	re_hash(argv[optind]);
 	//test_k_hash(argv[optind], opt);
 	fprintf(stderr, "[pe_hash] Hashing done: %.2f sec\n",
 			(float) (clock() - t) / CLOCKS_PER_SEC);

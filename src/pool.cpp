@@ -314,7 +314,7 @@ void correct_init_tpl_base(pool *p, tpl *t, int t_len) {
 	int n_counted = 0;
 	if (!p || t_len <= 0 || t->len < t_len || !p->reads || p->reads->len < 3)
 		return;
-	//p_ctg_seq("BEFORE", t->ctg);
+	p_ctg_seq("BEFORE", t->ctg);
 	for (i = 1; i < t->len; i++) {
 		max = 0;
 		max_c = 0;
@@ -378,7 +378,7 @@ void correct_init_tpl_base(pool *p, tpl *t, int t_len) {
 		} // End of correcting bases on reads
 	} // End of template base correction
 	set_rev_com(t->ctg);
-	//p_ctg_seq("AFTER ", t->ctg);
+	p_ctg_seq("AFTER ", t->ctg);
 }
 
 /**
@@ -396,6 +396,8 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		bwa_free_read_seq(1, tail);
 		return;
 	}
+
+	//p_tpl(t);
 	//show_debug_msg(__func__, "ORI: %d \n", ori);
 	//p_query(__func__, tail);
 
