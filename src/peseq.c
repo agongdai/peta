@@ -549,6 +549,22 @@ int too_many_ns(const ubyte_t *s, const int k) {
 		return 0;
 }
 
+void mark_low_qua_reads(bwa_seq_t *seqs, index64 n_seqs) {
+	index64 i = 0, n_dead = 0;
+	bwa_seq_t *r = NULL;
+	if (!seqs || n_seqs <= 0)
+		return;
+	for (i = 0; i < n_seqs; i++) {
+		r = &seqs[i];
+		if (too_many_ns(r->seq, r->len) || is_biased_q(r)) {
+			r->status = DEAD;
+			n_dead++;
+			//p_query("DEAD", r);
+		}
+	}
+	show_debug_msg(__func__, "N_DEADS: %d\n", n_dead);
+}
+
 /**
  * Check whether all bases are the same, allow one base different
  */
@@ -749,8 +765,8 @@ int is_sub_seq_byte(const ubyte_t *query, const int q_len, const int shift,
 		nm = mismatches;
 		for (i = start; i < end; i++) {
 			// If either base is 'N', treat them as the same
-			if (query[i] == 4 || seq->seq[i + offset - shift])
-				continue;
+			//if (query[i] == 4 || seq->seq[i + offset - shift])
+			//	continue;
 			if (query[i] != seq->seq[i + offset - shift]) {
 				nm--;
 			}
@@ -795,8 +811,8 @@ int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 	right = right_seq->rev_com ? right_seq->rseq : right_seq->seq;
 	for (i = 0; i < ol; i++) {
 		// If there is an 'N' on either seq, just treat them as the same
-		if (left[i + (left_seq->len - ol)] == 4 || right[i] == 4)
-			continue;
+		//if (left[i + (left_seq->len - ol)] == 4 || right[i] == 4)
+		//	continue;
 		if (left[i + (left_seq->len - ol)] != right[i]) {
 			n_mis++;
 		}
@@ -812,8 +828,8 @@ int seq_ol(const bwa_seq_t *left_seq, const bwa_seq_t *right_seq, const int ol,
 int similar_bytes(ubyte_t *b_1, ubyte_t *b_2, int len, int mismatches) {
 	int i = 0;
 	for (i = 0; i < len; i++) {
-		if (b_1[i] == 4 || b_2[i] == 4)
-			continue;
+		//if (b_1[i] == 4 || b_2[i] == 4)
+		//	continue;
 		if (b_1[i] != b_2[i])
 			mismatches--;
 		if (mismatches < 0)
@@ -947,7 +963,7 @@ int is_repetitive_q(const bwa_seq_t *query) {
 int is_biased_q(const bwa_seq_t *query) {
 	int *c = (int*) calloc(5, sizeof(int));
 	int i = 0, is_biased = 0;
-	int thre = query->len * 3 / 4;
+	int thre = query->len * 4 / 5;
 	for (i = 0; i < query->len; i++) {
 		c[query->seq[i]]++;
 	}

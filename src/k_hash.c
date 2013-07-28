@@ -191,8 +191,8 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 			}
 
 			// Ignore the reads all 'AAAAATAAAA', etc
-			if (same_bytes(s->seq, s->len) || too_many_ns(s->seq, s->len))
-				continue;
+			//if (same_bytes(s->seq, s->len) || too_many_ns(s->seq, s->len))
+			//	continue;
 
 			//p_query(__func__, s);
 			while (block_no < opt->n_hash_block && hash_start <= opt->read_len
@@ -263,8 +263,8 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 		for (i = 0; i < n_part_seqs; i++) {
 			s = &part_seqs[i];
 
-			if (same_bytes(s->seq, s->len) || too_many_ns(s->seq, s->len))
-				continue;
+			//if (same_bytes(s->seq, s->len) || too_many_ns(s->seq, s->len))
+			//	continue;
 
 			while (block_no < opt->n_hash_block && hash_start <= opt->read_len
 					- opt->k * (opt->interleaving)) {

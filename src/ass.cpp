@@ -565,15 +565,21 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 
 	show_debug_msg(__func__,
 			"------ Started extending tpl %d to ori %d... ------\n", t->id, ori);
-	//p_query(__func__, tail);
+	p_query(__func__, tail);
 	//p_ctg_seq("TEMPLATE", t->ctg);
 
 	while (1) {
+		if (same_bytes(tail->seq, tail->len)) {
+			show_debug_msg(__func__, "Repetitive tail, stop.\n");
+			p_query(__func__, tail);
+			break;
+		}
+
 		max_c = get_next_char(p, t, ori);
 		// If cannot extend, try to add mates into the pool
 		if (max_c == -1) {
 			//p_ctg_seq("TEMPLATE", t->ctg);
-			find_match_mates(ht, p, t, tail->len, LESS_MISMATCH, ori);
+			find_hashed_mates(ht, p, t, tail->len, LESS_MISMATCH, ori);
 			max_c = get_next_char(p, t, ori);
 			if (max_c == -1) {
 				con_existing = connect_by_full_reads(ht, all_tpls, t, ori);
@@ -600,30 +606,24 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		ext_len++;
 		// If the extended length is save long enough, refresh the frozen reads.
 		if (ext_len % ht->o->read_len == 0) {
-			unfrozen_tried(t);
+			//unfrozen_tried(t);
 		}
 		// If the overlapped region between t and r has too many mismatches, remove from pool
 		rm_half_clip_reads(p, t, max_c, N_MISMATCHES, ori);
 		forward(p, t, ori);
 		next_pool(ht, p, t, tail, N_MISMATCHES, ori);
 
-		if (same_bytes(tail->seq, tail->len)) {
-			show_debug_msg(__func__, "Repeatitive tail, stop.\n");
-			p_query(__func__, tail);
-			break;
-		}
-
 		if (t->len % 100 == 0)
 			show_debug_msg(__func__, "Ori %d, tpl %d, length %d \n", ori,
 					t->id, t->len);
-		if (t->len > 100000) {
+		if (t->len > 50000) {
 			p_tpl(t);
 			err_fatal(__func__,
 					"[ERROR] Too long contig [%d, %d]. Maybe some bug.\n",
 					t->id, t->len);
 		}
 	}
-	unfrozen_tried(t);
+	///unfrozen_tried(t);
 	bwa_free_read_seq(1, tail);
 	return con_existing;
 }
@@ -685,14 +685,14 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 
 		query = get_tail(t, kmer_len, 0);
 
-		p_query(__func__, query);
+		//p_query(__func__, query);
 		//p_pool("INITIAL_POOL", p, NULL);
 		//exit(1);
 
 		connected = kmer_ext_tpl(ht, all_tpls, p, t, query, 0);
 		destroy_pool(p);
 		pre_len = t->len;
-		refresh_tpl_reads(ht, t, N_MISMATCHES);
+		//refresh_tpl_reads(ht, t, N_MISMATCHES);
 		pre_n_reads = t->reads->len;
 		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 		//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
@@ -709,7 +709,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		query = get_tail(t, kmer_len, ori);
 		p = new_pool();
 		init_pool(ht, p, t, kmer_len, N_MISMATCHES, ori);
-		p_query(__func__, query);
+		//p_query(__func__, query);
 		//p_pool("INITIAL_POOL", p, NULL);
 
 		connected |= kmer_ext_tpl(ht, all_tpls, p, t, query, ori);
@@ -717,8 +717,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		bwa_free_read_seq(1, query);
 		//upd_locus_on_tpl(t, pre_len, pre_n_reads);
 
-		p_ctg_seq("TEMPLATE", t->ctg);
-		refresh_tpl_reads(ht, t, N_MISMATCHES);
+		p_tpl(t);
+		//refresh_tpl_reads(ht, t, N_MISMATCHES);
 		g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 
 		//correct_tpl_base(t, ht->o->read_len);
@@ -768,10 +768,12 @@ void kmer_threads(kmer_t_meta *params) {
 
 	for (i = 0; i < ht->n_seqs; i++) {
 		r = &seqs[i];
-		counter = (kmer_counter*) malloc(sizeof(kmer_counter));
-		counter->kmer = i;
-		counter->count = ht->n_kmers[i];
-		g_ptr_array_add(starting_reads, counter);
+		if (r->status == FRESH) {
+			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
+			counter->kmer = i;
+			counter->count = ht->n_kmers[i];
+			g_ptr_array_add(starting_reads, counter);
+		}
 	}
 
 	show_msg(__func__, "Sorting %d initial reads... \n", starting_reads->len);
@@ -814,6 +816,8 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	branching_events = g_ptr_array_sized_new(BUFSIZ);
 	params->ht = ht;
 	params->all_tpls = &all_tpls;
+
+	mark_low_qua_reads(ht->seqs, ht->n_seqs);
 
 	//test_kmer_ext(params);
 	//exit(1);

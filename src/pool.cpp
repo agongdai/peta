@@ -263,12 +263,12 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 	}
 	for (i = 0; i <= read->len - tail_len; i++) {
 		tail = new_seq(read, tail_len, i);
-		//p_query(__func__, tail);
+		//p_query("TAIL", tail);
 		hits = g_ptr_array_sized_new(4);
 		hits = align_tpl_tail(ht, t, tail, mismatches, FRESH, ori);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
-
+			//p_query(__func__, r);
 			cursor = ori ? r->cursor - i : r->cursor + (read->len - tail_len
 					- i);
 			if (cursor >= 0 && cursor < read->len) {
@@ -386,7 +386,7 @@ void correct_init_tpl_base(pool *p, tpl *t, int t_len) {
  */
 void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		int mismatches, int ori) {
-	bwa_seq_t *m = NULL, *r = NULL, *tail = NULL;
+	bwa_seq_t *m = NULL, *r = NULL, *tail = NULL, *part = NULL;
 	index64 i = 0;
 	int ol = 0, rev_com = 0, n_mis = 0;
 	tail = get_tail(t, tail_len, ori);
@@ -396,6 +396,8 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		bwa_free_read_seq(1, tail);
 		return;
 	}
+	show_debug_msg(__func__, "ORI: %d \n", ori);
+	p_query(__func__, tail);
 
 	for (i = 0; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
@@ -412,7 +414,16 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		//p_query("USED ", r);
 		//p_query("FRESH", m);
 		//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
+
 		if (ol >= ht->o->k) {
+			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol, tail->len - ol);
+			p_query(__func__, part);
+			if (is_biased_q(part) || has_n(part, 1)) {
+				bwa_free_read_seq(1, part);
+				continue;
+			}
+			bwa_free_read_seq(1, part);
+
 			m->rev_com = rev_com;
 			m->cursor = ori ? (m->len - ol - 1) : ol;
 			m->pos = n_mis;
