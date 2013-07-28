@@ -548,6 +548,9 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		// This branch could be connected to single another template
 		break;
 	} // End of connecting all probable templates
+	if (is_rev) {
+		switch_fr(branch->ctg);
+	}
 	g_ptr_array_free(con_reads, TRUE);
 	return connected;
 }
@@ -692,7 +695,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		connected = kmer_ext_tpl(ht, all_tpls, p, t, query, 0);
 		destroy_pool(p);
 		pre_len = t->len;
-		//refresh_tpl_reads(ht, t, N_MISMATCHES);
+		refresh_tpl_reads(ht, t, N_MISMATCHES);
 		pre_n_reads = t->reads->len;
 		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 		//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
@@ -718,7 +721,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		//upd_locus_on_tpl(t, pre_len, pre_n_reads);
 
 		p_tpl(t);
-		//refresh_tpl_reads(ht, t, N_MISMATCHES);
+		refresh_tpl_reads(ht, t, N_MISMATCHES);
 		g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 
 		//correct_tpl_base(t, ht->o->read_len);

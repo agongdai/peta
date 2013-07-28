@@ -396,8 +396,8 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		bwa_free_read_seq(1, tail);
 		return;
 	}
-	show_debug_msg(__func__, "ORI: %d \n", ori);
-	p_query(__func__, tail);
+	//show_debug_msg(__func__, "ORI: %d \n", ori);
+	//p_query(__func__, tail);
 
 	for (i = 0; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
@@ -417,7 +417,7 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 
 		if (ol >= ht->o->k) {
 			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol, tail->len - ol);
-			p_query(__func__, part);
+			//p_query(__func__, part);
 			if (is_biased_q(part) || has_n(part, 1)) {
 				bwa_free_read_seq(1, part);
 				continue;
@@ -472,6 +472,7 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 			m->rev_com = rev_com;
 			m->cursor = ori ? (m->len - ol - 1) : ol;
 			m->pos = n_mis;
+			//p_query(__func__, m);
 			add2pool(p, m);
 			added = 1;
 		} else {
