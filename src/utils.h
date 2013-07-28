@@ -38,7 +38,7 @@
 #define	INDEL_SCORE				-2
 #define N_MISMATCHES			2
 #define LESS_MISMATCH			1
-#define MIN_PAIRS				1
+#define MIN_PAIRS				2
 #define MIN_JUNCTION_READS	    2	
 #define MIN_WEIGHT				2
 #define MAX_VS_IN_COMP          100

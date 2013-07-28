@@ -25,6 +25,7 @@
 #include "junction.hpp"
 #include "graph.hpp"
 #include "pool.hpp"
+#include "merge.hpp"
 
 using namespace std;
 
@@ -85,7 +86,11 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 	for (tpl_hash::iterator m = all_tpls->begin(); m != all_tpls->end(); ++m) {
 		id = m->first;
 		t = (tpl*) m->second;
-		g_ptr_array_add(tpls, t);
+		if (t->alive) {
+			g_ptr_array_add(tpls, t);
+		} else {
+			destroy_tpl(t);
+		}
 		/**
 		 show_debug_msg(__func__, "Tails of template %d\n", t->id);
 		 p_ctg_seq(__func__, t->l_tail);
@@ -599,10 +604,10 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		}
 
 		//if (t->id == 5) {
-		//p_query(__func__, tail);
-		//show_debug_msg(__func__, "Next char: %c \n", "ACGTN"[max_c]);
-		//p_ctg_seq("TEMPLATE", t->ctg);
-		//p_pool(__func__, p, NULL);
+		p_query(__func__, tail);
+		show_debug_msg(__func__, "Next char: %c \n", "ACGTN"[max_c]);
+		p_ctg_seq("TEMPLATE", t->ctg);
+		p_pool(__func__, p, NULL);
 		//}
 
 		ext_con(t->ctg, max_c, ori);
@@ -679,7 +684,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	mark_init_reads_used(ht, t, read, N_MISMATCHES);
 	// Right->left->right->left...until not extendable
 	// If it is connected to somewhere, simply stop
-	while (iter++ <= 4 && t->len > pre_len && (!t->b_juncs || t->b_juncs->len == 0)) {
+	while (iter++ <= 4 && t->len > pre_len && (!t->b_juncs || t->b_juncs->len
+			== 0)) {
 		// Extend to the right first
 		// Make a clone of the original starting read, which is global
 		p = new_pool();
@@ -692,7 +698,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		query = get_tail(t, kmer_len, 0);
 
 		//p_query(__func__, query);
-		//p_pool("INITIAL_POOL", p, NULL);
+		p_pool("INITIAL_POOL", p, NULL);
 		//exit(1);
 
 		connected = kmer_ext_tpl(ht, all_tpls, p, t, query, 0);
@@ -796,13 +802,61 @@ void kmer_threads(kmer_t_meta *params) {
 		free(counter);
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		//if (kmer_ctg_id >= 2000)
-		//	break;
+		//break;
 	}
 	g_thread_pool_free(thread_pool, 0, 1);
 	g_ptr_array_free(starting_reads, TRUE);
 }
 
 void test_kmer_ext(kmer_t_meta *params) {
+}
+
+void merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
+	tpl *left = NULL, *right = NULL, *t = NULL, *mt = NULL;
+	int i = 0, id = 0, m_id = 0;
+	int ol = 0, n_mis = 0;
+	int rev_com = 0, paired = 0;
+	bwa_seq_t *r = NULL, *m = NULL;
+	for (tpl_hash::iterator im = all_tpls->begin(); im != all_tpls->end(); ++im) {
+		id = im->first;
+		t = (tpl*) im->second;
+		// If merged before, the alive value is 0
+		if (!t->alive)
+			continue;
+		for (i = 0; i < t->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+			if (r->status != USED || r->contig_id != id)
+				continue;
+			m = get_mate(r, ht->seqs);
+			// If its mate is used by another template
+			if (m->status == USED && m->contig_id != id) {
+				m_id = m->contig_id;
+				tpl_hash::iterator it = all_tpls->find(m_id);
+				if (it == all_tpls->end())
+					continue;
+				mt = (tpl*) it->second;
+				if (!mt->alive)
+					continue;
+				// At least 2 pairs spanning them
+				paired = find_pairs(t->reads, mt->reads, t->id, mt->id, 0,
+						mt->len, MIN_PAIRS);
+				if (!paired)
+					continue;
+				// At least 11 base overlap
+				ol = find_fr_ol_within_k(mt->ctg, t->ctg, N_MISMATCHES, ht->o->k,
+						kmer_len - 1, 0, &rev_com, &n_mis);
+				if (ol >= ht->o->k) {
+					merge_tpls(t, mt, ol, rev_com);
+				} else {
+					ol = find_fr_ol_within_k(t->ctg, mt->ctg, N_MISMATCHES, ht->o->k,
+							kmer_len - 1, 0, &rev_com, &n_mis);
+					if (ol >= ht->o->k) {
+						merge_tpls(mt, t, ol, rev_com);
+					}
+				} // End of overlap checking and merging
+			} // End of this read
+		} // End of checking all reads
+	} // End of checking all templates
 }
 
 void ext_by_kmers_core(char *lib_file, const char *solid_file) {
@@ -846,14 +900,6 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 			branching_events, read_tpls);
 	process_graph(read_tpls, branching_events, ht);
 
-	//	contigs = xopen(get_output_file("merged.fa", kmer_out), "w");
-	//	save_tpls(all_kmer_tpls, contigs, 0, 0, 100);
-	//	fflush(contigs);
-	//	fclose(contigs);
-	//	contigs = xopen(get_output_file("merged_all.fa", kmer_out), "w");
-	//	save_tpls(all_kmer_tpls, contigs, 0, 0, 0);
-	//	fflush(contigs);
-	//	fclose(contigs);
 }
 
 void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,

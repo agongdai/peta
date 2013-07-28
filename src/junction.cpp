@@ -93,11 +93,10 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	int i = 0, j = 0;
 
 	left_len = (left->len > max_len / 2) ? (max_len / 2) : left->len;
-	memcpy(junc_seq->seq, left->seq + (left->len - left_len),
-			sizeof(ubyte_t) * left_len);
+	memcpy(junc_seq->seq, left->seq + (left->len - left_len), sizeof(ubyte_t)
+			* left_len);
 	right_len = (right->len) > (max_len / 2) ? (max_len / 2) : (right->len);
-	memcpy(junc_seq->seq + left_len, right->seq, sizeof(ubyte_t)
-			* right_len);
+	memcpy(junc_seq->seq + left_len, right->seq, sizeof(ubyte_t) * right_len);
 	junc_seq->len = left_len + right_len;
 	set_rev_com(junc_seq);
 	//p_query("Left  seq", left);
@@ -188,7 +187,8 @@ void upd_tpl_jun_locus(tpl *t, GPtrArray *branching_events, const int extra_len)
 	int i = 0;
 	uint64_t query_int = 0, k = 0;
 	junction *jun = NULL;
-	if (!t->b_juncs || t->b_juncs->len <= 0 || !branching_events || branching_events->len <= 0)
+	if (!t->b_juncs || t->b_juncs->len <= 0 || !branching_events
+			|| branching_events->len <= 0)
 		return;
 	jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
 	if (jun->branch_tpl == jun->main_tpl)
@@ -273,8 +273,8 @@ void clean_junctions(GPtrArray *junctions) {
 		}
 		if (pre) {
 			if (pre->branch_tpl == junc->branch_tpl && pre->main_tpl
-					== junc->main_tpl && pre->locus
-					== junc->locus && pre->ori == junc->ori) {
+					== junc->main_tpl && pre->locus == junc->locus && pre->ori
+					== junc->ori) {
 				junc->status = 1;
 				continue;
 			}
@@ -448,6 +448,52 @@ void prune_short_branches(GPtrArray *junctions, GPtrArray *tpls,
 	}
 	main_count.clear();
 	branch_count.clear();
+}
+
+/**
+ * Check whether there is any junction between the two templates
+ * Return: 1 means 'yes'
+ */
+int tpls_have_junction(tpl *left, tpl *right) {
+	int i = 0, have = 0;
+	junction *jun = NULL;
+	if (right->b_juncs) {
+		for (i = 0; i < right->b_juncs->len; i++) {
+			jun = (junction*) g_ptr_array_index(right->b_juncs, i);
+			if ((jun->branch_tpl == right && jun->main_tpl == left)
+					|| (jun->branch_tpl == left && jun->main_tpl == right)) {
+				have = 1;
+			}
+		}
+	}
+	if (!have && right->m_juncs) {
+		for (i = 0; i < right->m_juncs->len; i++) {
+			jun = (junction*) g_ptr_array_index(right->m_juncs, i);
+			if ((jun->branch_tpl == right && jun->main_tpl == left)
+					|| (jun->branch_tpl == left && jun->main_tpl == right)) {
+				have = 1;
+			}
+		}
+	}
+	if (!have && left->m_juncs) {
+		for (i = 0; i < left->m_juncs->len; i++) {
+			jun = (junction*) g_ptr_array_index(left->m_juncs, i);
+			if ((jun->branch_tpl == right && jun->main_tpl == left)
+					|| (jun->branch_tpl == left && jun->main_tpl == right)) {
+				have = 1;
+			}
+		}
+	}
+	if (!have && left->b_juncs) {
+		for (i = 0; i < left->b_juncs->len; i++) {
+			jun = (junction*) g_ptr_array_index(left->b_juncs, i);
+			if ((jun->branch_tpl == right && jun->main_tpl == left)
+					|| (jun->branch_tpl == left && jun->main_tpl == right)) {
+				have = 1;
+			}
+		}
+	}
+	return have;
 }
 
 /**
