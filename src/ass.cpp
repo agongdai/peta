@@ -898,8 +898,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	clean_junctions(branching_events);
 	store_features(get_output_file("paired.junctions", kmer_out),
 			branching_events, read_tpls);
-	process_graph(read_tpls, branching_events, ht);
-
+	process_graph(read_tpls, branching_events, ht, kmer_out);
 }
 
 void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,
@@ -958,7 +957,7 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 	uint32_t i = 0;
 	hash_table *ht = load_k_hash(hash_fn);
 	filter_junctions(all_junctions, all_tpls, ht);
-	process_graph(all_tpls, all_junctions, ht);
+	process_graph(all_tpls, all_junctions, ht, kmer_out);
 }
 
 int pe_kmer(int argc, char *argv[]) {

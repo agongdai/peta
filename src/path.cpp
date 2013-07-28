@@ -975,15 +975,16 @@ GPtrArray *paths_from_tpl(comp *c) {
     return paths;
 }
 
-void determine_paths(splice_graph *g, hash_table *ht) {
+void determine_paths(splice_graph *g, hash_table *ht, char *save_dir) {
 	comp *c = NULL;
 	uint32_t i = 0;
 	path *p = NULL;
+	char *fn = NULL;
 	GPtrArray *paths = NULL, *all_paths = g_ptr_array_sized_new(
 			g->vertexes->len / 10);
 	for (i = 0; i < g->components->len; i++) {
 		c = (comp*) g_ptr_array_index(g->components, i);
-        p_comp(c);
+        p_comp(c, save_dir);
 		if (c->vertexes->len >= MAX_VS_IN_COMP)
             paths = paths_from_tpl(c);
         else 
@@ -991,7 +992,11 @@ void determine_paths(splice_graph *g, hash_table *ht) {
 		append_paths(all_paths, paths);
 	}
 	p_paths(all_paths);
-	save_paths(all_paths, "../simu_out/paths.fa", 1);
-	save_paths(all_paths, "../simu_out/peta.fa", 0);
+	fn = get_output_file("paths.fa", save_dir);
+	save_paths(all_paths, fn, 1);
+	free(fn);
+	fn = get_output_file("peta.fa", save_dir);
+	save_paths(all_paths, fn, 0);
+	free(fn);
 	destroy_paths(all_paths);
 }

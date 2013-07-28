@@ -69,10 +69,10 @@ typedef struct {
 
 void assign_reads2tpl(tpl *eg, hash_table *ht);
 void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
-		hash_table *ht);
+		hash_table *ht, char *save_dir);
 void p_vertex(vertex *v);
 void p_edge(edge *e);
-void p_comp(comp *c);
+void p_comp(comp *c, char *save_dir);
 int vertex_in_scc(splice_graph *g, vertex *v);
 void save_vertexes(GPtrArray *vertexes, char *fn);
 GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch);

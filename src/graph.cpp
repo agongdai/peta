@@ -154,22 +154,24 @@ void p_comp_dot(GPtrArray *vertexes, GPtrArray *edges, FILE *dot) {
 	fputs("}\n", dot);
 }
 
-void p_comp(comp *c) {
+void p_comp(comp *c, char *save_dir) {
 	char fn[128];
-	sprintf(fn, "../simu_out/components/comp.%d.dot", c->id);
+	char *root = get_output_file("/components", save_dir);
+	sprintf(fn, "%s/comp.%d.dot", root, c->id);
 	FILE *dot = xopen(fn, "w");
 	p_comp_dot(c->vertexes, c->edges, dot);
 	fclose(dot);
-    sprintf(fn, "../simu_out/components/comp.%d.fa", c->id);
+    sprintf(fn, "%s/comp.%d.fa", root, c->id);
+    free(root);
     save_vertexes(c->vertexes, fn);
 }
 
-void p_comps(splice_graph *g) {
+void p_comps(splice_graph *g, char *save_dir) {
 	uint32_t i = 0;
 	comp *c = NULL;
 	for (i = 0; i < g->components->len; i++) {
 		c = (comp*) g_ptr_array_index(g->components, i);
-		p_comp(c);
+		p_comp(c, save_dir);
 	}
 }
 
@@ -792,12 +794,14 @@ void reset_status(splice_graph *g) {
 /**
  * Output the counts of edges and vertexes in components
  */
-void calc_comp_stat(splice_graph *g) {
+void calc_comp_stat(splice_graph *g, char *save_dir) {
 	uint32_t len = 0, i = 0, j = 0;
 	comp *c = NULL;
-	FILE *stat = xopen("components.csv", "w");
 	vertex *v = NULL;
+	char *fn = NULL;
 	char entry[BUFSIZE];
+	fn = get_output_file("components.csv", save_dir);
+	FILE *stat = xopen(fn, "w");
 	for (i = 0; i < g->components->len; i++) {
 		c = (comp*) g_ptr_array_index(g->components, i);
 		len = 0;
@@ -810,28 +814,38 @@ void calc_comp_stat(splice_graph *g) {
 		fputs(entry, stat);
 	}
 	fclose(stat);
+	free(fn);
 	show_debug_msg(__func__,
 			"Statistics of components are output to components.csv.\n");
 }
 
-void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_table *ht) {
+void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_table *ht, char *save_dir) {
 	splice_graph *g = NULL;
+	char *fn = NULL;
+
 	show_msg(__func__, "Building the splice graph...\n");
 	g = build_graph(all_tpls, all_juncs, ht);
 	show_msg(__func__, "Simplifying the splice graph...\n");
-	p_graph(g, "graph.ori.dot");
+	fn = get_output_file("graph.ori.dot", save_dir);
+	p_graph(g, fn);
+	free(fn);
 	clean_graph(g);
-	save_vertexes(g->vertexes, "../simu_out/vertexes.fa");
+
+	fn = get_output_file("vertexes.fa", save_dir);
+	save_vertexes(g->vertexes, fn);
+	free(fn);
 
 	show_msg(__func__, "Breaking into components...\n");
 	break_to_comps(g);
 	// Some edges may be marked as 'dead' when breaking SCCs
 	clean_graph(g);
-	p_graph(g, "graph.dot");
+	fn = get_output_file("graph.dot", save_dir);
+	p_graph(g, fn);
+	free(fn);
 	//p_comps(g);
-	calc_comp_stat(g);
+	calc_comp_stat(g, save_dir);
 	reset_status(g);
 	show_msg(__func__, "Running EM to get paths...\n");
-	determine_paths(g, ht);
+	determine_paths(g, ht, save_dir);
 	destroy_graph(g);
 }

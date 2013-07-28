@@ -26,6 +26,6 @@ typedef struct {
 	uint8_t status;			// 0 means good
 } path;
 
-void determine_paths(splice_graph *g, hash_table *ht);
+void determine_paths(splice_graph *g, hash_table *ht, char *save_dir);
 
 #endif /* GRAPH_HPP_ */
