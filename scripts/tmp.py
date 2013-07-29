@@ -58,6 +58,16 @@ def count_small_seqs(args):
     out.save_to_disk(args.fa[:-3] + '.100.fa')
     print 'Check %s.100.fa' % (args.fa[:-3])
     print 'Longer than 100 in %s: %d / %d' % (args.fa, count, len(fa.seqs))
+    
+def get_mates(args):
+    hits = read_blat_hits(args.psl, 'query')
+#    fa = FastaFile(args.fa)
+    out = FastaFile()
+    for qname, hits in hits.iteritems():
+        for h in hits:
+            print h
+            if h.n_match >= h.qlen - 1:
+                print h
 
 def main():
     parser = ArgumentParser()
@@ -74,6 +84,12 @@ def main():
     parser_count = subparsers.add_parser('count', help='counting')
     parser_count.add_argument('fa', help='fasta')
     parser_count.set_defaults(func=count_small_seqs)
+    
+    parser_mate = subparsers.add_parser('mate', help='get mates in the psl file')
+    parser_mate.add_argument('fa', help='fasta')
+    parser_mate.add_argument('psl', help='psl')
+    parser_mate.add_argument('out', help='out')
+    parser_mate.set_defaults(func=get_mates)
     
     args = parser.parse_args()
     args.func(args)
