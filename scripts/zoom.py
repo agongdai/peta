@@ -215,6 +215,8 @@ To get a string representing the hit
 def get_hit_str(hit, reads):
     hit_str = ''
     pre_end = 0
+    if not hit.qname in reads.seqs:
+        return ''
     read_seq = reads.seqs[hit.qname].upper()
     rev_read_seq = merge.rev_comp(read_seq).upper()
     ins_strs = []

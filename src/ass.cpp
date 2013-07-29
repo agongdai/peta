@@ -685,11 +685,14 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	//show_debug_msg(__func__, "============= %s: %" ID64 " ============ \n",
 	//		read->name, counter->count);
 
-	if (is_biased_q(read) || has_n(read, 1) || counter->count < 2
+	if (is_biased_q(read) || has_n(read, 1) || counter->count < 1
 			|| is_repetitive_q(read) || is_biased_q(read) || read->status
 			!= FRESH) {
 		return NULL;
 	}
+
+	if (kmer_ctg_id == 1)
+		read = &seqs[0];
 
 	show_debug_msg(__func__, "============= %s: %" ID64 " ============ \n",
 			read->name, counter->count);
@@ -724,6 +727,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		connected = kmer_ext_tpl(ht, all_tpls, p, t, query, 0);
 		destroy_pool(p);
 		pre_len = t->len;
+		set_rev_com(t->ctg);
 		refresh_tpl_reads(ht, t, N_MISMATCHES);
 		pre_n_reads = t->reads->len;
 		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
@@ -747,6 +751,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		//p_pool("INITIAL_POOL", p, NULL);
 
 		connected |= kmer_ext_tpl(ht, all_tpls, p, t, query, ori);
+		set_rev_com(t->ctg);
 		destroy_pool(p);
 		bwa_free_read_seq(1, query);
 		//upd_locus_on_tpl(t, pre_len, pre_n_reads);
@@ -766,8 +771,10 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 				"==== End of tpl %d with length: %d ==== \n\n", t->id, t->len);
 	}
 
-	//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
+	// Used by find_pairs
+	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
 	//p_readarray(t->reads, 1);
+	set_rev_com(t->ctg);
 
 	if (!t->alive || (t->len <= read->len && (!t->b_juncs || t->b_juncs->len
 			< 2))) {
@@ -848,7 +855,7 @@ void merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 	for (tpl_hash::iterator im = all_tpls->begin(); im != all_tpls->end(); ++im) {
 		id = im->first;
 		t = (tpl*) im->second;
-		p_tpl(t);
+		//p_tpl(t);
 		// If merged before, the alive value is 0
 		if (!t->alive)
 			continue;
@@ -874,21 +881,27 @@ void merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 				// At least 2 pairs spanning them
 				paired = find_pairs(t->reads, mt->reads, t->id, mt->id, 0,
 						mt->len, MIN_PAIRS);
-				show_debug_msg(__func__, "Paired: %d \n", paired);
+				//show_debug_msg(__func__, "Paired: %d \n", paired);
 				if (!paired)
 					continue;
 				// At least 11 base overlap
 				ol = find_fr_ol_within_k(mt->ctg, t->ctg, LESS_MISMATCH,
 						ht->o->k, kmer_len - 1, 0, &rev_com, &n_mis);
+				//p_tpl(mt);
+				//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 				if (ol >= ht->o->k) {
 					merge_tpls(t, mt, ol, rev_com);
 				} else {
 					ol = find_fr_ol_within_k(t->ctg, mt->ctg, LESS_MISMATCH,
 							ht->o->k, kmer_len - 1, 0, &rev_com, &n_mis);
+					//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 					if (ol >= ht->o->k) {
 						merge_tpls(mt, t, ol, rev_com);
 					}
-				} // End of overlap checking and merging
+				}
+				//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+				//p_readarray(t->reads, 1);
+				// End of overlap checking and merging
 			} // End of this read
 		} // End of checking all reads
 	} // End of checking all templates

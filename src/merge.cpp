@@ -69,7 +69,7 @@ void merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 	l_len = left->len;
 	// Copy the template sequence from right to left
 	for (i = ol; i < right->len; i++) {
-		c = rev_com ? right->ctg->seq[i] : right->ctg->rseq[i];
+		c = rev_com ? right->ctg->rseq[i] : right->ctg->seq[i];
 		ext_con(left->ctg, c, 0);
 	}
 	left->len = left->ctg->len;
@@ -86,7 +86,7 @@ void merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 		if (r->status == USED && r->contig_id == right->id) {
 			// Update the locus
 			new_locus = rev_com ? (right->len - r->contig_locus - r->len
-					+ l_len) : (r->contig_locus + l_len);
+					+ l_len - ol) : (r->contig_locus + l_len - ol);
 			// If need to reverse complement the right template,
 			//	need to reverse the reverse complement flag on the read
 			if (rev_com) {

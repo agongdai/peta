@@ -896,6 +896,8 @@ int find_fr_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tail,
 		const int mismatches, const int min_len, const int max_len,
 		const int ori, int *rev_com, int *n_mis) {
 	int olpped = 0;
+	//p_ctg_seq(__func__, mate);
+	//p_ctg_seq(__func__, tail);
 	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori, n_mis);
 	if (olpped >= min_len && olpped <= max_len) {
 		*rev_com = 0;
@@ -904,6 +906,8 @@ int find_fr_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tail,
 	// Switch the forward and reverse sequences temply
 	// Make sure to switch back before returning.
 	switch_fr(mate);
+	//p_ctg_seq(__func__, mate);
+	//p_ctg_seq(__func__, tail);
 	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori, n_mis);
 	if (olpped >= min_len && olpped <= max_len) {
 		*rev_com = 1;
