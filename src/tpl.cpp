@@ -86,7 +86,7 @@ void add2tried(tpl *t, bwa_seq_t *r) {
 	r->contig_id = t->id;
 	r->contig_locus = -1;
 	r->status = TRIED;
-	r->pos = -1;
+	r->pos = IMPOSSIBLE_NEGATIVE;
 	g_ptr_array_add(t->tried, r);
 }
 
@@ -99,8 +99,18 @@ void reset_reads_to_fresh(GPtrArray *reads) {
 	}
 }
 
+/**
+ * Reset those not USED reads to fresh.
+ * And clear the 'tried' reads on the template
+ */
 void unfrozen_tried(tpl *t) {
-	reset_reads_to_fresh(t->tried);
+	index64 i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < t->tried->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
+		if (r->status != USED)
+			reset_to_fresh(r);
+	}
 	while (t->tried->len > 0)
 		g_ptr_array_remove_index_fast(t->tried, 0);
 }
@@ -364,13 +374,17 @@ void upd_locus_on_tpl(tpl *t, int pre_t_len, int pre_n_reads) {
 void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
 	r->contig_id = t->id;
 	r->contig_locus = locus;
-	r->pos = -1;
+	r->pos = IMPOSSIBLE_NEGATIVE;
 	r->status = USED;
+	if (strcmp(r->name, "1227") == 0)
+		p_query("ATTENTION", r);
 	g_ptr_array_add(t->reads, r);
 }
 
 /**
- * Reset the reads on the template
+ * Reset the reads on the template.
+ * Align the template kmer by kmer to find reads, but do not remove existing reads on it.
+ * To add more reads not obtained due to hashing limitation when extending
  */
 void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	bwa_seq_t *r = NULL, *seq = NULL, *window = NULL;
@@ -380,12 +394,8 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	if (!t || !t->reads || t->reads->len <= 0 || t->len < 0)
 		return;
 	unfrozen_tried(t);
-	refresh = g_ptr_array_sized_new(t->reads->len);
-	reset_reads_to_fresh(t->reads);
-	t->reads = refresh;
 
 	seq = get_tpl_ctg_wt(t, &left_len, &right_len, &counted_len);
-
 	// If it happens, means something wrong
 	if (seq->len < ht->o->read_len) {
 		show_debug_msg(
@@ -408,6 +418,8 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 			// For reads partially on left tail, the locus is negative
 			if (r->status == FRESH)
 				add2tpl(t, r, i - left_len);
+			else	// If already on the template, just update the locus
+				r->contig_locus = i - left_len;
 		}
 		g_ptr_array_free(hits, TRUE);
 		bwa_free_read_seq(1, window);
@@ -536,7 +548,7 @@ void correct_tpl_base(tpl *t, const int read_len) {
 		// Correct the template sequences
 		if (l_len > 0 && i < l_len) {
 			show_debug_msg(__func__, "POS %d: %c => %c \n", i,
-								"ACGTN"[t->l_tail->seq[i]], "ACGTN"[max_c]);
+					"ACGTN"[t->l_tail->seq[i]], "ACGTN"[max_c]);
 			t->l_tail->seq[i] = max_c;
 		} else if (r_len > 0 && i >= l_len + t->len) {
 			show_debug_msg(__func__, "POS %d: %c => %c \n", i,
@@ -602,29 +614,26 @@ void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read,
 }
 
 /**
- * Align the tail of template to find fresh reads
+ * Align the tail of template to find fresh reads.
+ * Illustration:
+ *
+ * Contig read:    ==========		read_len: 10
+ * Tail shift:         ^(shift=4)
+ * Aligned tail:       ----			tail_len: 4
+ *                     ||||
+ * A hit read:        ==========	read_len: 10
+ * Pos:                ^(pos=1)
+ * Checked ol:        =======		read_len - (shift - pos) = 7
  */
-GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
+GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int shift,
 		int mismatches, int8_t status, int ori) {
-	int64_t i = 0, cursor = 0, ol = 0;
+	int64_t i = 0, cursor = 0, ol = 0, locus = 0;
 	int n_mis = 0, added = 0;
-	bwa_seq_t *r = NULL, *tpl_seq = NULL;
+	bwa_seq_t *r = NULL, *tpl_seq = NULL, *ol_seq = NULL;
 	GPtrArray *hits = align_query(ht, tail, status, mismatches);
 	GPtrArray *fresh_reads = g_ptr_array_sized_new(hits->len);
 
-	// Smaller than read length happens when it is trimmed to connect at the right/left side
-	tpl_seq = (t->len < ht->o->read_len) ? t->start_read : t->ctg;
-	if (t->len < ht->o->read_len) {
-		tpl_seq = blank_seq(ht->o->read_len);
-		memcpy(tpl_seq->seq, t->ctg->seq, t->len * sizeof(ubyte_t));
-		tpl_seq->len += t->len;
-		memcpy(tpl_seq->seq + tpl_seq->len, t->start_read->seq,
-				(ht->o->read_len - tpl_seq->len) * sizeof(ubyte_t));
-		tpl_seq->len = ht->o->read_len;
-		set_rev_com(tpl_seq);
-	} else {
-		tpl_seq = t->ctg;
-	}
+	tpl_seq = get_tail(t, ht->o->read_len, ori);
 
 	// These reads are not duplicated
 	for (i = 0; i < hits->len; i++) {
@@ -636,35 +645,49 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
 		//p_query(__func__, r);
 		//show_debug_msg(__func__, "CURSOR: %d\n", cursor);
 
-		if (cursor >= 0 && cursor <= r->len - 1) {
-			ol = ori ? (r->len - cursor - 1) : cursor;
-			if (ol >= tail->len) {
-				if (ori) {
-					n_mis = seq_ol(r, tpl_seq, ol, mismatches);
-				} else {
-					n_mis = seq_ol(tpl_seq, r, ol, mismatches);
-				}
-				// if (!ori) {
-				//p_query(__func__, r);
-				//p_ctg_seq(__func__, t->ctg);
-				//show_debug_msg(__func__, "Should have overlap: %d\n", ol);
-				//show_debug_msg(__func__, "N_MISMATCHES: %d\n", n_mis);
-				//	}
-				// n_mis >= 0 means similar with n_mis mismatches; -1 means not similar
-				if (n_mis >= 0) {
-					//show_debug_msg(__func__, "Cursor: %d\n", cursor);
-					r->cursor = cursor;
-					// In the pool, 'pos' stores how many mismatches between read and template
-					r->pos = n_mis;
-					//p_query("ADDED", r);
-					g_ptr_array_add(fresh_reads, r);
-					added = 1;
-				}
+		if (ori) {
+			cursor = r->pos - shift;
+			ol = tpl_seq->len - cursor;
+			locus = tpl_seq->len - ol;
+			cursor--;
+		} else {
+			locus = shift - r->pos;
+			ol = tpl_seq->len - locus;
+			cursor = ol;
+		}
+		//show_debug_msg(__func__, "LOCUS: %d; OL: %d; CURSOR: %d\n", locus, ol, cursor);
+		if (ol >= tail->len && locus >= 0 && locus < tpl_seq->len && (cursor
+				>= 0 && cursor <= r->len - 1)) {
+			ol_seq = ori ? new_seq(tpl_seq, ol, 0)
+					: new_seq(tpl_seq, ol, locus);
+			if (ori) {
+				n_mis = seq_ol(r, ol_seq, ol, mismatches);
+			} else {
+				n_mis = seq_ol(ol_seq, r, ol, mismatches);
 			}
+			// if (!ori) {
+			//p_query("CONTIG", tpl_seq);
+			//p_query("READ  ", r);
+			//p_ctg_seq("OVERLP", ol_seq);
+			//show_debug_msg(__func__, "CURSOR: %d\n", cursor);
+			//show_debug_msg(__func__, "Should have overlap: %d\n", ol);
+			//show_debug_msg(__func__, "N_MISMATCHES: %d\n --- \n", n_mis);
+			//	}
+			// n_mis >= 0 means similar with n_mis mismatches; -1 means not similar
+			if (n_mis >= 0) {
+				//show_debug_msg(__func__, "Cursor: %d\n", cursor);
+				r->cursor = cursor;
+				// In the pool, 'pos' stores how many mismatches between read and template
+				r->pos = n_mis;
+				//p_query("ADDED", r);
+				g_ptr_array_add(fresh_reads, r);
+				added = 1;
+			}
+			bwa_free_read_seq(1, ol_seq);
 		}
 		// If not added, reset the pos to be -1
 		if (!added) {
-			r->pos = -1;
+			r->pos = IMPOSSIBLE_NEGATIVE;
 			r->rev_com = 0;
 		}
 	}
@@ -715,7 +738,7 @@ void destroy_tpl(tpl *t) {
 				r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 				r->contig_id = -1;
 				r->contig_locus = -1;
-				r->pos = -1;
+				r->pos = IMPOSSIBLE_NEGATIVE;
 				r->status = TRIED;
 			}
 			g_ptr_array_free(t->reads, TRUE);
@@ -726,7 +749,7 @@ void destroy_tpl(tpl *t) {
 				r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
 				r->contig_id = -1;
 				r->contig_locus = -1;
-				r->pos = -1;
+				r->pos = IMPOSSIBLE_NEGATIVE;
 				r->status = TRIED;
 			}
 			g_ptr_array_free(t->tried, TRUE);

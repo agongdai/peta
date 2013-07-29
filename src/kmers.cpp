@@ -244,7 +244,7 @@ void parse_hit_ints(const uint64_t *occs, const int query_i,
 			 query_i, pos, r->len, ori);
 			 }
 			 **/
-			if (r->pos == -1) { // To avoid adding the same read repeatly.
+			if (r->pos == IMPOSSIBLE_NEGATIVE) { // To avoid adding the same read repeatly.
 				if (query_is_part || (query_i - pos >= 0 && (query_i - pos
 						+ r->len) <= query_len)) {
 					r->pos = query_i - pos;
@@ -280,11 +280,11 @@ GPtrArray *interset_reads(GPtrArray *list_1, GPtrArray *list_2, GPtrArray *set) 
 				break;
 			}
 			if (atoi(read_1->name) < atoi(read_2->name)) {
-				read_1->pos = -1;
+				read_1->pos = IMPOSSIBLE_NEGATIVE;
 				index_1++;
 				break;
 			} else {
-				read_1->pos = -1;
+				read_1->pos = IMPOSSIBLE_NEGATIVE;
 				index_2++;
 			}
 		}
@@ -365,7 +365,7 @@ GPtrArray *head_tail_kmer_reads(const bwa_seq_t *query, const hash_map *hm,
 
 	for (i = 0; i < hits->len; i++) {
 		read = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		read->pos = -1;
+		read->pos = IMPOSSIBLE_NEGATIVE;
 	}
 
 	return hits;
@@ -391,7 +391,7 @@ GPtrArray *align_full_seq(const bwa_seq_t *query, const hash_map *hm,
 			if (read->rev_com)
 				switch_fr(part);
 			if (seq_ol(read, part, read->len, mismatch) == -1) {
-				read->pos = -1;
+				read->pos = IMPOSSIBLE_NEGATIVE;
 				g_ptr_array_remove_index_fast(hits, j--);
 			}
 			if (read->rev_com)
@@ -428,7 +428,7 @@ GPtrArray *kmer_find_reads(const bwa_seq_t *query, const hash_map *hm,
 		//p_query(__func__, part);
 		//show_debug_msg(__func__, "---\n");
 		if (seq_ol(read, part, read->len, mismatch) == -1) {
-			read->pos = -1;
+			read->pos = IMPOSSIBLE_NEGATIVE;
 			g_ptr_array_remove_index_fast(hits, i--);
 		} else {
 			if (n_part_only) {
@@ -444,7 +444,7 @@ GPtrArray *kmer_find_reads(const bwa_seq_t *query, const hash_map *hm,
 	// Reset the hit positions
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		r->pos = -1;
+		r->pos = IMPOSSIBLE_NEGATIVE;
 	}
 	bwa_free_read_seq(1, rev_query);
 	if (n_part_only) {

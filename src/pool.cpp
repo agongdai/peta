@@ -32,7 +32,7 @@ void destroy_pool(pool *p) {
 		if (p->reads) {
 			for (i = 0; i < p->reads->len; i++) {
 				r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
-				r->pos = -1;
+				r->pos = IMPOSSIBLE_NEGATIVE;
 				r->cursor = -1;
 				if (r->status == IN_POOL)
 					r->status = FRESH;
@@ -107,7 +107,7 @@ void add2pool(pool *p, bwa_seq_t *r) {
 	g_ptr_array_add(p->reads, r);
 	r->status = IN_POOL;
 	// Indicates how many mismatches between the read and template
-	if (r->pos == -1)
+	if (r->pos == IMPOSSIBLE_NEGATIVE)
 		r->pos = 0;
 }
 
@@ -248,30 +248,25 @@ void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori) {
 void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 		const int ori) {
 	bwa_seq_t *r = NULL, *tail = NULL, *read = NULL;
-	index64 i = 0, j = 0;
+	index64 i = 0, j = 0, start = 0, end = ht->o->read_len;
 	GPtrArray *hits = NULL;
 	int cursor = 0;
 
 	// Must be some error happens!
 	if (!t->start_read || t->start_read->len <= 0)
 		return;
-	if (t->len > ht->o->read_len) {
-		read = ori ? new_seq(t->ctg, ht->o->read_len, 0) : new_seq(t->ctg,
-				ht->o->read_len, t->len - ht->o->read_len);
-	} else {
-		read = new_seq(t->start_read, ht->o->read_len, 0);
-	}
-	for (i = 0; i <= read->len - tail_len; i++) {
+	read = get_tail(t, ht->o->read_len, ori);
+	start = ori ? 0 : 1;
+	end = ori ? read->len - tail_len - 1 : read->len - tail_len;
+	for (i = start; i <= end; i++) {
 		tail = new_seq(read, tail_len, i);
 		//p_query("TAIL", tail);
 		hits = g_ptr_array_sized_new(4);
-		hits = align_tpl_tail(ht, t, tail, mismatches, FRESH, ori);
+		hits = align_tpl_tail(ht, t, tail, i, mismatches, FRESH, ori);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
-			//p_query(__func__, r);
-			cursor = ori ? r->cursor - i : r->cursor + (read->len - tail_len
-					- i);
-			if (cursor >= 0 && cursor < read->len) {
+			//p_query("CANDIDATE", r);
+			if (r->cursor >= 0 && r->cursor < read->len) {
 				add2pool(p, r);
 			} else {
 				reset_to_fresh(r);
@@ -279,6 +274,7 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 		}
 		bwa_free_read_seq(1, tail);
 		g_ptr_array_free(hits, TRUE);
+		//show_debug_msg(__func__, "-----------------------------------\n\n");
 	}
 	bwa_free_read_seq(1, read);
 }
@@ -289,11 +285,12 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 		int mismatches, const int ori) {
 	GPtrArray *fresh_reads = NULL;
-	index64 i = 0;
+	index64 i = 0, shift = 0;
 	bwa_seq_t *r = NULL;
 
 	// Find all fresh reads and add to the pool
-	fresh_reads = align_tpl_tail(ht, t, tail, mismatches, FRESH, ori);
+	shift = ori ? 0 : ht->o->read_len - tail->len;
+	fresh_reads = align_tpl_tail(ht, t, tail, shift, mismatches, FRESH, ori);
 	for (i = 0; i < fresh_reads->len; i++) {
 		//p_query(__func__, r);
 		r = (bwa_seq_t*) g_ptr_array_index(fresh_reads, i);
@@ -314,7 +311,7 @@ void correct_init_tpl_base(pool *p, tpl *t, int t_len) {
 	int n_counted = 0;
 	if (!p || t_len <= 0 || t->len < t_len || !p->reads || p->reads->len < 3)
 		return;
-	p_ctg_seq("BEFORE", t->ctg);
+	p_ctg_seq("ORIGINAL ", t->ctg);
 	for (i = 1; i < t->len; i++) {
 		max = 0;
 		max_c = 0;
@@ -378,7 +375,7 @@ void correct_init_tpl_base(pool *p, tpl *t, int t_len) {
 		} // End of correcting bases on reads
 	} // End of template base correction
 	set_rev_com(t->ctg);
-	p_ctg_seq("AFTER ", t->ctg);
+	p_ctg_seq("CORRECTED ", t->ctg);
 }
 
 /**
@@ -442,7 +439,7 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 		int mismatches, int ori) {
 	int tail_len = ht->o->k * 2;
-	int i = 0, ol = 0, rev_com = 0, n_mis = 0;
+	int i = 0, ol = 0, rev_com = 0, n_mis = 0, shift = 0;
 	int added = 0;
 	bwa_seq_t *seqs = ht->seqs;
 	bwa_seq_t *tail = 0, *r = NULL, *m = NULL;
@@ -458,7 +455,8 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 		return;
 	}
 
-	mates = align_tpl_tail(ht, t, tail, mismatches, FRESH, ori);
+	shift = ori ? 0 : ht->o->read_len - tail->len;
+	mates = align_tpl_tail(ht, t, tail, shift, mismatches, FRESH, ori);
 	for (i = 0; i < mates->len; i++) {
 		m = (bwa_seq_t*) g_ptr_array_index(mates, i);
 		r = get_mate(m, seqs);

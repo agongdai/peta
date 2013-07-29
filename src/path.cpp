@@ -122,13 +122,13 @@ void p_p(path *p) {
 	}
 }
 
-void p_paths(GPtrArray *paths) {
+void p_paths(GPtrArray *paths, char *fn) {
 	path *p = NULL;
 	uint32_t i = 0, j = 0;
 	vertex *v = NULL;
 	edge *e = NULL;
 	char entry[BUFSIZ];
-	FILE *dot = xopen("paths.dot", "w");
+	FILE *dot = xopen(fn, "w");
 	fputs("digraph G {\n", dot);
 	fputs("graph [rankdir=LR];\n", dot);
 	for (i = 0; i < paths->len; i++) {
@@ -991,12 +991,15 @@ void determine_paths(splice_graph *g, hash_table *ht, char *save_dir) {
 		    paths = comp_paths(c, ht);
 		append_paths(all_paths, paths);
 	}
-	p_paths(all_paths);
 	fn = get_output_file("paths.fa", save_dir);
 	save_paths(all_paths, fn, 1);
 	free(fn);
 	fn = get_output_file("peta.fa", save_dir);
 	save_paths(all_paths, fn, 0);
+	free(fn);
+
+	fn = get_output_file("paths.dot", save_dir);
+	p_paths(all_paths, fn);
 	free(fn);
 	destroy_paths(all_paths);
 }

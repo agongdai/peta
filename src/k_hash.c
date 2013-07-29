@@ -406,7 +406,7 @@ GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 						r = &seqs[seq_id];
 						if (locus == hash_start) {
 							// To avoid too many duplicates in hits (some extreme case)
-							if (r->pos == -1)
+							if (r->pos == IMPOSSIBLE_NEGATIVE)
 								g_ptr_array_add(hits, r);
 							//p_query(__func__, r);
 							// Here 'pos' stores how many kmers this query contains
@@ -425,7 +425,7 @@ GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 		if (r->pos < block_no) {
 			// Remove the read from hits and reset the pos
 			g_ptr_array_remove_index_fast(hits, i--);
-			r->pos = -1;
+			r->pos = IMPOSSIBLE_NEGATIVE;
 		}
 	}
 	//show_debug_msg(__func__, "----------------------\n");
@@ -451,7 +451,7 @@ GPtrArray *find_both_fr_full_reads(hash_table *ht, bwa_seq_t *query,
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
 		//p_query(__func__, r);
-		r->pos = -1;
+		r->pos = IMPOSSIBLE_NEGATIVE;
 		if (head_tail_similar(r, query, ht->o->k, mismatches, &rev_com)) {
 			r->rev_com = rev_com;
 		} else {
@@ -496,8 +496,9 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 				value = ht->pos[j];
 				read_hash_value(&seq_id, &locus, value);
 				r = &seqs[seq_id];
+				//p_query(__func__, r);
 				// To avoid duplicate adding
-				if (r->pos != -1)
+				if (r->pos != IMPOSSIBLE_NEGATIVE)
 					continue;
 				abs_locus = locus - i;
 				if (abs_locus >= 0
@@ -543,22 +544,14 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 	for (i = 0; i < rev_hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(rev_hits, i);
 		// To make sure the 'pos' will be changed once only
-		//p_query("REV_COM", r);
 		if (!r->rev_com) {
 			r->rev_com = 1;
 			// Adjust the locus due to reverse complement
 			//show_debug_msg(__func__, "Query->len: %d; r->pos: %d \n", query->len, r->pos);
-
-			//r->pos = (ht->o->read_len - query->len) - r->pos;
-
-			if (r->pos >= 0
-					&& r->pos <= r->len + 1 - ht->o->interleaving * ht->o->k) {
-				g_ptr_array_add(hits, r);
-			} else {
-				// If not added ok, reset to 0
-				r->rev_com = 0;
-			}
-
+			//p_query("REV_COM", r);
+			r->pos = (ht->o->read_len - query->len) - r->pos;
+			//p_query("REV_COM", r);
+			g_ptr_array_add(hits, r);
 		}
 	}
 	g_ptr_array_free(rev_hits, TRUE);
@@ -578,7 +571,7 @@ gint align_read_thread(gpointer r, gpointer para) {
 	uint32_t *n_kmers = ht->n_kmers;
 	index64 read_id = 0;
 	read_id = atoll(query->name);
-	if (read_id < 0 || read_id >= ht->n_seqs || query->pos != -1)
+	if (read_id < 0 || read_id >= ht->n_seqs || query->pos != IMPOSSIBLE_NEGATIVE)
 		return 0;
 	if (is_biased_q(query) || too_many_ns(query, query->len))
 		return 0;
@@ -696,7 +689,7 @@ int k_hash(int argc, char *argv[]) {
 	if (!g_thread_supported())
 		g_thread_init(NULL);
 
-	//k_hash_core(argv[optind], opt);
+	k_hash_core(argv[optind], opt);
 	re_hash(argv[optind]);
 	//test_k_hash(argv[optind], opt);
 	fprintf(stderr, "[pe_hash] Hashing done: %.2f sec\n",

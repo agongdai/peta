@@ -300,7 +300,7 @@ void p_query(const char *header, const bwa_seq_t *q) {
 		printf("[%s] Query is NULL \n", header);
 		return;
 	}
-	printf("[%s] [%s, %d]: ", header, q->name, q->len);
+	printf("[%s] [%s, %d]: \t", header, q->name, q->len);
 	for (i = 0; i < q->len; i++) {
 		if (q->rev_com) {
 			if (q->rseq[i] > 4)
@@ -351,7 +351,7 @@ void p_ctg_seq(const char *header, const bwa_seq_t *q) {
 		printf("[%s] Contig seq is NULL \n", header);
 		return;
 	}
-	printf("[%s] [%s, %d]: ", header, q->name, q->len);
+	printf("[%s] [%s, %d]: \t", header, q->name, q->len);
 	for (i = 0; i < q->len; i++) {
 		if (q->seq[i] > 4)
 			printf("%c", q->seq[i]);
@@ -418,7 +418,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	p->pos = query->pos;
 
 	if (query->name)
-		p->name = strdup((const char*) query->name);
+		p->name = strdup(query->name);
 	else
 		p->name = (char*) calloc(1, sizeof(char));
 	p->seq = (ubyte_t*) malloc(ol + 1);
@@ -459,7 +459,7 @@ void set_rev_com(bwa_seq_t *s) {
 
 void reset_to_fresh(bwa_seq_t *r) {
 	r->status = FRESH;
-	r->pos = -1;
+	r->pos = IMPOSSIBLE_NEGATIVE;
 	r->cursor = -1;
 	r->contig_id = -1;
 	r->contig_locus = -1;

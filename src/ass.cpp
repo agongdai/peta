@@ -304,7 +304,8 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 			main_id = r->contig_id;
 			tpl_hash::iterator it = all_tpls->find(main_id);
 			if (it != all_tpls->end()) {
-				g_ptr_array_add(mains, r);
+				if (r->status == USED)
+					g_ptr_array_add(mains, r);
 			}
 		}
 		bwa_free_read_seq(1, tail_shift);
@@ -367,6 +368,19 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 			continue;
 		}
 
+		// If the extension reaches some where immediately when starting,
+		// 	most likely it has more mismatches which are not capture before.
+		// Simply add the starting read to the main template, destory the branch.
+		if (branch->len == ht->o->read_len && !branch->b_juncs) {
+			locus = ori ? r->contig_locus + 1 : r->contig_locus - 1;
+			add2tpl(main_tpl, branch->start_read, locus);
+			branch->alive = 0;
+			p_query("CONNECTOR", r);
+			show_debug_msg(__func__, "Read %s added to template %d at %d \n",
+					branch->start_read->name, main_tpl->id, locus);
+			break;
+		}
+
 		// If the branch is reversed complement in last round,
 		//	but it is not successfully connected, need to reverse it back for this round.
 		if (is_rev) {
@@ -374,12 +388,6 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 			is_rev = 0;
 		}
 
-		// Here we are sure they are going to connect,
-		//	so reverse the branch if it is reverse complement connected.
-		show_debug_msg(__func__,
-				"Trying to connect [%d, %d] and [%d, %d] at %d ori %d...\n",
-				main_tpl->id, main_tpl->len, branch->id, branch->len, con_pos,
-				adj_ori);
 		//p_query("CONNECTOR", r);
 		//p_tpl(main_tpl);
 		//p_tpl(branch);
@@ -390,8 +398,12 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		 */
 		tail = get_tail(branch, ht->o->read_len - 1, ori);
 		//p_query("BRANCH TAIL", tail);
-		if (!similar_bytes(tail->seq, main_tpl->ctg->seq + r->contig_locus,
+		//p_query("CONNECTOR", r);
+		con_pos = ori ? r->contig_locus + 1 : r->contig_locus;
+		if (!similar_bytes(tail->seq, main_tpl->ctg->seq + con_pos,
 				r->len - 1, N_MISMATCHES + 3)) {
+			//p_tpl(branch);
+			//p_tpl(main_tpl);
 			show_debug_msg(__func__,
 					"Branch [%d, %d] is reverse complemented \n", branch->id,
 					branch->len);
@@ -404,6 +416,12 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		bwa_free_read_seq(1, tail);
 		//p_tpl(branch);
 
+		// Here we are sure they are going to connect,
+		show_debug_msg(__func__,
+				"Trying to connect [%d, %d] and [%d, %d] at %d ori %d...\n",
+				main_tpl->id, main_tpl->len, branch->id, branch->len, con_pos,
+				adj_ori);
+
 		locus = r->contig_locus;
 		con_pos = adj_ori ? (locus + 1) : (locus + ht->o->read_len - 1);
 		exist_ori = adj_ori ? 0 : 1;
@@ -411,6 +429,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		// If right and left connections are too close, just ignore.
 		if (branch->b_juncs && branch->b_juncs->len > 0) {
 			exist_junc = (junction*) g_ptr_array_index(branch->b_juncs, 0);
+			p_junction(exist_junc);
 			if (exist_junc->main_tpl == main_tpl) {
 				// If all of them simply too short, or two short same-direction junctions
 				if ((get_abs(exist_junc->locus - con_pos) <= IGNORE_DIFF
@@ -555,7 +574,8 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		// This branch could be connected to single another template
 		break;
 	} // End of connecting all probable templates
-	if (is_rev) {
+	// If it is not connected and is reverse complemented, just get it back
+	if (is_rev && !connected) {
 		switch_fr(branch->ctg);
 	}
 	g_ptr_array_free(con_reads, TRUE);
@@ -592,7 +612,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			find_hashed_mates(ht, p, t, tail->len, LESS_MISMATCH, ori);
 			max_c = get_next_char(p, t, ori);
 			if (max_c == -1) {
-				//con_existing = connect_by_full_reads(ht, all_tpls, t, ori);
+				con_existing = connect_by_full_reads(ht, all_tpls, t, ori);
 				show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
 						ori, t->id, t->len);
 				break;
@@ -604,10 +624,10 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		}
 
 		//if (t->id == 5) {
-		p_query(__func__, tail);
-		show_debug_msg(__func__, "Next char: %c \n", "ACGTN"[max_c]);
-		p_ctg_seq("TEMPLATE", t->ctg);
-		p_pool(__func__, p, NULL);
+		//show_debug_msg(__func__, "Template [%d, %d], Next char: %c \n", t->id, t->len, "ACGTN"[max_c]);
+		//p_query(__func__, tail);
+		//p_ctg_seq("TEMPLATE", t->ctg);
+		//p_pool(__func__, p, NULL);
 		//}
 
 		ext_con(t->ctg, max_c, ori);
@@ -616,7 +636,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		ext_len++;
 		// If the extended length is save long enough, refresh the frozen reads.
 		if (ext_len % ht->o->read_len == 0) {
-			//unfrozen_tried(t);
+			unfrozen_tried(t);
 		}
 		// If the overlapped region between t and r has too many mismatches, remove from pool
 		rm_half_clip_reads(p, t, max_c, N_MISMATCHES, ori);
@@ -633,7 +653,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 					t->id, t->len);
 		}
 	}
-	///unfrozen_tried(t);
+	unfrozen_tried(t);
 	bwa_free_read_seq(1, tail);
 	return con_existing;
 }
@@ -690,6 +710,10 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		// Make a clone of the original starting read, which is global
 		p = new_pool();
 		init_pool(ht, p, t, kmer_len, N_MISMATCHES, 0);
+		//p_query(__func__, query);
+		//g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_name);
+		//p_pool("INITIAL_POOL", p, NULL);
+		//exit(1);
 
 		// The correction is done only once
 		if (pre_len == 0)
@@ -697,18 +721,16 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 
 		query = get_tail(t, kmer_len, 0);
 
-		//p_query(__func__, query);
-		p_pool("INITIAL_POOL", p, NULL);
-		//exit(1);
-
 		connected = kmer_ext_tpl(ht, all_tpls, p, t, query, 0);
 		destroy_pool(p);
 		pre_len = t->len;
 		refresh_tpl_reads(ht, t, N_MISMATCHES);
 		pre_n_reads = t->reads->len;
 		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
-		//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
-		//p_readarray(t->reads, 1);
+
+		// Maybe marked as not alive in last extension
+		if (!t->alive)
+			break;
 
 		// Its reverse complement is Connected to an existing template
 		ori = 1;
@@ -729,9 +751,11 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		bwa_free_read_seq(1, query);
 		//upd_locus_on_tpl(t, pre_len, pre_n_reads);
 
-		p_tpl(t);
+		//p_tpl(t);
+		// Still necessary because the hashing may not get all reads
+		upd_locus_on_tpl(t, pre_len, pre_n_reads);
 		refresh_tpl_reads(ht, t, N_MISMATCHES);
-		g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+		//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 
 		//correct_tpl_base(t, ht->o->read_len);
 		//refresh_tpl_reads(ht, t, N_MISMATCHES);
@@ -741,6 +765,9 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		show_debug_msg(__func__,
 				"==== End of tpl %d with length: %d ==== \n\n", t->id, t->len);
 	}
+
+	//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
+	//p_readarray(t->reads, 1);
 
 	if (!t->alive || (t->len <= read->len && (!t->b_juncs || t->b_juncs->len
 			< 2))) {
@@ -766,6 +793,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
 		//p_readarray(t->reads, 1);
 		//upd_tpl_jun_locus(t, branching_events, opt->k);
+		//correct_tpl_base(t, ht->o->read_len);
 	}
 	return NULL;
 }
@@ -820,6 +848,7 @@ void merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 	for (tpl_hash::iterator im = all_tpls->begin(); im != all_tpls->end(); ++im) {
 		id = im->first;
 		t = (tpl*) im->second;
+		p_tpl(t);
 		// If merged before, the alive value is 0
 		if (!t->alive)
 			continue;
@@ -828,6 +857,8 @@ void merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 			if (r->status != USED || r->contig_id != id)
 				continue;
 			m = get_mate(r, ht->seqs);
+			//p_query(__func__, r);
+			//p_query(__func__, m);
 			// If its mate is used by another template
 			if (m->status == USED && m->contig_id != id) {
 				m_id = m->contig_id;
@@ -837,19 +868,23 @@ void merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 				mt = (tpl*) it->second;
 				if (!mt->alive)
 					continue;
+				// If they have junctions, just ignore
+				if (tpls_have_junction(t, mt))
+					continue;
 				// At least 2 pairs spanning them
 				paired = find_pairs(t->reads, mt->reads, t->id, mt->id, 0,
 						mt->len, MIN_PAIRS);
+				show_debug_msg(__func__, "Paired: %d \n", paired);
 				if (!paired)
 					continue;
 				// At least 11 base overlap
-				ol = find_fr_ol_within_k(mt->ctg, t->ctg, N_MISMATCHES, ht->o->k,
-						kmer_len - 1, 0, &rev_com, &n_mis);
+				ol = find_fr_ol_within_k(mt->ctg, t->ctg, LESS_MISMATCH,
+						ht->o->k, kmer_len - 1, 0, &rev_com, &n_mis);
 				if (ol >= ht->o->k) {
 					merge_tpls(t, mt, ol, rev_com);
 				} else {
-					ol = find_fr_ol_within_k(t->ctg, mt->ctg, N_MISMATCHES, ht->o->k,
-							kmer_len - 1, 0, &rev_com, &n_mis);
+					ol = find_fr_ol_within_k(t->ctg, mt->ctg, LESS_MISMATCH,
+							ht->o->k, kmer_len - 1, 0, &rev_com, &n_mis);
 					if (ol >= ht->o->k) {
 						merge_tpls(mt, t, ol, rev_com);
 					}
@@ -885,6 +920,9 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	kmer_threads(params);
 	// Start branching after the frequent kmers are consumed already.
 	//start_branching(&all_tpls, params);
+
+	show_msg(__func__, "Merging templates by pairs and overlapping...\n");
+	merge_paired_tpls(ht, &all_tpls);
 
 	show_msg(__func__, "Saving contigs: %.2f sec\n",
 			(float) (kmer_finish_time.tv_sec - kmer_start_time.tv_sec));

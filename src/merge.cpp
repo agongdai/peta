@@ -35,7 +35,7 @@ void merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 		return;
 	}
 
-	// Update the junction information on the right
+	// If they have junctions, just ignore
 	if (tpls_have_junction(left, right)) {
 		show_debug_msg(__func__,
 				"[WARNING] These two templates have some junction, cannot be merged. \n");

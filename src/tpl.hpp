@@ -76,7 +76,7 @@ extern "C" {
 	GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch);
 	void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches);
 	void correct_tpl_base(tpl *t, const int read_len);
-	GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail,
+	GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int shift,
 			int mismatches, int8_t status, int ori);
 	int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,
 			int start_2, int end_2, const int min_n_pairs);

@@ -842,7 +842,11 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_table *ht, ch
 	fn = get_output_file("graph.dot", save_dir);
 	p_graph(g, fn);
 	free(fn);
-	//p_comps(g);
+
+//	fn = get_output_file("paths.dot", save_dir);
+//	p_comps(g, fn);
+//	free(fn);
+
 	calc_comp_stat(g, save_dir);
 	reset_status(g);
 	show_msg(__func__, "Running EM to get paths...\n");
