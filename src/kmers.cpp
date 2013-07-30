@@ -32,10 +32,11 @@ gint cmp_kmers_by_count(gpointer a, gpointer b) {
 void sort_by_kmers(hash_table *ht, GPtrArray *read_counters) {
 	int i = 0, j = 0;
 	hash_key key = 0;
-	bwa_seq_t *r = NULL, *seqs = NULL;
+	bwa_seq_t *r = NULL, *seqs = NULL, *key_seq = NULL;
 	kmer_counter *counter = NULL;
 	uint64_t n_k_mers = (1 << (ht->o->k * 2));
 	uint32_t *kmers = (uint32_t*) calloc(n_k_mers, sizeof(uint32_t));
+    seqs = ht->seqs;
 	// Count the kmers
 	for (i = 0; i < read_counters->len; i++) {
 		counter = (kmer_counter*) g_ptr_array_index(read_counters, i);
@@ -46,9 +47,15 @@ void sort_by_kmers(hash_table *ht, GPtrArray *read_counters) {
 		}
 		r = &seqs[counter->kmer];
 		counter->count = 0;
-		for (j = 0; j < r->len - ht->o->k; j++) {
+		for (j = 0; j <= r->len - ht->o->k; j++) {
+            //key_seq = new_seq(r, ht->o->k, j);
+            //if (!is_biased_q(key_seq) && !has_n(key_seq, 2)) {
 			key = get_kmer_int(r->seq, j, 1, ht->o->k);
+            if (key < 16 || key > n_k_mers - 16)
+                continue;
 			kmers[key]++;
+            //}
+            //bwa_free_read_seq(1, key_seq);
 		}
 	}
 	// Get kmer counts for every read
@@ -60,7 +67,7 @@ void sort_by_kmers(hash_table *ht, GPtrArray *read_counters) {
 			continue;
 		}
 		r = &seqs[counter->kmer];
-		for (j = 0; j < r->len - ht->o->k; j++) {
+		for (j = 0; j <= r->len - ht->o->k; j++) {
 			key = get_kmer_int(r->seq, j, 1, ht->o->k);
 			counter->count += kmers[key];
 		}

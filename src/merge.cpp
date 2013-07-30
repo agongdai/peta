@@ -66,6 +66,9 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 			"Merging templates [%d, %d] and [%d, %d] with reverse complement: %d \n",
 			left->id, left->len, right->id, right->len, rev_com);
 
+    //p_tpl(left);
+    //p_tpl(right);
+
 	l_len = left->len;
 	// Copy the template sequence from right to left
 	for (i = ol; i < right->len; i++) {
@@ -117,6 +120,8 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 		}
 		g_ptr_array_free(right->m_juncs, TRUE);
 	}
+
+    //p_tpl(left);
 	right->alive = 0;
     return 1;
 }

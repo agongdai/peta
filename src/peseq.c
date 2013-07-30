@@ -208,13 +208,16 @@ int is_right_mate(const char *seq_id) {
 
 int is_mates(const char *left, const char *right) {
 	char *mate;
+	int good = 0;
 	if (!left || !right)
 		return 0;
 	mate = get_mate_name(left);
-	if (!strcmp(right, mate))
-		return 1;
+	if (strcmp(right, mate) == 0)
+		good = 1;
 	else
-		return 0;
+		good = 0;
+	free(mate);
+	return good;
 }
 
 char *get_mate_name(const char *seq_id) {

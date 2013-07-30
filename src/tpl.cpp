@@ -116,6 +116,37 @@ void unfrozen_tried(tpl *t) {
 }
 
 /**
+ * For reads on the template, if its mate is used another template, add its mate to TRIED.
+ * Used for merging. To save time.
+ *
+ * If there are multiple reads spanning two templates, add only one
+ */
+void mv_unpaired_to_tried(bwa_seq_t *seqs, tpl *t, const int n_tpls) {
+	int i = 0;
+	bwa_seq_t *r = NULL, *m = NULL;
+	uint8_t *flag = NULL;
+	if (!t || !t->reads || t->reads->len == 0)
+		return;
+	if (!t->tried)
+		t->tried = g_ptr_array_sized_new(4);
+	while(t->tried->len > 0)
+		g_ptr_array_remove_index_fast(t->tried, 0);
+	// flag[0] indicates template 0 has been tried with current template
+	flag = (uint8_t*) calloc(n_tpls, sizeof(uint8_t));
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		m = get_mate(seqs, r);
+		if (m->status == USED && m->contig_id != r->contig_id) {
+			if (flag[m->contig_id] == 0) {
+				g_ptr_array_add(t->tried, m);
+				flag[m->contig_id] = 1;
+			}
+		}
+	}
+	free(flag);
+}
+
+/**
  * Get the tail for extension.
  * The only chance that the template is shorter than len is after timmed by junction.
  */
