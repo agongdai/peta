@@ -61,6 +61,7 @@ extern "C" {
 	eg_gap *init_gap(int s_index, int size, int ori);
 	void free_eg_gap(eg_gap *gap);
 	tpl *new_tpl();
+	int is_high_cov(tpl *t);
 	void reset_tid(tpl *t);
 	void destroy_tpl(tpl *t);
 	void free_eg_seq(tpl *t);

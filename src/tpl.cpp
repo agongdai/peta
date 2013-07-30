@@ -146,6 +146,21 @@ void mv_unpaired_to_tried(bwa_seq_t *seqs, tpl *t, const int n_tpls) {
 	free(flag);
 }
 
+int is_high_cov(tpl *t) {
+	float cov = 0.0;
+	int read_len = 0;
+	bwa_seq_t *r = NULL;
+	if (!t || !t->reads || t->len <= 0)
+		return 0;
+	if (t->len < 200)
+		return 0;
+	r = (bwa_seq_t*) g_ptr_array_index(t->reads, 0);
+	cov = ((float) read_len) * ((float) t->reads->len) / ((float) t->len);
+	if (cov > HIHG_COV_THRE)
+		return 1;
+	return 0;
+}
+
 /**
  * Get the tail for extension.
  * The only chance that the template is shorter than len is after timmed by junction.
