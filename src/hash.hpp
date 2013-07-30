@@ -37,11 +37,6 @@ typedef struct {
 	mer_hash *hash;
 } hash_map;
 
-typedef struct {
-	uint64_t kmer;
-	uint64_t count;
-} kmer_counter;
-
 #ifdef __cplusplus
 extern "C" {
 #endif

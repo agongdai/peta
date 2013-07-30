@@ -101,12 +101,6 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 	return tpls;
 }
 
-gint cmp_kmers_by_count(gpointer a, gpointer b) {
-	kmer_counter *c_a = *((kmer_counter**) a);
-	kmer_counter *c_b = *((kmer_counter**) b);
-	return ((c_b->count) - c_a->count);
-}
-
 /**
  * Validate the junction by checking mate pairs.
  * Depending on ori and con_pos, only partial reads on the main template are counted
@@ -400,8 +394,8 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		//p_query("BRANCH TAIL", tail);
 		//p_query("CONNECTOR", r);
 		con_pos = ori ? r->contig_locus + 1 : r->contig_locus;
-		if (!similar_bytes(tail->seq, main_tpl->ctg->seq + con_pos,
-				r->len - 1, N_MISMATCHES + 3)) {
+		if (!similar_bytes(tail->seq, main_tpl->ctg->seq + con_pos, r->len - 1,
+				N_MISMATCHES + 3)) {
 			//p_tpl(branch);
 			//p_tpl(main_tpl);
 			show_debug_msg(__func__,
@@ -635,9 +629,10 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		ext_que(tail, max_c, ori);
 		ext_len++;
 		// If the extended length is save long enough, refresh the frozen reads.
-		if (ext_len % ht->o->read_len == 0) {
-			unfrozen_tried(t);
-		}
+		// @Desperate: risky, may produce infinite extension
+		//if (ext_len % ht->o->read_len == 0) {
+		//	unfrozen_tried(t);
+		//}
 		// If the overlapped region between t and r has too many mismatches, remove from pool
 		rm_half_clip_reads(p, t, max_c, N_MISMATCHES, ori);
 		forward(p, t, ori);
@@ -653,7 +648,6 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 					t->id, t->len);
 		}
 	}
-	unfrozen_tried(t);
 	bwa_free_read_seq(1, tail);
 	return con_existing;
 }
@@ -690,9 +684,6 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 			!= FRESH) {
 		return NULL;
 	}
-
-	if (kmer_ctg_id == 1)
-		read = &seqs[0];
 
 	show_debug_msg(__func__, "============= %s: %" ID64 " ============ \n",
 			read->name, counter->count);
@@ -770,7 +761,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		show_debug_msg(__func__,
 				"==== End of tpl %d with length: %d ==== \n\n", t->id, t->len);
 	}
-
+	// Reactive the TRIED reads to FRESH, for other starting reads
+	unfrozen_tried(t);
 	// Used by find_pairs
 	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
 	//p_readarray(t->reads, 1);
@@ -812,15 +804,18 @@ void kmer_threads(kmer_t_meta *params) {
 	bwa_seq_t *r = NULL, *seqs = ht->seqs;
 	kmer_counter *counter = NULL;
 	GPtrArray *starting_reads = g_ptr_array_sized_new(ht->n_seqs);
+	GPtrArray *low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
 
 	for (i = 0; i < ht->n_seqs; i++) {
 		r = &seqs[i];
 		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
 		if (r->status == FRESH) {
-			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
-			counter->kmer = i;
-			counter->count = ht->n_kmers[i];
-			g_ptr_array_add(starting_reads, counter);
+			if (ht->n_kmers[i] > 1) {
+				counter = (kmer_counter*) malloc(sizeof(kmer_counter));
+				counter->kmer = i;
+				counter->count = ht->n_kmers[i];
+				g_ptr_array_add(starting_reads, counter);
+			}
 		}
 	}
 
@@ -831,7 +826,7 @@ void kmer_threads(kmer_t_meta *params) {
 			NULL);
 	for (i = 0; i < starting_reads->len; i++) {
 		if (i % 100000 == 0)
-			show_debug_msg(__func__, "Extending %" ID64 "-th read... \n", i);
+			show_msg(__func__, "Extending %" ID64 "-th read... \n", i);
 		counter = (kmer_counter*) g_ptr_array_index(starting_reads, i);
 		kmer_ext_thread(counter, params);
 		free(counter);
@@ -839,18 +834,48 @@ void kmer_threads(kmer_t_meta *params) {
 		//if (kmer_ctg_id >= 2000)
 		//break;
 	}
+
+	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
+
+	// Reset not USED reads to FRESH
+	for (i = 0; i < ht->n_seqs; i++) {
+		r = &seqs[i];
+		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
+		if (r->status != USED && r->status != DEAD) {
+			reset_to_fresh(r);
+			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
+			counter->kmer = i;
+			counter->count = ht->n_kmers[i];
+			g_ptr_array_add(low_reads, counter);
+		}
+	}
+
+	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
+	sort_by_kmers(ht, low_reads);
+	for (i = 0; i < low_reads->len; i++) {
+		counter = (kmer_counter*) g_ptr_array_index(starting_reads, i);
+		// If the read does not even share any 11-mer with others, ignore
+		if (counter->count <= ht->o->read_len - ht->o->k)
+			continue;
+		if (i % 100000 == 0)
+			show_msg(__func__, "Extending %" ID64 "-th low read... \n", i);
+		kmer_ext_thread(counter, params);
+		free(counter);
+	}
+
 	g_thread_pool_free(thread_pool, 0, 1);
 	g_ptr_array_free(starting_reads, TRUE);
+	g_ptr_array_free(low_reads, TRUE);
 }
 
 void test_kmer_ext(kmer_t_meta *params) {
 }
 
-void merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
+int merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 	tpl *left = NULL, *right = NULL, *t = NULL, *mt = NULL;
 	int i = 0, id = 0, m_id = 0;
 	int ol = 0, n_mis = 0;
-	int rev_com = 0, paired = 0;
+	int rev_com = 0, paired = 0, merged = 0;
 	bwa_seq_t *r = NULL, *m = NULL;
 	for (tpl_hash::iterator im = all_tpls->begin(); im != all_tpls->end(); ++im) {
 		id = im->first;
@@ -890,13 +915,13 @@ void merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 				//p_tpl(mt);
 				//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 				if (ol >= ht->o->k) {
-					merge_tpls(t, mt, ol, rev_com);
+					merged = merge_tpls(t, mt, ol, rev_com);
 				} else {
 					ol = find_fr_ol_within_k(t->ctg, mt->ctg, LESS_MISMATCH,
 							ht->o->k, kmer_len - 1, 0, &rev_com, &n_mis);
 					//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 					if (ol >= ht->o->k) {
-						merge_tpls(mt, t, ol, rev_com);
+						merged = merge_tpls(mt, t, ol, rev_com);
 					}
 				}
 				//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
@@ -905,6 +930,7 @@ void merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 			} // End of this read
 		} // End of checking all reads
 	} // End of checking all templates
+	return merged;
 }
 
 void ext_by_kmers_core(char *lib_file, const char *solid_file) {
@@ -913,6 +939,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	tpl_hash all_tpls;
 	GPtrArray *read_tpls = NULL;
 	hash_table *ht = NULL;
+	int merge_iter = 0;
 
 	show_msg(__func__, "Library: %s \n", lib_file);
 
@@ -935,7 +962,13 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	//start_branching(&all_tpls, params);
 
 	show_msg(__func__, "Merging templates by pairs and overlapping...\n");
-	merge_paired_tpls(ht, &all_tpls);
+	while (merge_iter++ < 10) {
+		merge_paired_tpls(ht, &all_tpls);
+	}
+	if (merge_iter == 10) {
+		show_msg(__func__,
+				"[WARNING] 10 iterations for merging. May be some error. \n");
+	}
 
 	show_msg(__func__, "Saving contigs: %.2f sec\n",
 			(float) (kmer_finish_time.tv_sec - kmer_start_time.tv_sec));

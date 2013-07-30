@@ -18,6 +18,11 @@
 #define		LOWER_ONES_24		16777215				// 40 0's, followed by 24 1's
 #define		LOWER_ONES_16		65535					// 48 0's, 16 11's
 
+typedef struct {
+	uint64_t kmer;
+	uint64_t count;
+} kmer_counter;
+
 using namespace std;
 
 #ifdef __cplusplus
@@ -41,6 +46,8 @@ extern "C" {
 			int *tpl_id, int *locus, uint64_t *value);
 	void kmer_aln_query(const bwa_seq_t *query, const hash_map *hm,
 			const int query_is_part, GPtrArray *hits);
+	gint cmp_kmers_by_count(gpointer a, gpointer b);
+	void sort_by_kmers(hash_table *ht, GPtrArray *reads);
 	GPtrArray *align_full_seq(const bwa_seq_t *query, const hash_map *hm, const int mismatch);
 
 #ifdef __cplusplus

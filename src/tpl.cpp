@@ -693,9 +693,7 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int shift,
 	}
 	//show_debug_msg(__func__, "Reads with the tail: %d\n", fresh_reads->len);
 	g_ptr_array_free(hits, TRUE);
-	if (t->len < ht->o->read_len) {
-		bwa_free_read_seq(1, tpl_seq);
-	}
+	bwa_free_read_seq(1, tpl_seq);
 	return fresh_reads;
 }
 

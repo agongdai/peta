@@ -385,6 +385,7 @@ void filter_branches(GPtrArray *junctions, const int read_len) {
 					pre->status = 1;
 					cur->status = 1;
 				}
+				bwa_free_read_seq(1, main_seq);
 				/**
 				 p_junction(pre);
 				 p_junction(cur);

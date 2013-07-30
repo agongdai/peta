@@ -353,11 +353,11 @@ def simu_pair(args):
         seq = annotated.seqs[tx]
         part_fa.seqs[tx] = seq
         for i in range(len(seq) - args.read_len + 1):
-            if i > 250:
-                break
+#            if i > 250:
+#                break
             if (i + args.read_len + args.ins_size <= len(seq)):
-                if i > 50 and i < 80:
-                    continue
+#                if i > 50 and i < 80:
+#                    continue
                 reads.seqs[read_id] = seq[i:i+args.read_len]
                 read_id += 1
                 reads.seqs[read_id] = seq[i+args.ins_size:i+args.ins_size+args.read_len]

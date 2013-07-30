@@ -20,6 +20,54 @@
 #include "bwtaln.h"
 #include "pechar.h"
 #include "hash.hpp"
+#include "k_hash.h"
+
+gint cmp_kmers_by_count(gpointer a, gpointer b) {
+	kmer_counter *c_a = *((kmer_counter**) a);
+	kmer_counter *c_b = *((kmer_counter**) b);
+	return ((c_b->count) - c_a->count);
+}
+
+// Count the 11-mers on the reads, sort kmer frequency on reads decreasingly
+void sort_by_kmers(hash_table *ht, GPtrArray *read_counters) {
+	int i = 0, j = 0;
+	hash_key key = 0;
+	bwa_seq_t *r = NULL, *seqs = NULL;
+	kmer_counter *counter = NULL;
+	uint64_t n_k_mers = (1 << (ht->o->k * 2));
+	uint32_t *kmers = (uint32_t*) calloc(n_k_mers, sizeof(uint32_t));
+	// Count the kmers
+	for (i = 0; i < read_counters->len; i++) {
+		counter = (kmer_counter*) g_ptr_array_index(read_counters, i);
+		if (counter->kmer < 0 || counter->kmer >= ht->n_seqs) {
+			show_msg(__func__, "[WARNING] Read index out of range: %d \n",
+					counter->kmer);
+			continue;
+		}
+		r = &seqs[counter->kmer];
+		counter->count = 0;
+		for (j = 0; j < r->len - ht->o->k; j++) {
+			key = get_kmer_int(r->seq, j, 1, ht->o->k);
+			kmers[key]++;
+		}
+	}
+	// Get kmer counts for every read
+	for (i = 0; i < read_counters->len; i++) {
+		counter = (kmer_counter*) g_ptr_array_index(read_counters, i);
+		if (counter->kmer < 0 || counter->kmer >= ht->n_seqs) {
+			show_msg(__func__, "[WARNING] Read index out of range: %d \n",
+					counter->kmer);
+			continue;
+		}
+		r = &seqs[counter->kmer];
+		for (j = 0; j < r->len - ht->o->k; j++) {
+			key = get_kmer_int(r->seq, j, 1, ht->o->k);
+			counter->count += kmers[key];
+		}
+	}
+	g_ptr_array_sort(read_counters, (GCompareFunc) cmp_kmers_by_count);
+	free(kmers);
+}
 
 /**
  * Return a reverse complement value of a kmer int
@@ -184,7 +232,8 @@ uint64_t get_kmer_count(const uint64_t kmer_int, hash_map *hm,
 	return 0;
 }
 
-uint64_t get_kmer_rf_count(const uint64_t query, hash_map *hm, const int fresh_only) {
+uint64_t get_kmer_rf_count(const uint64_t query, hash_map *hm,
+		const int fresh_only) {
 	uint64_t rev = 0;
 	uint64_t count = get_kmer_count(query, hm, fresh_only);
 	rev = rev_comp_kmer(query, hm->o->k);
@@ -200,11 +249,11 @@ int *count_next_kmers(hash_map *hm, uint64_t query, const int fresh_only,
 		counters[i] = 0;
 		next_probable_kmer = shift_bit(query, i, hm->o->k, ori);
 		/**
-		show_debug_msg(__func__, "next_probable_kmer: %" ID64 "\n", next_probable_kmer);
-		bwa_seq_t *debug = get_kmer_seq(next_probable_kmer, 25);
-		p_query(__func__, debug);
-		bwa_free_read_seq(1, debug);
-		**/
+		 show_debug_msg(__func__, "next_probable_kmer: %" ID64 "\n", next_probable_kmer);
+		 bwa_seq_t *debug = get_kmer_seq(next_probable_kmer, 25);
+		 p_query(__func__, debug);
+		 bwa_free_read_seq(1, debug);
+		 **/
 		counters[i] = get_kmer_count(next_probable_kmer, hm, fresh_only);
 		// Get its reverse complement as well
 		next_probable_kmer = rev_comp_kmer(next_probable_kmer, hm->o->k);

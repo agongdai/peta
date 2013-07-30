@@ -16,6 +16,6 @@
 #include "tpl.hpp"
 #include "peseq.h"
 
-void merge_tpls(tpl *left, tpl *right, int ol, int rev_com);
+int merge_tpls(tpl *left, tpl *right, int ol, int rev_com);
 
 #endif /* MERGE_HPP_ */

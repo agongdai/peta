@@ -21,7 +21,7 @@
 /**
  * Merge the right template to the left template
  */
-void merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
+int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 	bwa_seq_t *r = NULL;
 	int i = 0, connected = 0;
 	int new_locus = 0, l_len = 0;
@@ -30,9 +30,9 @@ void merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 	if (!left->alive || !right->alive || left->r_tail || right->l_tail) {
 		show_debug_msg(
 				__func__,
-				"[WARNING] Merging templates with wrong ends: [%d, %d] and [%d, %d] \n",
+				"[WARNING] Merging templates not alive or with wrong ends: [%d, %d] and [%d, %d] \n",
 				left->id, left->len, right->id, right->len);
-		return;
+		return 0;
 	}
 
 	// If they have junctions, just ignore
@@ -43,7 +43,7 @@ void merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 				left->len);
 		show_debug_msg(__func__, "RIght template: [%d, %d] \n", right->id,
 				right->len);
-		return;
+		return 0;
 	}
 
 	// If trying to reverse complement it, there cannot be any connection on right
@@ -57,7 +57,7 @@ void merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 					left->len);
 			show_debug_msg(__func__, "RIght template: [%d, %d] \n", right->id,
 					right->len);
-			return;
+			return 0;
 		}
 	}
 
@@ -105,6 +105,7 @@ void merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 				jun->branch_tpl = left;
 			}
 		}
+		g_ptr_array_free(right->b_juncs, TRUE);
 	}
 	if (right->m_juncs) {
 		for (i = 0; i < right->m_juncs->len; i++) {
@@ -114,7 +115,9 @@ void merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 				jun->locus += l_len;
 			}
 		}
+		g_ptr_array_free(right->m_juncs, TRUE);
 	}
 	right->alive = 0;
+    return 1;
 }
 
