@@ -830,7 +830,7 @@ void kmer_threads(kmer_t_meta *params) {
 		kmer_ext_thread(counter, params);
 		free(counter);
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
-		if (kmer_ctg_id >= 2000)
+		if (kmer_ctg_id >= 1000)
 			break;
 	}
 
@@ -882,7 +882,7 @@ int merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 		id = im->first;
 		t = (tpl*) im->second;
 
-		show_debug_msg(__func__, "Trying to merge template %d ...\n", t->id);
+		//show_debug_msg(__func__, "Trying to merge template %d ...\n", t->id);
 		//p_tpl(t);
 		// If merged before, the alive value is 0
 		if (!t->alive || is_high_cov(t))
@@ -953,7 +953,7 @@ int merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
  * Merge all templates by pairs and overlapping
  */
 void iter_merge(hash_table *ht, tpl_hash *all_tpls) {
-	int merge_iter = 0, id = 0, merged = 0;
+	int merge_iter = 0, id = 0, merged = 1;
 	tpl *t = NULL;
 
 	// Add all mates not on current template to t->tried.
@@ -964,7 +964,7 @@ void iter_merge(hash_table *ht, tpl_hash *all_tpls) {
 	}
 
 	// Multiple iterations, until not merged anymore
-	while (merge_iter++ < 8 && !merged) {
+	while (merge_iter++ < 8 && merged) {
 		merged = merge_paired_tpls(ht, all_tpls);
 	}
 	if (merge_iter == 8) {

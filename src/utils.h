@@ -43,7 +43,7 @@
 #define MIN_JUNCTION_READS	    2	
 #define MIN_WEIGHT				2
 #define MAX_VS_IN_COMP          100
-#define HIHG_COV_THRE			8
+#define HIHG_COV_THRE		    10	
 
 typedef uint64_t index64;
 

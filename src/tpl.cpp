@@ -155,7 +155,9 @@ int is_high_cov(tpl *t) {
 	if (t->len < 200)
 		return 0;
 	r = (bwa_seq_t*) g_ptr_array_index(t->reads, 0);
+	read_len = r->len;
 	cov = ((float) read_len) * ((float) t->reads->len) / ((float) t->len);
+	//show_debug_msg(__func__, "Coverage of %d: %d*%d/%d = %.2f \n", t->id, read_len, t->reads->len, t->len, cov);
 	if (cov > HIHG_COV_THRE)
 		return 1;
 	return 0;
