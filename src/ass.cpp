@@ -961,6 +961,7 @@ void iter_merge(hash_table *ht, tpl_hash *all_tpls) {
 		id = im->first;
 		t = (tpl*) im->second;
 		mv_unpaired_to_tried(ht->seqs, t, kmer_ctg_id);
+        g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
 	}
 
 	// Multiple iterations, until not merged anymore
