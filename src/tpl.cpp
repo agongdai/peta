@@ -30,7 +30,7 @@ void p_tpl(tpl *t) {
 	if (!t) {
 		show_debug_msg(__func__, "---- Template is NULL ----\n");
 	}
-	show_debug_msg(__func__, "---- Template %d ----\n", t->id);
+	show_debug_msg(__func__, "---- Template %d alive: %d ----\n", t->id, t->alive);
 	show_debug_msg(__func__, "\t Length: %d \n", t->len);
 	if (t->reads)
 		show_debug_msg(__func__, "\t Reads: %d\n", t->reads->len);
