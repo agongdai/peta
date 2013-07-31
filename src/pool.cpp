@@ -442,21 +442,25 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 	int i = 0, ol = 0, rev_com = 0, n_mis = 0, shift = 0;
 	int added = 0;
 	bwa_seq_t *seqs = ht->seqs;
-	bwa_seq_t *tail = 0, *r = NULL, *m = NULL;
+	// Query tail and overlap tail are used in different length
+	bwa_seq_t *ol_tail = 0, *q_tail = NULL, *r = NULL, *m = NULL;
 	GPtrArray *mates = NULL;
 
 	if (t->len < tail_len || t->len < 0)
 		return;
-	tail = ori ? new_seq(t->ctg, tail_len, 0) : new_seq(t->ctg, tail_len,
-			t->len - tail_len);
+	//show_debug_msg(__func__, "Looking for shorter; ori %d...\n", ori);
+	// Query tail: shorter than a normal tail, just 22bp, query 2 kmers.
+	q_tail = get_tail(t, tail_len, ori);
 	// In case the tail is an biased seq like: TTTTCTTTTTT
-	if (is_biased_q(tail) || has_n(tail, 1)) {
-		bwa_free_read_seq(1, tail);
+	if (is_biased_q(q_tail) || has_n(q_tail, 1)) {
+		bwa_free_read_seq(1, q_tail);
 		return;
 	}
+	// Overlap tail. Used to verify the overlapping between mate and template.
+	ol_tail = get_tail(t, full_tail_len, ori);
 
-	shift = ori ? 0 : ht->o->read_len - tail->len;
-	mates = align_tpl_tail(ht, t, tail, shift, mismatches, FRESH, ori);
+	shift = ori ? 0 : ht->o->read_len - q_tail->len;
+	mates = align_tpl_tail(ht, t, q_tail, shift, mismatches, FRESH, ori);
 	for (i = 0; i < mates->len; i++) {
 		m = (bwa_seq_t*) g_ptr_array_index(mates, i);
 		r = get_mate(m, seqs);
@@ -466,8 +470,10 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 			continue;
 		}
 		// Find the overlapping between mate and tail
-		ol = find_fr_ol_within_k(m, tail, mismatches, tail_len, full_tail_len
+		//p_query(__func__, m);
+		ol = find_fr_ol_within_k(m, ol_tail, mismatches, tail_len - 1, full_tail_len
 				- 1, ori, &rev_com, &n_mis);
+		//show_debug_msg("TAG", "OL: %d\n", ol);
 		if (ol >= ht->o->k) {
 			m->rev_com = rev_com;
 			m->cursor = ori ? (m->len - ol - 1) : ol;
@@ -485,5 +491,6 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 		find_match_mates(ht, p, t, tail_len, 0, ori);
 	}
 	g_ptr_array_free(mates, TRUE);
-	bwa_free_read_seq(1, tail);
+	bwa_free_read_seq(1, q_tail);
+	bwa_free_read_seq(1, ol_tail);
 }

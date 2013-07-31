@@ -603,7 +603,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		// If cannot extend, try to add mates into the pool
 		if (max_c == -1) {
 			//p_ctg_seq("TEMPLATE", t->ctg);
-			find_hashed_mates(ht, p, t, tail->len, LESS_MISMATCH, ori);
+			find_hashed_mates(ht, p, t, tail->len + 1, LESS_MISMATCH, ori);
 			max_c = get_next_char(p, t, ori);
 			if (max_c == -1) {
 				con_existing = connect_by_full_reads(ht, all_tpls, t, ori);
