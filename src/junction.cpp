@@ -254,17 +254,14 @@ void clean_junctions(GPtrArray *junctions) {
 	junction *junc = NULL, *pre = NULL;
 	uint32_t i = 0;
 	int not_alive = 0;
-	tpl_hash dead_tpls;
 	tpl *t = NULL;
 	for (i = 0; i < junctions->len; i++) {
 		not_alive = 0;
 		junc = (junction*) g_ptr_array_index(junctions, i);
 		if (!junc->main_tpl->alive) {
-			dead_tpls[junc->main_tpl->id] = junc->main_tpl;
 			not_alive = 1;
 		}
 		if (!junc->branch_tpl->alive) {
-			dead_tpls[junc->branch_tpl->id] = junc->branch_tpl;
 			not_alive = 1;
 		}
 		if (not_alive) {
@@ -281,11 +278,6 @@ void clean_junctions(GPtrArray *junctions) {
 		}
 		pre = junc;
 	}
-	//	for (tpl_hash::iterator m = dead_tpls.begin(); m != dead_tpls.end(); ++m) {
-	//		t = (tpl*) m->second;
-	//		destroy_eg(t);
-	//	}
-	dead_tpls.clear();
 }
 
 /**

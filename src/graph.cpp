@@ -350,7 +350,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_table *ht) {
 		g_ptr_array_add(g->vertexes, v);
 		g_ptr_array_add(this_vs, v);
 		pre_start = j->locus;
-		show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
+		//show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
 	}
 
 	// Create the last vertex
@@ -358,7 +358,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_table *ht) {
 	g_ptr_array_add(g->vertexes, v);
 	g_ptr_array_add(this_vs, v);
 
-	show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
+	//show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
 
 	// Create the edges between vertexes
 	pre_start = 0;
@@ -371,7 +371,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_table *ht) {
 		e->junc_seq = get_junc_seq(t, pre_start, &e->left_len, t, pre_start,
 				&e->right_len, max_len);
 		e->len = e->left_len + e->right_len;
-        show_debug_msg(__func__, "Aligning reads to edge %d...\n", e->id);
+        //show_debug_msg(__func__, "Aligning reads to edge %d...\n", e->id);
 		e->reads = reads_on_seq(e->junc_seq, ht, N_MISMATCHES);
 		g_ptr_array_add(left->outs, e);
 		g_ptr_array_add(right->ins, e);

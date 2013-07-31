@@ -267,7 +267,7 @@ def app(args):
         comp_id = comp_id[5:-3]
         fa = FastaFile(infile)
         for id, seq in fa.seqs.iteritems():
-            out_fa.seqs[id + '_comp_' + comp_id] = seq
+            out_fa.seqs[comp_id + '_comp_' + id] = seq
             count += 1
     out_fa.save_to_disk(args.out)
     print 'Check %d seqs in file %s' % (count, args.out)

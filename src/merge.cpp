@@ -20,6 +20,9 @@
 
 /**
  * Merge the right template to the left template
+ * The right template is not destoryed (its attributes are not altered), it is simply marked as 'DEAD'.
+ * The rigth template is destoryed at hash_to_array in ass.cpp.
+ * If param rev_com is 1, will merge the reverse complement of right template to left.
  */
 int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 	bwa_seq_t *r = NULL;
@@ -91,7 +94,7 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 			new_locus = rev_com ? (right->len - r->contig_locus - r->len
 					+ l_len - ol) : (r->contig_locus + l_len - ol);
 			// If need to reverse complement the right template,
-			//	need to reverse the reverse complement flag on the read
+			//	need to reverse the reverse complement flag on the reads
 			if (rev_com) {
 				r->rev_com = r->rev_com ? 0 : 1;
 			}
@@ -101,24 +104,32 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 	while (right->reads->len)
 		g_ptr_array_remove_index_fast(right->reads, 0);
 
+    // The junctions on the right now go to the left template
 	if (right->b_juncs) {
 		for (i = 0; i < right->b_juncs->len; i++) {
 			jun = (junction*) g_ptr_array_index(right->b_juncs, i);
 			if (jun->branch_tpl == right) {
 				jun->branch_tpl = left;
+                // If right template connects to somewhere on the right, 
+                //  now the left templates connects to it.
+                if (!left->b_juncs)
+                    left->b_juncs = g_ptr_array_sized_new(2);
+                g_ptr_array_add(left->b_juncs, jun);
 			}
 		}
-		g_ptr_array_free(right->b_juncs, TRUE);
 	}
 	if (right->m_juncs) {
 		for (i = 0; i < right->m_juncs->len; i++) {
 			jun = (junction*) g_ptr_array_index(right->m_juncs, i);
 			if (jun->main_tpl == right) {
 				jun->main_tpl = left;
+                // Update the junction locus
 				jun->locus += l_len;
+                if (!left->m_juncs)
+                    left->m_juncs = g_ptr_array_sized_new(2);
+                g_ptr_array_add(left->m_juncs, jun);
 			}
 		}
-		g_ptr_array_free(right->m_juncs, TRUE);
 	}
 
     //p_tpl(left);

@@ -889,7 +889,7 @@ def comps(args):
                 for h in hits:
                     id_str = h.qname
                     fs = id_str.split("_")
-                    comp_id = fs[2]
+                    comp_id = fs[0]
                     if comp_id in comps:
                         comps[comp_id] += 1
                     else:
