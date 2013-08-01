@@ -398,9 +398,9 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		return;
 	}
 
-	p_tpl(t);
-	show_debug_msg(__func__, "ORI: %d \n", ori);
-	p_query(__func__, tail);
+	//p_tpl(t);
+	//show_debug_msg(__func__, "ORI: %d \n", ori);
+	//p_query(__func__, tail);
 
 	for (i = 0; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
@@ -414,9 +414,9 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		// Find the overlapping between mate and tail
 		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1, tail_len - 1,
 				ori, &rev_com, &n_mis);
-		p_query("USED ", r);
-		p_query("FRESH", m);
-		show_debug_msg(__func__, "OVERLAP: %d\n", ol);
+		//p_query("USED ", r);
+		//p_query("FRESH", m);
+		//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 
 		if (ol >= ht->o->k - 1) {
 			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol, tail->len - ol);

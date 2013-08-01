@@ -342,8 +342,8 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	}
 
 	con_reads = find_connected_reads(ht, all_tpls, branch, ori);
-	show_debug_msg(__func__, "Connecting reads: \n");
-	p_readarray(con_reads, 1);
+	//show_debug_msg(__func__, "Connecting reads: \n");
+	//p_readarray(con_reads, 1);
 	max_trial = con_reads->len > 8 ? 8 : con_reads->len;
 	for (i = 0; i < max_trial; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(con_reads, i);
