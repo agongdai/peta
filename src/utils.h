@@ -41,6 +41,7 @@
 
 #define IMPOSSIBLE_NEGATIVE		-999999999
 #define N_MISMATCHES			2
+#define MORE_MISMATCH			4
 #define LESS_MISMATCH			1
 #define MIN_PAIRS				2
 #define MIN_JUNCTION_READS	    2	

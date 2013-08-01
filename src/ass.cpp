@@ -603,7 +603,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		// If cannot extend, try to add mates into the pool
 		if (max_c == -1) {
 			//p_ctg_seq("TEMPLATE", t->ctg);
-			find_hashed_mates(ht, p, t, tail->len + 1, LESS_MISMATCH, ori);
+			find_hashed_mates(ht, p, t, tail->len + 1, MORE_MISMATCH, ori);
 			max_c = get_next_char(ht, p, t, ori);
 			if (max_c == -1) {
 				con_existing = connect_by_full_reads(ht, all_tpls, t, ori);
@@ -621,7 +621,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		//show_debug_msg(__func__, "Template [%d, %d], Next char: %c \n", t->id, t->len, "ACGTN"[max_c]);
 		//p_query(__func__, tail);
 		//p_ctg_seq("TEMPLATE", t->ctg);
-		//p_pool(__func__, p, NULL);
+		//p_pool("CURRENT POOL", p, NULL);
 		//}
 
 		ext_con(t->ctg, max_c, ori);
@@ -686,9 +686,9 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 //	if (kmer_ctg_id == 1)
-//		read = &seqs[16207];
+//		read = &seqs[22133];
 //	if (kmer_ctg_id == 2)
-//		read = &seqs[9261];
+//		read = &seqs[17452];
 
 	show_debug_msg(__func__, "============= %s: %" ID64 " ============ \n",
 			read->name, counter->count);
@@ -839,33 +839,33 @@ void kmer_threads(kmer_t_meta *params) {
 		//	break;
 	}
 
-	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
-
-	// Reset not USED reads to FRESH
-	for (i = 0; i < ht->n_seqs; i++) {
-		r = &seqs[i];
-		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
-		if (r->status != USED && r->status != DEAD) {
-			reset_to_fresh(r);
-			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
-			counter->kmer = i;
-			counter->count = 0;
-			g_ptr_array_add(low_reads, counter);
-		}
-	}
-
-	sort_by_kmers(ht, low_reads);
-	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
-	for (i = 0; i < low_reads->len / 2; i++) {
-		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
-		// If the read does not even share any 11-mer with others, ignore
-		if (counter->count <= (ht->o->read_len - ht->o->k) * 2)
-			continue;
-		if (i % 100000 == 0)
-			show_msg(__func__, "Extending %" ID64 "-th low read... \n", i);
-		kmer_ext_thread(counter, params);
-		free(counter);
-	}
+//	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
+//
+//	// Reset not USED reads to FRESH
+//	for (i = 0; i < ht->n_seqs; i++) {
+//		r = &seqs[i];
+//		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
+//		if (r->status != USED && r->status != DEAD) {
+//			reset_to_fresh(r);
+//			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
+//			counter->kmer = i;
+//			counter->count = 0;
+//			g_ptr_array_add(low_reads, counter);
+//		}
+//	}
+//
+//	sort_by_kmers(ht, low_reads);
+//	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
+//	for (i = 0; i < low_reads->len / 2; i++) {
+//		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
+//		// If the read does not even share any 11-mer with others, ignore
+//		if (counter->count <= (ht->o->read_len - ht->o->k) * 2)
+//			continue;
+//		if (i % 100000 == 0)
+//			show_msg(__func__, "Extending %" ID64 "-th low read... \n", i);
+//		kmer_ext_thread(counter, params);
+//		free(counter);
+//	}
 
 	g_thread_pool_free(thread_pool, 0, 1);
 	g_ptr_array_free(starting_reads, TRUE);
@@ -922,7 +922,7 @@ int merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 					continue;
 				}
 				// At least 11 base overlap
-				ol = find_fr_ol_within_k(mt->ctg, t->ctg, N_MISMATCHES,
+				ol = find_fr_ol_within_k(mt->ctg, t->ctg, MORE_MISMATCH,
 						ht->o->k, ht->o->read_len, 0, &rev_com, &n_mis);
 				p_tpl(mt);
 				show_debug_msg(__func__, "OVERLAP: %d\n", ol);
@@ -935,7 +935,7 @@ int merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 						i = 0;
 					}
 				} else {
-					ol = find_fr_ol_within_k(t->ctg, mt->ctg, N_MISMATCHES,
+					ol = find_fr_ol_within_k(t->ctg, mt->ctg, MORE_MISMATCH,
 							ht->o->k, ht->o->read_len, 0, &rev_com, &n_mis);
 					show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 					if (ol >= ht->o->k && ol >= n_mis * ht->o->k) {

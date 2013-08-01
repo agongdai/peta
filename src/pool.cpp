@@ -418,7 +418,7 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		//p_query("FRESH", m);
 		//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 
-		if (ol >= ht->o->k - 1) {
+		if (ol >= ht->o->k - 1 && ol >= n_mis * ht->o->k) {
 			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol, tail->len - ol);
 			//p_query(__func__, part);
 			if (is_biased_q(part) || has_n(part, 1)) {
@@ -478,7 +478,7 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 		ol = find_fr_ol_within_k(m, ol_tail, mismatches, tail_len - 1, full_tail_len
 				- 1, ori, &rev_com, &n_mis);
 		//show_debug_msg("TAG", "OL: %d\n", ol);
-		if (ol >= ht->o->k) {
+		if (ol >= ht->o->k && ol >= n_mis * ht->o->k) {
 			m->rev_com = rev_com;
 			m->cursor = ori ? (m->len - ol - 1) : ol;
 			m->pos = n_mis;
@@ -492,7 +492,7 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 	// With even shorter overlap and less mismatches allow.
 	// Base by base overlapping.
 	if (!added) {
-		find_match_mates(ht, p, t, ht->o->read_len - 1, 0, ori);
+		find_match_mates(ht, p, t, ht->o->read_len - 1, mismatches, ori);
 	}
 	g_ptr_array_free(mates, TRUE);
 	bwa_free_read_seq(1, q_tail);
