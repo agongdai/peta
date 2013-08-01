@@ -101,7 +101,7 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 			add2tpl(left, r, new_locus);
 		}
 	}
-	while (right->reads->len)
+	while (right->reads->len > 0)
 		g_ptr_array_remove_index_fast(right->reads, 0);
 
     // The junctions on the right now go to the left template

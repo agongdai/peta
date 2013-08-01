@@ -484,7 +484,7 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 		 bwa_seq_t *key_seq = get_key_seq(key, 11);
 		 p_query(__func__, key_seq);
 		 bwa_free_read_seq(1, key_seq);
-		 **/
+		**/
 
 		start = ht->k_mers_occ_acc[key];
 		end = (key >= opt->n_k_mers) ?

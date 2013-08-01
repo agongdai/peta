@@ -126,11 +126,11 @@ void rm_from_pool(pool *p, int index) {
  * Count frequencies of next characters, get the most frequent one.
  * If -1: all of them are 0
  */
-int get_next_char(pool *p, tpl *t, const int ori) {
+int get_next_char(hash_table *ht, pool *p, tpl *t, const int ori) {
 	readarray *reads = p->reads;
 	float *c = NULL, weight = 0.0, max_c = 0.0;
 	int i = 0, next_char = -1;
-	bwa_seq_t *r = NULL;
+	bwa_seq_t *r = NULL, *m = NULL;
 	int pre_cursor = 0, this_c = 0, pre_c = 0, counted = 0;
 	int pre_t_c = ori ? t->ctg->seq[0] : t->ctg->seq[t->len - 1];
 
@@ -153,10 +153,14 @@ int get_next_char(pool *p, tpl *t, const int ori) {
 		// Simply ignore 'N's
 		if (this_c == 4)
 			continue;
+		m = get_mate(r, ht->seqs);
 		// The overlap length with template
 		weight = ori ? (r->len - r->cursor - 1) : r->cursor;
 		// Minus the mismatches with the template
 		weight -= r->pos * MISMATCH_WEIGHT;
+		// If its mate is on the same template, triple the weight
+		if (m->status == USED && m->contig_id == t->id)
+			weight *= MATE_MULTI;
 		c[this_c] += weight;
 		counted++;
 		// At most count MAX_POOL_N_READS reads, in case the pool is large
@@ -394,9 +398,9 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		return;
 	}
 
-	//p_tpl(t);
-	//show_debug_msg(__func__, "ORI: %d \n", ori);
-	//p_query(__func__, tail);
+	p_tpl(t);
+	show_debug_msg(__func__, "ORI: %d \n", ori);
+	p_query(__func__, tail);
 
 	for (i = 0; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
@@ -408,13 +412,13 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 			continue;
 		}
 		// Find the overlapping between mate and tail
-		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k, tail_len - 1,
+		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1, tail_len - 1,
 				ori, &rev_com, &n_mis);
-		//p_query("USED ", r);
-		//p_query("FRESH", m);
-		//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
+		p_query("USED ", r);
+		p_query("FRESH", m);
+		show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 
-		if (ol >= ht->o->k) {
+		if (ol >= ht->o->k - 1) {
 			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol, tail->len - ol);
 			//p_query(__func__, part);
 			if (is_biased_q(part) || has_n(part, 1)) {
@@ -488,7 +492,7 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 	// With even shorter overlap and less mismatches allow.
 	// Base by base overlapping.
 	if (!added) {
-		find_match_mates(ht, p, t, tail_len, 0, ori);
+		find_match_mates(ht, p, t, ht->o->read_len - 1, 0, ori);
 	}
 	g_ptr_array_free(mates, TRUE);
 	bwa_free_read_seq(1, q_tail);
