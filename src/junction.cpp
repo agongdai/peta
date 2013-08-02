@@ -166,57 +166,69 @@ GPtrArray *find_junc_reads_w_tails(hash_table *ht, tpl *main_tpl,
 
 
 /**
- * Use read-length tail to search,
- * 	find those templates could be connected to current branch
+ * Validate the junction by checking mate pairs.
+ * Depending on ori and con_pos, only partial reads on the main template are counted
  */
-GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
-		tpl *branch, const int ori) {
-	bwa_seq_t *tail = NULL, *r = NULL, *tail_shift = NULL;
-	index64 main_id = 0;
-	int read_len = ht->o->read_len;
-	int i = 0;
-	ubyte_t x = 0;
-	GPtrArray *mains = g_ptr_array_sized_new(0);
-	GPtrArray *hits = NULL;
-
-	tail = get_tail(branch, ht->o->read_len, ori);
-
-	// If the tail is like 'AAAAAAATAAAA', ignore
-	if (is_biased_q(tail) || tail->len < ht->o->read_len) {
-		bwa_free_read_seq(1, tail);
-		return mains;
+int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, GPtrArray *junc_reads,
+		hash_table *ht, const int con_pos, const int ins_size, const int ori) {
+	int start = con_pos, end = main_tpl->len;
+	int is_valid = 0, seg_len = 0;
+	GPtrArray *tmp = NULL;
+	//return 1;
+	seg_len += branch_tpl->len;
+	if (ori) {
+		seg_len += con_pos;
+		if (main_tpl->l_tail)
+			seg_len += main_tpl->l_tail->len;
+		if (branch_tpl->r_tail)
+			seg_len += branch_tpl->r_tail->len;
+	} else {
+		seg_len += main_tpl->len - con_pos;
+		if (main_tpl->r_tail)
+			seg_len += main_tpl->r_tail->len;
+		if (branch_tpl->l_tail)
+			seg_len += branch_tpl->l_tail->len;
+	}
+	// If the length is too short, do not do the validation
+	if (seg_len < ins_size + 100)
+		return 1;
+	if (ori) {
+		start = 0;
+		end = con_pos - ht->o->read_len;
 	}
 
-	// Try ACGT four directions
-	for (x = 0; x < 4; x++) {
-		tail_shift = new_seq(tail, tail->len, 0);
-		ext_que(tail_shift, x, ori);
+	/**
+	 show_debug_msg(__func__, "Main: [%d, %d]; Branch: [%d, %d]; Start~End: [%d, %d]\n",
+	 main_tpl->id, main_tpl->len, branch_tpl->id, branch_tpl->len, start, end);
+	 show_debug_msg(__func__, "Range [%d, %d]; ORI: %d\n", start, end, ori);
+	 show_debug_msg(__func__, "Main template %d reads: %d\n", main_tpl->id,
+	 main_tpl->reads->len);
+	 p_readarray(main_tpl->reads, 1);
+	 show_debug_msg(__func__, "Branch template %d reads: %d\n", branch_tpl->id,
+	 branch_tpl->reads->len);
+	 p_ctg_seq("BRANCH", branch_tpl->ctg);
+	 p_readarray(branch_tpl->reads, 1);
+	 **/
 
-		//p_query(__func__, tail_shift);
-
-		hits = find_both_fr_full_reads(ht, tail_shift, hits, N_MISMATCHES);
-		for (i = 0; i < hits->len; i++) {
-			r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-			//p_query(__func__, r);
-			//if (r->status != USED)
-			//	continue;
-			main_id = r->contig_id;
-			tpl_hash::iterator it = all_tpls->find(main_id);
-			if (it != all_tpls->end()) {
-				if (r->status == USED)
-					g_ptr_array_add(mains, r);
-			}
+	g_ptr_array_sort(branch_tpl->reads, (GCompareFunc) cmp_reads_by_name);
+	is_valid = vld_tpl_mates(branch_tpl, main_tpl, start, end, MIN_PAIRS);
+	if (!is_valid) {
+		/**
+		 show_debug_msg(__func__, "Tag 1 \n");
+		 p_readarray(main_tpl->reads, 1);
+		 show_debug_msg(__func__, "Tag 2\n");
+		 p_readarray(junc_reads, 1);
+		 **/
+		// Maybe exon shorter than read length, the mates located at the junction
+		g_ptr_array_sort(junc_reads, (GCompareFunc) cmp_reads_by_name);
+		is_valid = find_pairs(junc_reads, main_tpl->reads, 0, main_tpl->id,
+				start, end, MIN_PAIRS);
+		if (!is_valid) {
+			is_valid = find_pairs(junc_reads, branch_tpl->reads, 0,
+					branch_tpl->id, 0, branch_tpl->len, MIN_PAIRS);
 		}
-		bwa_free_read_seq(1, tail_shift);
 	}
-	mains = rm_duplicates(mains);
-	for (i = 0; i < mains->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(mains, i);
-		//p_query(__func__, r);
-	}
-
-	bwa_free_read_seq(1, tail);
-	return mains;
+	return is_valid;
 }
 
 /**

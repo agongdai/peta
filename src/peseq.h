@@ -25,6 +25,7 @@ extern "C" {
 	gint cmp_reads_by_contig_id(gpointer a, gpointer b);
 	gint cmp_reads_by_contig_locus(gpointer a, gpointer b);
 	GPtrArray *rm_duplicates(GPtrArray *reads);
+	GPtrArray *rm_dup_connectors(GPtrArray *reads);
 	void save_fq(const bwa_seq_t *seqs, const char *fp_fn, const uint16_t ol);
 	bwa_seq_t *merge_seq_to_right(bwa_seq_t *s1, bwa_seq_t *s2, const int gap);
 	int trun_seq(bwa_seq_t *s, const int shift);

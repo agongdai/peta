@@ -63,6 +63,34 @@ GPtrArray *rm_duplicates(GPtrArray *reads) {
 }
 
 /**
+ * Remove reads with the same contig id and contig locus;
+ * To avoid duplcate trial in connect_by_full_length
+ */
+GPtrArray *rm_dup_connectors(GPtrArray *reads) {
+	int i = 0, *locus = NULL;
+	bwa_seq_t *pre = NULL, *post = NULL;
+	GPtrArray *uni_reads = NULL;
+	if (!reads || reads->len < 2) {
+		return reads;
+	}
+	uni_reads = g_ptr_array_sized_new(reads->len);
+	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_contig_locus);
+	pre = (bwa_seq_t*) g_ptr_array_index(reads, 0);
+	g_ptr_array_add(uni_reads, pre);
+	for (i = 1; i < reads->len; i++) {
+		post = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		if (post->contig_id == pre->contig_id && post->contig_locus
+				== pre->contig_locus) {
+		} else {
+			g_ptr_array_add(uni_reads, post);
+			pre = post;
+		}
+	}
+	g_ptr_array_free(reads, TRUE);
+	return uni_reads;
+}
+
+/**
  * Save the query into disk.
  */
 void save_fq(const bwa_seq_t *seqs, const char *fp_fn, const uint16_t ol) {
@@ -530,7 +558,6 @@ void save_con(const char *header, const bwa_seq_t *contig, FILE *tx_fp) {
 		fputc('\n', tx_fp);
 }
 
-
 int same_q(const bwa_seq_t *query, const bwa_seq_t *seq) {
 	if (query->len != seq->len)
 		return 0;
@@ -901,7 +928,8 @@ int find_fr_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tail,
 	int olpped = 0;
 	//p_ctg_seq(__func__, mate);
 	//p_ctg_seq(__func__, tail);
-	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori, n_mis);
+	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori,
+			n_mis);
 	if (olpped >= min_len && olpped <= max_len) {
 		*rev_com = 0;
 		return olpped;
@@ -911,7 +939,8 @@ int find_fr_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tail,
 	switch_fr(mate);
 	//p_ctg_seq(__func__, mate);
 	//p_ctg_seq(__func__, tail);
-	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori, n_mis);
+	olpped = find_ol_within_k(mate, tail, mismatches, min_len, max_len, ori,
+			n_mis);
 	if (olpped >= min_len && olpped <= max_len) {
 		*rev_com = 1;
 		switch_fr(mate);
