@@ -579,6 +579,9 @@ int too_many_ns(const ubyte_t *s, const int k) {
 		return 0;
 }
 
+/**
+ * Never use the low quality reads: with half N's in reads; repetitive reads
+ */
 void mark_low_qua_reads(bwa_seq_t *seqs, index64 n_seqs) {
 	index64 i = 0, n_dead = 0;
 	bwa_seq_t *r = NULL;
@@ -592,7 +595,7 @@ void mark_low_qua_reads(bwa_seq_t *seqs, index64 n_seqs) {
 			//p_query("DEAD", r);
 		}
 	}
-	show_debug_msg(__func__, "N_DEADS: %d\n", n_dead);
+	show_msg(__func__, "N_DEADS: %d\n", n_dead);
 }
 
 /**

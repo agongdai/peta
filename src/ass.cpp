@@ -529,7 +529,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 	//p_ctg_seq("TEMPLATE", t->ctg);
 
 	while (1) {
-		if (same_bytes(tail->seq, tail->len)) {
+		if (same_bytes(tail->seq, tail->len) || is_repetitive_q(tail)) {
 			show_debug_msg(__func__, "Repetitive tail, stop.\n");
 			p_query(__func__, tail);
 			break;
@@ -744,7 +744,7 @@ void kmer_threads(kmer_t_meta *params) {
 	bwa_seq_t *r = NULL, *seqs = ht->seqs;
 	kmer_counter *counter = NULL;
 	GPtrArray *starting_reads = g_ptr_array_sized_new(ht->n_seqs);
-	GPtrArray *low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
+	GPtrArray *low_reads = NULL;
 
 	for (i = 0; i < ht->n_seqs; i++) {
 		r = &seqs[i];
@@ -777,6 +777,7 @@ void kmer_threads(kmer_t_meta *params) {
 
 	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
 
+	low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
 	// Reset not USED reads to FRESH
 	for (i = 0; i < ht->n_seqs; i++) {
 		r = &seqs[i];
