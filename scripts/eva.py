@@ -874,6 +874,10 @@ def comps(args):
             line = line.strip()
             fs = line.split("\t")
             components[fs[0]] = fs[1]
+            
+    n_covered = 0
+    n_not_covered = 0
+    n_abit_shorter = 0
     with open(args.id_file) as ids:
         for line in ids:
             ref = line.strip()
@@ -882,6 +886,7 @@ def comps(args):
                 hit_str += '\t0\t0\t0\n'
             else:
                 comps = {}
+                comp_hits = {}
                 hits = ref_hits[ref]
                 hit_str += '\t%d' % len(hits)
                 n_vertexes = 0
@@ -892,11 +897,44 @@ def comps(args):
                     comp_id = fs[0]
                     if comp_id in comps:
                         comps[comp_id] += 1
+                        comp_hits[comp_id] = []
                     else:
                         n_vertexes += int(components[comp_id])
                         comps[comp_id] = 1
+                    comp_hits[comp_id].append(h)
                 hit_str += '\t%d' % len(comps)
                 hit_str += '\t%d' % n_vertexes
+                
+                covered = False
+                for comp_id, this_hits in comp_hits.iteritems():
+                	if covered:
+                		break
+                	if len(this_hits) == 1:
+                		h = this_hits[0]
+                		if abs(h.rstart - h.rend) >= h.rlen - 50:
+                			n_abit_shorter += 1
+                			print h
+                			break
+                	else:
+                		this_hits.sort(key=lambda x: x.rstart)
+                		pre_h = None
+                		for h in this_hits:
+                			if pre_h is None:
+                				pre_h = h
+                				if h.rstart >= 20:
+                					break
+                			else:
+                				if (h.rstart - pre_h.rend) > 20:
+                					break
+                			if h == this_hits[len(this_hits) - 1]:
+                				if h.rlen - h.rend > 20:
+                					break
+                				n_covered += 1
+                		  		covered = True
+                		  		print this_hits
+                if not covered:
+                	n_not_covered += 1
+                continue
 
                 smaller_than_k = False
                 gap_in_between = False
@@ -931,6 +969,9 @@ def comps(args):
                 else:
                     hit_str += '\tMixed'
                 print hit_str
+		print 'n_covered: %d' % (n_covered)
+		print 'n_abit_shorter: %d' % (n_abit_shorter)
+		print 'n_not_covered: %d' % (n_not_covered)
 
 
 def main():
