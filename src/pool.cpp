@@ -265,7 +265,6 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 	for (i = start; i <= end; i++) {
 		tail = new_seq(read, tail_len, i);
 		//p_query("TAIL", tail);
-		hits = g_ptr_array_sized_new(4);
 		hits = align_tpl_tail(ht, t, tail, i, mismatches, FRESH, ori);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);

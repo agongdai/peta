@@ -261,60 +261,6 @@ tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
 }
 
 /**
- * Use read-length tail to search,
- * 	find those templates could be connected to current branch
- */
-GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
-		tpl *branch, const int ori) {
-	bwa_seq_t *tail = NULL, *r = NULL, *tail_shift = NULL;
-	index64 main_id = 0;
-	int read_len = ht->o->read_len;
-	int i = 0;
-	ubyte_t x = 0;
-	GPtrArray *mains = g_ptr_array_sized_new(0);
-	GPtrArray *hits = NULL;
-
-	tail = get_tail(branch, ht->o->read_len, ori);
-
-	// If the tail is like 'AAAAAAATAAAA', ignore
-	if (is_biased_q(tail) || tail->len < ht->o->read_len) {
-		bwa_free_read_seq(1, tail);
-		return mains;
-	}
-
-	// Try ACGT four directions
-	for (x = 0; x < 4; x++) {
-		tail_shift = new_seq(tail, tail->len, 0);
-		ext_que(tail_shift, x, ori);
-
-		//p_query(__func__, tail_shift);
-
-		hits = find_both_fr_full_reads(ht, tail_shift, hits, N_MISMATCHES);
-		for (i = 0; i < hits->len; i++) {
-			r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-			//p_query(__func__, r);
-			//if (r->status != USED)
-			//	continue;
-			main_id = r->contig_id;
-			tpl_hash::iterator it = all_tpls->find(main_id);
-			if (it != all_tpls->end()) {
-				if (r->status == USED)
-					g_ptr_array_add(mains, r);
-			}
-		}
-		bwa_free_read_seq(1, tail_shift);
-	}
-	mains = rm_duplicates(mains);
-	for (i = 0; i < mains->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(mains, i);
-		//p_query(__func__, r);
-	}
-
-	bwa_free_read_seq(1, tail);
-	return mains;
-}
-
-/**
  * During extension, if it reaches some read which is used already, try to connect to it.
  */
 int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
@@ -726,6 +672,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		set_rev_com(t->ctg);
 		refresh_tpl_reads(ht, t, N_MISMATCHES);
 		pre_n_reads = t->reads->len;
+		bwa_free_read_seq(1, query);
 		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 
 		// Maybe marked as not alive in last extension
@@ -739,7 +686,6 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		}
 
 		// Then extend to the left
-		bwa_free_read_seq(1, query);
 		query = get_tail(t, kmer_len, ori);
 		p = new_pool();
 		init_pool(ht, p, t, kmer_len, N_MISMATCHES, ori);
@@ -839,33 +785,35 @@ void kmer_threads(kmer_t_meta *params) {
 		//	break;
 	}
 
-//	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
-//
-//	// Reset not USED reads to FRESH
-//	for (i = 0; i < ht->n_seqs; i++) {
-//		r = &seqs[i];
-//		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
-//		if (r->status != USED && r->status != DEAD) {
-//			reset_to_fresh(r);
-//			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
-//			counter->kmer = i;
-//			counter->count = 0;
-//			g_ptr_array_add(low_reads, counter);
-//		}
-//	}
-//
-//	sort_by_kmers(ht, low_reads);
-//	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
-//	for (i = 0; i < low_reads->len / 2; i++) {
-//		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
-//		// If the read does not even share any 11-mer with others, ignore
-//		if (counter->count <= (ht->o->read_len - ht->o->k) * 2)
-//			continue;
-//		if (i % 100000 == 0)
-//			show_msg(__func__, "Extending %" ID64 "-th low read... \n", i);
-//		kmer_ext_thread(counter, params);
-//		free(counter);
-//	}
+	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
+
+	// Reset not USED reads to FRESH
+	for (i = 0; i < ht->n_seqs; i++) {
+		r = &seqs[i];
+		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
+		if (r->status != USED && r->status != DEAD) {
+			reset_to_fresh(r);
+			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
+			counter->kmer = i;
+			counter->count = 0;
+			g_ptr_array_add(low_reads, counter);
+		}
+	}
+
+	sort_by_kmers(ht, low_reads);
+	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
+	for (i = 0; i < low_reads->len / 4; i++) {
+		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
+		// If the read does not even share any 11-mer with others, ignore
+		if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
+			free(counter);
+			continue;
+		}
+		if (i % 100000 == 0)
+			show_msg(__func__, "Extending %" ID64 "-th low read... \n", i);
+		kmer_ext_thread(counter, params);
+		free(counter);
+	}
 
 	g_thread_pool_free(thread_pool, 0, 1);
 	g_ptr_array_free(starting_reads, TRUE);

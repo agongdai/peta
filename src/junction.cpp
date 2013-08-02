@@ -164,6 +164,61 @@ GPtrArray *find_junc_reads_w_tails(hash_table *ht, tpl *main_tpl,
 	return reads;
 }
 
+
+/**
+ * Use read-length tail to search,
+ * 	find those templates could be connected to current branch
+ */
+GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
+		tpl *branch, const int ori) {
+	bwa_seq_t *tail = NULL, *r = NULL, *tail_shift = NULL;
+	index64 main_id = 0;
+	int read_len = ht->o->read_len;
+	int i = 0;
+	ubyte_t x = 0;
+	GPtrArray *mains = g_ptr_array_sized_new(0);
+	GPtrArray *hits = NULL;
+
+	tail = get_tail(branch, ht->o->read_len, ori);
+
+	// If the tail is like 'AAAAAAATAAAA', ignore
+	if (is_biased_q(tail) || tail->len < ht->o->read_len) {
+		bwa_free_read_seq(1, tail);
+		return mains;
+	}
+
+	// Try ACGT four directions
+	for (x = 0; x < 4; x++) {
+		tail_shift = new_seq(tail, tail->len, 0);
+		ext_que(tail_shift, x, ori);
+
+		//p_query(__func__, tail_shift);
+
+		hits = find_both_fr_full_reads(ht, tail_shift, hits, N_MISMATCHES);
+		for (i = 0; i < hits->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(hits, i);
+			//p_query(__func__, r);
+			//if (r->status != USED)
+			//	continue;
+			main_id = r->contig_id;
+			tpl_hash::iterator it = all_tpls->find(main_id);
+			if (it != all_tpls->end()) {
+				if (r->status == USED)
+					g_ptr_array_add(mains, r);
+			}
+		}
+		bwa_free_read_seq(1, tail_shift);
+	}
+	mains = rm_duplicates(mains);
+	for (i = 0; i < mains->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(mains, i);
+		//p_query(__func__, r);
+	}
+
+	bwa_free_read_seq(1, tail);
+	return mains;
+}
+
 /**
  * Update the junction locus for those tpls connected to itself.
  * Because the locus is not correct when the junction is recorded.
