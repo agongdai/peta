@@ -370,11 +370,11 @@ int branch_on_main(const bwa_seq_t *main_seq, const bwa_seq_t *branch,
 		sub = new_seq(main_seq, branch->len, pos);
 	}
 
-	p_ctg_seq("FULL", main_seq);
-	p_ctg_seq(__func__, sub);
-	p_ctg_seq(__func__, branch);
+	//p_ctg_seq("FULL", main_seq);
+	//p_ctg_seq(__func__, sub);
+	//p_ctg_seq(__func__, branch);
 	similar = (seq_ol(sub, branch, branch->len, mismatches) == -1) ? 0 : 1;
-	free_read_seq(sub);
+	bwa_free_read_seq(1, sub);
 	show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,
 			similar);
 	return similar;

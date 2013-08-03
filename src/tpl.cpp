@@ -30,7 +30,8 @@ void p_tpl(tpl *t) {
 	if (!t) {
 		show_debug_msg(__func__, "---- Template is NULL ----\n");
 	}
-	show_debug_msg(__func__, "---- Template %d alive: %d ----\n", t->id, t->alive);
+	show_debug_msg(__func__, "---- Template %d alive: %d ----\n", t->id,
+			t->alive);
 	show_debug_msg(__func__, "\t Length: %d \n", t->len);
 	if (t->reads)
 		show_debug_msg(__func__, "\t Reads: %d\n", t->reads->len);
@@ -129,7 +130,7 @@ void mv_unpaired_to_tried(bwa_seq_t *seqs, tpl *t, const int n_tpls) {
 		return;
 	if (!t->tried)
 		t->tried = g_ptr_array_sized_new(4);
-	while(t->tried->len > 0)
+	while (t->tried->len > 0)
 		g_ptr_array_remove_index_fast(t->tried, 0);
 	// flag[0] indicates template 0 has been tried with current template
 	flag = (uint8_t*) calloc(n_tpls, sizeof(uint8_t));
@@ -466,14 +467,15 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 			// For reads partially on left tail, the locus is negative
 			if (r->status == FRESH)
 				add2tpl(t, r, i - left_len);
-			else	// If already on the template, just update the locus
+			else
+				// If already on the template, just update the locus
 				r->contig_locus = i - left_len;
 		}
 		g_ptr_array_free(hits, TRUE);
 		bwa_free_read_seq(1, window);
 	}
 	bwa_free_read_seq(1, seq);
-	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
+	//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
 }
 
 /**
@@ -774,9 +776,12 @@ void destroy_tpl(tpl *t) {
 	bwa_seq_t *r = NULL;
 	if (t) {
 		show_debug_msg(__func__, "Freeing tpl [%d, %d] \n", t->id, t->len);
-		bwa_free_read_seq(1, t->ctg);
-		bwa_free_read_seq(1, t->r_tail);
-		bwa_free_read_seq(1, t->l_tail);
+		if (t->ctg)
+			bwa_free_read_seq(1, t->ctg);
+		if (t->r_tail)
+			bwa_free_read_seq(1, t->r_tail);
+		if (t->l_tail)
+			bwa_free_read_seq(1, t->l_tail);
 		if (t->vertexes)
 			g_ptr_array_free(t->vertexes, TRUE);
 		if (t->reads) {

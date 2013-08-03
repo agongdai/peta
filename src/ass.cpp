@@ -129,7 +129,7 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 		ext_que(tail_shift, x, ori);
 
 		//p_query(__func__, tail_shift);
-
+		hits = g_ptr_array_sized_new(0);
 		hits = find_both_fr_full_reads(ht, tail_shift, hits, N_MISMATCHES);
 		for (i = 0; i < hits->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, i);
@@ -143,6 +143,7 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 					g_ptr_array_add(mains, r);
 			}
 		}
+		g_ptr_array_free(hits, TRUE);
 		bwa_free_read_seq(1, tail_shift);
 	}
 	//mains = rm_duplicates(mains);
@@ -774,6 +775,7 @@ void kmer_threads(kmer_t_meta *params) {
 		//if (kmer_ctg_id >= 3)
 		//	break;
 	}
+	g_ptr_array_free(starting_reads, TRUE);
 
 	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
 
@@ -807,7 +809,6 @@ void kmer_threads(kmer_t_meta *params) {
 	}
 
 	g_thread_pool_free(thread_pool, 0, 1);
-	g_ptr_array_free(starting_reads, TRUE);
 	g_ptr_array_free(low_reads, TRUE);
 }
 
