@@ -243,7 +243,35 @@ void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori) {
 			add2tried(t, r);
 		}
 	}
+}
 
+/**
+ * If the base before current cursor is not the same as template, remove from pool
+ */
+void rm_bad_ol_reads(pool *p, tpl *t, const int ori) {
+	int i = 0, pre_cursor = 0, pre_pre_cursor = 0;
+	bwa_seq_t *r = NULL;
+	ubyte_t pre_tpl_c = 0, pre_pre_tpl_c = 0, pre_read_c = 0, pre_pre_read_c =
+			0;
+	if (t->len < 2)
+		return;
+	pre_tpl_c = ori ? t->ctg->seq[0] : t->ctg->seq[t->len - 1];
+	pre_pre_tpl_c = ori ? t->ctg->seq[1] : t->ctg->seq[t->len - 2];
+	for (i = 0; i < p->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
+		pre_cursor = ori ? r->cursor + 1 : r->cursor - 1;
+		pre_pre_cursor = ori ? r->cursor + 2 : r->cursor - 2;
+		if (pre_cursor < 0 || pre_cursor >= r->len || pre_pre_cursor < 0
+				|| pre_pre_cursor >= r->len)
+			continue;
+		pre_read_c = r->rev_com ? r->rseq[pre_cursor] : r->seq[pre_cursor];
+		pre_pre_read_c = r->rev_com ? r->rseq[pre_pre_cursor]
+				: r->seq[pre_pre_cursor];
+		if (pre_read_c != pre_tpl_c && pre_pre_read_c != pre_pre_tpl_c) {
+			rm_from_pool(p, i--);
+			add2tried(t, r);
+		}
+	}
 }
 
 /**
@@ -532,5 +560,6 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 	if (!added) {
 		find_match_mates(ht, p, t, ht->o->read_len - 1, mismatches, ori);
 	}
+	rm_bad_ol_reads(p, t, ori);
 	keep_fewer_mis_reads(p);
 }

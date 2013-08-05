@@ -82,11 +82,13 @@ extern "C" {
 			int mismatches, int8_t status, int ori);
 	int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,
 			int start_2, int end_2, const int min_n_pairs);
+	int paired_by_reads(bwa_seq_t *seqs, tpl *t_1, tpl *t_2, int n_pairs);
 	void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read, int mismatches);
 	void unfrozen_tried(tpl *t);
 	int find_tried_tpl(tpl *t, const int tid);
 	void add2tried(tpl *t, bwa_seq_t *r);
 	void rm_from_tpl(tpl *t, int index);
+	void rm_from_tried(tpl *t, const int rm_id);
 	void unhold_reads_array(GPtrArray *reads);
 	bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len);
 	void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches);

@@ -1025,6 +1025,7 @@ def main():
     parser_comps.add_argument('psl', help='component-to-ref PSL file')
     parser_comps.add_argument('id_file', help='file of id list to check')
     parser_comps.add_argument('csv', help='components.csv')
+
 	
     args = parser.parse_args()
     args.func(args)

@@ -45,6 +45,27 @@ def read_junctions(junction_file):
             junctions.append(new_j)
     return junctions
 
+def junc(args):
+    n_branch_on_main = 0
+    junctions = read_junctions(args.jun)
+    hits = read_blat_hits(args.psl, 'query')
+    for j in junctions:
+        stop = False
+        for h in hits[j.main]:
+            if stop:
+                break
+            for h_query in hits[j.branch]:
+                if h.rname == h_query.rname:
+                    if (h.rstart >= h_query.rstart and h.rend <= h_query.rend) or (h.rstart <= h_query.rstart and h.rend >= h_query.rend):
+                        print '--- %s ---' % h.rname
+                        print j
+                        print h
+                        print h_query
+                        n_branch_on_main += 1
+                        stop = True
+                        break
+    print 'n_branch_on_main: %d / %d ' % (n_branch_on_main, len(junctions))
+
 def simple_format_junctions(args):
     junctions = read_junctions(args.junc)
     with open(args.junc + '.nolen', 'w') as simple:
@@ -434,6 +455,11 @@ def main():
     parser_exon.add_argument('-t', '--annotated', default='/home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta.rev', help='annotated transcript file')
     parser_exon.add_argument('-l', '--read_len', default=68, type=int, help='read length')
     parser_exon.add_argument('-i', '--ins_size', required=False, default=0, type=int, help='insert size')
+
+    parser_junc = subparsers.add_parser('junc', help='Check whether the junction templates are aligned to the same transcript')
+    parser_junc.set_defaults(func=junc)
+    parser_junc.add_argument('psl', help='paired-to-ref PSL file')
+    parser_junc.add_argument('jun', help='.junctions file')
 
     args = parser.parse_args()
     args.func(args)

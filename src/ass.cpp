@@ -777,37 +777,37 @@ void kmer_threads(kmer_t_meta *params) {
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 
-	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
-
-	low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
-	// Reset not USED reads to FRESH
-	for (i = 0; i < ht->n_seqs; i++) {
-		r = &seqs[i];
-		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
-		if (r->status != USED && r->status != DEAD) {
-			reset_to_fresh(r);
-			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
-			counter->kmer = i;
-			counter->count = 0;
-			g_ptr_array_add(low_reads, counter);
-		}
-	}
-
-	sort_by_kmers(ht, low_reads);
-	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
-	for (i = 0; i < low_reads->len / 100; i++) {
-		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
-		// If the read does not even share any 11-mer with others, ignore
-		if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
-			free(counter);
-			continue;
-		}
-		if (i % 100000 == 0)
-			show_msg(__func__, "Extending %" ID64 "-th low read... \n", i);
-		kmer_ext_thread(counter, params);
-		free(counter);
-	}
-	g_ptr_array_free(low_reads, TRUE);
+//	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
+//
+//	low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
+//	// Reset not USED reads to FRESH
+//	for (i = 0; i < ht->n_seqs; i++) {
+//		r = &seqs[i];
+//		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
+//		if (r->status != USED && r->status != DEAD) {
+//			reset_to_fresh(r);
+//			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
+//			counter->kmer = i;
+//			counter->count = 0;
+//			g_ptr_array_add(low_reads, counter);
+//		}
+//	}
+//
+//	sort_by_kmers(ht, low_reads);
+//	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
+//	for (i = 0; i < low_reads->len / 100; i++) {
+//		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
+//		// If the read does not even share any 11-mer with others, ignore
+//		if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
+//			free(counter);
+//			continue;
+//		}
+//		if (i % 100000 == 0)
+//			show_msg(__func__, "Extending %" ID64 "-th low read... \n", i);
+//		kmer_ext_thread(counter, params);
+//		free(counter);
+//	}
+//	g_ptr_array_free(low_reads, TRUE);
 
 	g_thread_pool_free(thread_pool, 0, 1);
 }
@@ -948,8 +948,7 @@ int merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 					continue;
 				}
 				// At least 2 pairs spanning them
-				paired = find_pairs(t->reads, mt->reads, t->id, mt->id, 0,
-						mt->len, MIN_PAIRS);
+				paired = paired_by_reads(ht->seqs, t, mt, MIN_PAIRS);
 				//show_debug_msg(__func__, "Paired: %d \n", paired);
 				if (!paired) {
 					g_ptr_array_remove_index_fast(t->tried, i--);
@@ -980,6 +979,7 @@ int merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 						}
 					}
 					g_ptr_array_remove_index_fast(t->tried, i--);
+					rm_from_tried(t, mt->id);
 				}
 				//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 				//p_readarray(t->reads, 1);

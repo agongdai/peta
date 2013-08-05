@@ -39,6 +39,7 @@ extern "C" {
 			int mismatches, int ori);
 	void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 			int mismatches, int ori);
+	void rm_bad_ol_reads(pool *p, tpl *t, const int ori);
 
 #ifdef __cplusplus
 }

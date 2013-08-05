@@ -83,6 +83,7 @@ tpl *new_tpl() {
 /**
  * The t->tried stores the template ids which have been tried to merge with current template.
  * Used by merge_tpls_by_hash
+ * @Desperate
  */
 int find_tried_tpl(tpl *t, const int tid) {
 	int i = 0, found = 0;
@@ -138,7 +139,6 @@ void unfrozen_tried(tpl *t) {
  * Used for merging. To save time.
  *
  * If there are multiple reads spanning two templates, add only one
- * @Desperate: still too slow
  */
 void mv_unpaired_to_tried(bwa_seq_t *seqs, tpl *t, const int n_tpls) {
 	int i = 0;
@@ -165,6 +165,9 @@ void mv_unpaired_to_tried(bwa_seq_t *seqs, tpl *t, const int n_tpls) {
 	free(flag);
 }
 
+/**
+ * Check whether the template is with high coverage
+ */
 int is_high_cov(tpl *t) {
 	float cov = 0.0;
 	int read_len = 0;
@@ -325,6 +328,36 @@ int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,
 			}
 		}
 		if (n_pairs >= min_n_pairs)
+			return 1;
+	}
+	return 0;
+}
+
+/**
+ * From the attributes on the reads, check whether two templates have pairs.
+ */
+int paired_by_reads(bwa_seq_t *seqs, tpl *t_1, tpl *t_2, int n_pairs) {
+	int i = 0, found_pairs = 0;
+	int loop_id = 0, pair_id = 0;
+	tpl *t = NULL;
+	bwa_seq_t *r = NULL, *m = NULL;
+	if (t_1->reads->len > t_2->reads->len) {
+		t = t_2;
+		loop_id = t_2->id;
+		pair_id = t_1->id;
+	} else {
+		t = t_1;
+		loop_id = t_1->id;
+		pair_id = t_2->id;
+	}
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		m = get_mate(r, seqs);
+		if (r->status == USED && m->status == USED && r->contig_id == loop_id
+				&& m->contig_id == pair_id) {
+			found_pairs++;
+		}
+		if (found_pairs >= n_pairs)
 			return 1;
 	}
 	return 0;
@@ -644,6 +677,21 @@ void rm_from_tpl(tpl *t, int index) {
 	bwa_seq_t * r = (bwa_seq_t*) g_ptr_array_index(t->reads, index);
 	reset_to_fresh(r);
 	g_ptr_array_remove_index_fast(t->reads, index);
+}
+
+/**
+ * From the tried, remove the reads with contig id as rm_id
+ */
+void rm_from_tried(tpl *t, const int rm_id) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < t->tried->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
+		if (r->contig_id == rm_id) {
+			g_ptr_array_remove_index_fast(t->tried, i);
+			break;
+		}
+	}
 }
 
 /**
