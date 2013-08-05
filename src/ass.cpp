@@ -20,12 +20,12 @@
 #include "pechar.h"
 #include "utils.h"
 #include "peseq.h"
-#include "kmers.hpp"
 #include "ass.hpp"
 #include "junction.hpp"
 #include "graph.hpp"
 #include "pool.hpp"
 #include "merge.hpp"
+#include "hash.hpp"
 
 using namespace std;
 
@@ -163,11 +163,11 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
  * The input template short_tpl is supposed to be shorter than k
  */
 
-tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
+tpl *connect_to_small_tpl(hash_table *ht, uint64_t query_int, tpl *branch_tpl,
 		tpl *short_tpl, int *parent_locus, int *borrow_bases, int ori) {
 	uint32_t i = 0;
 	uint64_t kmer_int = 0;
-	int max_len = hm->o->k - 1;
+	int max_len = ht->o->k - 1;
 	junction *j = NULL, *left_j = NULL, *right_j = NULL;
 	tpl *left = NULL, *right = NULL, *parent = NULL;
 	bwa_seq_t *left_seq = NULL, *right_seq = NULL, *junc_seq = NULL;
@@ -207,8 +207,8 @@ tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
 	set_rev_com(junc_seq);
 	//p_ctg_seq("JUNCTION", junc_seq);
 
-	for (i = 0; i <= junc_seq->len - hm->o->k; i++) {
-		kmer_int = get_kmer_int(junc_seq->seq, i, 1, hm->o->k);
+	for (i = 0; i <= junc_seq->len - ht->o->k; i++) {
+		kmer_int = get_kmer_int(junc_seq->seq, i, 1, ht->o->k);
 
 		/**
 		 show_debug_msg(__func__, "Debug %d: left_len: %d; right_len: %d \n", i,
@@ -226,7 +226,7 @@ tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
 					*parent_locus = i - left_seq->len;
 					parent = short_tpl;
 				} else {
-					*borrow_bases = hm->o->k - 1 - i;
+					*borrow_bases = ht->o->k - 1 - i;
 					*parent_locus = left_j->locus - *borrow_bases;
 					parent = left_j->main_tpl;
 				}
@@ -235,7 +235,7 @@ tpl *connect_to_small_tpl(hash_map *hm, uint64_t query_int, tpl *branch_tpl,
 					*parent_locus = i - left_seq->len;
 					parent = short_tpl;
 				} else {
-					*borrow_bases = hm->o->k - short_tpl->len - (left_seq->len
+					*borrow_bases = ht->o->k - short_tpl->len - (left_seq->len
 							- i) - 1;
 					*parent_locus = right_j->locus + *borrow_bases;
 					parent = right_j->main_tpl;
@@ -772,41 +772,41 @@ void kmer_threads(kmer_t_meta *params) {
 		kmer_ext_thread(counter, params);
 		free(counter);
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
-		//if (kmer_ctg_id >= 3)
-		//	break;
+		if (kmer_ctg_id >= 100)
+			break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 
-	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
-
-	low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
-	// Reset not USED reads to FRESH
-	for (i = 0; i < ht->n_seqs; i++) {
-		r = &seqs[i];
-		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
-		if (r->status != USED && r->status != DEAD) {
-			reset_to_fresh(r);
-			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
-			counter->kmer = i;
-			counter->count = 0;
-			g_ptr_array_add(low_reads, counter);
-		}
-	}
-
-	sort_by_kmers(ht, low_reads);
-	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
-	for (i = 0; i < low_reads->len / 4; i++) {
-		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
-		// If the read does not even share any 11-mer with others, ignore
-		if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
-			free(counter);
-			continue;
-		}
-		if (i % 100000 == 0)
-			show_msg(__func__, "Extending %" ID64 "-th low read... \n", i);
-		kmer_ext_thread(counter, params);
-		free(counter);
-	}
+//	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
+//
+//	low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
+//	// Reset not USED reads to FRESH
+//	for (i = 0; i < ht->n_seqs; i++) {
+//		r = &seqs[i];
+//		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
+//		if (r->status != USED && r->status != DEAD) {
+//			reset_to_fresh(r);
+//			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
+//			counter->kmer = i;
+//			counter->count = 0;
+//			g_ptr_array_add(low_reads, counter);
+//		}
+//	}
+//
+//	sort_by_kmers(ht, low_reads);
+//	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
+//	for (i = 0; i < low_reads->len / 4; i++) {
+//		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
+//		// If the read does not even share any 11-mer with others, ignore
+//		if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
+//			free(counter);
+//			continue;
+//		}
+//		if (i % 100000 == 0)
+//			show_msg(__func__, "Extending %" ID64 "-th low read... \n", i);
+//		kmer_ext_thread(counter, params);
+//		free(counter);
+//	}
 
 	g_thread_pool_free(thread_pool, 0, 1);
 	g_ptr_array_free(low_reads, TRUE);
@@ -899,7 +899,7 @@ int merge_paired_tpls(hash_table *ht, tpl_hash *all_tpls) {
 /**
  * Merge all templates by pairs and overlapping
  */
-void iter_merge(hash_table *ht, tpl_hash *all_tpls) {
+void iter_merge(hash_table *ht, tpl_hash *all_tpls, kmer_hash *tpl_kmer_hash) {
 	int merge_iter = 0, id = 0, merged = 1;
 	tpl *t = NULL;
 
@@ -938,6 +938,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	GPtrArray *read_tpls = NULL;
 	hash_table *ht = NULL;
     char *fn = NULL;
+    kmer_hash tpl_kmer_hash;
 
 	show_msg(__func__, "Library: %s \n", lib_file);
 
@@ -961,13 +962,16 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 
 	show_msg(__func__, "Merging %d templates by pairs and overlapping...\n",
 			all_tpls.size());
-	iter_merge(ht, &all_tpls);
+	build_tpl_hash(tpl_kmer_hash, &all_tpls, ht->o->k, ht->o->read_len);
+	iter_merge(ht, &all_tpls, &tpl_kmer_hash);
 
 	show_msg(__func__, "Saving contigs: %.2f sec\n",
 			(float) (kmer_finish_time.tv_sec - kmer_start_time.tv_sec));
     fn = get_output_file("paired.fa", kmer_out);
 	contigs = xopen(fn, "w");
 	read_tpls = hash_to_array(&all_tpls);
+	all_tpls.clear();
+
 	save_tpls(read_tpls, contigs, 0, 0, 0);
 	fflush(contigs);
 	fclose(contigs);

@@ -12,7 +12,6 @@
 #include "peseq.h"
 #include "bwtaln.h"
 #include "tpl.hpp"
-#include "kmers.hpp"
 #include "hash.hpp"
 #include "graph.hpp"
 #include "path.hpp"

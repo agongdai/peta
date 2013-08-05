@@ -451,7 +451,7 @@ void keep_fewer_mis_reads(pool *p) {
 			has_zero = 1;
 		else if (r->pos == 1)
 			has_one = 1;
-		if (has_one && has_zero)
+		if (has_zero)
 			break;
 	}
 	if (has_zero) {

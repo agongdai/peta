@@ -70,7 +70,7 @@ void p_hash_table(hash_table *ht) {
 		end = ht->k_mers_occ_acc[next];
 		if (end > start) {
 			show_debug_msg(__func__, "Kmer: %" ID64 "\n", i);
-			kmer = get_kmer_seq(i, o->k);
+			kmer = get_key_seq(i, o->k);
 			p_query("KMER", kmer);
 			for (j = start; j < end; j++) {
 				value = ht->pos[j];

@@ -775,7 +775,7 @@ void destroy_tpl(tpl *t) {
 	index64 i = 0;
 	bwa_seq_t *r = NULL;
 	if (t) {
-		show_debug_msg(__func__, "Freeing tpl [%d, %d] \n", t->id, t->len);
+		//show_debug_msg(__func__, "Freeing tpl [%d, %d] \n", t->id, t->len);
 		if (t->ctg)
 			bwa_free_read_seq(1, t->ctg);
 		if (t->r_tail)

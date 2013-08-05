@@ -11,8 +11,6 @@
 #include <glib.h>
 #include "main.h"
 #include "ass.hpp"
-#include "kmers.hpp"
-#include "oracle.hpp"
 #include "k_hash.h"
 
 #ifndef PACKAGE_VERSION
@@ -45,14 +43,8 @@ int main(int argc, char *argv[]) {
 		return usage();
 	else if (strcmp(argv[1], "ass") == 0)
 		return pe_kmer(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "hash") == 0)
-		return build_kmer_hash(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "oracle") == 0)
-		return oracle_set(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "exon") == 0)
-		return genome_splicings(argc - 1, argv + 1);
-	else if (strcmp(argv[1], "freq") == 0)
-		return export_frequency(argc - 1, argv + 1);
+//	else if (strcmp(argv[1], "oracle") == 0)
+//		return oracle_set(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "k_hash") == 0)
 		return k_hash(argc - 1, argv + 1);
 	else {

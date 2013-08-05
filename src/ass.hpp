@@ -10,11 +10,10 @@
 
 #include <glib.h>
 #include <unordered_map>
-#include "kmers.hpp"
 #include "tpl.hpp"
+#include "hash.hpp"
 
 using namespace std;
-typedef unordered_map<int, tpl*> tpl_hash;
 
 typedef struct {
 	hash_table *ht;

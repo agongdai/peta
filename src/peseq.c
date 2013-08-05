@@ -91,6 +91,42 @@ GPtrArray *rm_dup_connectors(GPtrArray *reads) {
 }
 
 /**
+ * Find common reads of two lists of reads
+ */
+GPtrArray *interset_reads(GPtrArray *list_1, GPtrArray *list_2, GPtrArray *set) {
+	uint32_t index_1 = 0, index_2 = 0;
+	bwa_seq_t *read_1 = NULL, *read_2 = NULL;
+	g_ptr_array_sort(list_1, (GCompareFunc) cmp_reads_by_name);
+	g_ptr_array_sort(list_2, (GCompareFunc) cmp_reads_by_name);
+	if (!set)
+		set = g_ptr_array_sized_new(list_1->len);
+	while (index_1 < list_1->len && index_2 < list_2->len) {
+		read_1 = (bwa_seq_t*) g_ptr_array_index(list_1, index_1);
+		//p_query("READ 1", read_1);
+		while (index_2 < list_2->len) {
+			read_2 = (bwa_seq_t*) g_ptr_array_index(list_2, index_2);
+			//p_query("READ 2", read_2);
+			if (read_1 == read_2) {
+				g_ptr_array_add(set, read_1);
+				//show_debug_msg(__func__, "INTERSET\n");
+				index_2++;
+				index_1++;
+				break;
+			}
+			if (atoi(read_1->name) < atoi(read_2->name)) {
+				read_1->pos = IMPOSSIBLE_NEGATIVE;
+				index_1++;
+				break;
+			} else {
+				read_1->pos = IMPOSSIBLE_NEGATIVE;
+				index_2++;
+			}
+		}
+	}
+	return set;
+}
+
+/**
  * Save the query into disk.
  */
 void save_fq(const bwa_seq_t *seqs, const char *fp_fn, const uint16_t ol) {

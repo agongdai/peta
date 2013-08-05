@@ -15,7 +15,6 @@
 #include <inttypes.h>
 #include "bwtaln.h"
 #include "tpl.hpp"
-#include "kmers.hpp"
 #include "ass.hpp"
 #include "rnaseq.h"
 #include "pechar.h"

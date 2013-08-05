@@ -26,7 +26,7 @@
 #define FNLEN 					1023
 #define LINELEN					50
 
-#define MAX_POOL_N_READS		2000
+#define MAX_POOL_N_READS		500
 #define CORRECT_N_READS			500
 #define HIGH_N_READS			50
 #define	IGNORE_DIFF				11

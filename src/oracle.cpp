@@ -68,7 +68,7 @@ int oracle_set(int argc, char *argv[]) {
 	int c;
 	float rpkm = 0.0;
 	uint64_t n_tx = 0, i = 0;
-	mer_hash map;
+	kmer_hash map;
 	bwa_seq_t *transcripts = NULL, *tx = NULL;
 	hash_map *hm = NULL;
 	FILE *oracle_file = NULL;
@@ -164,7 +164,7 @@ gint cmp_exons_by_chr(gpointer a, gpointer b) {
 	return strcmp(r_a->chr, r_b->chr);
 }
 
-GPtrArray *determine_splicing(mer_hash *hash, hash_map *hm, GPtrArray *exons) {
+GPtrArray *determine_splicing(kmer_hash *hash, hash_map *hm, GPtrArray *exons) {
 	region *r = NULL;
 	uint32_t i = 0;
 	uint64_t query = 0;
@@ -181,7 +181,7 @@ int genome_splicings(int argc, char *argv[]) {
 	int c;
 	bwa_seq_t *chromosomes = NULL;
 	uint64_t n_chr = 0, i = 0;
-	mer_hash hash, map;
+	kmer_hash hash, map;
 	hash_map *hm = NULL;
 	GPtrArray *exons = NULL;
 	region *r = NULL;
@@ -193,7 +193,7 @@ int genome_splicings(int argc, char *argv[]) {
 	chromosomes = load_reads(argv[optind], &n_chr);
 	exons = read_regions(argv[optind + 1], chromosomes, n_chr);
 	hm = load_hash_map(argv[optind + 1], 1, map);
-	build_tpl_hash(hash, exons, EXON_OVERLAP);
+	build_tpl_hash(hash, exons, EXON_OVERLAP, 68);
 	bwa_free_read_seq(n_chr, chromosomes);
 	determine_splicing(&hash, hm, exons);
 	for (i = 0; i < exons->len; i++) {

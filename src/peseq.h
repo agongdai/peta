@@ -99,6 +99,7 @@ extern "C" {
 	int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			const int score_mat, const int score_mis, const int score_gap,
 			const int min_acceptable_score);
+	GPtrArray *interset_reads(GPtrArray *list_1, GPtrArray *list_2, GPtrArray *set);
 
 #ifdef __cplusplus
 }

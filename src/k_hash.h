@@ -10,10 +10,11 @@
 #define ID64                  	PRId64
 #define N_POS_BITS            	16
 #define HASH_VALUE_HIGHER     	281474976710655 	// 48 1's
-#define HASH_VALUE_LOWER      	65535
+#define HASH_VALUE_LOWER      	65535				// 16 1's
+#define TPL_LOCUS_LOWER			268435455			// 28 1's
 #define N_CHUNK_SEQS			4194304 			// # of reads read in every time
 #define BWA_MODE				3
-#define ANY_STATUS				127
+#define ANY_STATUS				127					// 8 1's
 
 typedef uint64_t hash_key;
 typedef uint64_t hash_value;
@@ -47,6 +48,7 @@ extern "C" {
 	void destroy_ht(hash_table *ht);
 	uint64_t get_kmer_int(const ubyte_t *seq, const int start,
 			const int interleaving, const int len);
+	bwa_seq_t *get_key_seq(uint64_t kmer, const int k);
 	hash_value get_hash_value(const index64 seq_id, const int pos_start);
 	void read_hash_value(index64 *seq_id, int *pos_start, hash_value value);
 	void k_hash_core(const char *fa_fn, hash_opt *opt);

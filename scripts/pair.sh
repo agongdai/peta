@@ -1,3 +1,4 @@
+ulimit -c unlimited
 query_dir=/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/
 #query_dir=/home/carl/Projects/peta/rnaseq/Spombe/genome
 #query_dir=/home/carl/Projects/peta/rnaseq/hg19/
