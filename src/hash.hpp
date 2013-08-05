@@ -31,6 +31,7 @@ typedef struct {
 extern "C" {
 #endif
 
+	void sort_by_kmers(hash_table *ht, GPtrArray *read_counters);
 	void build_tpl_hash(kmer_hash &hash, tpl_hash *tpls, const int k,
 			const int read_len);
 	gint cmp_kmers_by_count(gpointer a, gpointer b);

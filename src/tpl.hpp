@@ -84,6 +84,7 @@ extern "C" {
 			int start_2, int end_2, const int min_n_pairs);
 	void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read, int mismatches);
 	void unfrozen_tried(tpl *t);
+	int find_tried_tpl(tpl *t, const int tid);
 	void add2tried(tpl *t, bwa_seq_t *r);
 	void rm_from_tpl(tpl *t, int index);
 	void unhold_reads_array(GPtrArray *reads);

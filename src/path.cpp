@@ -55,7 +55,7 @@ path *clone_path(path *p) {
 
 void destroy_path(path *p) {
 	if (p) {
-		show_debug_msg(__func__, "Destroying path %d ...\n", p->id);
+		//show_debug_msg(__func__, "Destroying path %d ...\n", p->id);
 		if (p->edges)
 			g_ptr_array_free(p->edges, TRUE);
 		if (p->vertexes)

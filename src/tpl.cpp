@@ -81,6 +81,23 @@ tpl *new_tpl() {
 }
 
 /**
+ * The t->tried stores the template ids which have been tried to merge with current template.
+ * Used by merge_tpls_by_hash
+ */
+int find_tried_tpl(tpl *t, const int tid) {
+	int i = 0, found = 0;
+	bwa_seq_t *r = NULL;
+	if (tid < 0 || !t->tried)
+		return 0;
+	for (i = 0; i < t->tried->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
+		if (r->contig_id == tid)
+			return 1;
+	}
+	return 0;
+}
+
+/**
  * Add to TRIED, pretend from using for this template
  */
 void add2tried(tpl *t, bwa_seq_t *r) {
@@ -121,6 +138,7 @@ void unfrozen_tried(tpl *t) {
  * Used for merging. To save time.
  *
  * If there are multiple reads spanning two templates, add only one
+ * @Desperate: still too slow
  */
 void mv_unpaired_to_tried(bwa_seq_t *seqs, tpl *t, const int n_tpls) {
 	int i = 0;

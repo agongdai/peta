@@ -20,6 +20,60 @@
 #include "peseq.h"
 #include "k_hash.h"
 
+gint cmp_kmers_by_count(gpointer a, gpointer b) {
+	kmer_counter *c_a = *((kmer_counter**) a);
+	kmer_counter *c_b = *((kmer_counter**) b);
+	return ((c_b->count) - c_a->count);
+}
+
+// Count the 11-mers on the reads, sort kmer frequency on reads decreasingly
+void sort_by_kmers(hash_table *ht, GPtrArray *read_counters) {
+	int i = 0, j = 0;
+	hash_key key = 0;
+	bwa_seq_t *r = NULL, *seqs = NULL, *key_seq = NULL;
+	kmer_counter *counter = NULL;
+	uint64_t n_k_mers = (1 << (ht->o->k * 2));
+	uint32_t *kmers = (uint32_t*) calloc(n_k_mers, sizeof(uint32_t));
+    seqs = ht->seqs;
+	// Count the kmers
+	for (i = 0; i < read_counters->len; i++) {
+		counter = (kmer_counter*) g_ptr_array_index(read_counters, i);
+		if (counter->kmer < 0 || counter->kmer >= ht->n_seqs) {
+			show_msg(__func__, "[WARNING] Read index out of range: %d \n",
+					counter->kmer);
+			continue;
+		}
+		r = &seqs[counter->kmer];
+		counter->count = 0;
+		for (j = 0; j <= r->len - ht->o->k; j++) {
+            //key_seq = new_seq(r, ht->o->k, j);
+            //if (!is_biased_q(key_seq) && !has_n(key_seq, 2)) {
+			key = get_kmer_int(r->seq, j, 1, ht->o->k);
+            if (key < 16 || key > n_k_mers - 16)
+                continue;
+			kmers[key]++;
+            //}
+            //bwa_free_read_seq(1, key_seq);
+		}
+	}
+	// Get kmer counts for every read
+	for (i = 0; i < read_counters->len; i++) {
+		counter = (kmer_counter*) g_ptr_array_index(read_counters, i);
+		if (counter->kmer < 0 || counter->kmer >= ht->n_seqs) {
+			show_msg(__func__, "[WARNING] Read index out of range: %d \n",
+					counter->kmer);
+			continue;
+		}
+		r = &seqs[counter->kmer];
+		for (j = 0; j <= r->len - ht->o->k; j++) {
+			key = get_kmer_int(r->seq, j, 1, ht->o->k);
+			counter->count += kmers[key];
+		}
+	}
+	g_ptr_array_sort(read_counters, (GCompareFunc) cmp_kmers_by_count);
+	free(kmers);
+}
+
 /**
  * Return template id
  */
@@ -29,12 +83,6 @@ int read_tpl_occ(uint64_t value, int *locus, int *rev_com, int *head_or_tail) {
 	*rev_com = value >> 30 & 3;
 	*head_or_tail = value >> 28 & 3;
 	return t_id;
-}
-
-gint cmp_kmers_by_count(gpointer a, gpointer b) {
-	kmer_counter *c_a = *((kmer_counter**) a);
-	kmer_counter *c_b = *((kmer_counter**) b);
-	return ((c_b->count) - c_a->count);
 }
 
 /**
@@ -69,10 +117,11 @@ void build_tpl_hash(kmer_hash &hash, tpl_hash *tpls, const int k,
 	mer_counter::iterator it;
 	tpl_hash::iterator im;
 	mer_counter counter;
+	bwa_seq_t *kmer_seq = NULL;
 	// Count the k-mer frequencies at the head/tail of all templates
 	for (im = tpls->begin(); im != tpls->end(); ++im) {
 		t = (tpl*) im->second;
-		p_tpl(t);
+		//p_tpl(t);
 		if (t->len < k)
 			continue;
 		// The head
@@ -123,6 +172,15 @@ void build_tpl_hash(kmer_hash &hash, tpl_hash *tpls, const int k,
 			kmer_freq = hash[kmer];
 			kmer_freq[++kmer_freq[0]] = hash_tpl_occ(t, j, 1, 1);
 		}
+	}
+	for (kmer_hash::iterator m = hash.begin(); m != hash.end(); ++m) {
+		kmer_freq = (uint64_t*) m->second;
+		kmer = m->first;
+		kmer_seq = get_key_seq(kmer, k);
+		// If all A's, or all C's, T's, G's, ignore
+		if (is_biased_q(kmer_seq) || is_repetitive_q(kmer_seq))
+			kmer_freq[0] = 0;
+		bwa_free_read_seq(1, kmer_seq);
 	}
 //	for (kmer_hash::iterator m = hash.begin(); m != hash.end(); ++m) {
 //		kmer = m->first;
