@@ -491,7 +491,7 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 	// Query tail: shorter than a normal tail, just 22bp, query 2 kmers.
 	q_tail = get_tail(t, tail_len, ori);
 	// In case the tail is an biased seq like: TTTTCTTTTTT
-	if (is_biased_q(q_tail) || has_n(q_tail, 1)) {
+	if (is_biased_q(q_tail) || is_repetitive_q(q_tail) || has_n(q_tail, 1)) {
 		bwa_free_read_seq(1, q_tail);
 		return;
 	}

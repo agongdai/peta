@@ -118,7 +118,7 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 	tail = get_tail(branch, ht->o->read_len, ori);
 
 	// If the tail is like 'AAAAAAATAAAA', ignore
-	if (is_biased_q(tail) || tail->len < ht->o->read_len) {
+	if (is_biased_q(tail) || is_repetitive_q(tail) || tail->len < ht->o->read_len) {
 		bwa_free_read_seq(1, tail);
 		return mains;
 	}
@@ -295,7 +295,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		main_tpl = (tpl*) it->second;
 
 		// If the main template is too short, just ignore
-		if (main_tpl->len <= ht->o->k) {
+		if (main_tpl->len <= ht->o->k || main_tpl == branch) {
 			continue;
 		}
 
@@ -518,7 +518,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
  */
 int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		bwa_seq_t *query, const int ori) {
-	int max_c = -1, *counters = NULL, weight = 0, con_existing = 0;
+	int max_c = -1, pre_c = -1, *counters = NULL, weight = 0, con_existing = 0;
 	int max_c_all = 0, *counters_all = NULL;
 	int connected = 0;
 	int ext_len = 0;
