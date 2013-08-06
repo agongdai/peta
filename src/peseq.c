@@ -616,7 +616,7 @@ int too_many_ns(const ubyte_t *s, const int k) {
 }
 
 /**
- * Never use the low quality reads: with half N's in reads; repetitive reads
+ * Never use the low quality reads: with >= 3 N's in reads; repetitive reads
  */
 void mark_low_qua_reads(bwa_seq_t *seqs, index64 n_seqs) {
 	index64 i = 0, n_dead = 0;
@@ -625,7 +625,7 @@ void mark_low_qua_reads(bwa_seq_t *seqs, index64 n_seqs) {
 		return;
 	for (i = 0; i < n_seqs; i++) {
 		r = &seqs[i];
-		if (too_many_ns(r->seq, r->len) || is_biased_q(r)) {
+		if (has_n(r, 3) || is_biased_q(r) || is_repetitive_q(r)) {
 			r->status = DEAD;
 			n_dead++;
 			//p_query("DEAD", r);
