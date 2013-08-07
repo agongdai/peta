@@ -364,6 +364,42 @@ int paired_by_reads(bwa_seq_t *seqs, tpl *t_1, tpl *t_2, int n_pairs) {
 }
 
 /**
+ * Check whether there are reads before read_len
+ */
+void find_reads_ahead(tpl *t, const int read_len, int ext_len, int *n_reads,
+		const int ori) {
+	int i = 0, start = 0, end = 0, use_right_read = 0;
+	int n = 0, left_ext_len = 0;
+	bwa_seq_t *r = NULL;
+	*n_reads = 0;
+	// Refer to pool.cpp->forward to see the contig_locus during extension
+	start = ori ? t->len - read_len + 1 : t->len - read_len * 2 + 1;
+	end = ori ? t->len : t->len - read_len;
+	//show_debug_msg(__func__, "Start~End: [%d, %d] \n", start, end);
+	for (i = t->reads->len - 1; i >= 0; i--) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		if (r->status != USED || r->contig_id != t->id)
+			continue;
+		// The reads are from the right extension
+		if (ori) {
+			if (r->contig_locus == 0) {
+				use_right_read = 1;
+				start = 0;
+				end = read_len - ext_len - 2;
+			}
+		}
+		if (r->contig_locus >= start && r->contig_locus <= end) {
+			//p_query(__func__, r);
+			n++;
+		}
+		if (r->contig_locus < start || r->contig_locus > end) {
+			break;
+		}
+	}
+	*n_reads = n;
+}
+
+/**
  * Find whether the two templates contain at least min_n_pairs pairs of mates.
  * Assume the reads on them are already sorted by name
  */
@@ -476,8 +512,6 @@ void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
 	r->contig_locus = locus;
 	r->pos = IMPOSSIBLE_NEGATIVE;
 	r->status = USED;
-	if (strcmp(r->name, "1227") == 0)
-		p_query("ATTENTION", r);
 	g_ptr_array_add(t->reads, r);
 }
 
@@ -488,7 +522,7 @@ void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
  */
 void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	bwa_seq_t *r = NULL, *seq = NULL, *window = NULL;
-	int left_len = 0, counted_len = 0, right_len = 0;
+	int left_len = 0, counted_len = 0, right_len = 0, n_mis = 0, rev_com = 0;
 	int i = 0, j = 0;
 	GPtrArray *refresh = NULL, *hits = NULL;
 	if (!t || !t->reads || t->reads->len <= 0 || t->len < 0)
@@ -516,9 +550,12 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
 			// For reads partially on left tail, the locus is negative
-			if (r->status == FRESH)
-				add2tpl(t, r, i - left_len);
-			else
+			if (r->status == FRESH) {
+				if (seq_ol(r, window, r->len, mismatches) >= 0) {
+					//p_query("NEW", r);
+					add2tpl(t, r, i - left_len);
+				}
+			} else
 				// If already on the template, just update the locus
 				r->contig_locus = i - left_len;
 		}

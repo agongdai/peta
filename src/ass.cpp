@@ -134,7 +134,7 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 		hits = find_both_fr_full_reads(ht, tail_shift, hits, N_MISMATCHES);
 		for (i = 0; i < hits->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-			//p_query(__func__, r);
+			//p_query("HIT", r);
 			//if (r->status != USED)
 			//	continue;
 			main_id = r->contig_id;
@@ -255,7 +255,7 @@ tpl *connect_to_small_tpl(hash_table *ht, uint64_t query_int, tpl *branch_tpl,
  * During extension, if it reaches some read which is used already, try to connect to it.
  */
 int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
-		const int ori) {
+		int ext_len, const int ori) {
 	GPtrArray *con_reads = NULL, *junc_reads = NULL;
 	index64 i = 0, j = 0;
 	bwa_seq_t *r = NULL, *tail = NULL;
@@ -273,7 +273,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 
 	// If extending to the left, and it's not connected to any template, mark it 'dead'
 	if (ori && (!branch->b_juncs || branch->b_juncs->len == 0) && branch->len
-			<= 3 * ht->o->k) {
+			<= ht->o->read_len) {
 		branch->alive = 0;
 		return 0;
 	}
@@ -392,11 +392,17 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 				}
 			} // Check the bubble only if left and right junction connect to the same main_tpl
 		} // End of checking the short 'bubble'
-		junc_reads = find_junc_reads_w_tails(ht, main_tpl, branch, con_pos,
-				(ht->o->read_len - SHORT_BRANCH_SHIFT) * 2, adj_ori, &weight);
-		valid = (junc_reads->len >= MIN_JUNCTION_READS) ? 1 : 0;
-
+		//junc_reads = find_junc_reads_w_tails(ht, main_tpl, branch, con_pos,
+		//		(ht->o->read_len - SHORT_BRANCH_SHIFT) * 2, adj_ori, &weight);
+		//valid = (junc_reads->len >= MIN_JUNCTION_READS) ? 1 : 0;
+		//show_debug_msg(__func__, "Junction reads: \n");
 		//p_readarray(junc_reads, 1);
+
+		find_reads_ahead(branch, ht->o->read_len, ext_len, &weight, ori);
+		valid = weight >= MIN_JUNCTION_READS ? 1 : 0;
+		//show_debug_msg(__func__, "BRANCH READS: %d \n", branch->reads->len);
+		//p_readarray(branch->reads, 1);
+		//show_debug_msg(__func__, "Junction reads: %d \n", weight);
 
 		if (!valid) {
 			show_debug_msg(__func__,
@@ -406,13 +412,13 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 			//			if (!valid) {
 			//				show_debug_msg(__func__,
 			//						"Not passed the pair validation. Free it later.\n");
-			unhold_reads_array(junc_reads);
+			//unhold_reads_array(junc_reads);
 			continue;
 			//			}
 		} // End of checking junction reads and pairs
 		// If junction added, the junction reads should be added to branch later
 		// Not only free them, but reset the them to FRESH
-		unhold_reads_array(junc_reads);
+		//unhold_reads_array(junc_reads);
 
 		// Trim the branch
 		if (branch->len < ht->o->read_len) {
@@ -525,7 +531,8 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 	bwa_seq_t *tail = new_seq(query, query->len, 0);
 
 	show_debug_msg(__func__,
-			"------ Started extending tpl %d to ori %d... ------\n", t->id, ori);
+			"------ Started extending tpl %d to ori %d ... ------\n", t->id,
+			ori);
 	p_query(__func__, tail);
 	//p_ctg_seq("TEMPLATE", t->ctg);
 
@@ -543,7 +550,8 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			find_hashed_mates(ht, p, t, tail->len + 1, MORE_MISMATCH, ori);
 			max_c = get_next_char(ht, p, t, ori);
 			if (max_c == -1) {
-				con_existing = connect_by_full_reads(ht, all_tpls, t, ori);
+				con_existing = connect_by_full_reads(ht, all_tpls, t, ext_len,
+						ori);
 				show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
 						ori, t->id, t->len);
 				break;
@@ -554,7 +562,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			}
 		}
 
-		//if (t->id == 6919 || t->id == 2416) {
+		//if (t->id == 18) {
 		//show_debug_msg(__func__,
 		//		"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 		//		t->len, "ACGTN"[max_c]);
@@ -625,9 +633,9 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 	//	if (kmer_ctg_id == 1)
-	//		read = &seqs[354806];
+	//		read = &seqs[253];
 	//	if (kmer_ctg_id == 2)
-	//		read = &seqs[322002];
+	//		read = &seqs[728625];
 
 	show_debug_msg(__func__, "============= %s: %" ID64 " ============ \n",
 			read->name, counter->count);
@@ -639,7 +647,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	all_tpls->insert(make_pair<int, tpl*> ((int) t->id, (tpl*) t));
 	g_mutex_unlock(kmer_id_mutex);
 
-	mark_init_reads_used(ht, t, read, N_MISMATCHES);
+	if (counter->count > 1)
+		mark_init_reads_used(ht, t, read, N_MISMATCHES);
 	// Right->left->right->left...until not extendable
 	// If it is connected to somewhere, simply stop
 	while (iter++ <= 4 && t->len > pre_len && (!t->b_juncs || t->b_juncs->len
@@ -652,6 +661,12 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		//g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_name);
 		//p_pool("INITIAL_POOL", p, NULL);
 		//exit(1);
+		if (iter == 1 && p->reads->len == 0) {
+			t->alive = 0;
+			flag = 1;
+			destroy_pool(p);
+			break;
+		}
 
 		// The correction is done only once
 		if (pre_len == 0)
@@ -695,21 +710,21 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		// Still necessary because the hashing may not get all reads
 		upd_locus_on_tpl(t, pre_len, pre_n_reads);
 		refresh_tpl_reads(ht, t, N_MISMATCHES);
-		//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+		g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 
 		//correct_tpl_base(t, ht->o->read_len);
 		//p_readarray(t->reads, 1);
 	}
-	p_tpl(t);
-	show_debug_msg(__func__,
-			"==== End of tpl %d with length: %d; reads: %d ==== \n\n", t->id,
-			t->len, t->reads->len);
-	// Reactive the TRIED reads to FRESH, for other starting reads
-	unfrozen_tried(t);
-	// Used by find_pairs
-	//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
-	//p_readarray(t->reads, 1);
-	set_rev_com(t->ctg);
+	if (t->alive) {
+		p_tpl(t);
+		show_debug_msg(__func__,
+				"==== End of tpl %d with length: %d; reads: %d ==== \n\n",
+				t->id, t->len, t->reads->len);
+		// Reactive the TRIED reads to FRESH, for other starting reads
+		unfrozen_tried(t);
+		//p_readarray(t->reads, 1);
+		set_rev_com(t->ctg);
+	}
 
 	//if (t->id == 6919)
 	//	exit(1);
@@ -739,6 +754,10 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		//p_readarray(t->reads, 1);
 		//upd_tpl_jun_locus(t, branching_events, opt->k);
 		//correct_tpl_base(t, ht->o->read_len);
+	}
+	// If the read cannot be even extend one base, reset the read to fresh
+	if (flag) {
+		reset_to_fresh(read);
 	}
 	return NULL;
 }
@@ -777,7 +796,7 @@ void kmer_threads(kmer_t_meta *params) {
 		kmer_ext_thread(counter, params);
 		free(counter);
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
-		//if (kmer_ctg_id >= 2)
+		//if (kmer_ctg_id >= 20)
 		//	break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);

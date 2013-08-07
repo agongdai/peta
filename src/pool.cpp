@@ -259,7 +259,7 @@ void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori) {
 }
 
 /**
- * If the base before current cursor is not the same as template, remove from pool
+ * If 2 bases before current cursor is not the same as template, remove from pool
  */
 void rm_bad_ol_reads(pool *p, tpl *t, const int ori) {
 	int i = 0, pre_cursor = 0, pre_pre_cursor = 0;

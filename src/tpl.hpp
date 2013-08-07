@@ -71,6 +71,7 @@ extern "C" {
 	void set_tail(tpl *branch, tpl *parent_eg, const int shift, const int tail_len, const int ori);
 	void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 			const int p_all, const int min_len);
+	void find_reads_ahead(tpl *t, const int read_len, int ext_len, int *n_reads, const int ori);
 	int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
 			const int min_n_pairs);
 	void upd_locus_on_tpl(tpl *t, int pre_t_len, int pre_n_reads);
