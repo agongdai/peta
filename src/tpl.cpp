@@ -172,7 +172,7 @@ int is_high_cov(tpl *t) {
 	float cov = 0.0;
 	int read_len = 0;
 	bwa_seq_t *r = NULL;
-	if (!t || !t->reads || t->len <= 0)
+	if (!t || !t->reads || t->len <= 0 || t->reads->len <= 0)
 		return 0;
 	if (t->len < 200)
 		return 0;
