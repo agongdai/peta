@@ -791,7 +791,7 @@ void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read,
  * Pos:                ^(pos=1)
  * Checked ol:        =======		read_len - (shift - pos) = 7
  */
-GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int shift,
+GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit, int shift,
 		int mismatches, int8_t status, int ori) {
 	int64_t i = 0, cursor = 0, ol = 0, locus = 0;
 	int n_mis = 0, added = 0;
@@ -803,6 +803,10 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int shift,
 
 	// These reads are not duplicated
 	for (i = 0; i < hits->len; i++) {
+		// If max <= 0, do not limit the reads to return
+		//if (limit > 0 && fresh_reads->len >= limit)
+		//	break;
+
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
 		added = 0;
 		// pos is the kmer position on the read

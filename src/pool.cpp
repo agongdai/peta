@@ -205,11 +205,13 @@ int get_next_char(hash_table *ht, pool *p, tpl *t, const int ori) {
 
 /**
  * Moving forward by updating the pools
+ * If some read is marked as USED, return 1
  */
-void forward(pool *p, tpl *t, const int ori) {
+int forward(pool *p, tpl *t, const int ori) {
 	bwa_seq_t *r = NULL;
 	readarray *reads = p->reads;
 	int i = 0, locus = 0;
+	int some_read_used = 0;
 	for (i = 0; i < reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
 		// Move forward the cursor, update the next character,
@@ -225,8 +227,10 @@ void forward(pool *p, tpl *t, const int ori) {
 			locus = ori ? t->len : (t->len - r->len);
 			add2tpl(t, r, locus);
 			g_ptr_array_remove_index_fast(reads, i--);
+			some_read_used = 1;
 		}
 	}
+	return some_read_used;
 }
 
 /**
@@ -244,10 +248,6 @@ void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori) {
 		// If the character in read is 'N', do not count it as mismatch
 		if (read_c != 4 && read_c != tpl_c)
 			r->pos++;
-	}
-
-	for (i = 0; i < p->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
 		if (r->pos > mismatches) {
 			//p_query("REMOVED", r);
 			//p_pool("BEFORE", p, NULL);
@@ -306,7 +306,8 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 	for (i = start; i <= end; i++) {
 		tail = new_seq(read, tail_len, i);
 		//p_query("TAIL", tail);
-		hits = align_tpl_tail(ht, t, tail, i, mismatches, FRESH, ori);
+		hits = align_tpl_tail(ht, t, tail, 0, i, mismatches,
+				FRESH, ori);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
 			//p_query("CANDIDATE", r);
@@ -331,10 +332,12 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 	GPtrArray *fresh_reads = NULL;
 	index64 i = 0, shift = 0;
 	bwa_seq_t *r = NULL;
+	int limit = 0;
 
 	// Find all fresh reads and add to the pool
 	shift = ori ? 0 : ht->o->read_len - tail->len;
-	fresh_reads = align_tpl_tail(ht, t, tail, shift, mismatches, FRESH, ori);
+	fresh_reads = align_tpl_tail(ht, t, tail, limit, shift, mismatches, FRESH,
+			ori);
 	for (i = 0; i < fresh_reads->len; i++) {
 		//p_query(__func__, r);
 		r = (bwa_seq_t*) g_ptr_array_index(fresh_reads, i);
@@ -520,7 +523,7 @@ void keep_fewer_mis_reads(pool *p) {
  */
 void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 		int mismatches, int ori) {
-	int tail_len = ht->o->k * 2;
+	int tail_len = ht->o->k * 2, limit = 0;
 	int i = 0, ol = 0, rev_com = 0, n_mis = 0, shift = 0;
 	int added = 0;
 	bwa_seq_t *seqs = ht->seqs;
@@ -534,7 +537,8 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 	// Query tail: shorter than a normal tail, just 22bp, query 2 kmers.
 	q_tail = get_tail(t, tail_len, ori);
 	// In case the tail is an biased seq like: TTTTCTTTTTT
-	if (is_biased_q(q_tail) || is_repetitive_q(q_tail) || has_n(q_tail, 1)) {
+	if (is_biased_q(q_tail) || is_repetitive_q(q_tail) || has_n(
+			q_tail, 1)) {
 		bwa_free_read_seq(1, q_tail);
 		return;
 	}
@@ -542,7 +546,7 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 	ol_tail = get_tail(t, full_tail_len, ori);
 
 	shift = ori ? 0 : ht->o->read_len - q_tail->len;
-	mates = align_tpl_tail(ht, t, q_tail, shift, mismatches, FRESH, ori);
+	mates = align_tpl_tail(ht, t, q_tail, limit, shift, mismatches, FRESH, ori);
 	for (i = 0; i < mates->len; i++) {
 		m = (bwa_seq_t*) g_ptr_array_index(mates, i);
 		r = get_mate(m, seqs);
