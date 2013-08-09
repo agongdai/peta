@@ -797,6 +797,7 @@ void kmer_threads(kmer_t_meta *params) {
 			}
 		}
 	}
+	shrink_ht(ht);
 
 	show_msg(__func__, "Sorting %d initial reads ... \n", starting_reads->len);
 	g_ptr_array_sort(starting_reads, (GCompareFunc) cmp_kmers_by_count);
