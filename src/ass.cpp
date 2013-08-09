@@ -357,6 +357,13 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		con_pos = adj_ori ? (locus + 1) : (locus + ht->o->read_len - 1);
 		exist_ori = adj_ori ? 0 : 1;
 
+		if (con_pos < 0 || con_pos >= main_tpl->len) {
+			show_debug_msg(__func__,
+					"WARNING: the connecting position %d is not valid \n",
+					con_pos);
+			continue;
+		}
+
 		// If right and left connections are too close, just ignore.
 		if (branch->b_juncs && branch->b_juncs->len > 0) {
 			exist_junc = (junction*) g_ptr_array_index(branch->b_juncs, 0);
@@ -428,7 +435,6 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 				con_pos = locus + branch->len + 1;
 			branch->len = 0;
 			branch->ctg->len = 0;
-
 		} else {
 			// Make the branch not sharing a (read_length - 1) subseq with the main
 			if (borrow_bases) {
@@ -490,6 +496,12 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		}
 
 		//p_tpl(branch);
+		if (con_pos < 0 || con_pos >= main_tpl->len) {
+			show_debug_msg(__func__,
+					"WARNING: the connecting position %d is not valid \n",
+					con_pos);
+			continue;
+		}
 
 		// Finally! Go to add the junction!
 		show_debug_msg(__func__,
@@ -653,7 +665,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		add2tpl(t, read, 0);
 	// Right->left->right->left...until not extendable
 	// If it is connected to somewhere, simply stop
-	while (iter++ <= 4 && t->len > pre_len && (!t->b_juncs || t->b_juncs->len
+	while (iter++ < 2 && t->len > pre_len && (!t->b_juncs || t->b_juncs->len
 			== 0)) {
 		// Extend to the right first
 		// Make a clone of the original starting read, which is global
@@ -675,12 +687,11 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 			correct_init_tpl_base(p, t, kmer_len);
 
 		query = get_tail(t, kmer_len, 0);
-
 		connected = kmer_ext_tpl(ht, all_tpls, p, t, query, 0);
 		destroy_pool(p);
 		pre_len = t->len;
 		set_rev_com(t->ctg);
-		refresh_tpl_reads(ht, t, N_MISMATCHES);
+		//refresh_tpl_reads(ht, t, N_MISMATCHES);
 		pre_n_reads = t->reads->len;
 		bwa_free_read_seq(1, query);
 		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
@@ -711,8 +722,6 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		//p_tpl(t);
 		// Still necessary because the hashing may not get all reads
 		upd_locus_on_tpl(t, pre_len, pre_n_reads);
-		refresh_tpl_reads(ht, t, N_MISMATCHES);
-		g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 
 		//correct_tpl_base(t, ht->o->read_len);
 		//p_readarray(t->reads, 1);
@@ -726,6 +735,9 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		unfrozen_tried(t);
 		//p_readarray(t->reads, 1);
 		set_rev_com(t->ctg);
+	} else {
+		refresh_tpl_reads(ht, t, N_MISMATCHES);
+		g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 	}
 
 	//if (t->id == 6919)
@@ -823,7 +835,7 @@ void kmer_threads(kmer_t_meta *params) {
 	show_msg(__func__, "Shrinking the hash table ... \n");
 	shrink_ht(ht);
 	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
-	for (i = 0; i < low_reads->len / 2; i++) {
+	for (i = 0; i < low_reads->len / 3; i++) {
 		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
 		// If the read does not even share any 11-mer with others, ignore
 		if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {

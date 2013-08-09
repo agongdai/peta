@@ -523,7 +523,7 @@ void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
 void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	bwa_seq_t *r = NULL, *seq = NULL, *window = NULL;
 	int left_len = 0, counted_len = 0, right_len = 0, n_mis = 0, rev_com = 0;
-	int i = 0, j = 0;
+	int i = 0, j = 0, not_covered_len = 0;
 	GPtrArray *refresh = NULL, *hits = NULL;
 	if (!t || !t->reads || t->reads->len <= 0 || t->len < 0)
 		return;
@@ -547,6 +547,10 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 		window = new_seq(seq, ht->o->read_len, i);
 		hits = g_ptr_array_sized_new(4);
 		hits = find_both_fr_full_reads(ht, window, hits, mismatches);
+		if (hits->len == 0)
+			not_covered_len++;
+		else
+			not_covered_len = 0;
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
 			// For reads partially on left tail, the locus is negative
@@ -561,6 +565,15 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 		}
 		g_ptr_array_free(hits, TRUE);
 		bwa_free_read_seq(1, window);
+		if (not_covered_len > ht->o->read_len - ht->o->k)
+			break;
+	}
+	if (not_covered_len > ht->o->read_len - ht->o->k) {
+//		for (i = 0; i < t->reads->len; i++) {
+//			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+//			reset_to_fresh(r);
+//		}
+		t->alive = 0;
 	}
 	bwa_free_read_seq(1, seq);
 	//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
