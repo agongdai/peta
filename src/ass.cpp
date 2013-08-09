@@ -535,7 +535,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
  * Extend a template until no next kmer
  */
 int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
-		bwa_seq_t *query, const int ori) {
+		bwa_seq_t *query, int to_try_connect, const int ori) {
 	int max_c = -1, pre_c = -1, *counters = NULL, weight = 0, con_existing = 0;
 	int max_c_all = 0, *counters_all = NULL;
 	int connected = 0;
@@ -562,8 +562,9 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			find_hashed_mates(ht, p, t, tail->len + 1, MORE_MISMATCH, ori);
 			max_c = get_next_char(ht, p, t, ori);
 			if (max_c == -1) {
-				con_existing = connect_by_full_reads(ht, all_tpls, t, ext_len,
-						ori);
+				if (to_try_connect)
+					con_existing = connect_by_full_reads(ht, all_tpls, t,
+							ext_len, ori);
 				show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
 						ori, t->id, t->len);
 				break;
@@ -687,7 +688,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 			correct_init_tpl_base(p, t, kmer_len);
 
 		query = get_tail(t, kmer_len, 0);
-		connected = kmer_ext_tpl(ht, all_tpls, p, t, query, 0);
+		connected = kmer_ext_tpl(ht, all_tpls, p, t, query,
+				params->to_try_connect, 0);
 		destroy_pool(p);
 		pre_len = t->len;
 		set_rev_com(t->ctg);
@@ -713,7 +715,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		//p_query(__func__, query);
 		//p_pool("INITIAL_POOL", p, NULL);
 
-		connected |= kmer_ext_tpl(ht, all_tpls, p, t, query, ori);
+		connected |= kmer_ext_tpl(ht, all_tpls, p, t, query,
+				params->to_try_connect, ori);
 		set_rev_com(t->ctg);
 		destroy_pool(p);
 		bwa_free_read_seq(1, query);
@@ -735,7 +738,6 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		unfrozen_tried(t);
 		//p_readarray(t->reads, 1);
 		set_rev_com(t->ctg);
-	} else {
 		refresh_tpl_reads(ht, t, N_MISMATCHES);
 		g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 	}
@@ -802,6 +804,7 @@ void kmer_threads(kmer_t_meta *params) {
 	show_msg(__func__, "Sorting %d initial reads ... \n", starting_reads->len);
 	g_ptr_array_sort(starting_reads, (GCompareFunc) cmp_kmers_by_count);
 	show_msg(__func__, "Extending by reads ...\n");
+	params->to_try_connect = 1;
 	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, params, 1, TRUE,
 			NULL);
 	for (i = 0; i < starting_reads->len; i++) {
@@ -836,6 +839,7 @@ void kmer_threads(kmer_t_meta *params) {
 	show_msg(__func__, "Shrinking the hash table ... \n");
 	shrink_ht(ht);
 	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
+	params->to_try_connect = 0;
 	for (i = 0; i < low_reads->len / 3; i++) {
 		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
 		// If the read does not even share any 11-mer with others, ignore

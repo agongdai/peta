@@ -18,6 +18,7 @@ using namespace std;
 typedef struct {
 	hash_table *ht;
 	tpl_hash *all_tpls;
+	int to_try_connect;
 } kmer_t_meta;
 
 #ifdef __cplusplus
