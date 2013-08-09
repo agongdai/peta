@@ -612,6 +612,20 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 	return con_existing;
 }
 
+void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
+	bwa_seq_t *query = NULL;
+	int i = 0;
+	tpl *branch = NULL;
+	if (!t || !t->alive || t->len < 100)
+		return;
+	if (t->b_juncs || t->m_juncs)
+		return;
+	for (i = 0; i <= t->len - kmer_len; i++) {
+		query = new_seq(t->ctg, kmer_len, i);
+	}
+}
+
+
 /**
  * Extend a kmer
  */
@@ -805,17 +819,20 @@ void kmer_threads(kmer_t_meta *params) {
 	g_ptr_array_sort(starting_reads, (GCompareFunc) cmp_kmers_by_count);
 	show_msg(__func__, "Extending by reads ...\n");
 	params->to_try_connect = 1;
-	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, params, 1, TRUE,
+	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, (gpointer) params, 1, TRUE,
 			NULL);
 	for (i = 0; i < starting_reads->len; i++) {
 		if (i % 100000 == 0)
 			show_msg(__func__, "Extending %" ID64 "-th read ... \n", i);
 		counter = (kmer_counter*) g_ptr_array_index(starting_reads, i);
-		kmer_ext_thread(counter, params);
-		free(counter);
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
+		kmer_ext_thread(counter, params);
 		//if (kmer_ctg_id >= 20)
 		//	break;
+	}
+	for (i = 0; i < starting_reads->len; i++) {
+		counter = (kmer_counter*) g_ptr_array_index(starting_reads, i);
+		free(counter);
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 
@@ -840,16 +857,19 @@ void kmer_threads(kmer_t_meta *params) {
 	shrink_ht(ht);
 	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
 	params->to_try_connect = 0;
-	for (i = 0; i < low_reads->len / 3; i++) {
+	for (i = 0; i < low_reads->len / 10; i++) {
 		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
 		// If the read does not even share any 11-mer with others, ignore
 		if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
-			free(counter);
 			continue;
 		}
 		if (i % 100000 == 0)
 			show_msg(__func__, "Extending %" ID64 "-th low read ... \n", i);
 		kmer_ext_thread(counter, params);
+		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
+	}
+	for (i = 0; i < low_reads->len; i++) {
+		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
 		free(counter);
 	}
 	g_ptr_array_free(low_reads, TRUE);
