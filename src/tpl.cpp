@@ -527,7 +527,7 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	GPtrArray *refresh = NULL, *hits = NULL;
 	if (!t || !t->reads || t->reads->len <= 0 || t->len < 0)
 		return;
-	unfrozen_tried(t);
+	//unfrozen_tried(t);
 
 	seq = get_tpl_ctg_wt(t, &left_len, &right_len, &counted_len);
 	// If it happens, means something wrong
@@ -565,18 +565,12 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 		}
 		g_ptr_array_free(hits, TRUE);
 		bwa_free_read_seq(1, window);
-		if (not_covered_len > ht->o->read_len - ht->o->k)
+		if (not_covered_len > ht->o->read_len - ht->o->k) {
+			t->alive = 0;
 			break;
-	}
-	if (not_covered_len > ht->o->read_len - ht->o->k) {
-//		for (i = 0; i < t->reads->len; i++) {
-//			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
-//			reset_to_fresh(r);
-//		}
-		t->alive = 0;
+		}
 	}
 	bwa_free_read_seq(1, seq);
-	//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
 }
 
 /**

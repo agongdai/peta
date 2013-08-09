@@ -552,14 +552,16 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		if (same_bytes(tail->seq, tail->len) || is_repetitive_q(tail)) {
 			show_debug_msg(__func__, "Repetitive tail, stop.\n");
 			p_query(__func__, tail);
+			mark_pool_reads_tried(p, t);
 			break;
 		}
 
-		if (no_read_len > ht->o->read_len - ht->o->k + 4) {
+		if (no_read_len > ht->o->read_len - ht->o->k + 1) {
 			show_debug_msg(__func__,
 					"[%d, %d] terminated. %d bases not covered by a read. \n",
 					t->id, t->len, no_read_len);
 			t->alive = 0;
+			mark_pool_reads_tried(p, t);
 			break;
 		}
 
@@ -763,13 +765,14 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		// Reactive the TRIED reads to FRESH, for other starting reads
 		//unfrozen_tried(t);
 		//p_readarray(t->reads, 1);
+		show_debug_msg(__func__, "Reads before refresh: %d \n", t->reads->len);
 		set_rev_com(t->ctg);
 		refresh_tpl_reads(ht, t, N_MISMATCHES);
 		g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 		p_tpl(t);
 		show_debug_msg(__func__,
-				"==== End of tpl %d with length: %d; reads: %d ==== \n\n",
-				t->id, t->len, t->reads->len);
+				"==== End of tpl %d with length: %d; reads: %d; Alive: %d ==== \n\n",
+				t->id, t->len, t->reads->len, t->alive);
 	}
 
 	//if (t->id == 6919)
@@ -817,6 +820,7 @@ void kmer_threads(kmer_t_meta *params) {
 	GPtrArray *starting_reads = g_ptr_array_sized_new(ht->n_seqs);
 	GPtrArray *low_reads = NULL;
 
+	show_msg(__func__, "Getting read frequencies ... \n");
 	for (i = 0; i < ht->n_seqs; i++) {
 		r = &seqs[i];
 		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);

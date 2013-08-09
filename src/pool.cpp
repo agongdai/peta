@@ -112,6 +112,18 @@ void add2pool(pool *p, bwa_seq_t *r) {
 }
 
 /**
+ * When the extension is terminated in the middle, mark the reads in pool as TRIED.
+ */
+void mark_pool_reads_tried(pool *p, tpl *t) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < p->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
+		add2tried(t, r);
+	}
+}
+
+/**
  * Remove a read from the pool and reset the the read status
  */
 void rm_from_pool(pool *p, int index) {

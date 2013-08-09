@@ -28,6 +28,7 @@ extern "C" {
 	void p_pool(const char *header, const pool *r_pool, const int *next);
 
 	void add2pool(pool *p, bwa_seq_t *r);
+	void mark_pool_reads_tried(pool *p, tpl *t);
 	int get_next_char(hash_table *ht, pool *p, tpl *t, const int ori);
 	int forward(pool *p, tpl *t, const int ori);
 	void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches, const int ori);
