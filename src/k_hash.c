@@ -149,6 +149,66 @@ void read_hash_value(index64 *seq_id, int *pos_start, hash_value value) {
 	*pos_start = value & HASH_VALUE_LOWER;
 }
 
+/**
+ * Remove the USED/DEAD read occurrences from hash table
+ */
+void shrink_ht(hash_table *ht) {
+	int i = 0, j = 0, n_valid = 0, n_empty = 0, pos_index = 0;
+	index64 n_k_mers = 0, seq_id = 0, locus = 0;
+	hash_opt *opt = NULL;
+	hash_key *k_mers_occ_acc = NULL, *new_k_mers = NULL, key_this = 0,
+			key_next = 0;
+	hash_value *pos = NULL, *new_pos = NULL, value = 0;
+	bwa_seq_t *r = NULL;
+
+	opt = ht->o;
+	k_mers_occ_acc = ht->k_mers_occ_acc;
+	pos = ht->pos;
+	n_k_mers = (1 << (opt->k * 2)) + 1;
+	new_k_mers = (hash_value*) calloc(n_k_mers, sizeof(hash_value));
+	for (i = 0; i < n_k_mers - 1; i++) {
+		key_this = k_mers_occ_acc[i];
+		key_next = k_mers_occ_acc[i + 1];
+		for (j = key_this; j < key_next; j++) {
+			value = pos[j];
+			read_hash_value(&seq_id, &locus, value);
+			if (seq_id >= ht->n_seqs || seq_id < 0) {
+				show_debug_msg(__func__,
+						"WARNING: Sequence id not correct: %d \n", seq_id);
+				continue;
+			}
+			r = &ht->seqs[seq_id];
+			if (value == 0 || r->status == USED || r->status == DEAD) {
+				n_empty++;
+			} else {
+				n_valid++;
+			}
+		}
+		new_k_mers[i + 1] = key_next - n_empty;
+	}
+	free(k_mers_occ_acc);
+	ht->k_mers_occ_acc = new_k_mers;
+
+	new_pos = (hash_value*) calloc(n_valid + 1, sizeof(hash_value));
+	for (i = 0; i < n_valid + n_empty; i++) {
+		value = pos[i];
+		read_hash_value(&seq_id, &locus, value);
+		if (seq_id >= ht->n_seqs || seq_id < 0) {
+			show_debug_msg(__func__, "WARNING: Sequence id not correct: %d \n",
+					seq_id);
+			continue;
+		}
+		r = &ht->seqs[seq_id];
+		if (value > 0 && r->status != USED && r->status != DEAD) {
+			new_pos[pos_index] = value;
+			pos_index++;
+		}
+	}
+	free(pos);
+	ht->pos = new_pos;
+	opt->n_pos = n_valid;
+}
+
 void k_hash_core(const char *fa_fn, hash_opt *opt) {
 	bwa_seq_t *s, *part_seqs;
 	bwa_seq_t *key_seq = NULL;
@@ -188,7 +248,8 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 		for (i = 0; i < n_part_seqs; i++) {
 			s = &part_seqs[i];
 			if (s->len != opt->read_len) {
-				err_fatal(__func__,
+				err_fatal(
+						__func__,
 						"Sequence length of %s is not as specified: %d vs %d! \n",
 						s->name, s->len, opt->read_len);
 			}
@@ -198,9 +259,8 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 			//	continue;
 
 			//p_query(__func__, s);
-			while (block_no < opt->n_hash_block
-					&& hash_start
-							<= opt->read_len - opt->k * (opt->interleaving)) {
+			while (block_no < opt->n_hash_block && hash_start <= opt->read_len
+					- opt->k * (opt->interleaving)) {
 				hash_start = block_no * opt->block_size;
 				key = get_hash_key(s->seq, hash_start, opt->interleaving,
 						opt->k);
@@ -269,9 +329,8 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 			//if (same_bytes(s->seq, s->len) || too_many_ns(s->seq, s->len))
 			//	continue;
 
-			while (block_no < opt->n_hash_block
-					&& hash_start
-							<= opt->read_len - opt->k * (opt->interleaving)) {
+			while (block_no < opt->n_hash_block && hash_start <= opt->read_len
+					- opt->k * (opt->interleaving)) {
 				hash_start = block_no * opt->block_size;
 				// Hash two keys for the starting region of a read, interleaving by 1 by default.
 				key = get_hash_key(s->seq, hash_start, opt->interleaving,
@@ -283,8 +342,8 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 
 				key = get_hash_key(s->seq, hash_start + opt->interleaving - 1,
 						opt->interleaving, opt->k);
-				value = get_hash_value(i_acc,
-						hash_start + opt->interleaving - 1);
+				value = get_hash_value(i_acc, hash_start + opt->interleaving
+						- 1);
 				pos_index = k_mers_occ_acc[key] + n_occ[key];
 				pos[pos_index] = value;
 				n_occ[key]++;
@@ -325,7 +384,7 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 }
 
 hash_table *load_k_hash(char *fa_fn) {
-	hash_table *h;
+	hash_table *ht;
 	FILE *fp;
 	hash_opt *opt;
 	uint32_t n_seqs = 0;
@@ -337,10 +396,10 @@ hash_table *load_k_hash(char *fa_fn) {
 	t = clock();
 
 	fprintf(stderr, "[pe_load_hash] Loading hash table of %s ... \n", fa_fn);
-	h = (hash_table*) malloc(sizeof(hash_table));
-	h->seqs = seqs;
-	h->n_seqs = n_seqs;
-	h->n_kmers = (uint32_t*) calloc(n_seqs, sizeof(uint32_t));
+	ht = (hash_table*) malloc(sizeof(hash_table));
+	ht->seqs = seqs;
+	ht->n_seqs = n_seqs;
+	ht->n_kmers = (uint32_t*) calloc(n_seqs, sizeof(uint32_t));
 	fprintf(stderr,
 			"[pe_load_hash] %d Original sequences loaded: %.2f sec ...\n",
 			n_seqs, (float) (clock() - t) / CLOCKS_PER_SEC);
@@ -350,24 +409,47 @@ hash_table *load_k_hash(char *fa_fn) {
 	opt = (hash_opt*) malloc(sizeof(hash_opt));
 	fp = xopen(hash_fn, "rb");
 	if (!fread(opt, sizeof(hash_opt), 1, fp)) {
-		err_fatal(__func__, "Unable to read from the hash file %s! \n",
-				hash_fn);
+		err_fatal(__func__, "Unable to read from the hash file %s! \n", hash_fn);
 	}
-	show_msg(__func__,
+	show_msg(
+			__func__,
 			"Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 "...\n",
 			opt->k, opt->read_len, opt->n_k_mers, opt->n_pos);
-	h->k_mers_occ_acc = (hash_key*) calloc(opt->n_k_mers, sizeof(hash_key));
-	h->pos = (hash_value*) calloc(opt->n_pos, sizeof(hash_value));
-	h->o = opt;
-	fread(h->k_mers_occ_acc, sizeof(hash_key), opt->n_k_mers, fp);
-	fread(h->pos, sizeof(hash_value), opt->n_pos, fp);
-	fread(h->n_kmers, sizeof(uint32_t), n_seqs, fp);
+	ht->k_mers_occ_acc = (hash_key*) calloc(opt->n_k_mers, sizeof(hash_key));
+	ht->pos = (hash_value*) calloc(opt->n_pos, sizeof(hash_value));
+	ht->o = opt;
+	fread(ht->k_mers_occ_acc, sizeof(hash_key), opt->n_k_mers, fp);
+	fread(ht->pos, sizeof(hash_value), opt->n_pos, fp);
+	fread(ht->n_kmers, sizeof(uint32_t), n_seqs, fp);
 	fclose(fp);
-	show_msg(__func__,
+	show_msg(
+			__func__,
 			"Hash table loaded, k-mer records: %" ID64 ", positions: %" ID64 " %.2f sec\n",
 			opt->n_k_mers, opt->n_pos, (float) (clock() - t) / CLOCKS_PER_SEC);
 	free(hash_fn);
-	return h;
+	return ht;
+}
+
+/**
+ * Reload the hashtable except the sequences
+ */
+void reload_table(hash_table *ht, char *fa_fn) {
+	char *hash_fn = malloc(FNLEN);
+	sprintf(hash_fn, "%s.hash", fa_fn);
+	FILE *fp = xopen(hash_fn, "rb");
+	free(ht->o);
+	ht->o = (hash_opt*) malloc(sizeof(hash_opt));
+	if (!fread(ht->o, sizeof(hash_opt), 1, fp)) {
+		err_fatal(__func__, "Unable to read from the hash file %s! \n", hash_fn);
+	}
+	free(ht->k_mers_occ_acc);
+	free(ht->pos);
+	ht->k_mers_occ_acc = (hash_key*) calloc(ht->o->n_k_mers, sizeof(hash_key));
+	ht->pos = (hash_value*) calloc(ht->o->n_pos, sizeof(hash_value));
+	fread(ht->k_mers_occ_acc, sizeof(hash_key), ht->o->n_k_mers, fp);
+	fread(ht->pos, sizeof(hash_value), ht->o->n_pos, fp);
+	free(hash_fn);
+	fclose(fp);
 }
 
 /**
@@ -386,8 +468,8 @@ GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 	if (!hits)
 		hits = g_ptr_array_sized_new(0);
 	//p_shift_query(query, 0);
-	while (block_no < opt->n_hash_block
-			&& hash_start <= opt->read_len - opt->k * (opt->interleaving)) {
+	while (block_no < opt->n_hash_block && hash_start <= opt->read_len - opt->k
+			* (opt->interleaving)) {
 		// Hash two keys for the starting region of a read, interleaving by 1 by default.
 		for (j = 0; j < n_block_kmers; j++) {
 			hash_start = block_no * opt->block_size + j;
@@ -396,9 +478,8 @@ GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 						opt->k);
 
 				start = ht->k_mers_occ_acc[key];
-				end = (key >= opt->n_k_mers) ?
-						ht->k_mers_occ_acc[opt->n_k_mers - 1] :
-						ht->k_mers_occ_acc[key + 1];
+				end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers
+						- 1] : ht->k_mers_occ_acc[key + 1];
 				if (end > start) {
 					for (i = start; i < end; i++) {
 						value = ht->pos[i];
@@ -484,12 +565,11 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 		 bwa_seq_t *key_seq = get_key_seq(key, 11);
 		 p_query(__func__, key_seq);
 		 bwa_free_read_seq(1, key_seq);
-		**/
+		 **/
 
 		start = ht->k_mers_occ_acc[key];
-		end = (key >= opt->n_k_mers) ?
-				ht->k_mers_occ_acc[opt->n_k_mers - 1] :
-				ht->k_mers_occ_acc[key + 1];
+		end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers - 1]
+				: ht->k_mers_occ_acc[key + 1];
 		//show_debug_msg(__func__, "Start~End: [%" ID64 ", %" ID64 "]\n", start, end);
 		if (end > start) {
 			for (j = start; j < end; j++) {
@@ -501,9 +581,8 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 				if (r->pos != IMPOSSIBLE_NEGATIVE)
 					continue;
 				abs_locus = locus - i;
-				if (abs_locus >= 0
-						&& abs_locus
-								<= r->len + 1 - opt->interleaving * opt->k) {
+				if (abs_locus >= 0 && abs_locus <= r->len + 1
+						- opt->interleaving * opt->k) {
 					// If the status of read is as requested
 					if (status == ANY_STATUS || r->status == status) {
 						//p_query(__func__, r);
@@ -571,7 +650,8 @@ gint align_read_thread(gpointer r, gpointer para) {
 	uint32_t *n_kmers = ht->n_kmers;
 	index64 read_id = 0;
 	read_id = atoll(query->name);
-	if (read_id < 0 || read_id >= ht->n_seqs || query->pos != IMPOSSIBLE_NEGATIVE)
+	if (read_id < 0 || read_id >= ht->n_seqs || query->pos
+			!= IMPOSSIBLE_NEGATIVE)
 		return 0;
 	if (is_biased_q(query) || too_many_ns(query, query->len))
 		return 0;
@@ -692,7 +772,7 @@ int k_hash(int argc, char *argv[]) {
 	k_hash_core(argv[optind], opt);
 	re_hash(argv[optind]);
 	//test_k_hash(argv[optind], opt);
-	fprintf(stderr, "[pe_hash] Hashing done: %.2f sec\n",
-			(float) (clock() - t) / CLOCKS_PER_SEC);
+	fprintf(stderr, "[pe_hash] Hashing done: %.2f sec\n", (float) (clock() - t)
+			/ CLOCKS_PER_SEC);
 	return 0;
 }

@@ -649,6 +649,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 
 	if (counter->count > 1)
 		mark_init_reads_used(ht, t, read, N_MISMATCHES);
+	else
+		add2tpl(t, read, 0);
 	// Right->left->right->left...until not extendable
 	// If it is connected to somewhere, simply stop
 	while (iter++ <= 4 && t->len > pre_len && (!t->b_juncs || t->b_juncs->len
@@ -784,14 +786,14 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	show_msg(__func__, "Sorting %d initial reads... \n", starting_reads->len);
+	show_msg(__func__, "Sorting %d initial reads ... \n", starting_reads->len);
 	g_ptr_array_sort(starting_reads, (GCompareFunc) cmp_kmers_by_count);
-	show_msg(__func__, "Extending by reads...\n");
+	show_msg(__func__, "Extending by reads ...\n");
 	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, params, 1, TRUE,
 			NULL);
 	for (i = 0; i < starting_reads->len; i++) {
 		if (i % 100000 == 0)
-			show_msg(__func__, "Extending %" ID64 "-th read... \n", i);
+			show_msg(__func__, "Extending %" ID64 "-th read ... \n", i);
 		counter = (kmer_counter*) g_ptr_array_index(starting_reads, i);
 		kmer_ext_thread(counter, params);
 		free(counter);
@@ -818,8 +820,10 @@ void kmer_threads(kmer_t_meta *params) {
 	}
 
 	sort_by_kmers(ht, low_reads);
+	show_msg(__func__, "Shrinking the hash table ... \n");
+	shrink_ht(ht);
 	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
-	for (i = 0; i < low_reads->len / 10; i++) {
+	for (i = 0; i < low_reads->len / 2; i++) {
 		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
 		// If the read does not even share any 11-mer with others, ignore
 		if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
@@ -827,7 +831,7 @@ void kmer_threads(kmer_t_meta *params) {
 			continue;
 		}
 		if (i % 100000 == 0)
-			show_msg(__func__, "Extending %" ID64 "-th low read... \n", i);
+			show_msg(__func__, "Extending %" ID64 "-th low read ... \n", i);
 		kmer_ext_thread(counter, params);
 		free(counter);
 	}
@@ -1059,10 +1063,11 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	tpl_hash all_tpls;
 	GPtrArray *read_tpls = NULL;
 	hash_table *ht = NULL;
-	char *fn = NULL;
+	char *fn = NULL, *lib_fn_copy = NULL;
 	kmer_hash tpl_kmer_hash;
 
 	show_msg(__func__, "Library: %s \n", lib_file);
+	lib_fn_copy = str_dup(lib_file);
 
 	ht = load_k_hash(lib_file);
 
@@ -1111,6 +1116,9 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	store_features(fn, branching_events, read_tpls);
 	free(fn);
 
+	show_msg(__func__, "Reloading the hash table ... \n");
+	reload_table(ht, lib_fn_copy);
+	free(lib_fn_copy);
 	process_graph(read_tpls, branching_events, ht, kmer_out);
 	destroy_ht(ht);
 }

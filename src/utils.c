@@ -124,3 +124,10 @@ int find_in_array(GPtrArray *arr, gpointer value) {
 	}
 	return -1;
 }
+
+char *str_dup(const char * s)
+{
+  size_t len = 1+strlen(s);
+  char *p = malloc(len);
+  return p ? memcpy(p, s, len) : NULL;
+}

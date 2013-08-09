@@ -29,7 +29,8 @@ gint cmp_kmers_by_count(gpointer a, gpointer b) {
 // Count the 11-mers on the reads, sort kmer frequency on reads decreasingly
 void sort_by_kmers(hash_table *ht, GPtrArray *read_counters) {
 	int i = 0, j = 0;
-	hash_key key = 0;
+	int cannot_ext = 0;
+	hash_key key = 0, ext_key = 0;
 	bwa_seq_t *r = NULL, *seqs = NULL, *key_seq = NULL;
 	kmer_counter *counter = NULL;
 	uint64_t n_k_mers = (1 << (ht->o->k * 2));
@@ -64,10 +65,23 @@ void sort_by_kmers(hash_table *ht, GPtrArray *read_counters) {
 					counter->kmer);
 			continue;
 		}
+		cannot_ext = 1;
 		r = &seqs[counter->kmer];
 		for (j = 0; j <= r->len - ht->o->k; j++) {
 			key = get_kmer_int(r->seq, j, 1, ht->o->k);
 			counter->count += kmers[key];
+		}
+		// If the read cannot extend to the right by one base, set the count to be 0
+		key = get_kmer_int(r->seq, r->len - ht->o->k, 1, ht->o->k);
+		for (j = 0; j < 4; j++) {
+			ext_key = (key << 2 + j) & (n_k_mers - 1);
+			if (kmers[ext_key] > 0) {
+				cannot_ext = 0;
+				break;
+			}
+		}
+		if (cannot_ext) {
+			counter->count = 0;
 		}
 	}
 	g_ptr_array_sort(read_counters, (GCompareFunc) cmp_kmers_by_count);

@@ -51,6 +51,8 @@ extern "C" {
 	bwa_seq_t *get_key_seq(uint64_t kmer, const int k);
 	hash_value get_hash_value(const index64 seq_id, const int pos_start);
 	void read_hash_value(index64 *seq_id, int *pos_start, hash_value value);
+	void shrink_ht(hash_table *ht);
+	void reload_table(hash_table *ht, char *fa_fn);
 	void k_hash_core(const char *fa_fn, hash_opt *opt);
 	int k_hash(int argc, char *argv[]);
 	hash_key get_hash_key(ubyte_t *seq, const int start,

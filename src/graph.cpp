@@ -822,9 +822,9 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_table *ht, ch
 	splice_graph *g = NULL;
 	char *fn = NULL;
 
-	show_msg(__func__, "Building the splice graph...\n");
+	show_msg(__func__, "Building the splice graph ...\n");
 	g = build_graph(all_tpls, all_juncs, ht);
-	show_msg(__func__, "Simplifying the splice graph...\n");
+	show_msg(__func__, "Simplifying the splice graph ...\n");
 	fn = get_output_file("graph.ori.dot", save_dir);
 	p_graph(g, fn);
 	free(fn);
@@ -834,7 +834,7 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_table *ht, ch
 	save_vertexes(g->vertexes, fn);
 	free(fn);
 
-	show_msg(__func__, "Breaking into components...\n");
+	show_msg(__func__, "Breaking into components ...\n");
 	break_to_comps(g);
 	// Some edges may be marked as 'dead' when breaking SCCs
 	clean_graph(g);
@@ -848,7 +848,7 @@ void process_graph(GPtrArray *all_tpls, GPtrArray *all_juncs, hash_table *ht, ch
 
 	calc_comp_stat(g, save_dir);
 	reset_status(g);
-	show_msg(__func__, "Running EM to get paths...\n");
+	show_msg(__func__, "Running EM to get paths ...\n");
 	determine_paths(g, ht, save_dir);
 	destroy_graph(g);
 }
