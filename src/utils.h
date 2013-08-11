@@ -35,18 +35,19 @@
 #define NO_REPEAT_BASES			3
 #define NO_REPEAT_LEN 			15
 #define	SHORT_BRANCH_SHIFT		4
-#define	MATCH_SCORE				2
+#define	MATCH_SCORE				1
 #define MISMATCH_WEIGHT			2
 #define	MISMATCH_SCORE			-1
-#define	INDEL_SCORE				-2
+#define	INDEL_SCORE				-1
 #define MATE_MULTI				3
 
 #define IMPOSSIBLE_NEGATIVE		-999999999
 #define N_MISMATCHES			2
 #define MORE_MISMATCH			4
 #define LESS_MISMATCH			1
+#define MAX_GAPS				4
 #define MIN_PAIRS				2
-#define MIN_JUNCTION_READS	    2	
+#define MIN_JUNCTION_READS	    4
 #define MIN_WEIGHT				2
 #define MAX_VS_IN_COMP          100
 #define HIHG_COV_THRE		    50 	

@@ -680,19 +680,23 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			max = up_left > max ? up_left : max;
 			current_row[j] = max;
 		}
-		printf("Previous row: \n");
+//		printf("Previous row: \n");
 		for (j = 0; j < columns; j++) {
-			printf("%d,", previous_row[j]);
+//			printf("%d,", previous_row[j]);
 			previous_row[j] = current_row[j];
 			max_score = current_row[j] > max_score ? current_row[j] : max_score;
 		}
-		printf("\n");
-		printf("Current row: \n");
+//		printf("\n");
+//		printf("Row %d: \t", i);
 		for (j = 0; j < columns; j++) {
-			printf("%d,", current_row[j]);
+			if ( current_row[j] == max_score){
+//				printf("[%d]\t", current_row[j]);
+			} else {
+//				printf("%d\t", current_row[j]);
+			}
 		}
-		printf("\n");
-		printf("Max score: %d \n", max_score);
+//		printf("\t\t");
+//		printf("Max score: %d \n", max_score);
 		// If the minimal acceptable score is not reachable, stop and return.
 		if ((max_score + (rows - i) * score_mat) <= min_acceptable_score) {
 			free(previous_row);
@@ -1033,6 +1037,10 @@ int is_repetitive_q(const bwa_seq_t *query) {
 			return 1;
 	}
 	return 0;
+}
+
+int is_bad_query(bwa_seq_t *query) {
+	return same_bytes(query->seq, query->len) || is_repetitive_q(query);
 }
 
 int is_biased_q(const bwa_seq_t *query) {

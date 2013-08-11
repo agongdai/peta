@@ -355,7 +355,7 @@ void k_hash_core(const char *fa_fn, hash_opt *opt) {
 			i_acc++;
 		}
 		fprintf(stderr,
-				"[pe_hash_core] %"ID64" sequences hashed: %.2f sec... \n",
+				"[pe_hash_core] %"ID64" sequences hashed: %.2f sec ... \n",
 				n_seqs, (float) (clock() - t) / CLOCKS_PER_SEC);
 		bwa_free_read_seq(n_part_seqs, part_seqs);
 	}
@@ -413,7 +413,7 @@ hash_table *load_k_hash(char *fa_fn) {
 	}
 	show_msg(
 			__func__,
-			"Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 "...\n",
+			"Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 " ...\n",
 			opt->k, opt->read_len, opt->n_k_mers, opt->n_pos);
 	ht->k_mers_occ_acc = (hash_key*) calloc(opt->n_k_mers, sizeof(hash_key));
 	ht->pos = (hash_value*) calloc(opt->n_pos, sizeof(hash_value));
@@ -485,6 +485,9 @@ GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 						value = ht->pos[i];
 						read_hash_value(&seq_id, &locus, value);
 						r = &seqs[seq_id];
+						//if (strcmp(r->name, "15398") == 0) {
+						//	p_query(__func__, r);
+						//}
 						if (locus == hash_start) {
 							// To avoid too many duplicates in hits (some extreme case)
 							if (r->pos == IMPOSSIBLE_NEGATIVE)
@@ -531,7 +534,8 @@ GPtrArray *find_both_fr_full_reads(hash_table *ht, bwa_seq_t *query,
 
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		//p_query(__func__, r);
+		//if (strcmp(r->name, "15398") == 0)
+		//	p_query(__func__, r);
 		r->pos = IMPOSSIBLE_NEGATIVE;
 		if (head_tail_similar(r, query, ht->o->k, mismatches, &rev_com)) {
 			r->rev_com = rev_com;
@@ -619,11 +623,21 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 	set_rev_com(query);
 	rev_hits = find_reads_with_kmer(ht, NULL, status, query->rseq, query->len);
 
+	// Reset the rev_com first, later it is used as an indicator
+	for (i = 0; i < rev_hits->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(rev_hits, i);
+		r->rev_com = 0;
+	}
+
 	// If reverse complement, update the pos
 	for (i = 0; i < rev_hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(rev_hits, i);
+		//if (strcmp(r->name, "15398") == 0)
+		//	p_query(__func__, r);
 		// To make sure the 'pos' will be changed once only
 		if (!r->rev_com) {
+			//if (strcmp(r->name, "15398") == 0)
+			//	p_query(__func__, r);
 			r->rev_com = 1;
 			// Adjust the locus due to reverse complement
 			//show_debug_msg(__func__, "Query->len: %d; r->pos: %d \n", query->len, r->pos);

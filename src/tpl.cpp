@@ -106,6 +106,7 @@ void add2tried(tpl *t, bwa_seq_t *r) {
 	r->contig_locus = -1;
 	r->status = TRIED;
 	r->pos = IMPOSSIBLE_NEGATIVE;
+	r->rev_com = 0;
 	g_ptr_array_add(t->tried, r);
 }
 
@@ -542,7 +543,7 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	}
 
 	//p_tpl(t);
-	//p_query(__func__, seq);
+	p_query(__func__, seq);
 	for (i = 0; i <= seq->len - ht->o->read_len; i++) {
 		window = new_seq(seq, ht->o->read_len, i);
 		hits = g_ptr_array_sized_new(4);
@@ -553,8 +554,12 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 			not_covered_len = 0;
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
+			r->pos = IMPOSSIBLE_NEGATIVE;
 			// For reads partially on left tail, the locus is negative
-			if (r->status == FRESH) {
+			if (r->status == FRESH || r->status == TRIED) {
+				//if (strcmp(r->name, "15398") == 0)
+				//p_query("ADDED", r);
+				//p_query("TEMPL", window);
 				if (seq_ol(r, window, r->len, mismatches) >= 0) {
 					//p_query("NEW", r);
 					add2tpl(t, r, i - left_len);
@@ -598,6 +603,8 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 			hits = find_both_fr_full_reads(ht, window, hits, mismatches);
 			for (j = 0; j < hits->len; j++) {
 				r = (bwa_seq_t*) g_ptr_array_index(hits, j);
+				//if (strcmp(r->name, "15398") == 0)
+				//			p_query(__func__, r);
 				// For reads partially on left tail, the locus is negative
 				if (r->status == FRESH)
 					add2tpl(t, r, i - t->l_tail->len);
@@ -785,8 +792,8 @@ void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read,
  * Pos:                ^(pos=1)
  * Checked ol:        =======		read_len - (shift - pos) = 7
  */
-GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit, int shift,
-		int mismatches, int8_t status, int ori) {
+GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
+		int shift, int mismatches, int8_t status, int ori) {
 	int64_t i = 0, cursor = 0, ol = 0, locus = 0;
 	int n_mis = 0, added = 0;
 	bwa_seq_t *r = NULL, *tpl_seq = NULL, *ol_seq = NULL;
@@ -806,6 +813,7 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit, in
 		// pos is the kmer position on the read
 		cursor = ori ? (r->pos - 1) : (r->pos + tail->len);
 
+		//if (strcmp(r->name, "15398") == 0)
 		//p_query(__func__, r);
 		//show_debug_msg(__func__, "CURSOR: %d\n", cursor);
 
@@ -925,6 +933,42 @@ void destroy_tpl(tpl *t) {
 		if (t->b_juncs)
 			g_ptr_array_free(t->b_juncs, TRUE);
 		free(t);
+	}
+}
+
+/**
+ * Keep only the template sequence
+ */
+void keep_ctg_only(tpl *t) {
+	if (t) {
+		if (t->r_tail) {
+			bwa_free_read_seq(1, t->r_tail);
+			t->r_tail = NULL;
+		}
+		if (t->l_tail) {
+			bwa_free_read_seq(1, t->l_tail);
+			t->l_tail = NULL;
+		}
+		if (t->vertexes) {
+			g_ptr_array_free(t->vertexes, TRUE);
+			t->vertexes = NULL;
+		}
+		if (t->reads) {
+			g_ptr_array_free(t->reads, TRUE);
+			t->reads = NULL;
+		}
+		if (t->tried) {
+			g_ptr_array_free(t->tried, TRUE);
+			t->tried = NULL;
+		}
+		if (t->m_juncs) {
+			g_ptr_array_free(t->m_juncs, TRUE);
+			t->m_juncs = NULL;
+		}
+		if (t->b_juncs) {
+			g_ptr_array_free(t->b_juncs, TRUE);
+			t->b_juncs = NULL;
+		}
 	}
 }
 

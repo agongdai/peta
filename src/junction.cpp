@@ -163,7 +163,6 @@ GPtrArray *find_junc_reads_w_tails(hash_table *ht, tpl *main_tpl,
 	return reads;
 }
 
-
 /**
  * Validate the junction by checking mate pairs.
  * Depending on ori and con_pos, only partial reads on the main template are counted
@@ -293,6 +292,9 @@ void store_features(char *name, GPtrArray *branching_events,
 }
 
 void p_junction(junction *jun) {
+	if (!jun)
+		show_debug_msg(__func__, "Junction is NULL.\n");
+	else
 	show_debug_msg(__func__, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\n",
 			jun->main_tpl->id, jun->main_tpl->len, jun->branch_tpl->id,
 			jun->branch_tpl->len, jun->locus, jun->weight, jun->ori);
@@ -355,27 +357,38 @@ void clean_junctions(GPtrArray *junctions) {
  *                         |||||||||
  *                         ---------
  */
-int branch_on_main(const bwa_seq_t *main_seq, const bwa_seq_t *branch,
-		const int pos, const int mismatches, const int exist_ori) {
-	bwa_seq_t *sub = NULL;
-	int similar = 0;
+int branch_on_main(tpl *main_tpl, tpl *branch, const int pos,
+		const int mismatches, const int exist_ori) {
+	bwa_seq_t *sub = NULL, *full = NULL;
+	int similar = 0, len_not_valid = 0;
+	int l_len = 0, r_len = 0, t_len = 0;
+	full = get_tpl_ctg_wt(main_tpl, &l_len, &r_len, &t_len);
 	if (exist_ori) {
-		if (pos < branch->len)
-			return 0;
-		sub = new_seq(main_seq, branch->len, pos - branch->len);
+		if (pos + l_len < branch->len)
+			len_not_valid = 1;
+		else
+			sub = new_seq(full, branch->len, pos - branch->len + l_len);
 	} else {
-		if ((main_seq->len - pos) < branch->len)
-			return 0;
-		sub = new_seq(main_seq, branch->len, pos);
+		if (full->len - pos - l_len < branch->len)
+			len_not_valid = 1;
+		else
+			sub = new_seq(full, branch->len, pos + l_len);
 	}
 
-	//p_ctg_seq("FULL", main_seq);
-	//p_ctg_seq(__func__, sub);
-	//p_ctg_seq(__func__, branch);
-	similar = (seq_ol(sub, branch, branch->len, mismatches) == -1) ? 0 : 1;
+	//p_ctg_seq("FULL", full);
+	p_ctg_seq(__func__, sub);
+	p_ctg_seq(__func__, branch->ctg);
+	if (!len_not_valid) {
+		//similar = (seq_ol(sub, branch, branch->len, mismatches) == -1) ? 0 : 1;
+		similar = similar_seqs(sub, branch->ctg, mismatches, MAX_GAPS, MATCH_SCORE,
+				MISMATCH_SCORE, INDEL_SCORE);
+		//show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,
+		//		similar);
+	} else {
+		similar = 0;
+	}
 	bwa_free_read_seq(1, sub);
-	show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,
-			similar);
+	bwa_free_read_seq(1, full);
 	return similar;
 }
 

@@ -14,7 +14,7 @@
 #include "bwtaln.h"
 #include "tpl.hpp"
 
-typedef 	unordered_map<int, int> junc_count;
+typedef unordered_map<int, int> junc_count;
 
 using namespace std;
 typedef struct {
@@ -23,16 +23,16 @@ typedef struct {
 	int locus;
 	int weight;
 	uint8_t ori;
-	bwa_seq_t *connector; 		// Kmer when branching
-	GPtrArray *reads;	// Reads at the junction
-	int8_t status; 		// 0 means good status
+	bwa_seq_t *connector; // Kmer when branching
+	GPtrArray *reads; // Reads at the junction
+	int8_t status; // 0 means good status
 } junction;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-	junction *new_junction(tpl *main_tpl, tpl *branch_tpl,  bwa_seq_t *connector,
+	junction *new_junction(tpl *main_tpl, tpl *branch_tpl, bwa_seq_t *connector,
 			int locus, int ori, int weight);
 	int tpls_have_junction(tpl *left, tpl *right);
 	void p_tpl_juncs(tpl *t, GPtrArray *t_juncs);
@@ -46,8 +46,8 @@ extern "C" {
 			GPtrArray *all_tpls);
 	gint cmp_junc_by_id(gpointer a, gpointer b);
 	void clean_junctions(GPtrArray *junctions);
-	int branch_on_main(const bwa_seq_t *main, const bwa_seq_t *branch,
-			const int pos, const int mismatches, const int exist_ori);
+	int branch_on_main(tpl *main, tpl *branch, const int pos, const int mismatches,
+			const int exist_ori);
 	void destroy_junction(junction *j);
 	bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
 			int r_pos, int *right_len, int max_len);

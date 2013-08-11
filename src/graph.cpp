@@ -574,6 +574,11 @@ splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 		v = (vertex*) g_ptr_array_index(g->vertexes, i);
 		g->len += v->len;
 	}
+
+	for (i = 0; i < all_tpls->len; i++) {
+		t = (tpl*) g_ptr_array_index(all_tpls, i);
+		keep_ctg_only(t);
+	}
 	return g;
 }
 

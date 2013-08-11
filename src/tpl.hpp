@@ -64,6 +64,7 @@ extern "C" {
 	int is_high_cov(tpl *t);
 	void reset_tid(tpl *t);
 	void destroy_tpl(tpl *t);
+	void keep_ctg_only(tpl *t);
 	void free_eg_seq(tpl *t);
 	void mv_unpaired_to_tried(bwa_seq_t *seqs, tpl *t, const int n_tpls);
 	bwa_seq_t *get_tail(tpl *t, int len, const int ori) ;
