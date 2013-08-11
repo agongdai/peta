@@ -530,6 +530,23 @@ void keep_fewer_mis_reads(pool *p) {
 }
 
 /**
+ * Keep those reads only with mates used on that template
+ */
+void keep_paired_reads(hash_table *ht, pool *p, tpl *t) {
+	bwa_seq_t *r = NULL, *m = NULL;
+	int i = 0;
+	for (i = 0; i < p->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
+		m = get_mate(r, ht->seqs);
+		if (m->status == USED && m->contig_id == t->id) {
+
+		} else {
+			rm_from_pool(p, i--);
+		}
+	}
+}
+
+/**
  * Find those reads with at least 11 * 2 overlap with the template,
  * 	by searching the hash table with LESS_MISMATCH
  */

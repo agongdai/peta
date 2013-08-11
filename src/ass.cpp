@@ -612,6 +612,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		//	otherwise, need to stop current extension.
 		if (is_bad_query(tail)) {
 			if (!consuming_pool) {
+				keep_paired_reads(ht, p, t);
 				consuming_pool = 1;
 				p_query(__func__, tail);
 				p_ctg_seq(__func__, t->ctg);
@@ -641,7 +642,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			show_debug_msg(__func__,
 					"[%d, %d] terminated. %d bases not covered by a read. \n",
 					t->id, t->len, no_read_len);
-			mark_pool_reads_tried(p, t);
+			//mark_pool_reads_tried(p, t);
 			break;
 		}
 
