@@ -271,6 +271,17 @@ def app(args):
             count += 1
     out_fa.save_to_disk(args.out)
     print 'Check %d seqs in file %s' % (count, args.out)
+    
+def inspect(args):
+    hits = read_blat_hits(args.psl, 'ref')
+    with open(args.ids) as ids:
+        for line in ids:
+            id = line.strip()
+            tx_hits = hits[id]
+            tx_hits.sort(key=lambda x: x.rstart)
+            print '======== %s =======' % id
+            for h in tx_hits:
+                print h
 
 def main():
     parser = ArgumentParser()
@@ -343,6 +354,11 @@ def main():
     parser_app.set_defaults(func=app)
     parser_app.add_argument('dir', help='directory')
     parser_app.add_argument('out', help='output file')
+    
+    parser_inspect = subparsers.add_parser('inspect', help='Append component id and merge FASTA files')
+    parser_inspect.set_defaults(func=inspect)
+    parser_inspect.add_argument('psl', help='psl file')
+    parser_inspect.add_argument('ids', help='ids file')
 
     args = parser.parse_args()
     args.func(args)
