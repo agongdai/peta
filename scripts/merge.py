@@ -277,6 +277,9 @@ def inspect(args):
     with open(args.ids) as ids:
         for line in ids:
             id = line.strip()
+            if not id in hits:
+                print '======== %s not covered ========'
+                continue
             tx_hits = hits[id]
             tx_hits.sort(key=lambda x: x.rstart)
             print '======== %s =======' % id

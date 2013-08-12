@@ -31,6 +31,7 @@ typedef struct {
 	bwa_seq_t *l_tail;		// Left tail, virtual
 	GPtrArray *b_juncs;		// Junctions with this template as branch
 	GPtrArray *m_juncs;		// Junctions with this template as main
+	GPtrArray *points;		// Branching points
 	int id; 				// template id
 	int32_t len;			// Length
 	int8_t alive;			// Whether alive
@@ -80,6 +81,8 @@ extern "C" {
 	GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch);
 	void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches);
 	void correct_tpl_base(tpl *t, const int read_len);
+	bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
+			int shift, int mismatches, int8_t status, int ori);
 	GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int max, int shift,
 			int mismatches, int8_t status, int ori);
 	int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,

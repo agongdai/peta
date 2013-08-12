@@ -70,14 +70,18 @@ tpl *blank_tpl(bwa_seq_t *start_read, int len, int ori) {
 	g_mutex_lock(kmer_id_mutex);
 	t->id = kmer_ctg_id++;
 	g_mutex_unlock(kmer_id_mutex);
-	if (len < 0 || len > start_read->len) {
-		t->ctg = new_seq(start_read, start_read->len, 0);
+	if (len == 0) {
+		t->ctg = blank_seq(start_read->len);
 	} else {
-		t->ctg = ori ? new_seq(start_read, len, 0) : new_seq(start_read, len,
-				start_read->len - len);
+		if (len < 0 || len > start_read->len) {
+			t->ctg = new_seq(start_read, start_read->len, 0);
+		} else {
+			t->ctg = ori ? new_seq(start_read, len, 0) : new_seq(start_read,
+					len, start_read->len - len);
+		}
 	}
-	t->len = t->ctg->len;
 	t->start_read = start_read;
+	t->len = t->ctg->len;
 	return t;
 }
 
@@ -667,7 +671,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		}
 
 		//if (consuming_pool) {
-			//p_query("TESTING", TEST);
+		//p_query("TESTING", TEST);
 		//	show_debug_msg(__func__,
 		//			"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 		//			t->len, "ACGTN"[max_c]);
@@ -713,16 +717,43 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 	return con_existing;
 }
 
-void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
-	bwa_seq_t *query = NULL;
-	int i = 0;
+void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
+		int ori) {
+	bwa_seq_t *tail = NULL, *r = NULL, *branch_read = NULL, *query = NULL;
+	int i = 0, j = 0, shift = 0;
 	tpl *branch = NULL;
-	if (!t || !t->alive || t->len < 100)
-		return;
-	if (t->b_juncs || t->m_juncs)
+	pool *p = NULL;
+	if (!t || !t->alive)
 		return;
 	for (i = 0; i <= t->len - kmer_len; i++) {
-		query = new_seq(t->ctg, kmer_len, i);
+		// If extending to right, get tail from the end
+		shift = i;
+		tail = new_seq(t->ctg, kmer_len, shift);
+		//p_query(__func__, tail);
+		branch_read = check_branch_tail(ht, t, tail, shift, mismatches, FRESH,
+				ori);
+		if (branch_read) {
+			p_query("BRANCH_QUERY", branch_read);
+			branch = blank_tpl(branch_read, branch_read->len, ori);
+			p = new_pool();
+			init_pool(ht, p, branch, kmer_len, mismatches, ori);
+			g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_name);
+			p_pool(__func__, p, NULL);
+			if (p->reads->len >= MIN_JUNCTION_READS) {
+				mark_init_reads_used(ht, branch, branch_read, mismatches);
+				query = ori ? new_seq(branch_read, kmer_len, 0) : new_seq(
+						branch_read, kmer_len, branch_read->len - kmer_len);
+				kmer_ext_tpl(ht, all_tpls, p, branch, query, 1, ori);
+				bwa_free_read_seq(1, query);
+
+				if (branch->len - branch_read->len > ht->o->read_len) {
+
+				}
+				//p_readarray(branch->reads, 1);
+			}
+			destroy_pool(p);
+		}
+		bwa_free_read_seq(1, tail);
 	}
 }
 
@@ -861,6 +892,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 				__func__,
 				"==== End of tpl %d with length: %d; reads: %d; Alive: %d ==== \n\n",
 				t->id, t->len, t->reads->len, t->alive);
+		branching(ht, all_tpls, t, N_MISMATCHES, 0);
 	}
 
 	//if (t->id == 6919)
@@ -881,16 +913,6 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		}
 		// The reads on it marked as TRIED
 		destroy_tpl(t);
-	} else {
-		// Remove all reads, realign from the hash table
-		// It is important because some reads may not be picked during extension
-		//	due to not full sensitive hashing.
-		//	If not redo aligning, there would be many false junctions
-		//refresh_tpl_reads(ht, t, N_MISMATCHES);
-		//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
-		//p_readarray(t->reads, 1);
-		//upd_tpl_jun_locus(t, branching_events, opt->k);
-		//correct_tpl_base(t, ht->o->read_len);
 	}
 	// If the read cannot be even extend one base, reset the read to fresh
 	if (flag) {
@@ -939,8 +961,8 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		//if (kmer_ctg_id >= 20)
-		//	break;
+		if (kmer_ctg_id >= 2)
+			break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 

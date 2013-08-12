@@ -13,6 +13,7 @@
 #include "pechar.h"
 #include "k_hash.h"
 #include "tpl.hpp"
+#include "junction.hpp"
 
 using namespace std;
 
@@ -26,19 +27,18 @@ pool *new_pool() {
  * Destroy a pool
  */
 void destroy_pool(pool *p) {
-	uint32_t i = 0;
+	int i = 0;
 	bwa_seq_t *r = NULL;
 	if (p) {
 		if (p->reads) {
+			//show_debug_msg(__func__, "Reads: %d \n", p->reads->len);
 			for (i = 0; i < p->reads->len; i++) {
 				r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
-				r->pos = IMPOSSIBLE_NEGATIVE;
-				r->cursor = -1;
-				if (r->status == IN_POOL)
-					r->status = FRESH;
+				//p_query(__func__, r);
+				reset_to_fresh(r);
 			}
+			g_ptr_array_free(p->reads, TRUE);
 		}
-		g_ptr_array_free(p->reads, TRUE);
 		free(p);
 	}
 }
@@ -318,11 +318,10 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 	for (i = start; i <= end; i++) {
 		tail = new_seq(read, tail_len, i);
 		//p_query("TAIL", tail);
-		hits = align_tpl_tail(ht, t, tail, 0, i, mismatches,
-				FRESH, ori);
+		hits = align_tpl_tail(ht, t, tail, 0, i, mismatches, FRESH, ori);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
-			//p_query("CANDIDATE", r);
+			p_query("CANDIDATE", r);
 			if (r->cursor >= 0 && r->cursor < read->len) {
 				add2pool(p, r);
 			} else {
@@ -566,8 +565,7 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 	// Query tail: shorter than a normal tail, just 22bp, query 2 kmers.
 	q_tail = get_tail(t, tail_len, ori);
 	// In case the tail is an biased seq like: TTTTCTTTTTT
-	if (is_biased_q(q_tail) || is_repetitive_q(q_tail) || has_n(
-			q_tail, 1)) {
+	if (is_biased_q(q_tail) || is_repetitive_q(q_tail) || has_n(q_tail, 1)) {
 		bwa_free_read_seq(1, q_tail);
 		return;
 	}
