@@ -198,6 +198,8 @@ bwa_seq_t *get_tail(tpl *t, int len, const int ori) {
 	if (!t || t->len < 0 || len < 0)
 		return NULL;
 	real_seq = get_tpl_ctg_wt(t, &l_len, &r_len, &t_len);
+	if (t->start_read->rev_com)
+		switch_fr(t->start_read);
 	//p_query(__func__, real_seq);
 	if (real_seq->len < len) {
 		show_debug_msg(
@@ -211,6 +213,8 @@ bwa_seq_t *get_tail(tpl *t, int len, const int ori) {
 		tail = ori ? new_seq(real_seq, len, 0) : new_seq(real_seq, len,
 				real_seq->len - len);
 	}
+	if (t->start_read->rev_com)
+		switch_fr(t->start_read);
 	//p_query(__func__, tail);
 	bwa_free_read_seq(1, real_seq);
 	return tail;
@@ -772,7 +776,7 @@ void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read,
 	hits = find_both_fr_full_reads(ht, read, hits, mismatches);
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		p_query(__func__, r);
+		//p_query(__func__, r);
 		if (r->status == FRESH) {
 			add2tpl(t, r, 0);
 		}
@@ -792,28 +796,41 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	int i = 0, j = 0;
 	ubyte_t c = 0, read_c = 0;
 
+	show_debug_msg(__func__, "----\n");
+	show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left" : "right");
+	p_query(__func__, query);
+
 	for (i = 0; i < hits->len; i++) {
 		if (tail)
 			break;
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
 
-		show_debug_msg(__func__, "Shift: %d \n", shift);
-		p_query(__func__, query);
 		p_query("HIT", r);
 
-		ol_len = ori ? r->len - r->pos + 1 : query->len + r->pos;
+		ol_len = ori ? r->len - r->pos : query->len + r->pos;
 		start = ori ? shift : shift - r->pos;
 		show_debug_msg(__func__, "Start: %d; ol: %d\n", start, ol_len);
 		if (start >= 0 && start + ol_len <= t->len) {
 			tpl_seq = new_seq(t->ctg, ol_len, start);
 			p_query("TEMPLATE SEQ", tpl_seq);
 			if (ori)
-				n_mis = seq_ol(query, tpl_seq, ol_len, mismatches);
+				n_mis = seq_ol(r, tpl_seq, ol_len, mismatches);
 			else
-				n_mis = seq_ol(tpl_seq, query, ol_len, mismatches);
+				n_mis = seq_ol(tpl_seq, r, ol_len, mismatches);
+			show_debug_msg(__func__, "n_mis: %d \n", n_mis);
+			bwa_free_read_seq(1, tpl_seq);
 			if (n_mis >= 0) {
 				if (ori) {
-
+					// To find the cursor
+					for (j = r->pos - 1; j >= 0; j--) {
+						c = t->ctg->seq[shift - (r->pos - j)];
+						read_c = r->rev_com ? r->rseq[j] : r->seq[j];
+						if (c != read_c) {
+							r->cursor = j;
+							tail = r;
+							break;
+						}
+					}
 				} else {
 					for (j = ol_len; j < r->len; j++) {
 						c = t->ctg->seq[start + j];
@@ -827,12 +844,12 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 				}
 			}
 		}
-		r->pos = IMPOSSIBLE_NEGATIVE;
-		bwa_free_read_seq(1, tpl_seq);
+
 	}
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		reset_to_fresh(r);
+		if (r != tail)
+			reset_to_fresh(r);
 	}
 
 	g_ptr_array_free(hits, TRUE);
@@ -872,10 +889,10 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 		// pos is the kmer position on the read
 		cursor = ori ? (r->pos - 1) : (r->pos + tail->len);
 
-		if (strcmp(r->name, "15398") == 0) {
-		p_query(__func__, r);
-		show_debug_msg(__func__, "CURSOR: %d\n", cursor);
-		}
+		//if (strcmp(r->name, "15398") == 0) {
+		//p_query(__func__, r);
+		//show_debug_msg(__func__, "CURSOR: %d\n", cursor);
+		//}
 
 		if (ori) {
 			cursor = r->pos - shift;

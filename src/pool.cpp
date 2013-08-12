@@ -321,7 +321,7 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 		hits = align_tpl_tail(ht, t, tail, 0, i, mismatches, FRESH, ori);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
-			p_query("CANDIDATE", r);
+			//p_query("CANDIDATE", r);
 			if (r->cursor >= 0 && r->cursor < read->len) {
 				add2pool(p, r);
 			} else {
