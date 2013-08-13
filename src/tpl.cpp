@@ -569,7 +569,8 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 					//p_query("NEW", r);
 					add2tpl(t, r, i - left_len);
 				}
-			} else
+			}
+			if (r->contig_id == t->id)
 				// If already on the template, just update the locus
 				r->contig_locus = i - left_len;
 		}
@@ -796,28 +797,28 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	int i = 0, j = 0;
 	ubyte_t c = 0, read_c = 0;
 
-	show_debug_msg(__func__, "----\n");
-	show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left" : "right");
-	p_query(__func__, query);
+	//show_debug_msg(__func__, "----\n");
+	//show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left" : "right");
+	//p_query(__func__, query);
 
 	for (i = 0; i < hits->len; i++) {
 		if (tail)
 			break;
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
 
-		p_query("HIT", r);
+		//p_query("HIT", r);
 
 		ol_len = ori ? r->len - r->pos : query->len + r->pos;
 		start = ori ? shift : shift - r->pos;
-		show_debug_msg(__func__, "Start: %d; ol: %d\n", start, ol_len);
+		//show_debug_msg(__func__, "Start: %d; ol: %d\n", start, ol_len);
 		if (start >= 0 && start + ol_len <= t->len) {
 			tpl_seq = new_seq(t->ctg, ol_len, start);
-			p_query("TEMPLATE SEQ", tpl_seq);
+			//p_query("TEMPLATE SEQ", tpl_seq);
 			if (ori)
 				n_mis = seq_ol(r, tpl_seq, ol_len, mismatches);
 			else
 				n_mis = seq_ol(tpl_seq, r, ol_len, mismatches);
-			show_debug_msg(__func__, "n_mis: %d \n", n_mis);
+			//show_debug_msg(__func__, "n_mis: %d \n", n_mis);
 			bwa_free_read_seq(1, tpl_seq);
 			if (n_mis >= 0) {
 				if (ori) {

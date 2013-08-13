@@ -726,8 +726,8 @@ int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
 			+ get_abs(query->len - seq->len) * score_gap;
 	similarity_score = smith_waterman(query, seq, score_mat, score_mis,
 			score_gap, min_acceptable_score);
-	show_debug_msg(__func__, "Score: %d\n", similarity_score);
-	show_debug_msg(__func__, "min_acceptable_score: %d\n", min_acceptable_score);
+	//show_debug_msg(__func__, "Score: %d\n", similarity_score);
+	//show_debug_msg(__func__, "min_acceptable_score: %d\n", min_acceptable_score);
 	if (similarity_score >= min_acceptable_score)
 		return similarity_score;
 	return 0;

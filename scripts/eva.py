@@ -773,16 +773,34 @@ def paths(args):
 	all_hits = read_blat_hits(args.psl, 'ref')
 	no = 1
 	print '%d reference transcripts hit' % len(all_hits)
+#	print all_hits['ENST00000475972']
 	for tx_name, hits in all_hits.iteritems():
 		paths = []
+		vertexes = []
+		tx_len = 0
+		hits.sort(key=lambda x: x.rstart)
+		pre_h = None
 		for h in hits:
+			tx_len = h.rlen
 			if h.n_mismatch <= 10 and h.n_match >= h.rlen - 10 and h.n_ref_gap == 0 and h.n_query_gap == 0:
 				paths.append((h.qname, h.n_mismatch))
-		if len(paths) > 0:
-			print no, tx_name
-			for (p, n_mis) in paths:
-				print '\tPath %s: mismatch %d' % (p, n_mis)
+			else:
+				if pre_h is None:
+					pre_h = h
+					vertexes.append(h)
+				else:
+					if abs(pre_h.rend - h.rstart) < 10:
+						vertexes.append(h)
+						pre_h = h
+		if len(paths) > 0 or len(vertexes) > 0:
+			print no, tx_name, 'length:', tx_len
 			no+=1
+		if len(paths) > 0:
+			for (p, n_mis) in paths:
+				print '\tPath %s: \t\t mismatch %d' % (p, n_mis)
+		if len(vertexes) > 0:
+			for h in vertexes:
+				print '\tVertex %s: [%d, %d] \t mismatch %d indels %d/%d' % (h.qname, h.rstart, h.rend, h.n_mismatch, h.n_ref_gap, h.n_query_gap)
 
 def diff_novo(args):
 	tx = FastaFile(args.transcript)
