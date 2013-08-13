@@ -295,9 +295,9 @@ void p_junction(junction *jun) {
 	if (!jun)
 		show_debug_msg(__func__, "Junction is NULL.\n");
 	else
-	show_debug_msg(__func__, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\n",
+	show_debug_msg(__func__, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\t%d\n",
 			jun->main_tpl->id, jun->main_tpl->len, jun->branch_tpl->id,
-			jun->branch_tpl->len, jun->locus, jun->weight, jun->ori);
+			jun->branch_tpl->len, jun->locus, jun->weight, jun->ori, jun->status);
 }
 
 /**
@@ -318,11 +318,28 @@ void remove_dead_junctions(GPtrArray *junctions) {
 /**
  * Remove duplicate junctions and junctions with dead templates
  */
-void clean_junctions(GPtrArray *junctions) {
+void clean_junctions(GPtrArray *read_tpls, GPtrArray *junctions) {
 	junction *junc = NULL, *pre = NULL;
-	uint32_t i = 0;
+	uint32_t i = 0, j = 0;
 	int not_alive = 0;
 	tpl *t = NULL;
+	for (i = 0; i < read_tpls->len; i++) {
+		t = (tpl*) g_ptr_array_index(read_tpls, i);
+		if (t->m_juncs) {
+			for (j = 0; j < t->m_juncs->len; j++) {
+				junc = (junction*) g_ptr_array_index(t->m_juncs, j);
+				if (junc->status != 0)
+					g_ptr_array_remove_index_fast(t->m_juncs, j--);
+			}
+		}
+		if (t->b_juncs) {
+			for (j = 0; j < t->b_juncs->len; j++) {
+				junc = (junction*) g_ptr_array_index(t->b_juncs, j);
+				if (junc->status != 0)
+					g_ptr_array_remove_index_fast(t->b_juncs, j--);
+			}
+		}
+	}
 	for (i = 0; i < junctions->len; i++) {
 		not_alive = 0;
 		junc = (junction*) g_ptr_array_index(junctions, i);
@@ -346,6 +363,7 @@ void clean_junctions(GPtrArray *junctions) {
 		}
 		pre = junc;
 	}
+	remove_dead_junctions(junctions);
 }
 
 /**
@@ -578,7 +596,7 @@ void filter_junctions(GPtrArray *junctions, GPtrArray *tpls, hash_table *ht) {
 	junction *junc = NULL;
 	tpl *t = NULL;
 	GPtrArray *main_junctions = NULL;
-	clean_junctions(junctions);
+	clean_junctions(tpls, junctions);
 	while (start_index < junctions->len - 1) {
 		//show_debug_msg(__func__, "======== Started at %d =======\n",
 		//		start_index);

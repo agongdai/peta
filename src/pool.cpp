@@ -140,20 +140,27 @@ void rm_from_pool(pool *p, int index) {
  */
 int get_next_char(hash_table *ht, pool *p, tpl *t, const int ori) {
 	readarray *reads = p->reads;
+	junction *jun = NULL;
 	float *c = NULL, weight = 0.0, max_c = 0.0, multi = MATE_MULTI;
 	int i = 0, next_char = -1;
 	bwa_seq_t *r = NULL, *m = NULL;
 	int pre_cursor = 0, this_c = 0, pre_c = 0, counted = 0, n_pairs = 0;
+	tpl *main_tpl = NULL;
 	int pre_t_c = ori ? t->ctg->seq[0] : t->ctg->seq[t->len - 1];
 
 	if (!p->reads || p->reads->len == 0)
 		return -1;
 
+	if (t->b_juncs && t->b_juncs->len > 0) {
+		jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
+		main_tpl = jun->main_tpl;
+	}
 	if (t->len >= 100) {
 		for (i = 0; i < reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(reads, i);
 			m = get_mate(r, ht->seqs);
-			if (m->status == USED && m->contig_id == t->id)
+			if (m->status == USED && (m->contig_id == t->id) || (main_tpl
+					&& m->contig_id == main_tpl->id))
 				n_pairs++;
 			if (n_pairs > MIN_PAIRS) {
 				multi *= 1000;
@@ -184,7 +191,8 @@ int get_next_char(hash_table *ht, pool *p, tpl *t, const int ori) {
 		// Minus the mismatches with the template
 		weight -= r->pos * MISMATCH_WEIGHT;
 		// If its mate is on the same template, triple the weight
-		if (m->status == USED && m->contig_id == t->id)
+		if (m->status == USED && (m->contig_id == t->id) || (main_tpl
+				&& m->contig_id == main_tpl->id))
 			weight *= multi;
 		c[this_c] += weight;
 		counted++;
@@ -445,6 +453,9 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 	index64 i = 0;
 	int ol = 0, rev_com = 0, n_mis = 0;
 	tail = get_tail(t, tail_len, ori);
+	junction *jun = NULL;
+	tpl *main_tpl = NULL;
+	GPtrArray *existing_reads = t->reads;
 
 	// In case the tail is an biased seq like: TTTTCTTTTTT
 	if (is_biased_q(tail) || has_n(tail, 1)) {
@@ -452,17 +463,32 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		return;
 	}
 
+	if (t->b_juncs && t->b_juncs->len > 0) {
+		jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
+		main_tpl = jun->main_tpl;
+		existing_reads = g_ptr_array_sized_new(t->reads->len
+				+ main_tpl->reads->len);
+		for (i = 0; i < t->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+			g_ptr_array_add(existing_reads, r);
+		}
+		for (i = 0; i < main_tpl->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(main_tpl->reads, i);
+			g_ptr_array_add(existing_reads, r);
+		}
+	}
+
 	//p_tpl(t);
 	//show_debug_msg(__func__, "ORI: %d \n", ori);
 	//p_query(__func__, tail);
 
-	for (i = 0; i < t->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+	for (i = 0; i < existing_reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(existing_reads, i);
 		m = get_mate(r, ht->seqs);
 
 		// If the mate is used already
 		// If the orientation is not correct
-		if (m->status != FRESH || is_paired(r, ori) || is_biased_q(m)) {
+		if (m->status != FRESH || is_paired(r, ori) || is_bad_query(m)) {
 			continue;
 		}
 		// Find the overlapping between mate and tail
@@ -489,6 +515,9 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 			m->pos = n_mis;
 			add2pool(p, m);
 		}
+	}
+	if (main_tpl) {
+		g_ptr_array_free(existing_reads, TRUE);
 	}
 	bwa_free_read_seq(1, tail);
 }
@@ -534,10 +563,17 @@ void keep_fewer_mis_reads(pool *p) {
 void keep_paired_reads(hash_table *ht, pool *p, tpl *t) {
 	bwa_seq_t *r = NULL, *m = NULL;
 	int i = 0;
+	tpl *main_tpl = NULL;
+	junction *jun = NULL;
+	if (t->b_juncs && t->b_juncs->len > 0) {
+		jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
+		main_tpl = jun->main_tpl;
+	}
 	for (i = 0; i < p->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
 		m = get_mate(r, ht->seqs);
-		if (m->status == USED && m->contig_id == t->id) {
+		if (m->status == USED && (m->contig_id == t->id) || (main_tpl
+				&& main_tpl->id == m->contig_id)) {
 
 		} else {
 			rm_from_pool(p, i--);
@@ -558,9 +594,15 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 	// Query tail and overlap tail are used in different length
 	bwa_seq_t *ol_tail = 0, *q_tail = NULL, *r = NULL, *m = NULL;
 	GPtrArray *mates = NULL;
+	junction *jun = NULL;
+	tpl *main_tpl = NULL;
 
 	if (t->len < tail_len || t->len < 0)
 		return;
+	if (t->b_juncs && t->b_juncs->len > 0) {
+		jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
+		main_tpl = jun->main_tpl;
+	}
 	//show_debug_msg(__func__, "Looking for shorter; ori %d...\n", ori);
 	// Query tail: shorter than a normal tail, just 22bp, query 2 kmers.
 	q_tail = get_tail(t, tail_len, ori);
@@ -577,8 +619,13 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 	for (i = 0; i < mates->len; i++) {
 		m = (bwa_seq_t*) g_ptr_array_index(mates, i);
 		r = get_mate(m, seqs);
+		if (!r || r->status != USED || is_bad_query(m)) {
+			reset_to_fresh(m);
+			continue;
+		}
 		// Keep those reads whose mate is used by current template
-		if (!r || r->contig_id != t->id || r->status != USED || is_biased_q(m)) {
+		if (r->contig_id != t->id
+				&& (!main_tpl || r->contig_id != main_tpl->id)) {
 			reset_to_fresh(m);
 			continue;
 		}

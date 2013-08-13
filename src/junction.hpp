@@ -45,7 +45,7 @@ extern "C" {
 	void store_features(char *name, GPtrArray *branching_events,
 			GPtrArray *all_tpls);
 	gint cmp_junc_by_id(gpointer a, gpointer b);
-	void clean_junctions(GPtrArray *junctions);
+	void clean_junctions(GPtrArray *read_tpls, GPtrArray *junctions);
 	int branch_on_main(tpl *main, tpl *branch, const int pos, const int mismatches,
 			const int exist_ori);
 	void destroy_junction(junction *j);
