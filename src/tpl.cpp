@@ -823,7 +823,7 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 			if (n_mis >= 0) {
 				if (ori) {
 					// To find the cursor
-					for (j = r->pos - 1; j >= 0; j--) {
+					for (j = r->pos - 1; j >= N_BAD_TAIL_SHIFT; j--) {
 						c = t->ctg->seq[shift - (r->pos - j)];
 						read_c = r->rev_com ? r->rseq[j] : r->seq[j];
 						if (c != read_c) {
@@ -833,7 +833,7 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 						}
 					}
 				} else {
-					for (j = ol_len; j < r->len; j++) {
+					for (j = ol_len; j < r->len - N_BAD_TAIL_SHIFT; j++) {
 						c = t->ctg->seq[start + j];
 						read_c = r->rev_com ? r->rseq[j] : r->seq[j];
 						if (c != read_c) {

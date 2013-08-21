@@ -43,6 +43,7 @@
 
 #define IMPOSSIBLE_NEGATIVE		-999999999
 #define N_MISMATCHES			2
+#define N_BAD_TAIL_SHIFT		2
 #define MORE_MISMATCH			4
 #define LESS_MISMATCH			1
 #define MAX_GAPS				4
