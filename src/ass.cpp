@@ -800,7 +800,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			// For later truncate the branch template
 			cursor = branch_read->cursor;
 			pos = branch_read->pos;
-			//p_query("BRANCH_QUERY", branch_read);
+			p_query("BRANCH_QUERY", branch_read);
 			//show_debug_msg(__func__, "i: %d; CURSOR: %d\n", i, cursor);
 
 			// Create a new template
@@ -814,9 +814,12 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			// Check the junction reads
 			p = new_pool();
 			init_pool(ht, p, branch, kmer_len, mismatches, ori);
-			g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_name);
-			keep_paired_reads(ht, p, branch);
-			//p_pool(__func__, p, NULL);
+			//g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_name);
+			//keep_paired_reads(ht, p, branch);
+			keep_good_cursors(p);
+			p_query(__func__, tail);
+			//p_query("BRANCH_QUERY", branch_read);
+			p_pool(__func__, p, NULL);
 			if (p->reads->len >= MIN_JUNCTION_READS) {
 				n_junc_reads = p->reads->len;
 				mark_init_reads_used(ht, branch, branch_read, mismatches);
@@ -871,6 +874,17 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			}
 		}
 		bwa_free_read_seq(1, tail);
+	}
+}
+
+void branching_long(hash_table *ht, tpl_hash *all_tpls) {
+	uint64_t id = 0;
+	tpl *t = NULL;
+	for (tpl_hash::iterator m = all_tpls->begin(); m != all_tpls->end(); ++m) {
+		id = m->first;
+		t = (tpl*) m->second;
+		branching(ht, all_tpls, t, N_MISMATCHES, 0);
+		branching(ht, all_tpls, t, N_MISMATCHES, 1);
 	}
 }
 
@@ -1014,8 +1028,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 					__func__,
 					"==== End of tpl %d with length: %d; reads: %d; Alive: %d ==== \n\n",
 					t->id, t->len, t->reads->len, t->alive);
-			branching(ht, all_tpls, t, N_MISMATCHES, 0);
-			branching(ht, all_tpls, t, N_MISMATCHES, 1);
+			//branching(ht, all_tpls, t, N_MISMATCHES, 0);
+			//branching(ht, all_tpls, t, N_MISMATCHES, 1);
 		}
 	}
 
@@ -1066,10 +1080,12 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		//if (kmer_ctg_id >= 2)
-		//	break;
+		if (kmer_ctg_id >= 2)
+			break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
+
+	branching_long(ht, params->all_tpls);
 
 	//	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
 	//

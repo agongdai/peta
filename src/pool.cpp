@@ -466,8 +466,8 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 	if (t->b_juncs && t->b_juncs->len > 0) {
 		jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
 		main_tpl = jun->main_tpl;
-		existing_reads = g_ptr_array_sized_new(t->reads->len
-				+ main_tpl->reads->len);
+		existing_reads = g_ptr_array_sized_new(
+				t->reads->len + main_tpl->reads->len);
 		for (i = 0; i < t->reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 			g_ptr_array_add(existing_reads, r);
@@ -492,8 +492,8 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 			continue;
 		}
 		// Find the overlapping between mate and tail
-		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1, tail_len
-				- 1, ori, &rev_com, &n_mis);
+		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1,
+				tail_len - 1, ori, &rev_com, &n_mis);
 		//if (t->id == 6919 || t->id == 2416) {
 		//p_query("USED ", r);
 		//p_query("FRESH", m);
@@ -501,8 +501,8 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		//}
 
 		if (ol >= ht->o->k - 1 && ol >= n_mis * ht->o->k) {
-			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol, tail->len
-					- ol);
+			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol,
+					tail->len - ol);
 			//p_query(__func__, part);
 			if (is_biased_q(part) || has_n(part, 1)) {
 				bwa_free_read_seq(1, part);
@@ -553,6 +553,21 @@ void keep_fewer_mis_reads(pool *p) {
 			if (r->pos != 1) {
 				rm_from_pool(p, i--);
 			}
+		}
+	}
+}
+
+/**
+ * If the cursor of a read in at the beginning/tail (2bp), remove it.
+ */
+void keep_good_cursors(pool *p) {
+	bwa_seq_t *r = NULL;
+	int i = 0;
+	for (i = 0; i < p->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
+		if (r->cursor < N_BAD_TAIL_SHIFT || r->cursor >= r->len
+				- N_BAD_TAIL_SHIFT) {
+			rm_from_pool(p, i--);
 		}
 	}
 }

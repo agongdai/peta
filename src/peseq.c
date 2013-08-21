@@ -387,6 +387,7 @@ void p_query(const char *header, const bwa_seq_t *q) {
 	else
 		printf(" [>>>>    @%d]", q->pos);
 	printf(" [%d: %d]", q->contig_id, q->contig_locus);
+	printf(" [cursor: %d]", q->cursor);
 	//	printf("\n[rev_com] ");
 	//	for (i = 0; i < q->len; i++) {
 	//		if (q->rseq[i] > 4)

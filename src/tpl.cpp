@@ -845,7 +845,6 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 				}
 			}
 		}
-
 	}
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);

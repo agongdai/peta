@@ -393,15 +393,15 @@ int branch_on_main(tpl *main_tpl, tpl *branch, const int pos,
 			sub = new_seq(full, branch->len, pos + l_len);
 	}
 
-	//p_ctg_seq("FULL", full);
-	//p_ctg_seq(__func__, sub);
-	//p_ctg_seq(__func__, branch->ctg);
+	p_ctg_seq("FULL", full);
+	p_ctg_seq(__func__, sub);
+	p_ctg_seq(__func__, branch->ctg);
 	if (!len_not_valid) {
 		//similar = (seq_ol(sub, branch, branch->len, mismatches) == -1) ? 0 : 1;
 		similar = similar_seqs(sub, branch->ctg, mismatches, MAX_GAPS, MATCH_SCORE,
 				MISMATCH_SCORE, INDEL_SCORE);
-		//show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,
-		//		similar);
+		show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,
+				similar);
 	} else {
 		similar = 0;
 	}
