@@ -468,11 +468,8 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 			continue;
 		}
 
-		//junc_reads = find_junc_reads_w_tails(ht, main_tpl, branch, con_pos,
-		//		(ht->o->read_len - SHORT_BRANCH_SHIFT) * 2, adj_ori, &weight);
-		//valid = (junc_reads->len >= MIN_JUNCTION_READS) ? 1 : 0;
-		//show_debug_msg(__func__, "Junction reads: \n");
-		//p_readarray(junc_reads, 1);
+		p_ctg_seq("MAIN", main_tpl->ctg);
+		p_ctg_seq("BRAN", branch->ctg);
 		find_reads_ahead(branch, ht->o->read_len, ext_len, &weight, ori);
 		//p_query("TESTING", TEST);
 		valid = weight >= MIN_JUNCTION_READS ? 1 : 0;
@@ -800,7 +797,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			// For later truncate the branch template
 			cursor = branch_read->cursor;
 			pos = branch_read->pos;
-			p_query("BRANCH_QUERY", branch_read);
+			//p_query("BRANCH_QUERY", branch_read);
 			//show_debug_msg(__func__, "i: %d; CURSOR: %d\n", i, cursor);
 
 			// Create a new template
@@ -817,9 +814,9 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			//g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_name);
 			//keep_paired_reads(ht, p, branch);
 			keep_good_cursors(p);
-			p_query(__func__, tail);
+			//p_query(__func__, tail);
 			//p_query("BRANCH_QUERY", branch_read);
-			p_pool(__func__, p, NULL);
+			//p_pool(__func__, p, NULL);
 			if (p->reads->len >= MIN_JUNCTION_READS) {
 				n_junc_reads = p->reads->len;
 				mark_init_reads_used(ht, branch, branch_read, mismatches);
@@ -1080,12 +1077,12 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		if (kmer_ctg_id >= 2)
-			break;
+		//if (kmer_ctg_id >= 2)
+		//	break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 
-	branching_long(ht, params->all_tpls);
+	//branching_long(ht, params->all_tpls);
 
 	//	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
 	//

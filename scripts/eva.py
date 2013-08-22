@@ -883,6 +883,10 @@ def cmp_psl(args):
 		print 'psl_2 bases covered:      %.2f' % (n_base_both / (n_base_2 + n_base_both))
 	print 'Check file: %s.base' % args.psl_2
 
+def check_junctions(args):
+	tx_hits = read_blat_hits(args.psl, 'query')
+	
+
 def comps(args):
     ref_hits = read_blat_hits(args.psl, 'ref')
     not_touched = []
@@ -1043,7 +1047,11 @@ def main():
     parser_comps.add_argument('psl', help='component-to-ref PSL file')
     parser_comps.add_argument('id_file', help='file of id list to check')
     parser_comps.add_argument('csv', help='components.csv')
-
+    
+    parser_junc = subparsers.add_parser('junc', help='Check junctions')
+    parser_junc.set_defaults(func=check_junctions)
+    parser_junc.add_argument('psl', help='contig-to-ref PSL file')
+    parser_junc.add_argument('junctions', help='paired.junctions')
 	
     args = parser.parse_args()
     args.func(args)

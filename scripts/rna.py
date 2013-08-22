@@ -46,25 +46,19 @@ def read_junctions(junction_file):
     return junctions
 
 def junc(args):
-    n_branch_on_main = 0
     junctions = read_junctions(args.jun)
     hits = read_blat_hits(args.psl, 'query')
     for j in junctions:
-        stop = False
-        for h in hits[j.main]:
-            if stop:
-                break
-            for h_query in hits[j.branch]:
-                if h.rname == h_query.rname:
-                    if (h.rstart >= h_query.rstart and h.rend <= h_query.rend) or (h.rstart <= h_query.rstart and h.rend >= h_query.rend):
-                        print '--- %s ---' % h.rname
-                        print j
-                        print h
-                        print h_query
-                        n_branch_on_main += 1
-                        stop = True
-                        break
-    print 'n_branch_on_main: %d / %d ' % (n_branch_on_main, len(junctions))
+        print j
+        if j.main in hits:
+            print hits[j.main]
+        else:
+            print 'Main without hits'
+        if j.branch in hits:
+            print hits[j.branch]
+        else:
+            print 'Branch without hits'
+        print '-------------\n'
 
 def simple_format_junctions(args):
     junctions = read_junctions(args.junc)
@@ -410,6 +404,25 @@ def match(args):
         except:
             pass
     print '==== HITS: %d ====' % count
+    
+def find_splicing(args):
+    hits = read_blat_hits(args.psl, 'ref')
+    tx_w_splicing = {}
+    print '# of transcripts with splicing: %d' % len(hits)
+    with open(args.psl + '.ids', 'w') as ids:
+        for tx in hits.iterkeys():
+            ids.write(tx + '\n')
+    print 'Check file %s.ids' % (args.psl)
+    for ref, tx_hits in hits.iteritems():
+        for h in tx_hits:
+            if h.n_ref_gap_bases >= 10 or h.n_query_gap_bases >= 10 or abs(h.rlen - h.qlen) >= 100:
+                tx_w_splicing[h.rname] = h
+                tx_w_splicing[h.qname] = h
+    print '# of transcripts not closely similar: %d' % len(tx_w_splicing)
+    with open(args.psl + '.nots.ids', 'w') as ids:
+        for tx in tx_w_splicing.iterkeys():
+            ids.write(tx + '\n')
+    print 'Check file %s.nots.ids' % args.psl
 
 def main():
     parser = ArgumentParser()
@@ -460,6 +473,10 @@ def main():
     parser_junc.set_defaults(func=junc)
     parser_junc.add_argument('psl', help='paired-to-ref PSL file')
     parser_junc.add_argument('jun', help='.junctions file')
+    
+    parser_splice = subparsers.add_parser('splice', help='Get transcripts with splicing')
+    parser_splice.set_defaults(func=find_splicing)
+    parser_splice.add_argument('psl', help='PSL after removing self-to-self alignments')
 
     args = parser.parse_args()
     args.func(args)

@@ -394,7 +394,7 @@ void find_reads_ahead(tpl *t, const int read_len, int ext_len, int *n_reads,
 			}
 		}
 		if (r->contig_locus >= start && r->contig_locus <= end) {
-			//p_query(__func__, r);
+			p_query(__func__, r);
 			n++;
 		}
 		if (r->contig_locus < start || r->contig_locus > end) {
