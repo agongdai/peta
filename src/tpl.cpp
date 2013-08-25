@@ -279,6 +279,24 @@ int binary_search_read(GPtrArray *reads, bwa_seq_t *q) {
 }
 
 /**
+ * Check whether there are at least n_pairs of paired reads on the template
+ */
+int has_pairs_on_tpl(hash_table *ht, tpl *t, const int n_pairs) {
+	bwa_seq_t *r = NULL, *m = NULL;
+	int i = 0;
+	int pairs = 0;
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		m = get_mate(r, ht->seqs);
+		if (m->status == USED && m->contig_id == t->id)
+			pairs++;
+		if (pairs >= n_pairs)
+			return 1;
+	}
+	return 0;
+}
+
+/**
  * Find pairs between two lists
  * If t1_id is not 0, reads on reads_1 must has contig_id == t1_id
  */
@@ -394,7 +412,7 @@ void find_reads_ahead(tpl *t, const int read_len, int ext_len, int *n_reads,
 			}
 		}
 		if (r->contig_locus >= start && r->contig_locus <= end) {
-			p_query(__func__, r);
+			//p_query(__func__, r);
 			n++;
 		}
 		if (r->contig_locus < start || r->contig_locus > end) {
@@ -797,6 +815,11 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	int i = 0, j = 0;
 	ubyte_t c = 0, read_c = 0;
 
+	if (hits->len < MIN_JUNCTION_READS) {
+		g_ptr_array_free(hits, TRUE);
+		return tail;
+	}
+
 	//show_debug_msg(__func__, "----\n");
 	//show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left" : "right");
 	//p_query(__func__, query);
@@ -986,10 +1009,11 @@ void destroy_tpl(tpl *t) {
 		if (t->reads) {
 			for (i = 0; i < t->reads->len; i++) {
 				r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
-				r->contig_id = -1;
-				r->contig_locus = -1;
-				r->pos = IMPOSSIBLE_NEGATIVE;
-				r->status = TRIED;
+				reset_to_fresh(r);
+//				r->contig_id = -1;
+//				r->contig_locus = -1;
+//				r->pos = IMPOSSIBLE_NEGATIVE;
+//				r->status = TRIED;
 			}
 			g_ptr_array_free(t->reads, TRUE);
 		}
@@ -997,10 +1021,11 @@ void destroy_tpl(tpl *t) {
 		if (t->tried) {
 			for (i = 0; i < t->tried->len; i++) {
 				r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
-				r->contig_id = -1;
-				r->contig_locus = -1;
-				r->pos = IMPOSSIBLE_NEGATIVE;
-				r->status = TRIED;
+				reset_to_fresh(r);
+//				r->contig_id = -1;
+//				r->contig_locus = -1;
+//				r->pos = IMPOSSIBLE_NEGATIVE;
+//				r->status = TRIED;
 			}
 			g_ptr_array_free(t->tried, TRUE);
 		}

@@ -232,7 +232,7 @@ class BlastHit(object):
 		self.mate = mate
 		
 	def __repr__(self):
-		repr = 'Query %s:\t [' % self.qname
+		repr = '%sQuery [%s, %d]: %d->%d\t [' % (self.strand, self.qname, self.qlen, self.qstart, self.qend)
 		for s in self.block_sizes:
 			repr += str(s) + ','
 		repr += '] ['
@@ -1048,11 +1048,6 @@ def main():
     parser_comps.add_argument('id_file', help='file of id list to check')
     parser_comps.add_argument('csv', help='components.csv')
     
-    parser_junc = subparsers.add_parser('junc', help='Check junctions')
-    parser_junc.set_defaults(func=check_junctions)
-    parser_junc.add_argument('psl', help='contig-to-ref PSL file')
-    parser_junc.add_argument('junctions', help='paired.junctions')
-	
     args = parser.parse_args()
     args.func(args)
 

@@ -84,6 +84,48 @@ GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch) {
 	return hits;
 }
 
+/**
+ * Concatenate all reads on nearby templates;
+ * For paired reads finding
+ * The attribute is_root is used as an indicator temporarily.
+ */
+GPtrArray *get_nearby_reads(tpl *t, GPtrArray *reads) {
+	bwa_seq_t *r = NULL;
+	int j = 0, i = 0;
+	junction *jun = NULL;
+	if (!reads)
+		reads = g_ptr_array_sized_new(t->reads->len);
+	if (t->is_root)
+		return reads;
+	// Set to 1, means that the reads on it have been visited.
+	t->is_root = 1;
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		g_ptr_array_add(reads, r);
+		if (t->b_juncs && t->b_juncs->len > 0) {
+			for (j = 0; j < t->b_juncs->len; j++) {
+				jun = (junction*) g_ptr_array_index(t->b_juncs, j);
+				if (jun->main_tpl->is_root == 0)
+					get_nearby_reads(jun->main_tpl, reads);
+			}
+		}
+	}
+	return reads;
+}
+
+GPtrArray *reset_is_root(tpl *t) {
+	int j = 0;
+	junction *jun = NULL;
+	// Set to 1, means that the reads on it have been visited.
+	t->is_root = 0;
+	if (t->b_juncs && t->b_juncs->len > 0) {
+		for (j = 0; j < t->b_juncs->len; j++) {
+			jun = (junction*) g_ptr_array_index(t->b_juncs, j);
+			jun->main_tpl->is_root = 0;
+		}
+	}
+}
+
 GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 		const int max_len, int *weight) {
 	int left_len = 0, right_len = 0, n_reads = 0;
@@ -295,9 +337,10 @@ void p_junction(junction *jun) {
 	if (!jun)
 		show_debug_msg(__func__, "Junction is NULL.\n");
 	else
-	show_debug_msg(__func__, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\t%d\n",
-			jun->main_tpl->id, jun->main_tpl->len, jun->branch_tpl->id,
-			jun->branch_tpl->len, jun->locus, jun->weight, jun->ori, jun->status);
+		show_debug_msg(__func__, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\t%d\n",
+				jun->main_tpl->id, jun->main_tpl->len, jun->branch_tpl->id,
+				jun->branch_tpl->len, jun->locus, jun->weight, jun->ori,
+				jun->status);
 }
 
 /**
@@ -398,8 +441,8 @@ int branch_on_main(tpl *main_tpl, tpl *branch, const int pos,
 	p_ctg_seq(__func__, branch->ctg);
 	if (!len_not_valid) {
 		//similar = (seq_ol(sub, branch, branch->len, mismatches) == -1) ? 0 : 1;
-		similar = similar_seqs(sub, branch->ctg, mismatches, MAX_GAPS, MATCH_SCORE,
-				MISMATCH_SCORE, INDEL_SCORE);
+		similar = similar_seqs(sub, branch->ctg, mismatches, MAX_GAPS,
+				MATCH_SCORE, MISMATCH_SCORE, INDEL_SCORE);
 		show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,
 				similar);
 	} else {

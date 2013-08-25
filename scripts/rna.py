@@ -47,18 +47,19 @@ def read_junctions(junction_file):
 
 def junc(args):
     junctions = read_junctions(args.jun)
-    hits = read_blat_hits(args.psl, 'query')
+    fa = FastaFile(args.fa)
+    joint = FastaFile()
     for j in junctions:
-        print j
-        if j.main in hits:
-            print hits[j.main]
+        name = j.main + '_' + j.branch + '_' + str(j.locus) + '_' + str(j.ori)
+        if j.ori == 0:
+            left = fa.seqs[j.main][0:j.locus]
+            right = fa.seqs[j.branch]
         else:
-            print 'Main without hits'
-        if j.branch in hits:
-            print hits[j.branch]
-        else:
-            print 'Branch without hits'
-        print '-------------\n'
+            left = fa.seqs[j.branch]
+            right = fa.seqs[j.main][j.locus:j.main_len]
+        joint.seqs[name] = left + right
+    joint.save_to_disk(args.fa[:-3] + '.joint.fa')
+    print 'Check file %s.joint.fa' % (args.fa[:-3])
 
 def simple_format_junctions(args):
     junctions = read_junctions(args.junc)
@@ -99,80 +100,74 @@ def exons_are_connected(exon_1, exon_2, j_dict, level = 0):
     return True
     
 def exam_junctions(args):
-    junctions = read_junctions(args.junction)
-    j_dict = get_junction_dict(junctions)
-    existing = []
-    with open(args.full) as full:
-        for line in full:
-            line = line.strip()
-            if not line == '':
-                existing.append(line)
-    print 'Existing full length: %d' % (len(existing))
-    
+    ids = []
+    with open(args.id_list) as lines:
+        for line in lines:
+            ids.append(line.strip())
+    print 'Transcripts to check: %d' % len(ids)
     hits = read_blat_hits(args.psl, 'ref')
-    n_one_contig_full_length = 0
-    n_covered_by_connected_graph = 0
-    full = open(args.junction + '.full', 'w')
-    for tx_name, tx_hits in hits.iteritems():
-        tx_hits.sort(key=lambda x: x.rstart)
-        stop_here = False
-        tx_len = 0
-        
-        if tx_name in existing:
-            continue
-        
-        for h in tx_hits:
-            tx_len = h.rlen
-        
-        # If the transcript is not expressed, ignore
-        bases_covered = [0 for _ in range(tx_len)]
-        for h in tx_hits:
-            for i in range(h.n_blocks):
-                for j in range(h.r_block_starts[i], h.r_block_starts[i] + h.block_sizes[i]):
-                    bases_covered[j] = 1
-        n_covered = 0
-        for c in bases_covered:
-            n_covered += c
-        if n_covered < tx_len - 10:
-            stop_here = True
-            # print '%s is not fully covered.' % tx_name
-        if stop_here:
-            continue
-        
-        max_cover_hits = []
-        back_bone_h = None
-        for h in tx_hits:
-            if not back_bone_h:
-                back_bone_h = h
-                max_cover_hits.append(h)
-            else:
-                if h.rend < back_bone_h.rend:
-                    continue
-                if h.rstart < back_bone_h.rend + 10:
-                    visited = []
-                    if exons_are_connected(back_bone_h.qname, h.qname, j_dict):
-                        back_bone_h = h
-                        max_cover_hits.append(h)
-                        
-        bases_covered = [0 for _ in range(tx_len)]
-        for h in max_cover_hits:
-            for i in range(h.n_blocks):
-                for j in range(h.r_block_starts[i], h.r_block_starts[i] + h.block_sizes[i]):
-                    bases_covered[j] = 1
-        n_covered = 0
-        for c in bases_covered:
-            n_covered += c
-        if n_covered >= tx_len - 10 and len(max_cover_hits) > 1:
-            print 'Transcript %s is recovered by connected graph' % tx_name 
-            print max_cover_hits
-            print '--------------------------------------------------------'
-            n_covered_by_connected_graph += 1
-            full.write(tx_name + '\n')
     
-    full.close()    
-    print 'Check file %s.full' % args.junction
-    print 'n_one_contig_full_length: %d' % len(existing)
-    print 'n_covered_by_connected_graph: %d' % n_covered_by_connected_graph
+    n_not_touched = 0
+    n_should_be_merged = 0
+    n_bad_leaf = 0
+    n_has_gap = 0
+    n_ol_st11 = 0
+    for tx in ids:
+        if not tx in hits:
+            print '---- %s is not touched at all ----' % tx
+            n_not_touched += 1
+            continue
+        tx_hits = hits[tx]
+        tx_hits.sort(key=lambda x: x.rstart)
+        pre_h = None
+        
+        is_bad_leaf = False
+        should_be_merged = False
+        has_gap = False
+        st11 = False
+        for h in tx_hits:
+            if pre_h is None:
+                if h.rstart > 10:
+                    break
+                pre_h = h
+            else:
+                dis = pre_h.rend - h.rstart
+                if dis > 0:
+                    if dis >= 11:
+                        if pre_h.qend < pre_h.qlen - 2 or h.qstart >= 2:
+                            is_bad_leaf = True
+                        else:
+                            if h.n_blocks == 1 and pre_h.n_blocks == 1:
+                                should_be_merged = True
+                    else:
+                        st11 = True
+                else:
+                    dis = abs(dis)
+                    has_gap = True
+        if st11:
+            n_ol_st11 += 1
+            print '---- %s some overlap smaller than 11bp ----' % tx
+            print tx_hits
+        elif has_gap:
+            n_has_gap += 1
+            print '---- %s has gap ----' % tx
+            print tx_hits    
+        elif is_bad_leaf:
+            n_bad_leaf += 1
+            print '---- %s has bad leaf ----' % tx
+            print tx_hits
+        elif should_be_merged:
+            n_should_be_merged += 1
+            print '---- %s should be merged ----' % tx
+            print tx_hits
+    
+    print 'Should be merged: %d' % n_should_be_merged
+    print 'Has bad leaf: %d' % n_bad_leaf 
+    print 'Not touched: %d' % n_not_touched 
+    print 'Has gap: %d' % n_has_gap 
+    print 'Overlap <11bp: %d' % n_ol_st11
+    print 'Others: %d' % (len(ids) - (n_should_be_merged + n_bad_leaf + n_not_touched + n_has_gap + n_ol_st11))
+    print 'Totally %d' % (n_should_be_merged + n_bad_leaf + n_not_touched + n_has_gap + n_ol_st11)
 
 def split_exons(args):
     base_coverage = {}
@@ -454,8 +449,7 @@ def main():
     
     parser_junction = subparsers.add_parser('junction', help='Exam junctions from PSL file')
     parser_junction.set_defaults(func=exam_junctions)
-    parser_junction.add_argument('full', help='Existing full length list (would be skipped)')
-    parser_junction.add_argument('junction', help='PETA junction file')
+    parser_junction.add_argument('id_list', help='List of ids to inspect')
     parser_junction.add_argument('psl', help='transcript/contigs-to-annotation PSL file')
     
     parser_simple = subparsers.add_parser('simple', help='Convert junctions to simpler format')
@@ -471,8 +465,8 @@ def main():
 
     parser_junc = subparsers.add_parser('junc', help='Check whether the junction templates are aligned to the same transcript')
     parser_junc.set_defaults(func=junc)
-    parser_junc.add_argument('psl', help='paired-to-ref PSL file')
-    parser_junc.add_argument('jun', help='.junctions file')
+    parser_junc.add_argument('fa', help='paired.fa')
+    parser_junc.add_argument('jun', help='paired.junctions file')
     
     parser_splice = subparsers.add_parser('splice', help='Get transcripts with splicing')
     parser_splice.set_defaults(func=find_splicing)

@@ -37,6 +37,7 @@ extern "C" {
 	int tpls_have_junction(tpl *left, tpl *right);
 	void p_tpl_juncs(tpl *t, GPtrArray *t_juncs);
 	int same_main_juncs(junction *jun_1, junction *jun_2);
+	GPtrArray *reset_is_root(tpl *t);
 	GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 			const int max_len, int *weight);
 	GPtrArray *find_junc_reads_w_tails(hash_table *ht, tpl *left, tpl *right,
@@ -52,6 +53,7 @@ extern "C" {
 	bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
 			int r_pos, int *right_len, int max_len);
 	GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch);
+	GPtrArray *get_nearby_reads(tpl *t, GPtrArray *reads);
 	void p_junction(junction *jun);
 	gint cmp_junc_by_branch_id(gpointer a, gpointer b);
 	gint cmp_junc_by_locus(gpointer a, gpointer b);

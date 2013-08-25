@@ -36,10 +36,13 @@
 #define NO_REPEAT_LEN 			15
 #define	SHORT_BRANCH_SHIFT		4
 #define	MATCH_SCORE				1
-#define MISMATCH_WEIGHT			2
+#define MISMATCH_WEIGHT			1
 #define	MISMATCH_SCORE			-1
 #define	INDEL_SCORE				-1
 #define MATE_MULTI				3
+
+#define BRANCH_SIMILARITY		0.98
+#define BRANCHING_THRE			0.04
 
 #define IMPOSSIBLE_NEGATIVE		-999999999
 #define N_MISMATCHES			2

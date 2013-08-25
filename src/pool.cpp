@@ -266,7 +266,7 @@ void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori) {
 		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
 		read_c = r->rev_com ? r->rseq[r->cursor] : r->seq[r->cursor];
 		// If the character in read is 'N', do not count it as mismatch
-		if (read_c != 4 && read_c != tpl_c)
+		if (read_c == 4 || read_c != tpl_c)
 			r->pos++;
 		if (r->pos > mismatches) {
 			//p_query("REMOVED", r);

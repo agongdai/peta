@@ -20,6 +20,7 @@ enum READ_STATUS {
 extern "C" {
 #endif
 
+	int has_pairs(GPtrArray *reads, int n_pairs);
 	void rescue_reads(bwa_seq_t *seqs, const int n_seqs);
 	gint cmp_reads_by_name(gpointer a, gpointer b);
 	gint cmp_reads_by_contig_id(gpointer a, gpointer b);

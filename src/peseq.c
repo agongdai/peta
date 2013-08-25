@@ -620,16 +620,18 @@ int too_many_ns(const ubyte_t *s, const int k) {
  * Never use the low quality reads: with >= 3 N's in reads; repetitive reads
  */
 void mark_low_qua_reads(bwa_seq_t *seqs, index64 n_seqs) {
-	index64 i = 0, n_dead = 0;
-	bwa_seq_t *r = NULL;
+	index64 i = 0, n_dead = 0, j = 0;
+	int max_ns = 0;
+	bwa_seq_t *r = NULL, *part = NULL;
 	if (!seqs || n_seqs <= 0)
 		return;
+	max_ns = seqs->len / 4;
 	for (i = 0; i < n_seqs; i++) {
 		r = &seqs[i];
-		if (has_n(r, 3) || is_biased_q(r) || is_repetitive_q(r)) {
+		if (has_n(r, max_ns) || is_biased_q(r) || is_repetitive_q(r)) {
 			r->status = DEAD;
+			//p_query(__func__, r);
 			n_dead++;
-			//p_query("DEAD", r);
 		}
 	}
 	show_msg(__func__, "N_DEADS: %d\n", n_dead);
@@ -681,23 +683,23 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			max = up_left > max ? up_left : max;
 			current_row[j] = max;
 		}
-//		printf("Previous row: \n");
+		//		printf("Previous row: \n");
 		for (j = 0; j < columns; j++) {
-//			printf("%d,", previous_row[j]);
+			//			printf("%d,", previous_row[j]);
 			previous_row[j] = current_row[j];
 			max_score = current_row[j] > max_score ? current_row[j] : max_score;
 		}
-//		printf("\n");
-//		printf("Row %d: \t", i);
+		//		printf("\n");
+		//		printf("Row %d: \t", i);
 		for (j = 0; j < columns; j++) {
-			if ( current_row[j] == max_score){
-//				printf("[%d]\t", current_row[j]);
+			if (current_row[j] == max_score) {
+				//				printf("[%d]\t", current_row[j]);
 			} else {
-//				printf("%d\t", current_row[j]);
+				//				printf("%d\t", current_row[j]);
 			}
 		}
-//		printf("\t\t");
-//		printf("Max score: %d \n", max_score);
+		//		printf("\t\t");
+		//		printf("Max score: %d \n", max_score);
 		// If the minimal acceptable score is not reachable, stop and return.
 		if ((max_score + (rows - i) * score_mat) <= min_acceptable_score) {
 			free(previous_row);
@@ -1079,6 +1081,25 @@ int has_rep_pattern(const bwa_seq_t *read) {
 			}
 		}
 		if (is_rep)
+			return 1;
+	}
+	return 0;
+}
+
+int has_pairs(GPtrArray *reads, int n_pairs) {
+	if (!reads || reads->len == 0 || n_pairs <= 0)
+		return 0;
+	int n = 0;
+	bwa_seq_t *pre = NULL, *this = NULL;
+	int i = 0;
+	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_name);
+	pre = g_ptr_array_index(reads, 0);
+	for (i = 1; i < reads->len; i++) {
+		this = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		if (is_mates(pre->name, this->name))
+			n++;
+		pre = this;
+		if (n >= n_pairs)
 			return 1;
 	}
 	return 0;
