@@ -288,9 +288,13 @@ int has_pairs_on_tpl(hash_table *ht, tpl *t, const int n_pairs) {
 	for (i = 0; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		m = get_mate(r, ht->seqs);
-		if (m->status == USED && m->contig_id == t->id)
+		if (m->status == USED && m->contig_id == t->id) {
 			pairs++;
-		if (pairs >= n_pairs)
+			p_query("READ", r);
+			p_query("MATE", m);
+		}
+		// A pair would be counted twice
+		if (pairs >= n_pairs * 2)
 			return 1;
 	}
 	return 0;
@@ -877,6 +881,33 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 
 	g_ptr_array_free(hits, TRUE);
 	return tail;
+}
+
+int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
+	if (!t->reads || t->reads->len == 0 || n_pairs <= 0)
+		return 0;
+	int n = 0;
+	bwa_seq_t *r = NULL, *m = NULL;
+	int i = 0, j = 0;
+	tpl *near = NULL;
+	for (i = 1; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		m = get_mate(r, ht->seqs);
+		if (m->status == USED) {
+			for (j = 0; j < tpls->len; j++) {
+				near = (tpl*) g_ptr_array_index(tpls, j);
+				if (m->contig_id == near->id && m->contig_id != t->id) {
+					n++;
+					p_query("READ", r);
+					p_query("MATE", m);
+					break;
+				}
+			}
+		}
+		if (n >= n_pairs)
+			return 1;
+	}
+	return 0;
 }
 
 /**

@@ -39,7 +39,7 @@
 #define MISMATCH_WEIGHT			1
 #define	MISMATCH_SCORE			-1
 #define	INDEL_SCORE				-1
-#define MATE_MULTI				3
+#define MATE_MULTI				3000
 
 #define BRANCH_SIMILARITY		0.98
 #define BRANCHING_THRE			0.04

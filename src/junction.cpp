@@ -89,28 +89,27 @@ GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch) {
  * For paired reads finding
  * The attribute is_root is used as an indicator temporarily.
  */
-GPtrArray *get_nearby_reads(tpl *t, GPtrArray *reads) {
+GPtrArray *get_nearby_tpls(tpl *t, GPtrArray *tpls) {
 	bwa_seq_t *r = NULL;
 	int j = 0, i = 0;
 	junction *jun = NULL;
-	if (!reads)
-		reads = g_ptr_array_sized_new(t->reads->len);
+	if (!tpls)
+		tpls = g_ptr_array_sized_new(4);
 	if (t->is_root)
-		return reads;
+		return tpls;
 	// Set to 1, means that the reads on it have been visited.
 	t->is_root = 1;
+	g_ptr_array_add(tpls, t);
 	for (i = 0; i < t->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
-		g_ptr_array_add(reads, r);
 		if (t->b_juncs && t->b_juncs->len > 0) {
 			for (j = 0; j < t->b_juncs->len; j++) {
 				jun = (junction*) g_ptr_array_index(t->b_juncs, j);
 				if (jun->main_tpl->is_root == 0)
-					get_nearby_reads(jun->main_tpl, reads);
+					get_nearby_tpls(jun->main_tpl, tpls);
 			}
 		}
 	}
-	return reads;
+	return tpls;
 }
 
 GPtrArray *reset_is_root(tpl *t) {

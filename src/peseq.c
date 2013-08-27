@@ -1086,25 +1086,6 @@ int has_rep_pattern(const bwa_seq_t *read) {
 	return 0;
 }
 
-int has_pairs(GPtrArray *reads, int n_pairs) {
-	if (!reads || reads->len == 0 || n_pairs <= 0)
-		return 0;
-	int n = 0;
-	bwa_seq_t *pre = NULL, *this = NULL;
-	int i = 0;
-	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_name);
-	pre = g_ptr_array_index(reads, 0);
-	for (i = 1; i < reads->len; i++) {
-		this = (bwa_seq_t*) g_ptr_array_index(reads, i);
-		if (is_mates(pre->name, this->name))
-			n++;
-		pre = this;
-		if (n >= n_pairs)
-			return 1;
-	}
-	return 0;
-}
-
 void pe_reverse_seqs(bwa_seq_t *seqs, const int n_seqs) {
 	int i = 0;
 	bwa_seq_t *s;

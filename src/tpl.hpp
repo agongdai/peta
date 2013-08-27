@@ -57,6 +57,7 @@ extern "C" {
 #endif
 
 	gint cmp_tpl_by_id(gpointer a, gpointer b);
+	int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs);
 	GPtrArray *rm_dup_reads_on_tpl(GPtrArray *reads);
 	void p_tpl(tpl *t);
 	eg_gap *init_gap(int s_index, int size, int ori);

@@ -138,11 +138,12 @@ void rm_from_pool(pool *p, int index) {
  * Count frequencies of next characters, get the most frequent one.
  * If -1: all of them are 0
  */
-int get_next_char(hash_table *ht, pool *p, tpl *t, const int ori) {
+int get_next_char(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
+		const int ori) {
 	readarray *reads = p->reads;
 	junction *jun = NULL;
 	float *c = NULL, weight = 0.0, max_c = 0.0, multi = MATE_MULTI;
-	int i = 0, next_char = -1;
+	int i = 0, j = 0, next_char = -1;
 	bwa_seq_t *r = NULL, *m = NULL;
 	int pre_cursor = 0, this_c = 0, pre_c = 0, counted = 0, n_pairs = 0;
 	tpl *main_tpl = NULL;
@@ -150,24 +151,6 @@ int get_next_char(hash_table *ht, pool *p, tpl *t, const int ori) {
 
 	if (!p->reads || p->reads->len == 0)
 		return -1;
-
-	if (t->b_juncs && t->b_juncs->len > 0) {
-		jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
-		main_tpl = jun->main_tpl;
-	}
-	if (t->len >= 100) {
-		for (i = 0; i < reads->len; i++) {
-			r = (bwa_seq_t*) g_ptr_array_index(reads, i);
-			m = get_mate(r, ht->seqs);
-			if (m->status == USED && (m->contig_id == t->id) || (main_tpl
-					&& m->contig_id == main_tpl->id))
-				n_pairs++;
-			if (n_pairs > MIN_PAIRS) {
-				multi *= 1000;
-				break;
-			}
-		}
-	}
 
 	c = (float*) calloc(5, sizeof(float));
 	c[0] = c[1] = c[2] = c[3] = c[4] = 0;
@@ -190,10 +173,16 @@ int get_next_char(hash_table *ht, pool *p, tpl *t, const int ori) {
 		weight = ori ? (r->len - r->cursor - 1) : r->cursor;
 		// Minus the mismatches with the template
 		weight -= r->pos * MISMATCH_WEIGHT;
-		// If its mate is on the same template, triple the weight
-		if (m->status == USED && (m->contig_id == t->id) || (main_tpl
-				&& m->contig_id == main_tpl->id))
-			weight *= multi;
+		// If its mate is nearby, triple the weight
+		if (m->status == USED) {
+			for (j = 0; j < near_tpls->len; j++) {
+				main_tpl = (tpl*) g_ptr_array_index(near_tpls, j);
+				if (m->contig_id == main_tpl->id && main_tpl->id != t->id) {
+					weight *= multi;
+					break;
+				}
+			}
+		}
 		c[this_c] += weight;
 		counted++;
 		// At most count MAX_POOL_N_READS reads, in case the pool is large
@@ -466,8 +455,8 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 	if (t->b_juncs && t->b_juncs->len > 0) {
 		jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
 		main_tpl = jun->main_tpl;
-		existing_reads = g_ptr_array_sized_new(
-				t->reads->len + main_tpl->reads->len);
+		existing_reads = g_ptr_array_sized_new(t->reads->len
+				+ main_tpl->reads->len);
 		for (i = 0; i < t->reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 			g_ptr_array_add(existing_reads, r);
@@ -492,8 +481,8 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 			continue;
 		}
 		// Find the overlapping between mate and tail
-		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1,
-				tail_len - 1, ori, &rev_com, &n_mis);
+		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1, tail_len
+				- 1, ori, &rev_com, &n_mis);
 		//if (t->id == 6919 || t->id == 2416) {
 		//p_query("USED ", r);
 		//p_query("FRESH", m);
@@ -501,8 +490,8 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		//}
 
 		if (ol >= ht->o->k - 1 && ol >= n_mis * ht->o->k) {
-			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol,
-					tail->len - ol);
+			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol, tail->len
+					- ol);
 			//p_query(__func__, part);
 			if (is_biased_q(part) || has_n(part, 1)) {
 				bwa_free_read_seq(1, part);

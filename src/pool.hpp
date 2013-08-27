@@ -31,7 +31,7 @@ extern "C" {
 	void mark_pool_reads_tried(pool *p, tpl *t);
 	void keep_paired_reads(hash_table *ht, pool *p, tpl *t);
 	void keep_good_cursors(pool *p);
-	int get_next_char(hash_table *ht, pool *p, tpl *t, const int ori);
+	int get_next_char(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t, const int ori);
 	int forward(pool *p, tpl *t, const int ori);
 	void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches, const int ori);
 	void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,

@@ -53,7 +53,7 @@ extern "C" {
 	bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
 			int r_pos, int *right_len, int max_len);
 	GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch);
-	GPtrArray *get_nearby_reads(tpl *t, GPtrArray *reads);
+	GPtrArray *get_nearby_tpls(tpl *t, GPtrArray *reads);
 	void p_junction(junction *jun);
 	gint cmp_junc_by_branch_id(gpointer a, gpointer b);
 	gint cmp_junc_by_locus(gpointer a, gpointer b);
