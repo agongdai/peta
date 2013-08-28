@@ -30,8 +30,8 @@ void p_tpl(tpl *t) {
 	if (!t) {
 		show_debug_msg(__func__, "---- Template is NULL ----\n");
 	}
-	show_debug_msg(__func__, "---- Template %d alive: %d ----\n", t->id,
-			t->alive);
+	show_debug_msg(__func__, "---- Template %d alive: %d; root %d ----\n", t->id,
+			t->alive, t->is_root);
 	show_debug_msg(__func__, "\t Length: %d \n", t->len);
 	if (t->reads)
 		show_debug_msg(__func__, "\t Reads: %d\n", t->reads->len);
@@ -51,6 +51,53 @@ void p_tpl(tpl *t) {
 	if (t->ctg)
 		p_ctg_seq("contg", t->ctg);
 	show_debug_msg(__func__, "---- Template %d ---- \n", t->id);
+}
+
+void p_tpl_reads(tpl *t) {
+	GPtrArray *reads = t->reads;
+	bwa_seq_t *r = NULL;
+	int i = 0, j = 0;
+	int read_len = 0;
+	if (!t->reads || t->reads == 0) {
+		show_debug_msg(__func__, "No reads on template [%d, %d] \n", t->id, t->len);
+		return;
+	}
+	r = (bwa_seq_t*) g_ptr_array_index(t->reads, 0);
+	read_len = r->len;
+	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+	printf("\n==== Here are the reads used on template [%d, %d] ==== \n", t->id, t->len);
+	for (i = 0; i < reads->len; i++) {
+		if (i % 15 == 0) {
+			for (j = 0; j < read_len; j++) {
+				printf(" ");
+			}
+			for (j = 0; j < t->len; j++) {
+				printf("%c", "ACGTN"[t->ctg->seq[j]]);
+			}
+			printf("\n");
+		}
+		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		for (j = 0; j < r->contig_locus + read_len; j++) {
+			printf(" ");
+		}
+		for (j = 0; j < r->len; j++) {
+			if (r->rev_com) {
+				printf("%c", "ACGTN"[(int) r->rseq[j]]);
+			} else {
+				printf("%c", "ACGTN"[(int) r->seq[j]]);
+			}
+		}
+		printf("\t [%s, %d] \t", r->name, r->len);
+		printf(" [status: %d] ", r->status);
+		if (r->rev_com)
+			printf(" [    <<<<@%d]", r->pos);
+		else
+			printf(" [>>>>    @%d]", r->pos);
+		printf(" [%d: %d]", r->contig_id, r->contig_locus);
+		printf(" [cursor: %d]", r->cursor);
+		printf("\n");
+	}
+	printf("==== End of printing reads used on template [%d, %d] ==== \n", t->id, t->len);
 }
 
 void free_eg_gap(eg_gap *gap) {
@@ -824,19 +871,24 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 		return tail;
 	}
 
-	//show_debug_msg(__func__, "----\n");
-	//show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left" : "right");
-	//p_query(__func__, query);
+	if (shift == 1324) {
+	show_debug_msg(__func__, "----\n");
+	show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left" : "right");
+	p_query(__func__, query);
+	}
 
 	for (i = 0; i < hits->len; i++) {
 		if (tail)
 			break;
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
 
-		//p_query("HIT", r);
+		if (shift == 1324)
+		p_query("HIT", r);
 
 		ol_len = ori ? r->len - r->pos : query->len + r->pos;
 		start = ori ? shift : shift - r->pos;
+		//if (ol_len < query->len - 2)
+		//	continue;
 		//show_debug_msg(__func__, "Start: %d; ol: %d\n", start, ol_len);
 		if (start >= 0 && start + ol_len <= t->len) {
 			tpl_seq = new_seq(t->ctg, ol_len, start);
@@ -1041,10 +1093,10 @@ void destroy_tpl(tpl *t) {
 			for (i = 0; i < t->reads->len; i++) {
 				r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 				reset_to_fresh(r);
-//				r->contig_id = -1;
-//				r->contig_locus = -1;
-//				r->pos = IMPOSSIBLE_NEGATIVE;
-//				r->status = TRIED;
+				//				r->contig_id = -1;
+				//				r->contig_locus = -1;
+				//				r->pos = IMPOSSIBLE_NEGATIVE;
+				//				r->status = TRIED;
 			}
 			g_ptr_array_free(t->reads, TRUE);
 		}
@@ -1053,10 +1105,10 @@ void destroy_tpl(tpl *t) {
 			for (i = 0; i < t->tried->len; i++) {
 				r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
 				reset_to_fresh(r);
-//				r->contig_id = -1;
-//				r->contig_locus = -1;
-//				r->pos = IMPOSSIBLE_NEGATIVE;
-//				r->status = TRIED;
+				//				r->contig_id = -1;
+				//				r->contig_locus = -1;
+				//				r->pos = IMPOSSIBLE_NEGATIVE;
+				//				r->status = TRIED;
 			}
 			g_ptr_array_free(t->tried, TRUE);
 		}

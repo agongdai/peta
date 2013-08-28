@@ -61,6 +61,7 @@ extern "C" {
 	GPtrArray *rm_dup_reads_on_tpl(GPtrArray *reads);
 	void p_tpl(tpl *t);
 	eg_gap *init_gap(int s_index, int size, int ori);
+	void p_tpl_reads(tpl *t);
 	void free_eg_gap(eg_gap *gap);
 	tpl *new_tpl();
 	int is_high_cov(tpl *t);

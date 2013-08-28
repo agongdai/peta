@@ -25,6 +25,18 @@ gint cmp_reads_by_name(gpointer a, gpointer b) {
 	return (atoi(seq_a->name) - atoi(seq_b->name));
 }
 
+gint cmp_reads_by_cursor(gpointer a, gpointer b) {
+	bwa_seq_t *seq_a = *((bwa_seq_t**) a);
+	bwa_seq_t *seq_b = *((bwa_seq_t**) b);
+	return seq_a->cursor - seq_b->cursor;
+}
+
+gint cmp_reads_by_rev_cursor(gpointer a, gpointer b) {
+	bwa_seq_t *seq_a = *((bwa_seq_t**) a);
+	bwa_seq_t *seq_b = *((bwa_seq_t**) b);
+	return seq_b->cursor - seq_a->cursor;
+}
+
 gint cmp_reads_by_contig_id(gpointer a, gpointer b) {
 	bwa_seq_t *seq_a = *((bwa_seq_t**) a);
 	bwa_seq_t *seq_b = *((bwa_seq_t**) b);

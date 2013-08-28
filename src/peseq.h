@@ -23,6 +23,8 @@ extern "C" {
 	int has_pairs(GPtrArray *reads, int n_pairs);
 	void rescue_reads(bwa_seq_t *seqs, const int n_seqs);
 	gint cmp_reads_by_name(gpointer a, gpointer b);
+	gint cmp_reads_by_cursor(gpointer a, gpointer b);
+	gint cmp_reads_by_rev_cursor(gpointer a, gpointer b);
 	gint cmp_reads_by_contig_id(gpointer a, gpointer b);
 	gint cmp_reads_by_contig_locus(gpointer a, gpointer b);
 	GPtrArray *rm_duplicates(GPtrArray *reads);
