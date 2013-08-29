@@ -11,5 +11,9 @@ py rna.py simu -t ~/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta.rev
 	ENST00000393295 
 	ENST00000273541
 
+3 junctions:
+	ENST00000469964
+	ENST00000329582
+
 Simulate paired end reads for 7 human transcripts:
 	py rna.py simu -t ~/Projects/peta/rnaseq/hg19/ensembl.genes.fa -l 45 -i 200 ENST00000462176 ENST00000469964 ENST00000309741 ENST00000329582 ENST00000475972 ENST00000484501 ENST00000491483

@@ -99,6 +99,7 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 		id = m->first;
 		t = (tpl*) m->second;
 		if (t->alive) {
+			p_tpl_reads(t);
 			g_ptr_array_add(tpls, t);
 		} else {
 			destroy_tpl(t);
@@ -137,12 +138,20 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 		return mains;
 	}
 
+	//	if (branch->id == 4) {
+	//		p_query("TEST", TEST);
+	//	}
+	//char *test = (char*) malloc(sizeof(char) * 16);
+	//sprintf(test, "SOME");
+	//tail->name = test;
 	hits = align_query(ht, tail, USED, N_MISMATCHES);
 
-	p_tpl(branch);
-	show_debug_msg(__func__, "To the %s \n", ori ? "left" : "right");
-	p_query(__func__, tail);
-	p_readarray(hits, 1);
+	//	if (branch->id == 4) {
+	//		p_tpl(branch);
+	//		show_debug_msg(__func__, "To the %s \n", ori ? "left" : "right");
+	//		p_query(__func__, tail);
+	//		p_readarray(hits, 1);
+	//	}
 	// Check whether the branch and main are reverse complement or not
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
@@ -163,34 +172,43 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 			}
 		}
 	}
-	show_debug_msg(__func__, "branch_main_same_ori: %d \n",
-			branch_main_same_ori);
+	//show_debug_msg(__func__, "branch_main_same_ori: %d \n",
+	//		branch_main_same_ori);
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		if (r->contig_id == branch->id)
+		if (r->contig_id == branch->id) {
+			r->cursor = -1;
+			r->pos = IMPOSSIBLE_NEGATIVE;
 			continue;
+		}
 		n_mis = -1;
 		if (ori) {
 			ol_len = r->len - r->pos;
-			if (branch->len < ol_len)
+			if (branch->len < ol_len) {
+				r->cursor = -1;
+				r->pos = IMPOSSIBLE_NEGATIVE;
 				continue;
+			}
 			branch_seq = new_seq(branch->ctg, ol_len, 0);
 			n_mis = seq_ol(r, branch_seq, ol_len, N_MISMATCHES);
 			if (n_mis >= 0)
 				r->cursor = r->pos - 1;
 		} else {
 			ol_len = r->pos + tail->len;
-			if (branch->len < ol_len)
+			if (branch->len < ol_len) {
+				r->cursor = -1;
+				r->pos = IMPOSSIBLE_NEGATIVE;
 				continue;
+			}
 			branch_seq = new_seq(branch->ctg, ol_len, branch->len - ol_len);
 
 			n_mis = seq_ol(branch_seq, r, ol_len, N_MISMATCHES);
 			if (n_mis >= 0)
 				r->cursor = ol_len;
-			p_query(__func__, branch_seq);
-			p_query(__func__, r);
-			show_debug_msg(__func__, "Overlap length: %d\n", ol_len);
-			show_debug_msg(__func__, "Mismatches: %d\n---\n", n_mis);
+			//p_query(__func__, branch_seq);
+			//p_query(__func__, r);
+			//show_debug_msg(__func__, "Overlap length: %d\n", ol_len);
+			//show_debug_msg(__func__, "Mismatches: %d\n---\n", n_mis);
 		}
 		if (n_mis >= 0) {
 			g_ptr_array_add(mains, r);
@@ -424,12 +442,12 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		branch->alive = 0;
 		return 0;
 	}
-
+	//p_query(__func__, TEST);
 	con_reads = find_connected_reads(ht, all_tpls, branch, ori);
-	show_debug_msg(__func__, "Connecting reads: \n");
-	p_readarray(con_reads, 1);
+	//show_debug_msg(__func__, "Connecting reads: \n");
+	//p_readarray(con_reads, 1);
 	max_trial = con_reads->len > 8 ? 8 : con_reads->len;
-	//p_query("TESTING", TEST);
+	//p_query(__func__, TEST);
 	for (i = 0; i < max_trial; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(con_reads, i);
 
@@ -580,10 +598,17 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		}
 		break;
 	} // End of connecting all probable templates
+	//p_query(__func__, TEST);
 	// If it is not connected and is reverse complemented, just get it back
 	if (is_rev && !connected) {
 		switch_fr(branch->ctg);
 	}
+	for (i = 0; i < con_reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(con_reads, i);
+		r->pos = IMPOSSIBLE_NEGATIVE;
+		r->cursor = -1;
+	}
+	//p_query(__func__, TEST);
 	g_ptr_array_free(con_reads, TRUE);
 	return connected;
 }
@@ -671,7 +696,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			}
 		}
 
-		if (t->id == 2) {
+		if (t->id == 20000) {
 			//p_query("TESTING", TEST);
 			show_debug_msg(__func__,
 					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
@@ -745,7 +770,7 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 					branch_cov = ((float) t->reads->len) / ((float) t->len);
 					main_cov = ((float) main_tpl->len)
 							/ ((float) main_tpl->len);
-					if (branch_cov >= main_cov * 12)
+					if (branch_cov >= main_cov * BRANCHING_COV)
 						is_valid = 1;
 				}
 			}
@@ -832,6 +857,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	for (i = 0; i <= t->len - least_ol_len; i++) {
 		// If extending to right, get tail from the end
 		shift = i;
+		//p_query(__func__, TEST);
 		if (!t->ctg) {
 			show_debug_msg(__func__,
 					"[WARNING] Template [%d, %d] suddenly empty.", t->id,
@@ -918,6 +944,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 						switch_fr(branch_read);
 					query = ori ? new_seq(branch_read, kmer_len, 0) : new_seq(
 							branch_read, kmer_len, branch_read->len - kmer_len);
+					query->rev_com = 0;
 					if (branch_read->rev_com)
 						switch_fr(branch_read);
 					printf("\n");
@@ -940,7 +967,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 
 			dead = try_destroy_tpl(ht, all_tpls, branch, ht->o->read_len);
 			if (!dead) {
-				p_tpl_reads(branch);
+				//p_tpl_reads(branch);
 			} else {
 				//show_debug_msg(__func__, "Template is destroyed.\n");
 			}
@@ -1140,7 +1167,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[604];
+	TEST = &seqs[1737];
 
 	// shrink_ht(ht);
 

@@ -69,6 +69,9 @@ void p_tpl_reads(tpl *t) {
 	printf("\n==== Here are the reads used on template [%d, %d] ==== \n",
 			t->id, t->len);
 	for (i = 0; i < reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		if (r->pos == IMPOSSIBLE_NEGATIVE)
+			continue;
 		if (i % 15 == 0) {
 			for (j = 0; j < read_len; j++) {
 				printf(" ");
@@ -78,7 +81,6 @@ void p_tpl_reads(tpl *t) {
 			}
 			printf("\n");
 		}
-		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
 		for (j = 0; j < r->contig_locus + read_len; j++) {
 			printf(" ");
 		}
@@ -869,8 +871,8 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	int i = 0, j = 0;
 	ubyte_t c = 0, read_c = 0;
 
-	if (shift == 308)
-		p_readarray(hits, 1);
+	//if (shift == 308)
+	//	p_readarray(hits, 1);
 
 	if (hits->len < MIN_JUNCTION_READS) {
 		for (i = 0; i < hits->len; i++) {
@@ -882,11 +884,11 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	}
 
 	//if (shift == 1324) {
-		show_debug_msg(__func__, "----\n");
-		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
-				: "right");
-		p_query(__func__, query);
-		p_readarray(hits, 1);
+	//	show_debug_msg(__func__, "----\n");
+	//	show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
+	//			: "right");
+	//	p_query(__func__, query);
+	//	p_readarray(hits, 1);
 	//}
 
 	for (i = 0; i < hits->len; i++) {
@@ -894,23 +896,23 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 			break;
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
 
-		if (shift == 1324)
-			p_query("HIT", r);
+		//if (shift == 1324)
+		//	p_query("HIT", r);
 
 		ol_len = ori ? r->len - r->pos : query->len + r->pos;
 		start = ori ? shift : shift - r->pos;
 		//if (ol_len < query->len - 2)
 		//	continue;
-		show_debug_msg(__func__, "Start: %d; ol: %d\n", start, ol_len);
+		//show_debug_msg(__func__, "Start: %d; ol: %d\n", start, ol_len);
 		if (start >= 0 && start + ol_len <= t->len) {
 			tpl_seq = new_seq(t->ctg, ol_len, start);
-			p_query("TEMPLATE SEQ", tpl_seq);
-			p_query("HIT", r);
+			//p_query("TEMPLATE SEQ", tpl_seq);
+			//p_query("HIT", r);
 			if (ori)
 				n_mis = seq_ol(r, tpl_seq, ol_len, mismatches);
 			else
 				n_mis = seq_ol(tpl_seq, r, ol_len, mismatches);
-			show_debug_msg(__func__, "n_mis: %d \n", n_mis);
+			//show_debug_msg(__func__, "n_mis: %d \n", n_mis);
 			bwa_free_read_seq(1, tpl_seq);
 			if (n_mis >= 0) {
 				if (ori) {

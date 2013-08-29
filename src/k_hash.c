@@ -580,11 +580,14 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 				value = ht->pos[j];
 				read_hash_value(&seq_id, &locus, value);
 				r = &seqs[seq_id];
-				//p_query(__func__, r);
 				// To avoid duplicate adding
 				if (r->pos != IMPOSSIBLE_NEGATIVE)
 					continue;
 				abs_locus = locus - i;
+				//if (seq[0] == 0 && seq[1] == 1 && seq[2] == 1 && seq[3] == 3 && len == 29 && status == USED) {
+				//	p_query(__func__, r);
+				//	show_debug_msg(__func__, "i: %d; locus: %d; abs_locus: %d \n", i, locus, abs_locus);
+				//}
 				if (abs_locus >= 0 && abs_locus <= r->len + 1
 						- opt->interleaving * opt->k) {
 					// If the status of read is as requested
@@ -611,14 +614,29 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 	bwa_seq_t *r = NULL;
 	GPtrArray *hits = g_ptr_array_sized_new(0), *rev_hits = NULL;
 
-	//p_query(__func__, query);
+//	if (strcmp(query->name, "SOME") == 0) {
+//		show_debug_msg(__func__, "Before align \n");
+//		p_query(__func__, query);
+//		bwa_seq_t *rev = new_seq(query, query->len, 0);
+//		switch_fr(rev);
+//		p_query("REV", rev);
+//		bwa_free_read_seq(1, rev);
+//		p_readarray(hits, 1);
+//	}
 
 	hits = find_reads_with_kmer(ht, hits, status, query->seq, query->len);
 
-	//bwa_seq_t *rev = new_seq(query, query->len, 0);
-	//switch_fr(rev);
-	//p_query("REV", rev);
-	//bwa_free_read_seq(1, rev);
+//	if (strcmp(query->name, "SOME") == 0) {
+//		p_query(__func__, query);
+//		bwa_seq_t *rev = new_seq(query, query->len, 0);
+//		switch_fr(rev);
+//		p_query("REV", rev);
+//		bwa_free_read_seq(1, rev);
+//		for (i = 0; i < hits->len; i++) {
+//			r = (bwa_seq_t*) g_ptr_array_index(hits, i);
+//			p_query("SOME", r);
+//		}
+//	}
 
 	set_rev_com(query);
 	rev_hits = find_reads_with_kmer(ht, NULL, status, query->rseq, query->len);
