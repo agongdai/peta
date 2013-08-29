@@ -128,6 +128,7 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 	GPtrArray *hits = NULL;
 	tpl *m_tpl = NULL;
 
+	branch->ctg->rev_com = 0;
 	tail = get_tail(branch, kmer_len, ori);
 
 	// If the tail is like 'AAAAAAATAAAA', ignore
@@ -138,10 +139,10 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 
 	hits = align_query(ht, tail, USED, N_MISMATCHES);
 
-	p_ctg_seq(__func__, branch->ctg);
+	p_tpl(branch);
 	show_debug_msg(__func__, "To the %s \n", ori ? "left" : "right");
 	p_query(__func__, tail);
-	//p_readarray(hits, 1);
+	p_readarray(hits, 1);
 	// Check whether the branch and main are reverse complement or not
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
@@ -182,19 +183,21 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 			if (branch->len < ol_len)
 				continue;
 			branch_seq = new_seq(branch->ctg, ol_len, branch->len - ol_len);
+
 			n_mis = seq_ol(branch_seq, r, ol_len, N_MISMATCHES);
 			if (n_mis >= 0)
 				r->cursor = ol_len;
-			if (strcmp(r->name, "2125") == 0) {
-				p_query(__func__, r);
-				show_debug_msg(__func__, "Overlap length: %d\n", ol_len);
-			}
+			p_query(__func__, branch_seq);
+			p_query(__func__, r);
+			show_debug_msg(__func__, "Overlap length: %d\n", ol_len);
+			show_debug_msg(__func__, "Mismatches: %d\n---\n", n_mis);
 		}
 		if (n_mis >= 0) {
 			g_ptr_array_add(mains, r);
 		} else {
 			// Reset the rev_com flag on used reads
 			r->cursor = -1;
+			r->pos = IMPOSSIBLE_NEGATIVE;
 			if (!branch_main_same_ori)
 				r->rev_com = r->rev_com ? 0 : 1;
 		}
@@ -575,7 +578,6 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 			// Means forward sequence connected
 			connected = 1;
 		}
-		// This branch could be connected to single another template
 		break;
 	} // End of connecting all probable templates
 	// If it is not connected and is reverse complemented, just get it back
@@ -669,7 +671,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			}
 		}
 
-		if (t->id == 419) {
+		if (t->id == 2) {
 			//p_query("TESTING", TEST);
 			show_debug_msg(__func__,
 					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
@@ -720,6 +722,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 	int i = 0, j = 0;
 	int is_valid = 1, with_pairs = 0;
+	float branch_cov = 0.0, main_cov = 0.0;
 	junction *jun = NULL, *jun_pointer_on_main = NULL;
 	tpl *main_tpl = NULL;
 	GPtrArray *near_tpls = NULL;
@@ -729,18 +732,35 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 	unfrozen_tried(t);
 	if (!t->alive)
 		is_valid = 0;
-	if (t->len <= 100 && (!t->b_juncs || t->b_juncs->len < 2))
+	// If it is a short leaf branch, check the coverage
+	if (t->len <= 100) {
 		is_valid = 0;
+		if (t->b_juncs) {
+			if (t->b_juncs->len == 2)
+				is_valid = 1;
+			else if (t->b_juncs->len == 1) {
+				jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
+				main_tpl = jun->main_tpl;
+				if (main_tpl->len > 0 && t->len > 0) {
+					branch_cov = ((float) t->reads->len) / ((float) t->len);
+					main_cov = ((float) main_tpl->len)
+							/ ((float) main_tpl->len);
+					if (branch_cov >= main_cov * 12)
+						is_valid = 1;
+				}
+			}
+		}
+	}
 	// At stage 1, only get templates longer than insert size
 	//if (stage == 1 && t->len < ins_size) {
 	//	is_valid = 0;
 	//}
 	with_pairs = has_pairs_on_tpl(ht, t, MIN_PAIRS);
 	// At any stage, if the template is longer than insert size, require some pairs
-	if (t->len >= ins_size && !with_pairs)
+	if (is_valid && t->len >= ins_size && !with_pairs)
 		is_valid = 0;
 	// At stage 3, obtain transcripts shorter than insert size; otherwise, must has pairs
-	if (t->len < ins_size && stage != 3 && !with_pairs) {
+	if (is_valid && t->len < ins_size && stage != 3 && !with_pairs) {
 		if (!t->b_juncs || t->b_juncs->len == 0)
 			is_valid = 0;
 		else {
@@ -818,9 +838,11 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 					t->len);
 			break;
 		}
-		//p_ctg_seq(__func__, t->ctg);
 		tail = new_seq(t->ctg, least_ol_len, shift);
-		//p_query(__func__, tail);
+		if (i == 308) {
+			p_ctg_seq(__func__, t->ctg);
+			p_query(__func__, tail);
+		}
 		branch_read = check_branch_tail(ht, t, tail, shift, mismatches, FRESH,
 				ori);
 
@@ -1081,8 +1103,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 					__func__,
 					"==== End of tpl %d with length: %d; reads: %d; Alive: %d ==== \n\n",
 					t->id, t->len, t->reads->len, t->alive);
-			//branching(ht, all_tpls, t, LESS_MISMATCH, 0);
-			//branching(ht, all_tpls, t, LESS_MISMATCH, 1);
+			branching(ht, all_tpls, t, LESS_MISMATCH, 0);
+			branching(ht, all_tpls, t, LESS_MISMATCH, 1);
 		}
 	} else {
 		show_debug_msg(__func__, "Template is destroyed.\n");
@@ -1118,7 +1140,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[3045];
+	TEST = &seqs[604];
 
 	// shrink_ht(ht);
 

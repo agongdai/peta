@@ -90,6 +90,7 @@ void p_pool_read(gpointer *data, gpointer *user_data) {
 
 void p_pool(const char *header, const pool *p, const int *next) {
 	readarray *reads = p->reads;
+	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_cursor);
 	printf("[p_pool]****************************** \n");
 	if (next)
 		printf("[p_pool] %s %zd: %d:%d:%d:%d\n", header, reads->len, next[0],

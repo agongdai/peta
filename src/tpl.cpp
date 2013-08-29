@@ -30,8 +30,8 @@ void p_tpl(tpl *t) {
 	if (!t) {
 		show_debug_msg(__func__, "---- Template is NULL ----\n");
 	}
-	show_debug_msg(__func__, "---- Template %d alive: %d; root %d ----\n", t->id,
-			t->alive, t->is_root);
+	show_debug_msg(__func__, "---- Template %d alive: %d; root %d ----\n",
+			t->id, t->alive, t->is_root);
 	show_debug_msg(__func__, "\t Length: %d \n", t->len);
 	if (t->reads)
 		show_debug_msg(__func__, "\t Reads: %d\n", t->reads->len);
@@ -59,13 +59,15 @@ void p_tpl_reads(tpl *t) {
 	int i = 0, j = 0;
 	int read_len = 0;
 	if (!t->reads || t->reads == 0) {
-		show_debug_msg(__func__, "No reads on template [%d, %d] \n", t->id, t->len);
+		show_debug_msg(__func__, "No reads on template [%d, %d] \n", t->id,
+				t->len);
 		return;
 	}
 	r = (bwa_seq_t*) g_ptr_array_index(t->reads, 0);
 	read_len = r->len;
 	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
-	printf("\n==== Here are the reads used on template [%d, %d] ==== \n", t->id, t->len);
+	printf("\n==== Here are the reads used on template [%d, %d] ==== \n",
+			t->id, t->len);
 	for (i = 0; i < reads->len; i++) {
 		if (i % 15 == 0) {
 			for (j = 0; j < read_len; j++) {
@@ -97,7 +99,8 @@ void p_tpl_reads(tpl *t) {
 		printf(" [cursor: %d]", r->cursor);
 		printf("\n");
 	}
-	printf("==== End of printing reads used on template [%d, %d] ==== \n", t->id, t->len);
+	printf("==== End of printing reads used on template [%d, %d] ==== \n",
+			t->id, t->len);
 }
 
 void free_eg_gap(eg_gap *gap) {
@@ -337,8 +340,8 @@ int has_pairs_on_tpl(hash_table *ht, tpl *t, const int n_pairs) {
 		m = get_mate(r, ht->seqs);
 		if (m->status == USED && m->contig_id == t->id) {
 			pairs++;
-			p_query("READ", r);
-			p_query("MATE", m);
+			p_query("PAIRED READ", r);
+			p_query("PAIRED MATE", m);
 		}
 		// A pair would be counted twice
 		if (pairs >= n_pairs * 2)
@@ -866,16 +869,25 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	int i = 0, j = 0;
 	ubyte_t c = 0, read_c = 0;
 
+	if (shift == 308)
+		p_readarray(hits, 1);
+
 	if (hits->len < MIN_JUNCTION_READS) {
+		for (i = 0; i < hits->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(hits, i);
+			reset_to_fresh(r);
+		}
 		g_ptr_array_free(hits, TRUE);
 		return tail;
 	}
 
-	if (shift == 1324) {
-	show_debug_msg(__func__, "----\n");
-	show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left" : "right");
-	p_query(__func__, query);
-	}
+	//if (shift == 1324) {
+		show_debug_msg(__func__, "----\n");
+		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
+				: "right");
+		p_query(__func__, query);
+		p_readarray(hits, 1);
+	//}
 
 	for (i = 0; i < hits->len; i++) {
 		if (tail)
@@ -883,21 +895,22 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
 
 		if (shift == 1324)
-		p_query("HIT", r);
+			p_query("HIT", r);
 
 		ol_len = ori ? r->len - r->pos : query->len + r->pos;
 		start = ori ? shift : shift - r->pos;
 		//if (ol_len < query->len - 2)
 		//	continue;
-		//show_debug_msg(__func__, "Start: %d; ol: %d\n", start, ol_len);
+		show_debug_msg(__func__, "Start: %d; ol: %d\n", start, ol_len);
 		if (start >= 0 && start + ol_len <= t->len) {
 			tpl_seq = new_seq(t->ctg, ol_len, start);
-			//p_query("TEMPLATE SEQ", tpl_seq);
+			p_query("TEMPLATE SEQ", tpl_seq);
+			p_query("HIT", r);
 			if (ori)
 				n_mis = seq_ol(r, tpl_seq, ol_len, mismatches);
 			else
 				n_mis = seq_ol(tpl_seq, r, ol_len, mismatches);
-			//show_debug_msg(__func__, "n_mis: %d \n", n_mis);
+			show_debug_msg(__func__, "n_mis: %d \n", n_mis);
 			bwa_free_read_seq(1, tpl_seq);
 			if (n_mis >= 0) {
 				if (ori) {
@@ -1092,11 +1105,11 @@ void destroy_tpl(tpl *t) {
 		if (t->reads) {
 			for (i = 0; i < t->reads->len; i++) {
 				r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
-				reset_to_fresh(r);
-				//				r->contig_id = -1;
-				//				r->contig_locus = -1;
-				//				r->pos = IMPOSSIBLE_NEGATIVE;
-				//				r->status = TRIED;
+				r->contig_id = -1;
+				r->contig_locus = -1;
+				r->pos = IMPOSSIBLE_NEGATIVE;
+				r->status = TRIED;
+				//reset_to_fresh(r);
 			}
 			g_ptr_array_free(t->reads, TRUE);
 		}
@@ -1104,11 +1117,11 @@ void destroy_tpl(tpl *t) {
 		if (t->tried) {
 			for (i = 0; i < t->tried->len; i++) {
 				r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
-				reset_to_fresh(r);
-				//				r->contig_id = -1;
-				//				r->contig_locus = -1;
-				//				r->pos = IMPOSSIBLE_NEGATIVE;
-				//				r->status = TRIED;
+				r->contig_id = -1;
+				r->contig_locus = -1;
+				r->pos = IMPOSSIBLE_NEGATIVE;
+				r->status = TRIED;
+				//reset_to_fresh(r);
 			}
 			g_ptr_array_free(t->tried, TRUE);
 		}

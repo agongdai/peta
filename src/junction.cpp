@@ -94,7 +94,7 @@ GPtrArray *get_nearby_tpls(tpl *t, GPtrArray *tpls) {
 	junction *jun = NULL;
 	if (!tpls)
 		tpls = g_ptr_array_sized_new(4);
-	p_tpl(t);
+	//p_tpl(t);
 	if (t->is_root)
 		return tpls;
 	// Set to 1, means that the reads on it have been visited.
@@ -104,8 +104,8 @@ GPtrArray *get_nearby_tpls(tpl *t, GPtrArray *tpls) {
 	if (t->b_juncs && t->b_juncs->len > 0) {
 		for (j = 0; j < t->b_juncs->len; j++) {
 			jun = (junction*) g_ptr_array_index(t->b_juncs, j);
-			p_junction(jun);
-			p_tpl(jun->main_tpl);
+			//p_junction(jun);
+			//p_tpl(jun->main_tpl);
 			if (jun->main_tpl->is_root == 0)
 				get_nearby_tpls(jun->main_tpl, tpls);
 		}
