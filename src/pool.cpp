@@ -406,6 +406,7 @@ void correct_init_tpl_base(pool *p, tpl *t, int t_len) {
 		rev_c = 3 - max_c;
 		// If more than HIGH_N_READS (50) reads in pool, correct the reads as well
 		// This could be slow if too many reads in pool
+		/*
 		if (n_counted >= HIGH_N_READS && n_counted < MAX_POOL_N_READS) {
 			for (j = 0; j < p->reads->len; j++) {
 				r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
@@ -429,6 +430,7 @@ void correct_init_tpl_base(pool *p, tpl *t, int t_len) {
 				} // End of correction of a read
 			} // End of reads loop
 		} // End of correcting bases on reads
+		*/
 	} // End of template base correction
 	set_rev_com(t->ctg);
 	p_ctg_seq("CORRECTED ", t->ctg);

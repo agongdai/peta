@@ -70,8 +70,8 @@ void p_tpl_reads(tpl *t) {
 			t->id, t->len);
 	for (i = 0; i < reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
-		if (r->pos == IMPOSSIBLE_NEGATIVE)
-			continue;
+		//if (r->pos == IMPOSSIBLE_NEGATIVE)
+		//	continue;
 		if (i % 15 == 0) {
 			for (j = 0; j < read_len; j++) {
 				printf(" ");
@@ -621,11 +621,19 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 		return;
 	}
 
-	//p_tpl(t);
+	p_tpl(t);
 	//p_query(__func__, seq);
 	for (i = 0; i <= seq->len - ht->o->read_len; i++) {
 		window = new_seq(seq, ht->o->read_len, i);
 		hits = g_ptr_array_sized_new(4);
+
+		//if (i == 2911) {
+		//	char *test_name = (char*) malloc(sizeof(char) * 8);
+		//	sprintf(test_name, "SOME");
+		//	window->name = test_name;
+		//	p_query(__func__, window);
+		//}
+
 		hits = find_both_fr_full_reads(ht, window, hits, mismatches);
 		if (hits->len == 0)
 			not_covered_len++;
@@ -642,6 +650,14 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 				if (seq_ol(r, window, r->len, mismatches) >= 0) {
 					//p_query("NEW", r);
 					add2tpl(t, r, i - left_len);
+				} else {
+					// For some read, its forward and reverse sequences are similar!
+					r->rev_com = r->rev_com ? 0 : 1;
+					if (seq_ol(r, window, r->len, mismatches) >= 0) {
+						//p_query("NEW", r);
+						add2tpl(t, r, i - left_len);
+					} else
+						r->rev_com = 0;
 				}
 			}
 			if (r->contig_id == t->id)
@@ -1035,7 +1051,7 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 			} else {
 				n_mis = seq_ol(ol_seq, r, ol, mismatches);
 			}
-			// if (!ori) {
+			// if (!ori && t->id == 19999 && t->len >= 1340) {
 			//p_query("CONTIG", tpl_seq);
 			//p_query("READ  ", r);
 			//p_ctg_seq("OVERLP", ol_seq);
@@ -1052,6 +1068,20 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 				//p_query("ADDED", r);
 				g_ptr_array_add(fresh_reads, r);
 				added = 1;
+			} else {
+				// For some read, its forward and reverse complement are highly similar!
+				r->rev_com = r->rev_com ? 0 : 1;
+				if (ori) {
+					n_mis = seq_ol(r, ol_seq, ol, mismatches);
+				} else {
+					n_mis = seq_ol(ol_seq, r, ol, mismatches);
+				}
+				if (n_mis >= 0) {
+					r->cursor = cursor;
+					r->pos = n_mis;
+					g_ptr_array_add(fresh_reads, r);
+					added = 1;
+				}
 			}
 			bwa_free_read_seq(1, ol_seq);
 		}

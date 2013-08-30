@@ -527,6 +527,8 @@ GPtrArray *find_both_fr_full_reads(hash_table *ht, bwa_seq_t *query,
 	index64 i = 0;
 	int rev_com = 0;
 	bwa_seq_t *r = NULL;
+	//if (strcmp(query->name, "SOME") == 0)
+	//	p_query(__func__, query);
 	hits = find_reads_on_ht(ht, query, hits, mismatches);
 	switch_fr(query);
 	hits = find_reads_on_ht(ht, query, hits, mismatches);
@@ -534,7 +536,7 @@ GPtrArray *find_both_fr_full_reads(hash_table *ht, bwa_seq_t *query,
 
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		//if (strcmp(r->name, "15398") == 0)
+		//if (strcmp(query->name, "SOME") == 0)
 		//	p_query(__func__, r);
 		r->pos = IMPOSSIBLE_NEGATIVE;
 		if (head_tail_similar(r, query, ht->o->k, mismatches, &rev_com)) {
