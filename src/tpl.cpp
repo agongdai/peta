@@ -342,8 +342,8 @@ int has_pairs_on_tpl(hash_table *ht, tpl *t, const int n_pairs) {
 		m = get_mate(r, ht->seqs);
 		if (m->status == USED && m->contig_id == t->id) {
 			pairs++;
-			p_query("PAIRED READ", r);
-			p_query("PAIRED MATE", m);
+			//p_query("PAIRED READ", r);
+			//p_query("PAIRED MATE", m);
 		}
 		// A pair would be counted twice
 		if (pairs >= n_pairs * 2)
@@ -621,7 +621,7 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 		return;
 	}
 
-	p_tpl(t);
+	//p_tpl(t);
 	//p_query(__func__, seq);
 	for (i = 0; i <= seq->len - ht->o->read_len; i++) {
 		window = new_seq(seq, ht->o->read_len, i);
@@ -981,8 +981,8 @@ int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
 				near = (tpl*) g_ptr_array_index(tpls, j);
 				if (m->contig_id == near->id && m->contig_id != t->id) {
 					n++;
-					p_query("READ", r);
-					p_query("MATE", m);
+					//p_query("READ", r);
+					//p_query("MATE", m);
 					break;
 				}
 			}
