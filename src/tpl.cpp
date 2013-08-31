@@ -58,7 +58,7 @@ void p_tpl_reads(tpl *t) {
 	bwa_seq_t *r = NULL;
 	int i = 0, j = 0;
 	int read_len = 0;
-	if (!t->reads || t->reads == 0) {
+	if (!t->reads || t->reads->len == 0) {
 		show_debug_msg(__func__, "No reads on template [%d, %d] \n", t->id,
 				t->len);
 		return;

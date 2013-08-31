@@ -337,7 +337,7 @@ void p_junction(junction *jun) {
 	if (!jun)
 		show_debug_msg(__func__, "Junction is NULL.\n");
 	else
-		show_debug_msg(__func__, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\t%d\n",
+		show_debug_msg(__func__, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\tStatus:%d\n",
 				jun->main_tpl->id, jun->main_tpl->len, jun->branch_tpl->id,
 				jun->branch_tpl->len, jun->locus, jun->weight, jun->ori,
 				jun->status);
