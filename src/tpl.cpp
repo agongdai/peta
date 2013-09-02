@@ -445,37 +445,40 @@ int paired_by_reads(bwa_seq_t *seqs, tpl *t_1, tpl *t_2, int n_pairs) {
 /**
  * Check whether there are reads before read_len
  */
-void find_reads_ahead(tpl *t, const int read_len, int ext_len, int *n_reads,
+void find_reads_ahead(tpl *t, const int read_len, int ol_len, int *n_reads,
 		const int ori) {
 	int i = 0, start = 0, end = 0, use_right_read = 0;
 	int n = 0, left_ext_len = 0;
 	bwa_seq_t *r = NULL;
 	*n_reads = 0;
 	// Refer to pool.cpp->forward to see the contig_locus during extension
-	start = ori ? t->len - read_len + 1 : t->len - read_len * 2 + 1;
-	end = ori ? t->len : t->len - read_len;
+	start = ori ? 0 : t->len - read_len - ol_len;
+	end = ori ? read_len + ol_len : t->len;
 	//show_debug_msg(__func__, "Start~End: [%d, %d] \n", start, end);
 	for (i = t->reads->len - 1; i >= 0; i--) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		if (r->status != USED || r->contig_id != t->id)
 			continue;
-		// The reads are from the right extension
-		if (ori) {
-			if (r->contig_locus == 0) {
-				use_right_read = 1;
-				start = 0;
-				end = read_len - ext_len - 2;
-			}
-		}
+		//show_debug_msg(__func__, "Start~End: [%d, %d]\n", start, end);
 		if (r->contig_locus >= start && r->contig_locus <= end) {
 			//p_query(__func__, r);
 			n++;
 		}
-		if (r->contig_locus < start || r->contig_locus > end) {
-			break;
-		}
 	}
 	*n_reads = n;
+}
+
+void upd_reads_after_truncate(tpl *t, int trun_len) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	if (!t || !t->alive || !t->reads || trun_len <= 0)
+		return;
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		if (r->status == USED && r->contig_id == t->id) {
+			r->contig_locus -= trun_len;
+		}
+	}
 }
 
 /**
