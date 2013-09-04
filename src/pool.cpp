@@ -348,7 +348,8 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 	fresh_reads = align_tpl_tail(ht, t, tail, limit, shift, mismatches, FRESH,
 			ori);
 	for (i = 0; i < fresh_reads->len; i++) {
-		//p_query(__func__, r);
+		//if (t->len >= 1477 && t->len <= 1500)
+		//	p_query(__func__, r);
 		r = (bwa_seq_t*) g_ptr_array_index(fresh_reads, i);
 		//show_debug_msg(__func__, "Read %s cursor: %d\n", r->name, r->cursor);
 		add2pool(p, r);
@@ -357,15 +358,15 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 }
 
 /**
- * Correct bases on the template to the concensus base
+ * Correct bases on the template to the consensus base
  */
-void correct_init_tpl_base(pool *p, tpl *t, int t_len) {
+void correct_init_tpl_base(pool *p, tpl *t, int ori) {
 	int i = 0, j = 0, pos = 0;
 	ubyte_t c = 0, max_c = 0, rev_c = 0;
 	bwa_seq_t *r = NULL;
 	int counter[5], max = 0;
 	int n_counted = 0;
-	if (!p || t_len <= 0 || t->len < t_len || !p->reads || p->reads->len < 3)
+	if (!p || !p->reads || p->reads->len < 3)
 		return;
 	p_ctg_seq("ORIGINAL ", t->ctg);
 	for (i = 1; i < t->len; i++) {
@@ -377,7 +378,7 @@ void correct_init_tpl_base(pool *p, tpl *t, int t_len) {
 		}
 		for (j = 0; j < p->reads->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
-			pos = r->cursor - t->len + i;
+			pos = ori ? r->cursor + 1 + i : r->cursor - r->len + i;
 			if (pos >= 0 && pos < r->len) {
 				c = r->rev_com ? r->rseq[pos] : r->seq[pos];
 				// If 'N', ignore
@@ -492,7 +493,7 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 		//}
 
-		if (ol >= ht->o->k - 1 && ol >= n_mis * ht->o->k) {
+		if (r->rev_com == rev_com && ol >= ht->o->k - 1 && ol >= n_mis * ht->o->k) {
 			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol, tail->len
 					- ol);
 			//p_query(__func__, part);
@@ -641,7 +642,7 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 		ol = find_fr_ol_within_k(m, ol_tail, mismatches, tail_len - 1,
 				full_tail_len - 1, ori, &rev_com, &n_mis);
 		//show_debug_msg("TAG", "OL: %d\n", ol);
-		if (ol >= ht->o->k && ol >= n_mis * ht->o->k) {
+		if (r->rev_com == rev_com && ol >= ht->o->k && ol >= n_mis * ht->o->k) {
 			m->rev_com = rev_com;
 			m->cursor = ori ? (m->len - ol - 1) : ol;
 			m->pos = n_mis;
