@@ -432,6 +432,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	// Indicators, etc
 	int on_main = 0, valid = 0, weight = 0;
 	int connected = 0, is_rev = 0;
+	int rev_com = 0, n_mis = 0;
 	// If the branch is reverse complement connected, the direction needs to be switch
 	int adj_ori = 0;
 	int max_trial = 0;
@@ -504,6 +505,37 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		//p_query("TESTING", TEST);
 		bwa_free_read_seq(1, tail);
 		//p_tpl(branch);
+
+		// Try to simply merge the two templates
+		if (r->contig_locus <= N_MISMATCHES && adj_ori == 0) {
+			ol_len = find_fr_ol_within_k(branch->ctg, main_tpl->ctg,
+					MORE_MISMATCH, ht->o->k, ht->o->read_len, 1, &rev_com,
+					&n_mis);
+			//p_query("LEFT", branch->ctg);
+			//p_query("RIGHT", main_tpl->ctg);
+			//show_debug_msg(__func__, "OL: %d; rev_com: %d; n_mis: %d\n",
+			//		ol_len, rev_com, n_mis);
+			if (ol_len >= UNIQUE_LEN) {
+				if (merge_tpls(branch, main_tpl, ol_len, rev_com)) {
+					g_mutex_lock(kmer_id_mutex);
+					all_tpls->erase(main_tpl->id);
+					g_mutex_unlock(kmer_id_mutex);
+					destroy_tpl(main_tpl);
+					break;
+				}
+			}
+		}
+		if (r->contig_locus >= main_tpl->len - ht->o->read_len + N_MISMATCHES
+				&& adj_ori == 1) {
+			ol_len = find_fr_ol_within_k(main_tpl->ctg, branch->ctg,
+					MORE_MISMATCH, ht->o->k, ht->o->read_len, 1, &rev_com,
+					&n_mis);
+			if (ol_len >= UNIQUE_LEN) {
+				if (merge_tpls(main_tpl, branch, ol_len, rev_com)) {
+					break;
+				}
+			}
+		}
 
 		exist_ori = adj_ori ? 0 : 1;
 		//p_ctg_seq("MAIN", main_tpl->ctg);
@@ -721,12 +753,12 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		//p_query(__func__, TEST);
 		//if (t->len >= 1477 && t->len <= 1500) {
 		//	p_query("TESTING", TEST);
-		//	show_debug_msg(__func__,
-		//			"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
-		//			t->len, "ACGTN"[max_c]);
-		//	p_query(__func__, tail);
-		//	p_ctg_seq("TEMPLATE", t->ctg);
-		//	p_pool("CURRENT POOL", p, NULL);
+		//show_debug_msg(__func__,
+		//		"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
+		//		t->len, "ACGTN"[max_c]);
+		//p_query(__func__, tail);
+		//p_ctg_seq("TEMPLATE", t->ctg);
+		//p_pool("CURRENT POOL", p, NULL);
 		//}
 
 		ext_con(t->ctg, max_c, ori);
@@ -757,8 +789,9 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 					t->id, t->len);
 		if (t->len > 100000) {
 			p_tpl(t);
-			err_fatal(__func__,
-					"[ERROR] Too long contig [%d, %d]. Maybe some bug.\n",
+			err_fatal(
+					__func__,
+					"[ERROR] Too long contig [%d, %d]. Please report to caishaojiang@gmail.com.\n",
 					t->id, t->len);
 		}
 	}
@@ -808,9 +841,13 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 	//	is_valid = 0;
 	//}
 	with_pairs = has_pairs_on_tpl(ht, t, MIN_PAIRS);
+	//show_debug_msg(__func__, "Has pairs on template [%d, %d]: %d\n", t->id, t->len, with_pairs);
 	// At any stage, if the template is longer than insert size, require some pairs
-	if (is_valid && t->len >= ins_size && !with_pairs)
+	if (is_valid && t->len >= ins_size && !with_pairs) {
+		show_debug_msg(__func__, "No pairs on template [%d, %d]\n", t->id,
+				t->len);
 		is_valid = 0;
+	}
 	// At stage 3, obtain transcripts shorter than insert size; otherwise, must has pairs
 	if (is_valid && t->len < ins_size && stage != 3 && !with_pairs) {
 		if (!t->b_juncs || t->b_juncs->len == 0)
@@ -1090,9 +1127,9 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 	//if (kmer_ctg_id == 1)
-	//	read = &seqs[464];
-	//	if (kmer_ctg_id == 2)
-	//		read = &seqs[3901683];
+	//	read = &seqs[171131];
+	//if (kmer_ctg_id == 2)
+	//	read = &seqs[177256];
 
 	printf("\n");
 	show_debug_msg(__func__,
@@ -1182,7 +1219,6 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		invalid = try_destroy_tpl(ht, all_tpls, t, ht->o->read_len);
 
 		if (!invalid) {
-			g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 			//if (t->id == 2)
 			//p_readarray(t->reads, 1);
 			//p_tpl_reads(t);
@@ -1191,8 +1227,12 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 					__func__,
 					"==== End of tpl %d with length: %d; reads: %d; Alive: %d ==== \n\n",
 					t->id, t->len, t->reads->len, t->alive);
-			//branching(ht, all_tpls, t, LESS_MISMATCH, 0);
-			//branching(ht, all_tpls, t, LESS_MISMATCH, 1);
+			//g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+			//p_ctg_seq("BEFORE", t->ctg);
+			//correct_tpl_base(t, ht->o->read_len);
+			//p_ctg_seq("AFTER ", t->ctg);
+			branching(ht, all_tpls, t, LESS_MISMATCH, 0);
+			branching(ht, all_tpls, t, LESS_MISMATCH, 1);
 		}
 	} else {
 		show_debug_msg(__func__, "Template is destroyed.\n");
@@ -1242,26 +1282,28 @@ void kmer_threads(kmer_t_meta *params) {
 	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, (gpointer) params,
 			1, TRUE, NULL);
 	for (i = 0; i < starting_reads->len; i++) {
-		if (i % 100000 == 0)
+		if (i % 100000 == 0) {
+			show_msg(__func__, "%d templates are obtained. \n",
+						params->all_tpls->size());
 			show_msg(__func__, "Extending %" ID64 "-th read ... \n", i);
+		}
 		counter = (kmer_counter*) g_ptr_array_index(starting_reads, i);
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		//if (fresh_trial >= 1)
-		//break;
+		//if (fresh_trial >= 2)
+		//	break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",
 			params->all_tpls->size());
 
-//	show_debug_msg(__func__, "Remaining reads: \n");
-//	for (i = 0; i < ht->n_seqs; i++) {
-//		r = &ht->seqs[i];
-//		if (r->status != USED)
-//			p_query(__func__, r);
-//	}
-
+	//	show_debug_msg(__func__, "Remaining reads: \n");
+	//	for (i = 0; i < ht->n_seqs; i++) {
+	//		r = &ht->seqs[i];
+	//		if (r->status != USED)
+	//			p_query(__func__, r);
+	//	}
 	show_msg(__func__,
 			"----------- Stage 2: branching the %d templates -----------\n",
 			params->all_tpls->size());

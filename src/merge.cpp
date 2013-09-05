@@ -20,8 +20,8 @@
 
 /**
  * Merge the right template to the left template
- * The right template is not destoryed (its attributes are not altered), it is simply marked as 'DEAD'.
- * The rigth template is destoryed at hash_to_array in ass.cpp.
+ * The right template is not destroyed (its attributes are not altered), it is simply marked as 'DEAD'.
+ * The right template is destroyed at hash_to_array in ass.cpp.
  * If param rev_com is 1, will merge the reverse complement of right template to left.
  */
 int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
@@ -35,6 +35,8 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 				__func__,
 				"[WARNING] Merging templates not alive or with wrong ends: [%d, %d] and [%d, %d] \n",
 				left->id, left->len, right->id, right->len);
+		p_tpl(left);
+		p_tpl(right);
 		return 0;
 	}
 

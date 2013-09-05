@@ -923,7 +923,7 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 		//if (ol_len < query->len - 2)
 		//	continue;
 		//show_debug_msg(__func__, "Start: %d; ol: %d\n", start, ol_len);
-		if (start >= 0 && start + ol_len <= t->len) {
+		if (start >= 0 && start + ol_len <= t->len && ol_len >= query->len) {
 			tpl_seq = new_seq(t->ctg, ol_len, start);
 			//p_query("TEMPLATE SEQ", tpl_seq);
 			//p_query("HIT", r);
@@ -976,6 +976,7 @@ int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
 	bwa_seq_t *r = NULL, *m = NULL;
 	int i = 0, j = 0;
 	tpl *near = NULL;
+	show_debug_msg(__func__, "Checking pairs for template [%d, %d] \n", t->id, t->len);
 	for (i = 1; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		m = get_mate(r, ht->seqs);
@@ -984,8 +985,8 @@ int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
 				near = (tpl*) g_ptr_array_index(tpls, j);
 				if (m->contig_id == near->id && m->contig_id != t->id) {
 					n++;
-					//p_query("READ", r);
-					//p_query("MATE", m);
+					p_query("READ", r);
+					p_query("MATE", m);
 					break;
 				}
 			}

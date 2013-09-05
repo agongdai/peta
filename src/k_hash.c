@@ -566,12 +566,13 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 	for (i = 0; i <= len - opt->k * opt->interleaving + 1; i++) {
 		key = get_hash_key(seq, i, opt->interleaving, opt->k);
 		//show_debug_msg(__func__, "KEY: %" ID64 ". \n", key);
-
 		/**
+		if (seq[0] == 3 && seq[1] == 1 && seq[2] == 3 && seq[3] == 3 && len == 31 && status == FRESH) {
+		 show_debug_msg(__func__, "---\n");
 		 bwa_seq_t *key_seq = get_key_seq(key, 11);
 		 p_query(__func__, key_seq);
 		 bwa_free_read_seq(1, key_seq);
-		 **/
+		}**/
 
 		start = ht->k_mers_occ_acc[key];
 		end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers - 1]
@@ -586,10 +587,11 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 				if (r->pos != IMPOSSIBLE_NEGATIVE)
 					continue;
 				abs_locus = locus - i;
-				//if (seq[0] == 0 && seq[1] == 1 && seq[2] == 1 && seq[3] == 3 && len == 29 && status == USED) {
-				//	p_query(__func__, r);
-				//	show_debug_msg(__func__, "i: %d; locus: %d; abs_locus: %d \n", i, locus, abs_locus);
-				//}
+				/**
+				if (seq[0] == 3 && seq[1] == 1 && seq[2] == 3 && seq[3] == 3 && len == 31 && status == FRESH) {
+					p_query(__func__, r);
+					show_debug_msg(__func__, "i: %d; locus: %d; abs_locus: %d \n", i, locus, abs_locus);
+				}**/
 				if (abs_locus >= 0 && abs_locus <= r->len + 1
 						- opt->interleaving * opt->k) {
 					// If the status of read is as requested
@@ -616,7 +618,7 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 	bwa_seq_t *r = NULL;
 	GPtrArray *hits = g_ptr_array_sized_new(0), *rev_hits = NULL;
 
-//	if (strcmp(query->name, "SOME") == 0) {
+//	if (query->full_len == 1000) {
 //		show_debug_msg(__func__, "Before align \n");
 //		p_query(__func__, query);
 //		bwa_seq_t *rev = new_seq(query, query->len, 0);
