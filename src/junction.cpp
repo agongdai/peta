@@ -163,6 +163,25 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	return reads;
 }
 
+int count_jun_reads(hash_table *ht, junction *jun) {
+	tpl *main_tpl = NULL, *branch_tpl = NULL;
+	bwa_seq_t *left = NULL, *right = NULL;
+	int n_reads = 0;
+	GPtrArray *j_reads = NULL;
+	if (!jun || jun->status != 0)
+		return 0;
+	main_tpl = jun->main_tpl;
+	branch_tpl = jun->branch_tpl;
+	left = jun->ori ? branch_tpl->ctg : main_tpl->ctg;
+	right = jun->ori ? main_tpl->ctg : branch_tpl->ctg;
+	//p_junction(jun);
+	j_reads = find_junc_reads(ht, left, right, ht->o->read_len * 2 - 2,
+			&n_reads);
+	//p_readarray(j_reads, 1);
+	g_ptr_array_free(j_reads, TRUE);
+	return n_reads;
+}
+
 bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
 		int r_pos, int *right_len, int max_len) {
 	bwa_seq_t *junc_seq = blank_seq(max_len);
@@ -337,10 +356,26 @@ void p_junction(junction *jun) {
 	if (!jun)
 		show_debug_msg(__func__, "Junction is NULL.\n");
 	else
-		show_debug_msg(__func__, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\tStatus:%d\n",
-				jun->main_tpl->id, jun->main_tpl->len, jun->branch_tpl->id,
-				jun->branch_tpl->len, jun->locus, jun->weight, jun->ori,
-				jun->status);
+		show_debug_msg(__func__,
+				"[%d%c, %d]\t[%d%c, %d]\t%d\t%d\t%d\tStatus:%d\n",
+				jun->main_tpl->id, jun->main_tpl->alive ? '@' : '!',
+				jun->main_tpl->len, jun->branch_tpl->id,
+				jun->branch_tpl->alive ? '@' : '!', jun->branch_tpl->len,
+				jun->locus, jun->weight, jun->ori, jun->status);
+}
+
+void p_junctions(GPtrArray *juns) {
+	junction *jun = NULL;
+	int i = 0;
+	show_debug_msg(__func__, "------------- %d junctions ------------- \n",
+			juns->len);
+	for (i = 0; i < juns->len; i++) {
+		jun = (junction*) g_ptr_array_index(juns, i);
+		printf("%d\t", i);
+		p_junction(jun);
+	}
+	show_debug_msg(__func__, "------------- %d junctions ------------- \n",
+			juns->len);
 }
 
 /**
@@ -353,6 +388,18 @@ void remove_dead_junctions(GPtrArray *junctions) {
 		j = (junction*) g_ptr_array_index(junctions, i);
 		if (j->status != 0) {
 			destroy_junction(j);
+			g_ptr_array_remove_index_fast(junctions, i--);
+		}
+	}
+}
+
+void rm_junc_w_dead_tpls(GPtrArray *junctions, tpl *t) {
+	int i = 0;
+	junction *jun = NULL;
+	for (i = 0; i < junctions->len; i++) {
+		jun = (junction*) g_ptr_array_index(junctions, i);
+		if (jun->main_tpl == t || jun->branch_tpl == t || jun->status != 0) {
+			jun->status = 1;
 			g_ptr_array_remove_index_fast(junctions, i--);
 		}
 	}
@@ -443,8 +490,8 @@ int branch_on_main(tpl *main_tpl, tpl *branch, const int pos,
 		//similar = (seq_ol(sub, branch, branch->len, mismatches) == -1) ? 0 : 1;
 		similar = similar_seqs(sub, branch->ctg, mismatches, MAX_GAPS,
 				MATCH_SCORE, MISMATCH_SCORE, INDEL_SCORE);
-		show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,
-				similar);
+		//show_debug_msg(__func__, "Mismatches: %d; similar: %d\n", mismatches,
+		//		similar);
 	} else {
 		similar = 0;
 	}

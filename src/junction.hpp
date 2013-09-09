@@ -46,15 +46,18 @@ extern "C" {
 	void store_features(char *name, GPtrArray *branching_events,
 			GPtrArray *all_tpls);
 	gint cmp_junc_by_id(gpointer a, gpointer b);
+	void rm_junc_w_dead_tpls(GPtrArray *junctions, tpl *t);
 	void clean_junctions(GPtrArray *read_tpls, GPtrArray *junctions);
 	int branch_on_main(tpl *main, tpl *branch, const int pos, const int mismatches,
 			const int exist_ori);
 	void destroy_junction(junction *j);
+	int count_jun_reads(hash_table *ht, junction *jun);
 	bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
 			int r_pos, int *right_len, int max_len);
 	GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch);
 	GPtrArray *get_nearby_tpls(tpl *t, GPtrArray *reads);
 	void p_junction(junction *jun);
+	void p_junctions(GPtrArray *juns);
 	gint cmp_junc_by_branch_id(gpointer a, gpointer b);
 	gint cmp_junc_by_locus(gpointer a, gpointer b);
 	GPtrArray *tpl_junctions(tpl *t, GPtrArray *all_juncs, int start_index,

@@ -748,74 +748,76 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
  * Correct template bases.
  */
 void correct_tpl_base(tpl *t, const int read_len) {
-	int counter[5], max = 0, n_counted = 0;
-	ubyte_t c = 0, max_c = 0, rev_c = 0;
-	int i = 0, j = 0, start = 0, locus = 0;
-	int l_len = 0, r_len = 0, t_len = 0;
-	bwa_seq_t *r = NULL, *real_seq = NULL;
+	int *cs = NULL, max = 0;
+	GPtrArray *counters = NULL;
+	int c = 0, max_c = 0;
+	int i = 0, j = 0, locus = 0;
+	bwa_seq_t *r = NULL;
 	if (!t->reads || t->reads->len == 0)
 		return;
-	real_seq = get_tpl_ctg_wt(t, &l_len, &r_len, &t_len);
-	p_query(__func__, real_seq);
-	for (i = 0; i < t_len; i++) {
-		max = 0;
-		max_c = 0;
-		for (j = 0; j < 5; j++) {
-			counter[j] = 0;
-		}
-		for (j = start; j < t->reads->len; j++) {
-			r = (bwa_seq_t*) g_ptr_array_index(t->reads, j);
-			if (r->contig_locus > i || r->contig_locus + read_len - 1 > i)
-				break;
-			locus = i - l_len - r->contig_locus;
-			if (locus < 0 || locus >= r->len)
-				continue;
-			c = r->rev_com ? r->rseq[locus] : r->seq[locus];
-			show_debug_msg(__func__, "Correcting base %d...\n", i);
-			p_query(__func__, r);
-			show_debug_msg(__func__, "Read locus: %d \n", locus);
-			// If 'N', ignore
-			if (c == 4)
-				continue;
-			counter[c]++;
-			n_counted++;
-			if (n_counted >= CORRECT_N_READS)
-				break;
-		}
-		if (i < t_len - read_len && j < t->reads->len - 1) {
-			start = j;
-		}
-		show_debug_msg(__func__, "Start: %d\n", start);
+	counters = g_ptr_array_sized_new(t->len);
+	//p_tpl_reads(t);
 
-		for (j = 0; j < 4; j++) {
-			if (counter[j] > max) {
-				max = counter[j];
-				max_c = j;
+	for (i = 0; i < t->len; i++) {
+		cs = (int*) calloc(5, sizeof(int));
+		g_ptr_array_add(counters, cs);
+	}
+
+	// Count the occurrences of nucleotides at every position
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		for (j = 0; j < r->len; j++) {
+			locus = r->contig_locus + j;
+			if (locus >= 0 && locus < t->len) {
+				c = r->rev_com ? r->rseq[j] : r->seq[j];
+				cs = (int*) g_ptr_array_index(counters, locus);
+				cs[c]++;
 			}
 		}
-
-		if (max <= 0)
-			continue;
-		// Correct the template sequences
-		if (l_len > 0 && i < l_len) {
-			show_debug_msg(__func__, "POS %d: %c => %c \n", i,
-					"ACGTN"[t->l_tail->seq[i]], "ACGTN"[max_c]);
-			t->l_tail->seq[i] = max_c;
-		} else if (r_len > 0 && i >= l_len + t->len) {
-			show_debug_msg(__func__, "POS %d: %c => %c \n", i,
-					"ACGTN"[t->r_tail->seq[i - l_len - t->len]], "ACGTN"[max_c]);
-			t->r_tail->seq[i - l_len - t->len] = max_c;
-		} else
-			t->ctg->seq[i - l_len] = max_c;
 	}
-	bwa_free_read_seq(1, real_seq);
-	set_rev_com(t->ctg);
-	set_rev_com(t->l_tail);
-	set_rev_com(t->r_tail);
 
-	real_seq = get_tpl_ctg_wt(t, &l_len, &r_len, &t_len);
-	p_query("AFTER", real_seq);
-	bwa_free_read_seq(1, real_seq);
+	for (i = 0; i < t->len; i++) {
+		cs = (int*) g_ptr_array_index(counters, i);
+		//show_debug_msg(__func__, "Locus %d: [%d,%d,%d,%d,%d]\n", i, cs[0], cs[1], cs[2], cs[3], cs[4]);
+		max = -1;
+		max_c = -1;
+		for (j = 0; j < 5; j++) {
+			if (cs[j] > 0 && cs[j] > max_c) {
+				max = j;
+				max_c = cs[j];
+			}
+		}
+		if (max_c > 0) {
+			//show_debug_msg(__func__, "Max: %c; Count: %d\n", "ACGTN"[max], max_c);
+			t->ctg->seq[i] = max;
+		}
+	}
+	set_rev_com(t->ctg);
+
+	for (i = 0; i < t->len; i++) {
+		cs = (int*) g_ptr_array_index(counters, i);
+		free(cs);
+	}
+	g_ptr_array_free(counters, TRUE);
+}
+
+void clear_tpl_tails(tpl *t) {
+	if (t->r_tail) {
+		bwa_free_read_seq(1, t->r_tail);
+		t->r_tail = NULL;
+	}
+	if (t->l_tail) {
+		bwa_free_read_seq(1, t->l_tail);
+		t->l_tail = NULL;
+	}
+	if (t->b_juncs) {
+		while (t->b_juncs->len > 0)
+			g_ptr_array_remove_index_fast(t->b_juncs, 0);
+	}
+	if (t->m_juncs) {
+		while (t->m_juncs->len > 0)
+			g_ptr_array_remove_index_fast(t->m_juncs, 0);
+	}
 }
 
 /**
@@ -882,24 +884,21 @@ void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read,
 /**
  * Align tail-length query to find reads for branching
  */
-bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
+GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 		int shift, int mismatches, int8_t status, int ori) {
-	bwa_seq_t *r = NULL, *tpl_seq = NULL, *tail = NULL;
+	bwa_seq_t *r = NULL, *tpl_seq = NULL;
 	GPtrArray *hits = align_query(ht, query, status, mismatches);
+	GPtrArray *picked = NULL;
 	int ol_len = 0, n_mis = 0, start = 0;
 	int i = 0, j = 0;
+	int is_picked = 0;
 	ubyte_t c = 0, read_c = 0;
 
 	//if (shift == 308)
 	//	p_readarray(hits, 1);
 
-	if (hits->len < MIN_JUNCTION_READS) {
-		for (i = 0; i < hits->len; i++) {
-			r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-			reset_to_fresh(r);
-		}
-		g_ptr_array_free(hits, TRUE);
-		return tail;
+	if (hits->len <= 0) {
+		return hits;
 	}
 
 	//if (shift == 1324) {
@@ -910,13 +909,14 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	//	p_readarray(hits, 1);
 	//}
 
+	if (shift == 587) {
+		p_query(__func__, query);
+		p_readarray(hits, 1);
+	}
+	picked = g_ptr_array_sized_new(hits->len);
 	for (i = 0; i < hits->len; i++) {
-		if (tail)
-			break;
+		is_picked = 0;
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-
-		//if (shift == 1324)
-		//	p_query("HIT", r);
 
 		ol_len = ori ? r->len - r->pos : query->len + r->pos;
 		start = ori ? shift : shift - r->pos;
@@ -941,7 +941,8 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 						read_c = r->rev_com ? r->rseq[j] : r->seq[j];
 						if (c != read_c) {
 							r->cursor = j;
-							tail = r;
+							g_ptr_array_add(picked, r);
+							is_picked = 1;
 							break;
 						}
 					}
@@ -951,22 +952,20 @@ bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 						read_c = r->rev_com ? r->rseq[j] : r->seq[j];
 						if (c != read_c) {
 							r->cursor = j;
-							tail = r;
+							g_ptr_array_add(picked, r);
+							is_picked = 1;
 							break;
 						}
 					}
 				}
 			}
 		}
-	}
-	for (i = 0; i < hits->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		if (r != tail)
+		if (!is_picked) {
 			reset_to_fresh(r);
+		}
 	}
-
 	g_ptr_array_free(hits, TRUE);
-	return tail;
+	return picked;
 }
 
 int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
@@ -976,7 +975,8 @@ int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
 	bwa_seq_t *r = NULL, *m = NULL;
 	int i = 0, j = 0;
 	tpl *near = NULL;
-	show_debug_msg(__func__, "Checking pairs for template [%d, %d] \n", t->id, t->len);
+	show_debug_msg(__func__, "Checking pairs for template [%d, %d] \n", t->id,
+			t->len);
 	for (i = 1; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		m = get_mate(r, ht->seqs);
@@ -1125,7 +1125,7 @@ void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 	free(h);
 }
 
-void destroy_tpl(tpl *t) {
+void destroy_tpl(tpl *t, int status) {
 	index64 i = 0;
 	bwa_seq_t *r = NULL;
 	if (t) {
@@ -1144,7 +1144,7 @@ void destroy_tpl(tpl *t) {
 				r->contig_id = -1;
 				r->contig_locus = -1;
 				r->pos = IMPOSSIBLE_NEGATIVE;
-				r->status = TRIED;
+				r->status = status;
 				//reset_to_fresh(r);
 			}
 			g_ptr_array_free(t->reads, TRUE);
@@ -1156,7 +1156,7 @@ void destroy_tpl(tpl *t) {
 				r->contig_id = -1;
 				r->contig_locus = -1;
 				r->pos = IMPOSSIBLE_NEGATIVE;
-				r->status = TRIED;
+				r->status = status;
 				//reset_to_fresh(r);
 			}
 			g_ptr_array_free(t->tried, TRUE);

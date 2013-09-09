@@ -66,7 +66,7 @@ extern "C" {
 	tpl *new_tpl();
 	int is_high_cov(tpl *t);
 	void reset_tid(tpl *t);
-	void destroy_tpl(tpl *t);
+	void destroy_tpl(tpl *t, int status);
 	void keep_ctg_only(tpl *t);
 	void free_eg_seq(tpl *t);
 	void mv_unpaired_to_tried(bwa_seq_t *seqs, tpl *t, const int n_tpls);
@@ -83,8 +83,9 @@ extern "C" {
 	void add2tpl(tpl *t, bwa_seq_t *r, const int locus);
 	GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch);
 	void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches);
+	void clear_tpl_tails(tpl *t);
 	void correct_tpl_base(tpl *t, const int read_len);
-	bwa_seq_t *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
+	GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 			int shift, int mismatches, int8_t status, int ori);
 	GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int max, int shift,
 			int mismatches, int8_t status, int ori);

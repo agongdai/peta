@@ -178,7 +178,7 @@ int get_next_char(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		if (m->status == USED) {
 			for (j = 0; j < near_tpls->len; j++) {
 				main_tpl = (tpl*) g_ptr_array_index(near_tpls, j);
-				if (m->contig_id == main_tpl->id && main_tpl->id != t->id) {
+				if (m->contig_id == main_tpl->id) {
 					weight *= multi;
 					break;
 				}
@@ -546,21 +546,6 @@ void keep_fewer_mis_reads(pool *p) {
 			if (r->pos != 1) {
 				rm_from_pool(p, i--);
 			}
-		}
-	}
-}
-
-/**
- * If the cursor of a read in at the beginning/tail (2bp), remove it.
- */
-void keep_good_cursors(pool *p) {
-	bwa_seq_t *r = NULL;
-	int i = 0;
-	for (i = 0; i < p->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
-		if (r->cursor < N_BAD_TAIL_SHIFT || r->cursor >= r->len
-				- N_BAD_TAIL_SHIFT) {
-			rm_from_pool(p, i--);
 		}
 	}
 }
