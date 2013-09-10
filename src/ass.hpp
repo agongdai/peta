@@ -26,6 +26,9 @@ extern "C" {
 #endif
 
 	int pe_kmer(int argc, char *argv[]);
+	void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t);
+	void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_con_left,
+			int to_con_right);
 
 #ifdef __cplusplus
 }

@@ -35,6 +35,7 @@ void p_tpl(tpl *t) {
 	show_debug_msg(__func__, "\t Length: %d \n", t->len);
 	if (t->reads)
 		show_debug_msg(__func__, "\t Reads: %d\n", t->reads->len);
+	show_debug_msg(__func__, "\t Coverage: %.2f\n", t->cov);
 	if (t->tried)
 		show_debug_msg(__func__, "\t Tried: %d\n", t->tried->len);
 	if (t->m_juncs)
@@ -125,7 +126,7 @@ tpl *new_tpl() {
 	t->start_read = NULL;
 	t->tid = 0;
 	t->kmer_freq = 0;
-	t->in_connect = 0;
+	t->cov = 0.0;
 	t->vertexes = g_ptr_array_sized_new(0);
 	t->reads = g_ptr_array_sized_new(0);
 	t->tried = g_ptr_array_sized_new(0);
@@ -468,6 +469,38 @@ void find_reads_ahead(tpl *t, const int read_len, int ol_len, int *n_reads,
 	*n_reads = n;
 }
 
+/**
+ * Assumption: the reads on template are sorted by contig_locus
+ */
+float calc_tpl_cov(tpl *t, int start, int end, int read_len) {
+	bwa_seq_t *r = NULL;
+	int i = 0, j = 0, ol = 0;
+	float sum = 0.0, cov = 0.0;
+	//p_tpl_reads(t);
+	show_debug_msg(__func__, "Template [%d, %d] %d~%d\n", t->id, t->len, start, end);
+	if (!t || end < 0 || end > t->len || end <= start || read_len <= 0)
+		return 0.0;
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		if (r->contig_locus + r->len >= start) {
+			for (j = i; j < t->reads->len; j++) {
+				r = (bwa_seq_t*) g_ptr_array_index(t->reads, j);
+				ol = r->len;
+				ol = r->contig_locus < start ? ol - (start - r->contig_locus)
+						: ol;
+				ol = (r->contig_locus + read_len) >= end ? ol
+						- ((r->contig_locus + read_len) - end) : ol;
+				//show_debug_msg(__func__, "%.2f + %d \n", sum, ol);
+				sum += ol;
+			}
+			break;
+		}
+	}
+	cov = sum / (float) (end - start);
+	show_debug_msg(__func__, "Calculated template coverage [%d, %d]: %.2f \n", t->id, t->len, cov);
+	return cov;
+}
+
 void upd_reads_after_truncate(tpl *t, int trun_len) {
 	int i = 0;
 	bwa_seq_t *r = NULL;
@@ -675,6 +708,8 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 		}
 	}
 	bwa_free_read_seq(1, seq);
+	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+	t->cov = calc_tpl_cov(t, 0, t->len, ht->o->read_len);
 }
 
 /**
@@ -909,10 +944,10 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	//	p_readarray(hits, 1);
 	//}
 
-	if (shift == 587) {
-		p_query(__func__, query);
-		p_readarray(hits, 1);
-	}
+	//if (shift == 587) {
+	//	p_query(__func__, query);
+	//	p_readarray(hits, 1);
+	//}
 	picked = g_ptr_array_sized_new(hits->len);
 	for (i = 0; i < hits->len; i++) {
 		is_picked = 0;

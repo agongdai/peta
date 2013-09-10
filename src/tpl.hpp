@@ -37,7 +37,7 @@ typedef struct {
 	int8_t alive;			// Whether alive
 	int8_t is_root;			// Whether it's a root node in the graph
 	int8_t ori;				// Orientation
-	int8_t in_connect;		// Indicates whether some template connects to it already
+	float cov;				// Coverage
 	uint64_t tid;			// Thread id
 	bwa_seq_t *start_read;	// The starting kmer
 	uint32_t kmer_freq;		// Sum of all kmer frequencies
@@ -77,6 +77,7 @@ extern "C" {
 			const int p_all, const int min_len);
 	void find_reads_ahead(tpl *t, const int read_len, int ol_len, int *n_reads, const int ori);
 	void upd_reads_after_truncate(tpl *t, int trun_len);
+	float calc_tpl_cov(tpl *t, int start, int end, int read_len);
 	int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
 			const int min_n_pairs);
 	void upd_locus_on_tpl(tpl *t, int pre_t_len, int pre_n_reads);

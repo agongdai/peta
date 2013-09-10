@@ -1,6 +1,6 @@
 #!/bin/bash
 
-query="peta"
+query="paired"
 root_dir="/home/carl/Projects/"
 eva_exe="$root_dir/peta_pair/scripts/eva.py"
 db_dir="/home/carl/Projects/peta/rnaseq/Spombe/genome/"
@@ -8,7 +8,7 @@ db="spombe.broad.tx.fasta.rev"
 #db="tx.630.oracle.fa"
 blastdb="$root_dir/ncbi-blast-2.2.26+/db/"
 similarity="99"
-query_dir="$root_dir/peta_pair/SRR097897_branch/"
+query_dir="$root_dir/peta_pair/SRR097897_part/"
 #query_dir="$root_dir/peta_pair/spombe_630/"
 
 blastn_exe="blastn"

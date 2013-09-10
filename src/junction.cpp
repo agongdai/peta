@@ -140,9 +140,9 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	memcpy(junc_seq->seq + left_len, right->seq, sizeof(ubyte_t) * right_len);
 	junc_seq->len = left_len + right_len;
 	set_rev_com(junc_seq);
-	//p_query("Left  seq", left);
-	//p_query("Right seq", right);
-	//p_query("Junction seq", junc_seq);
+	p_query("Left  seq", left);
+	p_query("Right seq", right);
+	p_query("Junction seq", junc_seq);
 
 	for (i = 0; i <= junc_seq->len - ht->o->read_len; i++) {
 		window = new_seq(junc_seq, ht->o->read_len, i);
@@ -164,21 +164,27 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 }
 
 int count_jun_reads(hash_table *ht, junction *jun) {
-	tpl *main_tpl = NULL, *branch_tpl = NULL;
+	tpl *main_tpl = NULL, *branch = NULL;
 	bwa_seq_t *left = NULL, *right = NULL;
 	int n_reads = 0;
 	GPtrArray *j_reads = NULL;
 	if (!jun || jun->status != 0)
 		return 0;
 	main_tpl = jun->main_tpl;
-	branch_tpl = jun->branch_tpl;
-	left = jun->ori ? branch_tpl->ctg : main_tpl->ctg;
-	right = jun->ori ? main_tpl->ctg : branch_tpl->ctg;
-	//p_junction(jun);
-	j_reads = find_junc_reads(ht, left, right, ht->o->read_len * 2 - 2,
+	branch = jun->branch_tpl;
+	left = jun->ori ? new_seq(branch->ctg, branch->len, 0) : new_seq(
+			main_tpl->ctg, jun->locus, 0);
+	right = jun->ori ? new_seq(main_tpl->ctg, main_tpl->len - jun->locus,
+			jun->locus) : new_seq(branch->ctg, branch->len, 0);
+	p_junction(jun);
+	p_ctg_seq("Main", main_tpl->ctg);
+	p_ctg_seq("Bran", branch->ctg);
+	j_reads = find_junc_reads(ht, left, right, (ht->o->read_len - N_MISMATCHES - 1) * 2,
 			&n_reads);
-	//p_readarray(j_reads, 1);
+	p_readarray(j_reads, 1);
 	g_ptr_array_free(j_reads, TRUE);
+	bwa_free_read_seq(1, left);
+	bwa_free_read_seq(1, right);
 	return n_reads;
 }
 
