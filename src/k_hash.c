@@ -630,7 +630,7 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 
 	hits = find_reads_with_kmer(ht, hits, status, query->seq, query->len);
 
-//	if (strcmp(query->name, "SOME") == 0) {
+//	if (query->full_len == 1000) {
 //		p_query(__func__, query);
 //		bwa_seq_t *rev = new_seq(query, query->len, 0);
 //		switch_fr(rev);
@@ -654,7 +654,7 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 	// If reverse complement, update the pos
 	for (i = 0; i < rev_hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(rev_hits, i);
-		//if (strcmp(r->name, "15398") == 0)
+		//if (query->full_len == 1000)
 		//	p_query(__func__, r);
 		// To make sure the 'pos' will be changed once only
 		if (!r->rev_com) {

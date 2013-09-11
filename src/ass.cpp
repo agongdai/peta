@@ -562,7 +562,9 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 	get_nearby_tpls(t, near_tpls);
 	reset_is_root(t);
 	//p_ctg_seq("TEMPLATE", t->ctg);
-	//p_query(__func__, TEST);
+	p_query("TESTING", TEST);
+	if (t->id == 13 && t->len >= 615)
+		tail->full_len = 1000;
 	while (1) {
 		// If the query is bad, consume the reads in the pool first,
 		// 	some cases would be able to go through the bad query region and continue
@@ -610,6 +612,9 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		// If cannot extend, try to add mates into the pool
 		if (max_c == -1) {
 			//p_ctg_seq("TEMPLATE", t->ctg);
+			//show_debug_msg(__func__, "Looking for mates on [%d, %d] ...\n",
+			//		t->id, t->len);
+			//p_tpl_reads(t);
 			find_hashed_mates(ht, p, t, tail->len + 1, N_MISMATCHES, ori);
 			max_c = get_next_char(ht, p, near_tpls, t, ori);
 			if (max_c == -1) {
@@ -625,14 +630,15 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		}
 
 		//p_query("TESTING", TEST);
-		if (t->id == 13) {
-		show_debug_msg(__func__,
-				"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
-				t->len, "ACGTN"[max_c]);
-		p_query(__func__, tail);
-		p_ctg_seq("TEMPLATE", t->ctg);
-		p_pool("CURRENT POOL", p, NULL);
-		}
+		//		if (t->id >= 13 && t->len >= 615) {
+		//			p_query("TESTING", TEST);
+		//			show_debug_msg(__func__,
+		//					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
+		//					t->len, "ACGTN"[max_c]);
+		//			p_query(__func__, tail);
+		//			p_ctg_seq("TEMPLATE", t->ctg);
+		//			p_pool("CURRENT POOL", p, NULL);
+		//		}
 
 		ext_con(t->ctg, max_c, ori);
 		t->len = t->ctg->len;
@@ -1030,6 +1036,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				add_a_junction(t, branch, NULL, con_pos, exist_ori,
 						n_junc_reads);
 				correct_tpl_base(branch, ht->o->read_len);
+				p_tpl(branch);
 			} else {
 				g_mutex_lock(kmer_id_mutex);
 				all_tpls->erase(branch->id);
@@ -1090,7 +1097,10 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_con_left,
 	}
 	try_connect(ht, all_tpls, to_con_left, to_con_right, t);
 	// Reactive the TRIED reads to FRESH, for other starting reads
+	//show_debug_msg(__func__, "Finalizing template [%d, %d] \n", t->id, t->len);
+	//p_tpl(t);
 	invalid = try_destroy_tpl(ht, all_tpls, t, ht->o->read_len);
+	//p_tpl(t);
 	if (t->alive) {
 		//show_debug_msg(__func__, "Reads before refresh: %d \n", t->reads->len);
 		merge_branch_to_main(ht, t);
@@ -1133,7 +1143,7 @@ void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 	junction *jun = NULL;
 	int i = 0, changed = 0, opp_ori = 0, ori_len = 0, to_connect = 0;
 	tpl *branch = NULL;
-	bwa_seq_t *query = NULL;
+	bwa_seq_t *query = NULL, *l_tail = NULL, *r_tail = NULL;
 	pool *p = NULL;
 	if (!branches || !t->alive)
 		return;
@@ -1156,8 +1166,8 @@ void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 			show_debug_msg(__func__, "Striping template [%d, %d] to %s\n",
 					branch->id, branch->len, opp_ori ? "left" : "right");
 			p_junction(jun);
-			query = opp_ori ? new_seq(branch->ctg, kmer_len, branch->len
-					- kmer_len) : new_seq(branch->ctg, kmer_len, 0);
+			clear_tpl_tails(branch);
+			query = get_pure_tail(branch, kmer_len, opp_ori);
 			p = new_pool();
 			init_pool(ht, p, branch, kmer_len, N_MISMATCHES, opp_ori);
 			p_query(__func__, query);
@@ -1170,12 +1180,8 @@ void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 			set_rev_com(branch->ctg);
 			destroy_pool(p);
 			bwa_free_read_seq(1, query);
-			if (branch->len <= ori_len) {
-				rm_global_tpl(all_tpls, branch, FRESH);
-			} else {
-				jun->status = 1;
-				finalize_tpl(ht, all_tpls, branch, 0, 0);
-			}
+			jun->status = 1;
+			finalize_tpl(ht, all_tpls, branch, 0, 0);
 		}
 	}
 }
@@ -1323,7 +1329,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[682526];
+	TEST = &seqs[588859];
 
 	// shrink_ht(ht);
 

@@ -140,9 +140,9 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	memcpy(junc_seq->seq + left_len, right->seq, sizeof(ubyte_t) * right_len);
 	junc_seq->len = left_len + right_len;
 	set_rev_com(junc_seq);
-	p_query("Left  seq", left);
-	p_query("Right seq", right);
-	p_query("Junction seq", junc_seq);
+	//p_query("Left  seq", left);
+	//p_query("Right seq", right);
+	//p_query("Junction seq", junc_seq);
 
 	for (i = 0; i <= junc_seq->len - ht->o->read_len; i++) {
 		window = new_seq(junc_seq, ht->o->read_len, i);
@@ -176,12 +176,12 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 			main_tpl->ctg, jun->locus, 0);
 	right = jun->ori ? new_seq(main_tpl->ctg, main_tpl->len - jun->locus,
 			jun->locus) : new_seq(branch->ctg, branch->len, 0);
-	p_junction(jun);
-	p_ctg_seq("Main", main_tpl->ctg);
-	p_ctg_seq("Bran", branch->ctg);
+	//p_junction(jun);
+	//p_ctg_seq("Main", main_tpl->ctg);
+	//p_ctg_seq("Bran", branch->ctg);
 	j_reads = find_junc_reads(ht, left, right, (ht->o->read_len - N_MISMATCHES - 1) * 2,
 			&n_reads);
-	p_readarray(j_reads, 1);
+	//p_readarray(j_reads, 1);
 	g_ptr_array_free(j_reads, TRUE);
 	bwa_free_read_seq(1, left);
 	bwa_free_read_seq(1, right);
@@ -399,6 +399,9 @@ void remove_dead_junctions(GPtrArray *junctions) {
 	}
 }
 
+/**
+ * Remove those junctions with not-alive templates
+ */
 void rm_junc_w_dead_tpls(GPtrArray *junctions, tpl *t) {
 	int i = 0;
 	junction *jun = NULL;

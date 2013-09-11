@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <string.h>
 #include "pool.hpp"
 #include "peseq.h"
 #include "utils.h"
@@ -348,7 +349,7 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 	fresh_reads = align_tpl_tail(ht, t, tail, limit, shift, mismatches, FRESH,
 			ori);
 	for (i = 0; i < fresh_reads->len; i++) {
-		//if (t->len >= 1477 && t->len <= 1500)
+		//if (t->len >= 615 && t->id == 13)
 		//	p_query(__func__, r);
 		r = (bwa_seq_t*) g_ptr_array_index(fresh_reads, i);
 		//show_debug_msg(__func__, "Read %s cursor: %d\n", r->name, r->cursor);
@@ -408,30 +409,30 @@ void correct_init_tpl_base(pool *p, tpl *t, int ori) {
 		// If more than HIGH_N_READS (50) reads in pool, correct the reads as well
 		// This could be slow if too many reads in pool
 		/*
-		if (n_counted >= HIGH_N_READS && n_counted < MAX_POOL_N_READS) {
-			for (j = 0; j < p->reads->len; j++) {
-				r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
-				// Number of mismatches against the template is 0 now.
-				r->pos = 0;
-				pos = r->cursor - t->len + i;
-				if (pos >= 0 && pos < r->len) {
-					c = r->rev_com ? r->rseq[pos] : r->seq[pos];
-					if (c != max_c) {
-						//show_debug_msg(__func__,
-						//		"Read %s at pos %d: %c => %c \n", r->name,
-						//		pos, "ACGTN"[c], "ACGTN"[max_c]);
-						if (r->rev_com) {
-							r->rseq[pos] = max_c;
-							r->seq[r->len - pos - 1] = rev_c;
-						} else {
-							r->seq[pos] = max_c;
-							r->rseq[r->len - pos - 1] = rev_c;
-						}
-					}
-				} // End of correction of a read
-			} // End of reads loop
-		} // End of correcting bases on reads
-		*/
+		 if (n_counted >= HIGH_N_READS && n_counted < MAX_POOL_N_READS) {
+		 for (j = 0; j < p->reads->len; j++) {
+		 r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
+		 // Number of mismatches against the template is 0 now.
+		 r->pos = 0;
+		 pos = r->cursor - t->len + i;
+		 if (pos >= 0 && pos < r->len) {
+		 c = r->rev_com ? r->rseq[pos] : r->seq[pos];
+		 if (c != max_c) {
+		 //show_debug_msg(__func__,
+		 //		"Read %s at pos %d: %c => %c \n", r->name,
+		 //		pos, "ACGTN"[c], "ACGTN"[max_c]);
+		 if (r->rev_com) {
+		 r->rseq[pos] = max_c;
+		 r->seq[r->len - pos - 1] = rev_c;
+		 } else {
+		 r->seq[pos] = max_c;
+		 r->rseq[r->len - pos - 1] = rev_c;
+		 }
+		 }
+		 } // End of correction of a read
+		 } // End of reads loop
+		 } // End of correcting bases on reads
+		 */
 	} // End of template base correction
 	set_rev_com(t->ctg);
 	p_ctg_seq("CORRECTED ", t->ctg);
@@ -445,13 +446,13 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 	bwa_seq_t *m = NULL, *r = NULL, *tail = NULL, *part = NULL;
 	index64 i = 0;
 	int ol = 0, rev_com = 0, n_mis = 0;
-	tail = get_tail(t, tail_len, ori);
+	tail = get_pure_tail(t, tail_len, ori);
 	junction *jun = NULL;
 	tpl *main_tpl = NULL;
 	GPtrArray *existing_reads = t->reads;
 
 	// In case the tail is an biased seq like: TTTTCTTTTTT
-	if (is_biased_q(tail) || has_n(tail, 1)) {
+	if (!tail || is_biased_q(tail) || has_n(tail, 1)) {
 		bwa_free_read_seq(1, tail);
 		return;
 	}
@@ -487,13 +488,14 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		// Find the overlapping between mate and tail
 		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1, tail_len
 				- 1, ori, &rev_com, &n_mis);
-		//if (t->id == 6919 || t->id == 2416) {
-		//p_query("USED ", r);
-		//p_query("FRESH", m);
-		//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
-		//}
+		if (strcmp(m->name, "588859") == 0) {
+			p_query(__func__, m);
+			p_query("MAIN_TPL", tail);
+			show_debug_msg(__func__, "OL: %d; rev_cov: %d\n", ol, rev_com);
+		}
 
-		if (r->rev_com == rev_com && ol >= ht->o->k - 1 && ol >= n_mis * ht->o->k) {
+		if (r->rev_com == rev_com && ol >= ht->o->k - 1 && ol >= n_mis
+				* ht->o->k) {
 			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol, tail->len
 					- ol);
 			//p_query(__func__, part);
@@ -623,10 +625,10 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 			continue;
 		}
 		// Find the overlapping between mate and tail
-		//p_query(__func__, m);
+
 		ol = find_fr_ol_within_k(m, ol_tail, mismatches, tail_len - 1,
 				full_tail_len - 1, ori, &rev_com, &n_mis);
-		//show_debug_msg("TAG", "OL: %d\n", ol);
+
 		if (r->rev_com == rev_com && ol >= ht->o->k && ol >= n_mis * ht->o->k) {
 			m->rev_com = rev_com;
 			m->cursor = ori ? (m->len - ol - 1) : ol;

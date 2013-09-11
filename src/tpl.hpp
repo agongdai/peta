@@ -70,6 +70,7 @@ extern "C" {
 	void keep_ctg_only(tpl *t);
 	void free_eg_seq(tpl *t);
 	void mv_unpaired_to_tried(bwa_seq_t *seqs, tpl *t, const int n_tpls);
+	bwa_seq_t *get_pure_tail(tpl *t, int len, int ori);
 	bwa_seq_t *get_tail(tpl *t, int len, const int ori) ;
 	bwa_seq_t *cut_tpl_tail(tpl *t, const int tail_len, const int pos, const int ori);
 	void set_tail(tpl *branch, tpl *parent_eg, const int shift, const int tail_len, const int ori);

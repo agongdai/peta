@@ -240,6 +240,17 @@ int is_high_cov(tpl *t) {
 }
 
 /**
+ * Get pure head/tail of a template
+ */
+bwa_seq_t *get_pure_tail(tpl *t, int len, int ori) {
+	bwa_seq_t *tail = NULL;
+	if (t->len < len)
+		return NULL;
+	tail = ori ? new_seq(t->ctg, len, 0) : new_seq(t->ctg, len, t->len - len);
+	return tail;
+}
+
+/**
  * Get the tail for extension.
  * The only chance that the template is shorter than len is after timmed by junction.
  */
@@ -702,7 +713,7 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 		}
 		g_ptr_array_free(hits, TRUE);
 		bwa_free_read_seq(1, window);
-		if (not_covered_len > ht->o->read_len - ht->o->k) {
+		if (not_covered_len > ht->o->read_len * 2) {
 			t->alive = 0;
 			break;
 		}
@@ -1065,7 +1076,7 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 		// pos is the kmer position on the read
 		cursor = ori ? (r->pos - 1) : (r->pos + tail->len);
 
-		//if (strcmp(r->name, "15398") == 0) {
+		//if (t->len >= 615 && t->id == 13) {
 		//p_query(__func__, r);
 		//show_debug_msg(__func__, "CURSOR: %d\n", cursor);
 		//}
@@ -1090,7 +1101,7 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 			} else {
 				n_mis = seq_ol(ol_seq, r, ol, mismatches);
 			}
-			// if (!ori && t->id == 19999 && t->len >= 1340) {
+			//if (t->len >= 615 && t->id == 13) {
 			//p_query("CONTIG", tpl_seq);
 			//p_query("READ  ", r);
 			//p_ctg_seq("OVERLP", ol_seq);
