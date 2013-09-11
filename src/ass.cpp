@@ -1054,15 +1054,6 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	}
 }
 
-void branching_long(hash_table *ht, tpl_hash *all_tpls) {
-	tpl *t = NULL;
-	for (tpl_hash::iterator m = all_tpls->begin(); m != all_tpls->end(); ++m) {
-		t = (tpl*) m->second;
-		branching(ht, all_tpls, t, N_MISMATCHES, 0);
-		branching(ht, all_tpls, t, N_MISMATCHES, 1);
-	}
-}
-
 void try_connect(hash_table *ht, tpl_hash *all_tpls, int to_con_left,
 		int to_con_right, tpl *t) {
 	int connected = 0;
@@ -1086,7 +1077,7 @@ void try_connect(hash_table *ht, tpl_hash *all_tpls, int to_con_left,
  * Validate a template;
  * Branch the template
  */
-void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_con_left,
+void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching, int to_con_left,
 		int to_con_right) {
 	int invalid = 0;
 
@@ -1119,8 +1110,10 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_con_left,
 			//p_ctg_seq("BEFORE", t->ctg);
 			correct_tpl_base(t, ht->o->read_len);
 			//p_ctg_seq("AFTER ", t->ctg);
-			branching(ht, all_tpls, t, LESS_MISMATCH, 0);
-			branching(ht, all_tpls, t, LESS_MISMATCH, 1);
+			if (to_branching) {
+				branching(ht, all_tpls, t, LESS_MISMATCH, 0);
+				branching(ht, all_tpls, t, LESS_MISMATCH, 1);
+			}
 			prune_tpl_tails(ht, all_tpls, t);
 			set_jun_reads(ht, t);
 			strip_branches(ht, all_tpls, t);
@@ -1147,8 +1140,9 @@ void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 	pool *p = NULL;
 	if (!branches || !t->alive)
 		return;
-	ori_len = t->len;
 	g_ptr_array_sort(branches, (GCompareFunc) cmp_junc_by_branch_id);
+	//show_debug_msg(__func__, "There are %d branches on [%d, %d]\n", branches->len, t->id, t->len);
+	//p_junctions(branches);
 	for (i = 0; i < branches->len; i++) {
 		jun = (junction*) g_ptr_array_index(branches, i);
 		if (jun->status != 0)
@@ -1158,6 +1152,8 @@ void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 			jun->status = 1;
 			continue;
 		}
+		ori_len = branch->len;
+		//p_junction(jun);
 		if (jun->weight <= MIN_JUNCTION_READS || branch->cov
 				< jun->main_tpl->cov * BRANCHING_THRE) {
 			opp_ori = jun->ori ? 0 : 1;
@@ -1174,14 +1170,14 @@ void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 			p_pool("INITIAL_POOL", p, NULL);
 
 			to_connect = kmer_ext_tpl(ht, all_tpls, p, branch, query, opp_ori);
-			if (to_connect) {
+			if (to_connect && branch->len > ori_len) {
 				connect_by_full_reads(ht, all_tpls, branch, opp_ori);
 			}
 			set_rev_com(branch->ctg);
 			destroy_pool(p);
 			bwa_free_read_seq(1, query);
 			jun->status = 1;
-			finalize_tpl(ht, all_tpls, branch, 0, 0);
+			finalize_tpl(ht, all_tpls, branch, 1, 0, 0);
 		}
 	}
 }
@@ -1218,8 +1214,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		return NULL;
 	}
 
-	if (kmer_ctg_id == 1)
-		read = &seqs[8183];
+	//if (kmer_ctg_id == 1)
+	//	read = &seqs[8183];
 	//	if (kmer_ctg_id == 2)
 	//		read = &seqs[16165];
 
@@ -1298,7 +1294,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		if (!t->alive)
 			break;
 	}
-	finalize_tpl(ht, all_tpls, t, to_con_left, to_con_right);
+	finalize_tpl(ht, all_tpls, t, 1, to_con_left, to_con_right);
 	// If the read cannot be even extend one base, reset the read to fresh
 	if (flag) {
 		reset_to_fresh(read);
@@ -1352,8 +1348,8 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		if (fresh_trial >= 1)
-			break;
+		//if (fresh_trial >= 1)
+		//	break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",
@@ -1365,54 +1361,54 @@ void kmer_threads(kmer_t_meta *params) {
 	//		if (r->status != USED)
 	//			p_query(__func__, r);
 	//	}
-	//	show_msg(__func__,
-	//			"----------- Stage 2: branching the %d templates -----------\n",
-	//			params->all_tpls->size());
-	//	stage = 2;
-	//	//branching_long(ht, params->all_tpls);
-	//	show_msg(__func__, "%d templates are obtained. \n",
-	//			params->all_tpls->size());
-	//
-	//	show_msg(__func__,
-	//			"----------- Stage 3: remaining fragmented reads -----------\n");
-	//	stage = 3;
-	//	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
-	//
-	//	low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
-	//	// Reset not USED/DEAD reads to FRESH
-	//	for (i = 0; i < ht->n_seqs; i++) {
-	//		r = &seqs[i];
-	//		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
-	//		if (r->status != USED && r->status != DEAD) {
-	//			reset_to_fresh(r);
-	//			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
-	//			counter->kmer = i;
-	//			counter->count = 0;
-	//			g_ptr_array_add(low_reads, counter);
-	//		}
-	//	}
-	//
-	//	sort_by_kmers(ht, low_reads);
-	//	//show_msg(__func__, "Shrinking the hash table ... \n");
-	//	//shrink_ht(ht);
-	//	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
-	//	params->to_try_connect = 1;
-	//	for (i = 0; i < low_reads->len / 10; i++) {
-	//		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
-	//		// If the read does not even share any 11-mer with others, ignore
-	//		if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
-	//			continue;
-	//		}
-	//		if (i % 100000 == 0)
-	//			show_msg(__func__, "Extending %" ID64 "-th low read ... \n", i);
-	//		kmer_ext_thread(counter, params);
-	//		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
-	//	}
-	//	for (i = 0; i < low_reads->len; i++) {
-	//		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
-	//		free(counter);
-	//	}
-	//	g_ptr_array_free(low_reads, TRUE);
+	show_msg(__func__,
+			"----------- Stage 2: branching the %d templates -----------\n",
+			params->all_tpls->size());
+	stage = 2;
+	//branching_long(ht, params->all_tpls);
+	show_msg(__func__, "%d templates are obtained. \n",
+			params->all_tpls->size());
+
+	show_msg(__func__,
+			"----------- Stage 3: remaining fragmented reads -----------\n");
+	stage = 3;
+	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
+
+	low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
+	// Reset not USED/DEAD reads to FRESH
+	for (i = 0; i < ht->n_seqs; i++) {
+		r = &seqs[i];
+		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
+		if (r->status != USED && r->status != DEAD) {
+			reset_to_fresh(r);
+			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
+			counter->kmer = i;
+			counter->count = 0;
+			g_ptr_array_add(low_reads, counter);
+		}
+	}
+
+	sort_by_kmers(ht, low_reads);
+	//show_msg(__func__, "Shrinking the hash table ... \n");
+	//shrink_ht(ht);
+	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
+	params->to_try_connect = 1;
+	for (i = 0; i < low_reads->len / 10; i++) {
+		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
+		// If the read does not even share any 11-mer with others, ignore
+		if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
+			continue;
+		}
+		if (i % 100000 == 0)
+			show_msg(__func__, "Extending %" ID64 "-th low read ... \n", i);
+		kmer_ext_thread(counter, params);
+		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
+	}
+	for (i = 0; i < low_reads->len; i++) {
+		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
+		free(counter);
+	}
+	g_ptr_array_free(low_reads, TRUE);
 
 	g_thread_pool_free(thread_pool, 0, 1);
 }

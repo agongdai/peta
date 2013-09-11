@@ -409,6 +409,7 @@ void rm_junc_w_dead_tpls(GPtrArray *junctions, tpl *t) {
 		jun = (junction*) g_ptr_array_index(junctions, i);
 		if (jun->main_tpl == t || jun->branch_tpl == t || jun->status != 0) {
 			jun->status = 1;
+			//destroy_junction(jun);
 			g_ptr_array_remove_index_fast(junctions, i--);
 		}
 	}
