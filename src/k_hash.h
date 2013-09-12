@@ -44,6 +44,7 @@ typedef struct {
 extern "C" {
 #endif
 
+	int has_next_bit(hash_table *ht, bwa_seq_t *query, int ori);
 	hash_table *load_k_hash(char *hash_fn);
 	void destroy_ht(hash_table *ht);
 	uint64_t get_kmer_int(const ubyte_t *seq, const int start,

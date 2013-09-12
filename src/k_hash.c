@@ -13,6 +13,41 @@
 
 int n_threads = 4;
 
+/**
+ * Check whether the query has next character
+ */
+int has_next_bit(hash_table *ht, bwa_seq_t *query, int ori) {
+	uint64_t key = 0, new_key = 0;
+	int i = 0, start = 0, end = 0, n_multi = 0;
+	hash_opt *opt = ht->o;
+	key = get_hash_key(query->seq, i, opt->interleaving, opt->k);
+	for (i = 0; i < 4; i++) {
+		new_key = shift_bit(key, i, ht->o->k, ori);
+
+		start = ht->k_mers_occ_acc[new_key];
+		end
+				= (new_key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers
+						- 1] : ht->k_mers_occ_acc[new_key + 1];
+		if (end > start + 1) {
+			n_multi++;
+		}
+		/**
+		show_debug_msg(__func__, "---\n");
+		bwa_seq_t *key_seq = get_key_seq(key, 11);
+		p_query(__func__, key_seq);
+		bwa_free_read_seq(1, key_seq);
+		show_debug_msg(__func__, "Next: %c; shift to %s; Multi: %d\n",
+				"ACGTN"[i], ori ? "left" : "right", n_multi);
+		key_seq = get_key_seq(new_key, 11);
+		p_query(__func__, key_seq);
+		bwa_free_read_seq(1, key_seq);
+		**/
+		if (n_multi >= 2)
+			return 1;
+	}
+	return 0;
+}
+
 bwa_seq_t *get_key_seq(uint64_t kmer, const int k) {
 	ubyte_t *seq = NULL;
 	bwa_seq_t *read = NULL;
@@ -567,12 +602,12 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 		key = get_hash_key(seq, i, opt->interleaving, opt->k);
 		//show_debug_msg(__func__, "KEY: %" ID64 ". \n", key);
 		/**
-		if (seq[0] == 3 && seq[1] == 1 && seq[2] == 3 && seq[3] == 3 && len == 31 && status == FRESH) {
+		 if (seq[0] == 3 && seq[1] == 1 && seq[2] == 3 && seq[3] == 3 && len == 31 && status == FRESH) {
 		 show_debug_msg(__func__, "---\n");
 		 bwa_seq_t *key_seq = get_key_seq(key, 11);
 		 p_query(__func__, key_seq);
 		 bwa_free_read_seq(1, key_seq);
-		}**/
+		 }**/
 
 		start = ht->k_mers_occ_acc[key];
 		end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers - 1]
@@ -588,10 +623,10 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 					continue;
 				abs_locus = locus - i;
 				/**
-				if (seq[0] == 3 && seq[1] == 1 && seq[2] == 3 && seq[3] == 3 && len == 31 && status == FRESH) {
-					p_query(__func__, r);
-					show_debug_msg(__func__, "i: %d; locus: %d; abs_locus: %d \n", i, locus, abs_locus);
-				}**/
+				 if (seq[0] == 3 && seq[1] == 1 && seq[2] == 3 && seq[3] == 3 && len == 31 && status == FRESH) {
+				 p_query(__func__, r);
+				 show_debug_msg(__func__, "i: %d; locus: %d; abs_locus: %d \n", i, locus, abs_locus);
+				 }**/
 				if (abs_locus >= 0 && abs_locus <= r->len + 1
 						- opt->interleaving * opt->k) {
 					// If the status of read is as requested
@@ -618,29 +653,29 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 	bwa_seq_t *r = NULL;
 	GPtrArray *hits = g_ptr_array_sized_new(0), *rev_hits = NULL;
 
-//	if (query->full_len == 1000) {
-//		show_debug_msg(__func__, "Before align \n");
-//		p_query(__func__, query);
-//		bwa_seq_t *rev = new_seq(query, query->len, 0);
-//		switch_fr(rev);
-//		p_query("REV", rev);
-//		bwa_free_read_seq(1, rev);
-//		p_readarray(hits, 1);
-//	}
+	//	if (query->full_len == 1000) {
+	//		show_debug_msg(__func__, "Before align \n");
+	//		p_query(__func__, query);
+	//		bwa_seq_t *rev = new_seq(query, query->len, 0);
+	//		switch_fr(rev);
+	//		p_query("REV", rev);
+	//		bwa_free_read_seq(1, rev);
+	//		p_readarray(hits, 1);
+	//	}
 
 	hits = find_reads_with_kmer(ht, hits, status, query->seq, query->len);
 
-//	if (query->full_len == 1000) {
-//		p_query(__func__, query);
-//		bwa_seq_t *rev = new_seq(query, query->len, 0);
-//		switch_fr(rev);
-//		p_query("REV", rev);
-//		bwa_free_read_seq(1, rev);
-//		for (i = 0; i < hits->len; i++) {
-//			r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-//			p_query("SOME", r);
-//		}
-//	}
+	//	if (query->full_len == 1000) {
+	//		p_query(__func__, query);
+	//		bwa_seq_t *rev = new_seq(query, query->len, 0);
+	//		switch_fr(rev);
+	//		p_query("REV", rev);
+	//		bwa_free_read_seq(1, rev);
+	//		for (i = 0; i < hits->len; i++) {
+	//			r = (bwa_seq_t*) g_ptr_array_index(hits, i);
+	//			p_query("SOME", r);
+	//		}
+	//	}
 
 	set_rev_com(query);
 	rev_hits = find_reads_with_kmer(ht, NULL, status, query->rseq, query->len);

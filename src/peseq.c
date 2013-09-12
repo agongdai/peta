@@ -514,6 +514,10 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 	return p;
 }
 
+void copy_partial(bwa_seq_t *seq, bwa_seq_t *copied, int start, int len) {
+
+}
+
 /**
  * Noted: to avoid segfault when calling realloc, 
  * 			here use memcpy, do not simply swap the address

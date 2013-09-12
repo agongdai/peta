@@ -959,6 +959,7 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	//	p_query(__func__, query);
 	//	p_readarray(hits, 1);
 	//}
+	tpl_seq = blank_seq(ht->o->read_len);
 	picked = g_ptr_array_sized_new(hits->len);
 	for (i = 0; i < hits->len; i++) {
 		is_picked = 0;
@@ -1094,12 +1095,12 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 		//show_debug_msg(__func__, "LOCUS: %d; OL: %d; CURSOR: %d\n", locus, ol, cursor);
 		if (ol >= tail->len && locus >= 0 && locus < tpl_seq->len && (cursor
 				>= 0 && cursor <= r->len - 1)) {
-			ol_seq = ori ? new_seq(tpl_seq, ol, 0)
-					: new_seq(tpl_seq, ol, locus);
+			//ol_seq = ori ? new_seq(tpl_seq, ol, 0)
+			//		: new_seq(tpl_seq, ol, locus);
 			if (ori) {
-				n_mis = seq_ol(r, ol_seq, ol, mismatches);
+				n_mis = seq_ol(r, tpl_seq, ol, mismatches);
 			} else {
-				n_mis = seq_ol(ol_seq, r, ol, mismatches);
+				n_mis = seq_ol(tpl_seq, r, ol, mismatches);
 			}
 			//if (t->len >= 615 && t->id == 13) {
 			//p_query("CONTIG", tpl_seq);
@@ -1122,9 +1123,9 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 				// For some read, its forward and reverse complement are highly similar!
 				r->rev_com = r->rev_com ? 0 : 1;
 				if (ori) {
-					n_mis = seq_ol(r, ol_seq, ol, mismatches);
+					n_mis = seq_ol(r, tpl_seq, ol, mismatches);
 				} else {
-					n_mis = seq_ol(ol_seq, r, ol, mismatches);
+					n_mis = seq_ol(tpl_seq, r, ol, mismatches);
 				}
 				if (n_mis >= 0) {
 					r->cursor = cursor;
@@ -1133,7 +1134,7 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 					added = 1;
 				}
 			}
-			bwa_free_read_seq(1, ol_seq);
+			//bwa_free_read_seq(1, ol_seq);
 		}
 		// If not added, reset the pos to be -1
 		if (!added) {

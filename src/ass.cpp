@@ -682,7 +682,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 
 int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 	int i = 0;
-	int is_valid = 1, with_pairs = 0;
+	int is_valid = 1, with_pairs = 1;
 	float branch_cov = 0.0, main_cov = 0.0;
 	junction *jun = NULL;
 	tpl *main_tpl = NULL;
@@ -720,7 +720,7 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 	//if (stage == 1 && t->len < ins_size) {
 	//	is_valid = 0;
 	//}
-	with_pairs = has_pairs_on_tpl(ht, t, MIN_PAIRS);
+	//with_pairs = has_pairs_on_tpl(ht, t, MIN_PAIRS);
 	//show_debug_msg(__func__, "Has pairs on template [%d, %d]: %d\n", t->id, t->len, with_pairs);
 	// At any stage, if the template is longer than insert size, require some pairs
 	if (is_valid && t->len >= ins_size && !with_pairs) {
@@ -911,13 +911,16 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	int *ori_pos = NULL, *ori_cursor = NULL;
 	GPtrArray *b_reads = NULL;
 
-	if (!t || !t->alive || !t->ctg)
+	if (!t || !t->alive || !t->ctg || t->len <= least_ol_len)
 		return;
 	printf("\n");
 	show_debug_msg(__func__,
 			"===== Branching template [%d, %d] to %s ===== \n", t->id, t->len,
 			ori ? "left" : "right");
+	tail = new_seq(t->ctg, least_ol_len, 0);
 	for (i = 0; i <= t->len - least_ol_len; i++) {
+		if (i > 0)
+			ext_que(tail, t->ctg->seq[i - 1 + least_ol_len], 0);
 		shift = i;
 		if (!t->ctg) {
 			show_debug_msg(__func__,
@@ -925,8 +928,9 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 					t->len);
 			break;
 		}
-		tail = new_seq(t->ctg, least_ol_len, shift);
-
+		if (!has_next_bit(ht, tail, ori)) {
+			continue;
+		}
 		b_reads = check_branch_tail(ht, t, tail, shift, mismatches, FRESH, ori);
 		//if (i == 587)
 		if (b_reads->len > 0) {
@@ -1050,8 +1054,8 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			free(ori_cursor);
 		}
 		g_ptr_array_free(b_reads, TRUE);
-		bwa_free_read_seq(1, tail);
 	}
+	bwa_free_read_seq(1, tail);
 }
 
 void try_connect(hash_table *ht, tpl_hash *all_tpls, int to_con_left,
@@ -1077,8 +1081,8 @@ void try_connect(hash_table *ht, tpl_hash *all_tpls, int to_con_left,
  * Validate a template;
  * Branch the template
  */
-void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching, int to_con_left,
-		int to_con_right) {
+void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
+		int to_con_left, int to_con_right) {
 	int invalid = 0;
 
 	unfrozen_tried(t);
