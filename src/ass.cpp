@@ -98,7 +98,6 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 			//p_tpl_reads(t);
 			g_ptr_array_add(tpls, t);
 		} else {
-			rm_junc_w_dead_tpls(branching_events, t);
 			destroy_tpl(t, TRIED);
 		}
 		/**
@@ -245,6 +244,7 @@ int merge_branch_to_main(hash_table *ht, tpl *branch) {
 	tpl *main_tpl = NULL;
 	bwa_seq_t *main_seq = NULL, *sub = NULL, *r = NULL;
 	// If right and left connections are too close, just ignore.
+	rm_dead_junc_on_tpl(branch);
 	if (!branch->alive || !branch->b_juncs || branch->b_juncs->len <= 0)
 		return 0;
 	if (branch->b_juncs->len == 1) {
@@ -259,6 +259,7 @@ int merge_branch_to_main(hash_table *ht, tpl *branch) {
 					"Template [%d, %d] merged to template [%d, %d] \n",
 					branch->id, branch->len, main_tpl->id, main_tpl->len);
 			branch->alive = 0;
+			exist_junc->status = 1;
 		}
 	}
 	if (branch->b_juncs->len == 2) {
@@ -274,6 +275,10 @@ int merge_branch_to_main(hash_table *ht, tpl *branch) {
 			p_junction(left);
 			p_junction(right);
 			branch->alive = 0;
+			if (right)
+			right->status = 1;
+			if (left)
+			left->status = 1;
 			return 0;
 		}
 		if (left->main_tpl != right->main_tpl) {
@@ -282,6 +287,8 @@ int merge_branch_to_main(hash_table *ht, tpl *branch) {
 		if ((get_abs(left->locus - right->locus) <= IGNORE_DIFF && branch->len
 				<= IGNORE_DIFF + ht->o->k * 3)) {
 			branch->alive = 0;
+			right->status = 1;
+			left->status = 1;
 			show_debug_msg(__func__,
 					"Ignored the template [%d, %d] because too short\n",
 					branch->id, branch->len);
@@ -309,6 +316,8 @@ int merge_branch_to_main(hash_table *ht, tpl *branch) {
 				while (branch->reads->len > 0)
 					g_ptr_array_remove_index_fast(branch->reads, 0);
 				branch->alive = 0;
+				right->status = 1;
+				left->status = 1;
 				show_debug_msg(__func__,
 						"Ignored the template [%d, %d] because too short\n",
 						branch->id, branch->len);
@@ -348,7 +357,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	// If extending to the left, and it's not connected to any template, mark it 'dead'
 	if (ori && (!branch->b_juncs || branch->b_juncs->len == 0) && branch->len
 			<= ht->o->read_len) {
-		branch->alive = 0;
+		mark_tpl_dead(branch);
 		return 0;
 	}
 	//p_query(__func__, TEST);
@@ -766,14 +775,7 @@ void rm_global_tpl(tpl_hash *all_tpls, tpl *t, int status) {
 		g_mutex_lock(kmer_id_mutex);
 		all_tpls->erase(t->id);
 		g_mutex_unlock(kmer_id_mutex);
-		if (t->b_juncs) {
-			for (i = 0; i < t->b_juncs->len; i++) {
-				jun = (junction*) g_ptr_array_index(t->b_juncs, i);
-				jun->status = 1;
-			}
-		}
 		disable_tpl_junctions(t);
-		rm_junc_w_dead_tpls(branching_events, t);
 		destroy_tpl(t, status);
 	}
 }
@@ -796,9 +798,9 @@ void prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 
 	for (i = 0; i < branches->len; i++) {
 		jun = (junction*) g_ptr_array_index(branches, i);
-		if (jun->status != 0)
-			continue;
 		branch = jun->branch_tpl;
+		if (jun->status != 0 || branch == t)
+			continue;
 		if (!branch->alive) {
 			jun->status = 1;
 			continue;
@@ -827,7 +829,7 @@ void prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				set_rev_com(t->ctg);
 				changed = 1;
 				jun->status = 1;
-				branch->alive = 0;
+				mark_tpl_dead(branch);
 				show_debug_msg(__func__,
 						"Branch [%d, %d] merged to Main [%d, %d]\n",
 						branch->id, branch->len, t->id, t->len);
@@ -862,7 +864,7 @@ void prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				changed = 1;
 				pruned_right = 1;
 				jun->status = 1;
-				branch->alive = 0;
+				mark_tpl_dead(branch);
 				show_debug_msg(__func__,
 						"Branch [%d, %d] merged to Main [%d, %d]\n",
 						branch->id, branch->len, t->id, t->len);
@@ -878,9 +880,7 @@ void prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 			}
 		} else {
 			merge_branch_to_main(ht, branch);
-			if (branch->alive) {
-				try_destroy_tpl(ht, all_tpls, branch, ht->o->read_len);
-			}
+			try_destroy_tpl(ht, all_tpls, branch, ht->o->read_len);
 		}
 		//p_tpl(t);
 		if (!branch->alive) {
@@ -894,7 +894,7 @@ void prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 		}
 		//p_tpl(t);
 	}
-	rm_junc_w_dead_tpls(branching_events, branch);
+	rm_dead_junc_on_tpl(t);
 	if (changed) {
 		refresh_tpl_reads(ht, t, N_MISMATCHES);
 	}
@@ -1066,13 +1066,13 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				add_a_junction(t, branch, NULL, con_pos, exist_ori,
 						n_junc_reads);
 				correct_tpl_base(branch, ht->o->read_len);
+				rm_dead_junc_on_tpl(branch);
 				p_tpl(branch);
 			} else {
 				g_mutex_lock(kmer_id_mutex);
 				all_tpls->erase(branch->id);
 				g_mutex_unlock(kmer_id_mutex);
 				disable_tpl_junctions(branch);
-				rm_junc_w_dead_tpls(branching_events, branch);
 				destroy_tpl(branch, DEAD);
 			}
 		}
@@ -1148,6 +1148,7 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 			prune_tpl_tails(ht, all_tpls, t);
 			set_jun_reads(ht, t);
 			strip_branches(ht, all_tpls, t);
+			rm_dead_junc_on_tpl(t);
 		}
 	} else {
 		show_debug_msg(__func__, "Template is destroyed.\n");
@@ -1209,8 +1210,10 @@ void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 			bwa_free_read_seq(1, query);
 			jun->status = 1;
 			finalize_tpl(ht, all_tpls, branch, 1, 0, 0);
+			rm_dead_junc_on_tpl(branch);
 		}
 	}
+	rm_dead_junc_on_tpl(t);
 }
 
 /**

@@ -417,6 +417,25 @@ void rm_junc_w_dead_tpls(GPtrArray *junctions, tpl *t) {
 	}
 }
 
+void rm_dead_junc_on_tpl(tpl *t) {
+	int i = 0;
+	junction *jun = NULL;
+	if (t->b_juncs) {
+		for (i = 0; i < t->b_juncs->len; i++) {
+			jun = (junction*) g_ptr_array_index(t->b_juncs, i);
+			if (!jun || jun->status != 0)
+				g_ptr_array_remove_index_fast(t->b_juncs, i--);
+		}
+	}
+	if (t->m_juncs) {
+		for (i = 0; i < t->m_juncs->len; i++) {
+			jun = (junction*) g_ptr_array_index(t->m_juncs, i);
+			if (!jun || jun->status != 0)
+				g_ptr_array_remove_index_fast(t->m_juncs, i--);
+		}
+	}
+}
+
 void disable_tpl_junctions(tpl *t) {
 	int i = 0;
 	junction *jun = 0;
@@ -427,14 +446,12 @@ void disable_tpl_junctions(tpl *t) {
 			jun = (junction*) g_ptr_array_index(t->m_juncs, i);
 			jun->status = 1;
 		}
-		g_ptr_array_free(t->m_juncs, TRUE);
 	}
 	if (t->b_juncs) {
 		for (i = 0; i < t->b_juncs->len; i++) {
 			jun = (junction*) g_ptr_array_index(t->b_juncs, i);
 			jun->status = 1;
 		}
-		g_ptr_array_free(t->b_juncs, TRUE);
 	}
 }
 
@@ -487,6 +504,15 @@ void clean_junctions(GPtrArray *read_tpls, GPtrArray *junctions) {
 		pre = junc;
 	}
 	remove_dead_junctions(junctions);
+}
+
+/**
+ * Mark a template not alive;
+ * Mark all junctions regarding this template as not alive
+ */
+void mark_tpl_dead(tpl *t) {
+	disable_tpl_junctions(t);
+	t->alive = 0;
 }
 
 /**

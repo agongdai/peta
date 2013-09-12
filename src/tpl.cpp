@@ -654,7 +654,7 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	int i = 0, j = 0, not_covered_len = 0;
 	ubyte_t base_1 = 0, base_2 = 0;
 	GPtrArray *refresh = NULL, *hits = NULL;
-	if (!t || !t->reads || t->reads->len <= 0 || t->len < 0)
+	if (!t || !t->alive || !t->reads || t->reads->len <= 0 || t->len < 0)
 		return;
 	//unfrozen_tried(t);
 
@@ -1211,6 +1211,11 @@ void destroy_tpl(tpl *t, int status) {
 			}
 			g_ptr_array_free(t->tried, TRUE);
 		}
+
+		if (t->m_juncs)
+			g_ptr_array_free(t->m_juncs, TRUE);
+		if (t->b_juncs)
+			g_ptr_array_free(t->b_juncs, TRUE);
 
 		free(t);
 	}
