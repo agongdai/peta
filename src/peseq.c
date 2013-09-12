@@ -483,6 +483,11 @@ int has_n(const bwa_seq_t *read, int max) {
 	return 0;
 }
 
+void clear_array(GPtrArray *arr) {
+	while (arr->len > 0)
+		g_ptr_array_remove_index_fast(arr, 0);
+}
+
 /**
  * Create a 'sudo-read' for overlapping alignment
  */
@@ -501,21 +506,23 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 		p->name = strdup(query->name);
 	else
 		p->name = (char*) calloc(1, sizeof(char));
-	p->seq = (ubyte_t*) malloc(ol + 1);
+	p->seq = (ubyte_t*) malloc(ol);
 	p->rseq = NULL;
 	memcpy(p->seq, query->seq + shift, ol);
-	p->seq[ol] = '\0';
-	p->rseq = (ubyte_t*) malloc(ol + 1);
+	p->rseq = (ubyte_t*) malloc(ol);
 	memcpy(p->rseq, p->seq, p->len);
 	seq_reverse(p->len, p->rseq, 1);
-	p->rseq[ol] = '\0';
 	p->cursor = query->cursor;
 
 	return p;
 }
 
-void copy_partial(bwa_seq_t *seq, bwa_seq_t *copied, int start, int len) {
-
+void copy_partial(bwa_seq_t *s, bwa_seq_t *copied, int start, int len) {
+	if (start + len > s->len)
+		return;
+	memcpy(copied->seq, s->seq + start, sizeof(char) * len);
+	memcpy(copied->rseq, s->rseq + (s->len - start - len), sizeof(char) * len);
+	copied->len = len;
 }
 
 /**

@@ -172,15 +172,17 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 		return 0;
 	main_tpl = jun->main_tpl;
 	branch = jun->branch_tpl;
+	p_junction(jun);
+	p_tpl(main_tpl);
+	p_tpl(branch);
 	left = jun->ori ? new_seq(branch->ctg, branch->len, 0) : new_seq(
 			main_tpl->ctg, jun->locus, 0);
 	right = jun->ori ? new_seq(main_tpl->ctg, main_tpl->len - jun->locus,
 			jun->locus) : new_seq(branch->ctg, branch->len, 0);
-	//p_junction(jun);
-	//p_ctg_seq("Main", main_tpl->ctg);
-	//p_ctg_seq("Bran", branch->ctg);
-	j_reads = find_junc_reads(ht, left, right, (ht->o->read_len - N_MISMATCHES - 1) * 2,
-			&n_reads);
+	p_ctg_seq("Main", main_tpl->ctg);
+	p_ctg_seq("Bran", branch->ctg);
+	j_reads = find_junc_reads(ht, left, right, (ht->o->read_len - N_MISMATCHES
+			- 1) * 2, &n_reads);
 	//p_readarray(j_reads, 1);
 	g_ptr_array_free(j_reads, TRUE);
 	bwa_free_read_seq(1, left);
@@ -412,6 +414,27 @@ void rm_junc_w_dead_tpls(GPtrArray *junctions, tpl *t) {
 			//destroy_junction(jun);
 			g_ptr_array_remove_index_fast(junctions, i--);
 		}
+	}
+}
+
+void disable_tpl_junctions(tpl *t) {
+	int i = 0;
+	junction *jun = 0;
+	if (!t)
+		return;
+	if (t->m_juncs) {
+		for (i = 0; i < t->m_juncs->len; i++) {
+			jun = (junction*) g_ptr_array_index(t->m_juncs, i);
+			jun->status = 1;
+		}
+		g_ptr_array_free(t->m_juncs, TRUE);
+	}
+	if (t->b_juncs) {
+		for (i = 0; i < t->b_juncs->len; i++) {
+			jun = (junction*) g_ptr_array_index(t->b_juncs, i);
+			jun->status = 1;
+		}
+		g_ptr_array_free(t->b_juncs, TRUE);
 	}
 }
 

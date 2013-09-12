@@ -488,7 +488,8 @@ float calc_tpl_cov(tpl *t, int start, int end, int read_len) {
 	int i = 0, j = 0, ol = 0;
 	float sum = 0.0, cov = 0.0;
 	//p_tpl_reads(t);
-	show_debug_msg(__func__, "Template [%d, %d] %d~%d\n", t->id, t->len, start, end);
+	show_debug_msg(__func__, "Template [%d, %d] %d~%d\n", t->id, t->len, start,
+			end);
 	if (!t || end < 0 || end > t->len || end <= start || read_len <= 0)
 		return 0.0;
 	for (i = 0; i < t->reads->len; i++) {
@@ -508,7 +509,8 @@ float calc_tpl_cov(tpl *t, int start, int end, int read_len) {
 		}
 	}
 	cov = sum / (float) (end - start);
-	show_debug_msg(__func__, "Calculated template coverage [%d, %d]: %.2f \n", t->id, t->len, cov);
+	show_debug_msg(__func__, "Calculated template coverage [%d, %d]: %.2f \n",
+			t->id, t->len, cov);
 	return cov;
 }
 
@@ -731,7 +733,8 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 	bwa_seq_t *tail = NULL, *s = NULL, *window = NULL;
 	bwa_seq_t *r = NULL;
 	int i = 0, j = 0, len = 0, borrow_len = 0;
-	GPtrArray *hits = NULL;
+	GPtrArray *hits = g_ptr_array_sized_new(4);
+	window = blank_seq(ht->o->read_len);
 	if (t->l_tail) {
 		borrow_len = (t->len >= (ht->o->read_len - 1)) ? (ht->o->read_len)
 				: t->len;
@@ -743,8 +746,8 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 		s->len += borrow_len;
 
 		for (i = 0; i <= s->len - ht->o->read_len; i++) {
-			window = new_seq(s, ht->o->read_len, i);
-			hits = g_ptr_array_sized_new(4);
+			copy_partial(s, window, i, ht->o->read_len);
+			hits->len = 0;
 			hits = find_both_fr_full_reads(ht, window, hits, mismatches);
 			for (j = 0; j < hits->len; j++) {
 				r = (bwa_seq_t*) g_ptr_array_index(hits, j);
@@ -754,8 +757,6 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 				if (r->status == FRESH)
 					add2tpl(t, r, i - t->l_tail->len);
 			}
-			g_ptr_array_free(hits, TRUE);
-			bwa_free_read_seq(1, window);
 		}
 		bwa_free_read_seq(1, s);
 	}
@@ -773,8 +774,8 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 		s->len += t->r_tail->len;
 
 		for (i = 0; i <= s->len - ht->o->read_len; i++) {
-			window = new_seq(s, ht->o->read_len, i);
-			hits = g_ptr_array_sized_new(4);
+			copy_partial(s, window, i, ht->o->read_len);
+			hits->len = 0;
 			hits = find_both_fr_full_reads(ht, window, hits, mismatches);
 			for (j = 0; j < hits->len; j++) {
 				r = (bwa_seq_t*) g_ptr_array_index(hits, j);
@@ -782,11 +783,11 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 				if (r->status == FRESH)
 					add2tpl(t, r, t->len - borrow_len + i);
 			}
-			g_ptr_array_free(hits, TRUE);
-			bwa_free_read_seq(1, window);
 		}
 		bwa_free_read_seq(1, s);
 	}
+	bwa_free_read_seq(1, window);
+	g_ptr_array_free(hits, TRUE);
 }
 
 /**
@@ -971,7 +972,8 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 		//	continue;
 		//show_debug_msg(__func__, "Start: %d; ol: %d\n", start, ol_len);
 		if (start >= 0 && start + ol_len <= t->len && ol_len >= query->len) {
-			tpl_seq = new_seq(t->ctg, ol_len, start);
+			//tpl_seq = new_seq(t->ctg, ol_len, start);
+			copy_partial(t->ctg, tpl_seq, start, ol_len);
 			//p_query("TEMPLATE SEQ", tpl_seq);
 			//p_query("HIT", r);
 			if (ori)
@@ -979,7 +981,7 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 			else
 				n_mis = seq_ol(tpl_seq, r, ol_len, mismatches);
 			//show_debug_msg(__func__, "n_mis: %d \n", n_mis);
-			bwa_free_read_seq(1, tpl_seq);
+			//bwa_free_read_seq(1, tpl_seq);
 			if (n_mis >= 0) {
 				if (ori) {
 					// To find the cursor
@@ -1011,6 +1013,7 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 			reset_to_fresh(r);
 		}
 	}
+	bwa_free_read_seq(1, tpl_seq);
 	g_ptr_array_free(hits, TRUE);
 	return picked;
 }
@@ -1209,10 +1212,6 @@ void destroy_tpl(tpl *t, int status) {
 			g_ptr_array_free(t->tried, TRUE);
 		}
 
-		if (t->m_juncs)
-			g_ptr_array_free(t->m_juncs, TRUE);
-		if (t->b_juncs)
-			g_ptr_array_free(t->b_juncs, TRUE);
 		free(t);
 	}
 }

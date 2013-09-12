@@ -50,6 +50,7 @@ extern "C" {
 	void ext_que(bwa_seq_t *q, const ubyte_t c, const int left_max_ctg_id);
 	int has_n(const bwa_seq_t *read, int max);
 	bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift);
+	void copy_partial(bwa_seq_t *s, bwa_seq_t *copied, int start, int len);
 	void set_rev_com(bwa_seq_t *s);
 	void reset_to_fresh(bwa_seq_t *r);
 	bwa_seq_t *blank_seq(const int len);

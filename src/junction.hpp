@@ -47,6 +47,7 @@ extern "C" {
 			GPtrArray *all_tpls);
 	gint cmp_junc_by_id(gpointer a, gpointer b);
 	void rm_junc_w_dead_tpls(GPtrArray *junctions, tpl *t);
+	void disable_tpl_junctions(tpl *t);
 	void clean_junctions(GPtrArray *read_tpls, GPtrArray *junctions);
 	int branch_on_main(tpl *main, tpl *branch, const int pos, const int mismatches,
 			const int exist_ori);

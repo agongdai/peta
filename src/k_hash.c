@@ -32,16 +32,16 @@ int has_next_bit(hash_table *ht, bwa_seq_t *query, int ori) {
 			n_multi++;
 		}
 		/**
-		show_debug_msg(__func__, "---\n");
-		bwa_seq_t *key_seq = get_key_seq(key, 11);
-		p_query(__func__, key_seq);
-		bwa_free_read_seq(1, key_seq);
-		show_debug_msg(__func__, "Next: %c; shift to %s; Multi: %d\n",
-				"ACGTN"[i], ori ? "left" : "right", n_multi);
-		key_seq = get_key_seq(new_key, 11);
-		p_query(__func__, key_seq);
-		bwa_free_read_seq(1, key_seq);
-		**/
+		 show_debug_msg(__func__, "---\n");
+		 bwa_seq_t *key_seq = get_key_seq(key, 11);
+		 p_query(__func__, key_seq);
+		 bwa_free_read_seq(1, key_seq);
+		 show_debug_msg(__func__, "Next: %c; shift to %s; Multi: %d\n",
+		 "ACGTN"[i], ori ? "left" : "right", n_multi);
+		 key_seq = get_key_seq(new_key, 11);
+		 p_query(__func__, key_seq);
+		 bwa_free_read_seq(1, key_seq);
+		 **/
 		if (n_multi >= 2)
 			return 1;
 	}
@@ -515,22 +515,20 @@ GPtrArray *find_reads_on_ht(hash_table *ht, bwa_seq_t *query, GPtrArray *hits,
 				start = ht->k_mers_occ_acc[key];
 				end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers
 						- 1] : ht->k_mers_occ_acc[key + 1];
-				if (end > start) {
-					for (i = start; i < end; i++) {
-						value = ht->pos[i];
-						read_hash_value(&seq_id, &locus, value);
-						r = &seqs[seq_id];
-						//if (strcmp(r->name, "15398") == 0) {
-						//	p_query(__func__, r);
-						//}
-						if (locus == hash_start) {
-							// To avoid too many duplicates in hits (some extreme case)
-							if (r->pos == IMPOSSIBLE_NEGATIVE)
-								g_ptr_array_add(hits, r);
-							//p_query(__func__, r);
-							// Here 'pos' stores how many kmers this query contains
-							r->pos = (r->pos <= 0) ? 1 : r->pos + 1;
-						}
+				for (i = start; i < end; i++) {
+					value = ht->pos[i];
+					read_hash_value(&seq_id, &locus, value);
+					r = &seqs[seq_id];
+					//if (strcmp(r->name, "15398") == 0) {
+					//	p_query(__func__, r);
+					//}
+					if (locus == hash_start) {
+						// To avoid too many duplicates in hits (some extreme case)
+						if (r->pos == IMPOSSIBLE_NEGATIVE)
+							g_ptr_array_add(hits, r);
+						//p_query(__func__, r);
+						// Here 'pos' stores how many kmers this query contains
+						r->pos = (r->pos <= 0) ? 1 : r->pos + 1;
 					}
 				}
 			}
@@ -591,15 +589,33 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 	int64_t i = 0, j = 0, start = 0, end = 0, seq_id = 0;
 	int64_t abs_locus = 0;
 	int locus = 0;
-	hash_key key = 0;
+	uint64_t all_ones = 1;
+	hash_key even_key = 0, odd_key = 0, key = 0;
 	hash_value value = 0;
 	hash_opt *opt = ht->o;
 	bwa_seq_t *r = NULL, *seqs = ht->seqs;
-	if (!hits)
-		hits = g_ptr_array_sized_new(0);
-	// For every possible kmer
+	// opt->k 1's
+	all_ones <<= opt->k * 2;
+	all_ones--;
+	even_key = get_hash_key(seq, 0, opt->interleaving, opt->k);
+	odd_key = get_hash_key(seq, 1, opt->interleaving, opt->k);
 	for (i = 0; i <= len - opt->k * opt->interleaving + 1; i++) {
-		key = get_hash_key(seq, i, opt->interleaving, opt->k);
+		// Shift the kmer to left
+		if (i % 2 == 0) {
+			if (i >= 2) {
+				even_key <<= 2;
+				even_key |= (3 & seq[i + (opt->k - 1) * opt->interleaving]);
+				even_key &= all_ones;
+			}
+			key = even_key;
+		} else {
+			if (i >= 2) {
+				odd_key <<= 2;
+				odd_key |= (3 & seq[i + (opt->k - 1) * opt->interleaving]);
+				odd_key &= all_ones;
+			}
+			key = odd_key;
+		}
 		//show_debug_msg(__func__, "KEY: %" ID64 ". \n", key);
 		/**
 		 if (seq[0] == 3 && seq[1] == 1 && seq[2] == 3 && seq[3] == 3 && len == 31 && status == FRESH) {
@@ -613,29 +629,27 @@ GPtrArray *find_reads_with_kmer(hash_table *ht, GPtrArray *hits, int8_t status,
 		end = (key >= opt->n_k_mers) ? ht->k_mers_occ_acc[opt->n_k_mers - 1]
 				: ht->k_mers_occ_acc[key + 1];
 		//show_debug_msg(__func__, "Start~End: [%" ID64 ", %" ID64 "]\n", start, end);
-		if (end > start) {
-			for (j = start; j < end; j++) {
-				value = ht->pos[j];
-				read_hash_value(&seq_id, &locus, value);
-				r = &seqs[seq_id];
-				// To avoid duplicate adding
-				if (r->pos != IMPOSSIBLE_NEGATIVE)
-					continue;
-				abs_locus = locus - i;
-				/**
-				 if (seq[0] == 3 && seq[1] == 1 && seq[2] == 3 && seq[3] == 3 && len == 31 && status == FRESH) {
-				 p_query(__func__, r);
-				 show_debug_msg(__func__, "i: %d; locus: %d; abs_locus: %d \n", i, locus, abs_locus);
-				 }**/
-				if (abs_locus >= 0 && abs_locus <= r->len + 1
-						- opt->interleaving * opt->k) {
-					// If the status of read is as requested
-					if (status == ANY_STATUS || r->status == status) {
-						//p_query(__func__, r);
-						//show_debug_msg(__func__, "Locus: %d\n", locus);
-						r->pos = abs_locus;
-						g_ptr_array_add(hits, r);
-					}
+		for (j = start; j < end; j++) {
+			value = ht->pos[j];
+			read_hash_value(&seq_id, &locus, value);
+			r = &seqs[seq_id];
+			// To avoid duplicate adding
+			if (r->pos != IMPOSSIBLE_NEGATIVE)
+				continue;
+			abs_locus = locus - i;
+			/**
+			 if (seq[0] == 3 && seq[1] == 1 && seq[2] == 3 && seq[3] == 3 && len == 31 && status == FRESH) {
+			 p_query(__func__, r);
+			 show_debug_msg(__func__, "i: %d; locus: %d; abs_locus: %d \n", i, locus, abs_locus);
+			 }**/
+			if (abs_locus >= 0 && abs_locus <= r->len + 1 - opt->interleaving
+					* opt->k) {
+				// If the status of read is as requested
+				if (r->status == status || status == ANY_STATUS) {
+					//p_query(__func__, r);
+					//show_debug_msg(__func__, "Locus: %d\n", locus);
+					r->pos = abs_locus;
+					g_ptr_array_add(hits, r);
 				}
 			}
 		}
@@ -651,7 +665,7 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 		int mismatches) {
 	index64 i = 0;
 	bwa_seq_t *r = NULL;
-	GPtrArray *hits = g_ptr_array_sized_new(0), *rev_hits = NULL;
+	GPtrArray *hits = g_ptr_array_sized_new(0), *rev_hits = g_ptr_array_sized_new(0);
 
 	//	if (query->full_len == 1000) {
 	//		show_debug_msg(__func__, "Before align \n");
@@ -678,7 +692,7 @@ GPtrArray *align_query(hash_table *ht, bwa_seq_t *query, int8_t status,
 	//	}
 
 	set_rev_com(query);
-	rev_hits = find_reads_with_kmer(ht, NULL, status, query->rseq, query->len);
+	rev_hits = find_reads_with_kmer(ht, rev_hits, status, query->rseq, query->len);
 
 	// Reset the rev_com first, later it is used as an indicator
 	for (i = 0; i < rev_hits->len; i++) {
