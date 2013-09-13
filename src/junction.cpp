@@ -170,6 +170,7 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 	GPtrArray *j_reads = NULL;
 	if (!jun || jun->status != 0)
 		return 0;
+	show_debug_msg(__func__, "Setting junction reads...\n");
 	main_tpl = jun->main_tpl;
 	branch = jun->branch_tpl;
 	p_junction(jun);
@@ -179,8 +180,8 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 			main_tpl->ctg, jun->locus, 0);
 	right = jun->ori ? new_seq(main_tpl->ctg, main_tpl->len - jun->locus,
 			jun->locus) : new_seq(branch->ctg, branch->len, 0);
-	p_ctg_seq("Main", main_tpl->ctg);
-	p_ctg_seq("Bran", branch->ctg);
+	//p_ctg_seq("Main", main_tpl->ctg);
+	//p_ctg_seq("Bran", branch->ctg);
 	j_reads = find_junc_reads(ht, left, right, (ht->o->read_len - N_MISMATCHES
 			- 1) * 2, &n_reads);
 	//p_readarray(j_reads, 1);

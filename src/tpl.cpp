@@ -490,6 +490,8 @@ float calc_tpl_cov(tpl *t, int start, int end, int read_len) {
 	//p_tpl_reads(t);
 	show_debug_msg(__func__, "Template [%d, %d] %d~%d\n", t->id, t->len, start,
 			end);
+	if (start == 0 && t->l_tail)
+		start -= t->l_tail->len;
 	if (!t || end < 0 || end > t->len || end <= start || read_len <= 0)
 		return 0.0;
 	for (i = 0; i < t->reads->len; i++) {
