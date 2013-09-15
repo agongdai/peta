@@ -41,10 +41,52 @@ junction *new_junction(tpl *main_tpl, tpl *branch_tpl, bwa_seq_t * connector,
 	return j;
 }
 
+/**
+ * Add a new junction;
+ * The new junction exists on both main and branch templates
+ */
+junction *add_a_junction(tpl *main_tpl, tpl *branch_tpl, bwa_seq_t *connector,
+		int locus, int ori, int weight) {
+	// Indicating the templates are in-connect, cannot be reverse-complement
+	junction *new_j = new_junction(main_tpl, branch_tpl, connector, locus, ori,
+			weight);
+	// Add the junction to the templates. For the 'existing connect' later.
+	if (!main_tpl->m_juncs)
+		main_tpl->m_juncs = g_ptr_array_sized_new(2);
+	g_ptr_array_add(main_tpl->m_juncs, new_j);
+	if (!branch_tpl->b_juncs)
+		branch_tpl->b_juncs = g_ptr_array_sized_new(2);
+	g_ptr_array_add(branch_tpl->b_juncs, new_j);
+	return new_j;
+}
+
 void destroy_junction(junction *j) {
+	tpl *main_tpl = NULL, *branch_tpl = NULL;
+	int i = 0;
+	junction *jun = NULL;
 	if (j) {
+		main_tpl = j->main_tpl;
+		branch_tpl = j->branch_tpl;
 		if (j->reads)
 			g_ptr_array_free(j->reads, TRUE);
+		if (main_tpl->m_juncs) {
+			for (i = 0; i < main_tpl->m_juncs->len; i++) {
+				jun = (junction*) g_ptr_array_index(main_tpl->m_juncs, i);
+				if (jun == j) {
+					g_ptr_array_remove_index_fast(main_tpl->m_juncs, i--);
+					break;
+				}
+			}
+		}
+		if (branch_tpl->b_juncs) {
+			for (i = 0; i < branch_tpl->b_juncs->len; i++) {
+				jun = (junction*) g_ptr_array_index(branch_tpl->b_juncs, i);
+				if (jun == j) {
+					g_ptr_array_remove_index_fast(branch_tpl->b_juncs, i--);
+					break;
+				}
+			}
+		}
 		free(j);
 	}
 }
@@ -163,23 +205,28 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	return reads;
 }
 
+/**
+ * Align the reads to a junction sequence and return the number
+ */
 int count_jun_reads(hash_table *ht, junction *jun) {
 	tpl *main_tpl = NULL, *branch = NULL;
-	bwa_seq_t *left = NULL, *right = NULL;
-	int n_reads = 0;
+	bwa_seq_t *left = NULL, *right = NULL, *branch_seq = NULL, *main_seq = NULL;
+	int n_reads = 0, l_len = 0, r_len = 0, t_len = 0;
 	GPtrArray *j_reads = NULL;
 	if (!jun || jun->status != 0)
 		return 0;
-	show_debug_msg(__func__, "Setting junction reads...\n");
+	//show_debug_msg(__func__, "Setting junction reads...\n");
 	main_tpl = jun->main_tpl;
 	branch = jun->branch_tpl;
-	p_junction(jun);
-	p_tpl(main_tpl);
-	p_tpl(branch);
-	left = jun->ori ? new_seq(branch->ctg, branch->len, 0) : new_seq(
-			main_tpl->ctg, jun->locus, 0);
-	right = jun->ori ? new_seq(main_tpl->ctg, main_tpl->len - jun->locus,
-			jun->locus) : new_seq(branch->ctg, branch->len, 0);
+	branch_seq = get_tpl_ctg_wt(branch, &l_len, &r_len, &t_len);
+	main_seq = get_tpl_ctg_wt(main_tpl, &l_len, &r_len, &t_len);
+	//p_junction(jun);
+	//p_tpl(main_tpl);
+	//p_tpl(branch);
+	left = jun->ori ? new_seq(branch_seq, branch_seq->len, 0) : new_seq(
+			main_seq, jun->locus + l_len, 0);
+	right = jun->ori ? new_seq(main_seq, main_seq->len - jun->locus - r_len,
+			jun->locus + r_len) : new_seq(branch_seq, branch_seq->len, 0);
 	//p_ctg_seq("Main", main_tpl->ctg);
 	//p_ctg_seq("Bran", branch->ctg);
 	j_reads = find_junc_reads(ht, left, right, (ht->o->read_len - N_MISMATCHES
@@ -188,6 +235,8 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 	g_ptr_array_free(j_reads, TRUE);
 	bwa_free_read_seq(1, left);
 	bwa_free_read_seq(1, right);
+	bwa_free_read_seq(1, branch_seq);
+	bwa_free_read_seq(1, main_seq);
 	return n_reads;
 }
 
@@ -353,6 +402,7 @@ void store_features(char *name, GPtrArray *branching_events,
 	//	}
 	for (i = 0; i < branching_events->len; i++) {
 		jun = (junction*) g_ptr_array_index(branching_events, i);
+		p_junction(jun);
 		sprintf(entry, "[%d, %d]\t[%d, %d]\t%d\t%d\t%d\n", jun->main_tpl->id,
 				jun->main_tpl->len, jun->branch_tpl->id, jun->branch_tpl->len,
 				jun->locus, jun->weight, jun->ori);
@@ -395,6 +445,9 @@ void remove_dead_junctions(GPtrArray *junctions) {
 	uint32_t i = 0;
 	for (i = 0; i < junctions->len; i++) {
 		j = (junction*) g_ptr_array_index(junctions, i);
+		p_junction(j);
+		//p_tpl(j->main_tpl);
+		//p_tpl(j->branch_tpl);
 		if (j->status != 0) {
 			destroy_junction(j);
 			g_ptr_array_remove_index_fast(junctions, i--);
@@ -437,21 +490,21 @@ void rm_dead_junc_on_tpl(tpl *t) {
 	}
 }
 
-void disable_tpl_junctions(tpl *t) {
-	int i = 0;
-	junction *jun = 0;
+void destory_tpl_junctions(tpl *t) {
+	int i = 0, j = 0;
+	junction *jun = NULL, *jun2 = NULL;
 	if (!t)
 		return;
 	if (t->m_juncs) {
 		for (i = 0; i < t->m_juncs->len; i++) {
 			jun = (junction*) g_ptr_array_index(t->m_juncs, i);
-			jun->status = 1;
+			destroy_junction(jun);
 		}
 	}
 	if (t->b_juncs) {
 		for (i = 0; i < t->b_juncs->len; i++) {
 			jun = (junction*) g_ptr_array_index(t->b_juncs, i);
-			jun->status = 1;
+			destroy_junction(jun);
 		}
 	}
 }
@@ -459,7 +512,7 @@ void disable_tpl_junctions(tpl *t) {
 /**
  * Remove duplicate junctions and junctions with dead templates
  */
-void clean_junctions(GPtrArray *read_tpls, GPtrArray *junctions) {
+void get_junction_arr(GPtrArray *read_tpls, GPtrArray *junctions) {
 	junction *junc = NULL, *pre = NULL;
 	uint32_t i = 0, j = 0;
 	int not_alive = 0;
@@ -469,42 +522,26 @@ void clean_junctions(GPtrArray *read_tpls, GPtrArray *junctions) {
 		if (t->m_juncs) {
 			for (j = 0; j < t->m_juncs->len; j++) {
 				junc = (junction*) g_ptr_array_index(t->m_juncs, j);
-				if (junc->status != 0)
-					g_ptr_array_remove_index_fast(t->m_juncs, j--);
+				if (junc->status == 0) {
+					g_ptr_array_add(junctions, junc);
+					junc->status = 1;
+				}
 			}
 		}
 		if (t->b_juncs) {
 			for (j = 0; j < t->b_juncs->len; j++) {
 				junc = (junction*) g_ptr_array_index(t->b_juncs, j);
-				if (junc->status != 0)
-					g_ptr_array_remove_index_fast(t->b_juncs, j--);
+				if (junc->status == 0) {
+					g_ptr_array_add(junctions, junc);
+					junc->status = 1;
+				}
 			}
 		}
 	}
 	for (i = 0; i < junctions->len; i++) {
-		not_alive = 0;
 		junc = (junction*) g_ptr_array_index(junctions, i);
-		if (!junc->main_tpl->alive) {
-			not_alive = 1;
-		}
-		if (!junc->branch_tpl->alive) {
-			not_alive = 1;
-		}
-		if (not_alive) {
-			junc->status = 1;
-			continue;
-		}
-		if (pre) {
-			if (pre->branch_tpl == junc->branch_tpl && pre->main_tpl
-					== junc->main_tpl && pre->locus == junc->locus && pre->ori
-					== junc->ori) {
-				junc->status = 1;
-				continue;
-			}
-		}
-		pre = junc;
+		junc->status = 0;
 	}
-	remove_dead_junctions(junctions);
 }
 
 /**
@@ -512,7 +549,7 @@ void clean_junctions(GPtrArray *read_tpls, GPtrArray *junctions) {
  * Mark all junctions regarding this template as not alive
  */
 void mark_tpl_dead(tpl *t) {
-	disable_tpl_junctions(t);
+	destory_tpl_junctions(t);
 	t->alive = 0;
 }
 
@@ -736,6 +773,18 @@ int tpls_have_junction(tpl *left, tpl *right) {
 	return have;
 }
 
+void clean_junctions(GPtrArray *junctions) {
+	int i = 0;
+	junction *jun = NULL;
+	for (i = 0; i < junctions->len; i++) {
+		jun = (junction*) g_ptr_array_index(junctions, i);
+		if (jun->status != 0) {
+			g_ptr_array_remove_index_fast(junctions, i--);
+			destroy_junction(jun);
+		}
+	}
+}
+
 /**
  * Filter out some junctions if:
  * 	- template length 0, connect to the same template at same locus
@@ -746,7 +795,7 @@ void filter_junctions(GPtrArray *junctions, GPtrArray *tpls, hash_table *ht) {
 	junction *junc = NULL;
 	tpl *t = NULL;
 	GPtrArray *main_junctions = NULL;
-	clean_junctions(tpls, junctions);
+	clean_junctions(junctions);
 	while (start_index < junctions->len - 1) {
 		//show_debug_msg(__func__, "======== Started at %d =======\n",
 		//		start_index);

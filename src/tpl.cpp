@@ -1269,6 +1269,7 @@ bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len) {
 	*r_len = (t->r_tail) ? (t->r_tail->len) : 0;
 	*t_len = *l_len + t->len + *r_len;
 	s = blank_seq(*t_len);
+	p_tpl(t);
 	if (t->l_tail) {
 		memcpy(s->seq, t->l_tail->seq, t->l_tail->len * sizeof(ubyte_t));
 		s->len = *l_len;

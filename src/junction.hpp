@@ -23,9 +23,10 @@ typedef struct {
 	int locus;
 	int weight;
 	uint8_t ori;
-	bwa_seq_t *connector; // Kmer when branching
-	GPtrArray *reads; // Reads at the junction
-	int8_t status; // 0 means good status
+	bwa_seq_t *connector; 	// Kmer when branching
+	bwa_seq_t *seq;			// Junction sequence
+	GPtrArray *reads; 		// Reads at the junction
+	int8_t status; 			// 0 means good status
 } junction;
 
 #ifdef __cplusplus
@@ -49,10 +50,13 @@ extern "C" {
 	void rm_junc_w_dead_tpls(GPtrArray *junctions, tpl *t);
 	void rm_dead_junc_on_tpl(tpl *t);
 	void mark_tpl_dead(tpl *t);
-	void disable_tpl_junctions(tpl *t);
-	void clean_junctions(GPtrArray *read_tpls, GPtrArray *junctions);
+	void destory_tpl_junctions(tpl *t);
+	void clean_junctions(GPtrArray *junctions);
+	void get_junction_arr(GPtrArray *read_tpls, GPtrArray *junctions);
 	int branch_on_main(tpl *main, tpl *branch, const int pos, const int mismatches,
 			const int exist_ori);
+	junction *add_a_junction(tpl *main_tpl, tpl *branch_tpl, bwa_seq_t *connector,
+			int locus, int ori, int weight);
 	void destroy_junction(junction *j);
 	int count_jun_reads(hash_table *ht, junction *jun);
 	bwa_seq_t *get_junc_seq(tpl *left, int l_pos, int *left_len, tpl *right,
