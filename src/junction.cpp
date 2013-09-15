@@ -67,10 +67,28 @@ void destroy_junction(junction *j) {
 	if (j) {
 		main_tpl = j->main_tpl;
 		branch_tpl = j->branch_tpl;
+
+		/**
+		show_debug_msg(__func__, "Destroying junction ... \n");
+		p_junction(j);
+		p_junctions(main_tpl->m_juncs);
+		p_junctions(main_tpl->b_juncs);
+		p_junctions(branch_tpl->m_juncs);
+		p_junctions(branch_tpl->b_juncs);
+		**/
+
 		if (j->reads)
 			g_ptr_array_free(j->reads, TRUE);
+		if (j->locus == 1 && j->branch_tpl->r_tail) {
+			bwa_free_read_seq(1, j->branch_tpl->r_tail);
+			j->branch_tpl->r_tail = NULL;
+		}
+		if (j->locus == 0 && j->branch_tpl->l_tail) {
+			bwa_free_read_seq(1, j->branch_tpl->l_tail);
+			j->branch_tpl->l_tail = NULL;
+		}
 		if (main_tpl->m_juncs) {
-			for (i = 0; i < main_tpl->m_juncs->len; i++) {
+			for (i = main_tpl->m_juncs->len - 1; i >= 0 ; i--) {
 				jun = (junction*) g_ptr_array_index(main_tpl->m_juncs, i);
 				if (jun == j) {
 					g_ptr_array_remove_index_fast(main_tpl->m_juncs, i--);
@@ -79,7 +97,7 @@ void destroy_junction(junction *j) {
 			}
 		}
 		if (branch_tpl->b_juncs) {
-			for (i = 0; i < branch_tpl->b_juncs->len; i++) {
+			for (i = branch_tpl->b_juncs->len - 1; i >= 0; i--) {
 				jun = (junction*) g_ptr_array_index(branch_tpl->b_juncs, i);
 				if (jun == j) {
 					g_ptr_array_remove_index_fast(branch_tpl->b_juncs, i--);
@@ -426,15 +444,19 @@ void p_junction(junction *jun) {
 void p_junctions(GPtrArray *juns) {
 	junction *jun = NULL;
 	int i = 0;
-	show_debug_msg(__func__, "------------- %d junctions ------------- \n",
-			juns->len);
-	for (i = 0; i < juns->len; i++) {
-		jun = (junction*) g_ptr_array_index(juns, i);
-		printf("%d\t", i);
-		p_junction(jun);
+	if (juns) {
+		show_debug_msg(__func__, "------------- %d junctions ------------- \n",
+				juns->len);
+		for (i = 0; i < juns->len; i++) {
+			jun = (junction*) g_ptr_array_index(juns, i);
+			printf("%d\t", i);
+			p_junction(jun);
+		}
+		show_debug_msg(__func__, "------------- %d junctions ------------- \n",
+				juns->len);
+	} else {
+		show_debug_msg(__func__, "0 junctions \n");
 	}
-	show_debug_msg(__func__, "------------- %d junctions ------------- \n",
-			juns->len);
 }
 
 /**
@@ -471,39 +493,20 @@ void rm_junc_w_dead_tpls(GPtrArray *junctions, tpl *t) {
 	}
 }
 
-void rm_dead_junc_on_tpl(tpl *t) {
-	int i = 0;
-	junction *jun = NULL;
-	if (t->b_juncs) {
-		for (i = 0; i < t->b_juncs->len; i++) {
-			jun = (junction*) g_ptr_array_index(t->b_juncs, i);
-			if (!jun || jun->status != 0)
-				g_ptr_array_remove_index_fast(t->b_juncs, i--);
-		}
-	}
-	if (t->m_juncs) {
-		for (i = 0; i < t->m_juncs->len; i++) {
-			jun = (junction*) g_ptr_array_index(t->m_juncs, i);
-			if (!jun || jun->status != 0)
-				g_ptr_array_remove_index_fast(t->m_juncs, i--);
-		}
-	}
-}
-
 void destory_tpl_junctions(tpl *t) {
 	int i = 0, j = 0;
 	junction *jun = NULL, *jun2 = NULL;
 	if (!t)
 		return;
 	if (t->m_juncs) {
-		for (i = 0; i < t->m_juncs->len; i++) {
-			jun = (junction*) g_ptr_array_index(t->m_juncs, i);
+		while(t->m_juncs->len > 0) {
+			jun = (junction*) g_ptr_array_index(t->m_juncs, 0);
 			destroy_junction(jun);
 		}
 	}
 	if (t->b_juncs) {
-		for (i = 0; i < t->b_juncs->len; i++) {
-			jun = (junction*) g_ptr_array_index(t->b_juncs, i);
+		while(t->b_juncs->len > 0) {
+			jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
 			destroy_junction(jun);
 		}
 	}
