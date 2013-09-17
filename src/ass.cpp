@@ -563,12 +563,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			"------ Started extending tpl %d to ori %d ... ------\n", t->id,
 			ori);
 	p_query(__func__, tail);
-	get_nearby_tpls(t, near_tpls);
-	reset_is_root(t);
-	//p_ctg_seq("TEMPLATE", t->ctg);
-	p_query("TESTING", TEST);
-	if (t->id == 13 && t->len >= 615)
-		tail->full_len = 1000;
+	near_tpls = nearby_tpls(t);
 	while (1) {
 		// If the query is bad, consume the reads in the pool first,
 		// 	some cases would be able to go through the bad query region and continue
@@ -684,6 +679,12 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 	return to_connect;
 }
 
+/**
+ * Mark a template not alive if:
+ * 1. Shorter than 100bp
+ * 2. Coverage too low
+ * 3. No pairs on the template
+ */
 int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 	int i = 0;
 	int is_valid = 1, with_pairs = 1;
@@ -701,7 +702,6 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 		is_valid = 0;
 		show_debug_msg(__func__, "Template [%d, %d] is shorter than 100bp \n",
 				t->id, t->len);
-		p_tpl(t);
 		if (t->b_juncs) {
 			if (t->b_juncs->len == 2)
 				is_valid = 1;
@@ -723,10 +723,6 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 	}
 	if (is_valid && t->cov <= MIN_BRANCH_COV)
 		is_valid = 0;
-	// At stage 1, only get templates longer than insert size
-	//if (stage == 1 && t->len < ins_size) {
-	//	is_valid = 0;
-	//}
 	with_pairs = has_pairs_on_tpl(ht, t, MIN_PAIRS);
 	//show_debug_msg(__func__, "Has pairs on template [%d, %d]: %d\n", t->id, t->len, with_pairs);
 	// At any stage, if the template is longer than insert size, require some pairs
@@ -734,25 +730,6 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 		show_debug_msg(__func__, "No pairs on template [%d, %d]\n", t->id,
 				t->len);
 		is_valid = 0;
-	}
-	// At stage 3, obtain transcripts shorter than insert size; otherwise, must has pairs
-	if (is_valid && t->len < ins_size + 100 && stage != 3 && !with_pairs) {
-		if (!t->b_juncs || t->b_juncs->len == 0)
-			is_valid = 0;
-		else {
-			//reset_is_root(t);
-			///near_tpls = g_ptr_array_sized_new(4);
-			//near_tpls = get_nearby_tpls(t, near_tpls);
-			//if (t->id == 2) {
-			//	p_tpl_reads(t);
-			//}
-			//if (!has_nearby_pairs(ht, near_tpls, t, MIN_PAIRS)) {
-			//	is_valid = 0;
-			//	show_debug_msg(__func__, "No enough pairs \n");
-			//}
-			//reset_is_root(t);
-			//g_ptr_array_free(near_tpls, TRUE);
-		}
 	}
 	if (!is_valid) {
 		t->alive = 0;
@@ -768,6 +745,7 @@ void rm_global_tpl(tpl_hash *all_tpls, tpl *t, int status) {
 	int i = 0;
 	junction *jun = NULL;
 	if (!t->alive) {
+		show_debug_msg(__func__, "Template [%d, %d] is destroyed.\n", t->id, t->len);
 		g_mutex_lock(kmer_id_mutex);
 		all_tpls->erase(t->id);
 		g_mutex_unlock(kmer_id_mutex);
@@ -1083,6 +1061,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				destory_tpl_junctions(branch);
 				destroy_tpl(branch, DEAD);
 			}
+			break;
 		}
 		if (b_reads->len > 0) {
 			free(ori_pos);
@@ -1137,18 +1116,13 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 		invalid = try_destroy_tpl(ht, all_tpls, t, ht->o->read_len);
 
 		if (t->alive) {
-			//if (t->id == 2)
-			//p_readarray(t->reads, 1);
 			//p_tpl_reads(t);
 			//p_tpl(t);
 			show_debug_msg(
 					__func__,
 					"==== End of tpl %d with length: %d; reads: %d; Alive: %d ==== \n\n",
 					t->id, t->len, t->reads->len, t->alive);
-			//p_tpl_reads(t);
-			//p_ctg_seq("BEFORE", t->ctg);
 			correct_tpl_base(t, ht->o->read_len);
-			//p_ctg_seq("AFTER ", t->ctg);
 			if (to_branching) {
 				branching(ht, all_tpls, t, LESS_MISMATCH, 0);
 				branching(ht, all_tpls, t, LESS_MISMATCH, 1);
@@ -1157,12 +1131,8 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 			set_jun_reads(ht, t);
 			strip_branches(ht, all_tpls, t);
 		}
-	} else {
-		show_debug_msg(__func__, "Template is destroyed.\n");
 	}
-	if (!t->alive) {
-		rm_global_tpl(all_tpls, t, TRIED);
-	}
+	rm_global_tpl(all_tpls, t, TRIED);
 }
 
 /**
@@ -1292,22 +1262,16 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 			== 0)) {
 		ori = 1;
 		// Extend to the left first
-		// Make a clone of the original starting read, which is global
 		p = new_pool();
 		init_pool(ht, p, t, kmer_len, N_MISMATCHES, ori);
 		correct_init_tpl_base(p, t, ori);
 		//p_pool("INITIAL_POOL", p, NULL);
-		//exit(1);
 		if (iter == 1 && p->reads->len == 0) {
 			t->alive = 0;
 			flag = 1;
 			destroy_pool(p);
 			break;
 		}
-
-		// The correction is done only once
-		//if (pre_len == 0)
-		//	correct_init_tpl_base(p, t, kmer_len);
 
 		query = get_tail(t, kmer_len, ori);
 		p_query(__func__, query);

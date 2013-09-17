@@ -173,17 +173,20 @@ GPtrArray *get_nearby_tpls(tpl *t, GPtrArray *tpls) {
 	return tpls;
 }
 
-GPtrArray *reset_is_root(tpl *t) {
-	int j = 0;
-	junction *jun = NULL;
-	// Set to 1, means that the reads on it have been visited.
-	t->is_root = 0;
-	if (t->b_juncs && t->b_juncs->len > 0) {
-		for (j = 0; j < t->b_juncs->len; j++) {
-			jun = (junction*) g_ptr_array_index(t->b_juncs, j);
-			jun->main_tpl->is_root = 0;
-		}
+void reset_is_root(GPtrArray *tpls) {
+	int i = 0;
+	tpl *t = NULL;
+	for (i = 0; i < tpls->len; i++) {
+		t = (tpl*) g_ptr_array_index(tpls, i);
+		t->is_root = 0;
 	}
+}
+
+GPtrArray *nearby_tpls(tpl *t) {
+	GPtrArray *near = g_ptr_array_sized_new(4);
+	near = get_nearby_tpls(t, near);
+	reset_is_root(near);
+	return near;
 }
 
 GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
