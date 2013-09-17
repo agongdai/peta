@@ -745,13 +745,22 @@ void rm_global_tpl(tpl_hash *all_tpls, tpl *t, int status) {
 	int i = 0;
 	junction *jun = NULL;
 	if (!t->alive) {
-		show_debug_msg(__func__, "Template [%d, %d] is destroyed.\n", t->id, t->len);
+		show_debug_msg(__func__, "Template [%d, %d] is destroyed.\n", t->id,
+				t->len);
 		g_mutex_lock(kmer_id_mutex);
 		all_tpls->erase(t->id);
 		g_mutex_unlock(kmer_id_mutex);
 		destory_tpl_junctions(t);
 		destroy_tpl(t, status);
 	}
+}
+
+tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, int len, int ori) {
+	tpl *branch = blank_tpl(branch_read, len, ori);
+	g_mutex_lock(kmer_id_mutex);
+	all_tpls->insert(make_pair<int, tpl*> ((int) branch->id, (tpl*) branch));
+	g_mutex_unlock(kmer_id_mutex);
+	return branch;
 }
 
 /**
@@ -920,7 +929,6 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	tpl *branch = NULL;
 	pool *p = NULL;
 	int least_ol_len = kmer_len;
-	int *ori_pos = NULL, *ori_cursor = NULL;
 	GPtrArray *b_reads = NULL;
 
 	if (!t || !t->alive || !t->ctg || t->len <= least_ol_len)
@@ -934,12 +942,6 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		if (i > 0)
 			ext_que(tail, t->ctg->seq[i - 1 + least_ol_len], 0);
 		shift = i;
-		if (!t->ctg) {
-			show_debug_msg(__func__,
-					"[WARNING] Template [%d, %d] suddenly empty.", t->id,
-					t->len);
-			break;
-		}
 		if (!has_next_bit(ht, tail, ori)) {
 			continue;
 		}
@@ -951,33 +953,18 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			p_query(__func__, tail);
 			p_readarray(b_reads, 1);
 		}
-
-		// The cursor/pos may be changed later; so stored them here
-		if (b_reads->len > 0) {
-			ori_pos = (int*) calloc(b_reads->len, sizeof(int));
-			ori_cursor = (int*) calloc(b_reads->len, sizeof(int));
-			for (j = 0; j < b_reads->len; j++) {
-				branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
-				ori_pos[j] = branch_read->pos;
-				ori_cursor[j] = branch_read->cursor;
-			}
-		}
+		if (ori)
+			g_ptr_array_sort(b_reads, (GCompareFunc) cmp_reads_by_cursor);
+		else
+			g_ptr_array_sort(b_reads, (GCompareFunc) cmp_reads_by_rev_cursor);
 		for (j = 0; j < b_reads->len; j++) {
 			// For later truncate the branch template
 			branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
-			if (branch_read->status != FRESH)
-				continue;
-			branch_read->cursor = ori_cursor[j];
-			branch_read->pos = ori_pos[j];
 
 			cursor = branch_read->cursor;
 			pos = branch_read->pos;
 			// Create a new template
-			branch = blank_tpl(branch_read, branch_read->len, ori);
-			g_mutex_lock(kmer_id_mutex);
-			all_tpls->insert(make_pair<int, tpl*> ((int) branch->id,
-					(tpl*) branch));
-			g_mutex_unlock(kmer_id_mutex);
+			branch = add_global_tpl(all_tpls, branch_read, branch_read->len, ori);
 
 			p = new_pool();
 			init_pool(ht, p, branch, kmer_len, mismatches, ori);
@@ -1063,10 +1050,6 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			}
 			break;
 		}
-		if (b_reads->len > 0) {
-			free(ori_pos);
-			free(ori_cursor);
-		}
 		g_ptr_array_free(b_reads, TRUE);
 	}
 	bwa_free_read_seq(1, tail);
@@ -1097,23 +1080,21 @@ void try_connect(hash_table *ht, tpl_hash *all_tpls, int to_con_left,
  */
 void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 		int to_con_left, int to_con_right) {
-	int invalid = 0;
-
 	unfrozen_tried(t);
-	set_rev_com(t->ctg);
 	if (t->alive) {
+		set_rev_com(t->ctg);
 		refresh_tpl_reads(ht, t, N_MISMATCHES);
 	}
 	try_connect(ht, all_tpls, to_con_left, to_con_right, t);
 	// Reactive the TRIED reads to FRESH, for other starting reads
 	//show_debug_msg(__func__, "Finalizing template [%d, %d] \n", t->id, t->len);
 	//p_tpl(t);
-	invalid = try_destroy_tpl(ht, all_tpls, t, ht->o->read_len);
+	try_destroy_tpl(ht, all_tpls, t, ht->o->read_len);
 	//p_tpl(t);
 	if (t->alive) {
 		//show_debug_msg(__func__, "Reads before refresh: %d \n", t->reads->len);
 		merge_branch_to_main(ht, t);
-		invalid = try_destroy_tpl(ht, all_tpls, t, ht->o->read_len);
+		try_destroy_tpl(ht, all_tpls, t, ht->o->read_len);
 
 		if (t->alive) {
 			//p_tpl_reads(t);
@@ -1245,12 +1226,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	//p_query(__func__, TEST);
 	fresh_trial++;
 	p_query(__func__, read);
-	t = blank_tpl(read, read->len, 0);
+	t = add_global_tpl(all_tpls, read, read->len, 0);
 	t->kmer_freq = counter->count;
-	// Insert first, in case it connects to itself during extension
-	g_mutex_lock(kmer_id_mutex);
-	all_tpls->insert(make_pair<int, tpl*> ((int) t->id, (tpl*) t));
-	g_mutex_unlock(kmer_id_mutex);
 
 	if (counter->count > 1)
 		mark_init_reads_used(ht, t, read, N_MISMATCHES);
@@ -1274,14 +1251,13 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		}
 
 		query = get_tail(t, kmer_len, ori);
-		p_query(__func__, query);
+		//p_query(__func__, query);
 		to_con_left = kmer_ext_tpl(ht, all_tpls, p, t, query, ori);
+		bwa_free_read_seq(1, query);
 		destroy_pool(p);
 		pre_len = t->len;
 		set_rev_com(t->ctg);
-		//refresh_tpl_reads(ht, t, N_MISMATCHES);
 		pre_n_reads = t->reads->len;
-		bwa_free_read_seq(1, query);
 		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 
 		// Maybe marked as not alive in last extension
@@ -1289,15 +1265,13 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 			break;
 		upd_locus_on_tpl(t, pre_len, pre_n_reads);
 
-		ori = 0;
 		// Then extend to the left
-		//p_tpl(t);
+		ori = 0;
 		query = get_tail(t, kmer_len, ori);
 		p = new_pool();
 		init_pool(ht, p, t, kmer_len, N_MISMATCHES, ori);
 		p_query(__func__, query);
 		//p_pool("INITIAL_POOL", p, NULL);
-
 		to_con_right = kmer_ext_tpl(ht, all_tpls, p, t, query, ori);
 		set_rev_com(t->ctg);
 		destroy_pool(p);
@@ -1368,12 +1342,12 @@ void kmer_threads(kmer_t_meta *params) {
 	show_msg(__func__, "%d templates are obtained. \n",
 			params->all_tpls->size());
 
-//	show_debug_msg(__func__, "Remaining reads: \n");
-//	for (i = 0; i < ht->n_seqs; i++) {
-//		r = &ht->seqs[i];
-//		if (r->status != USED)
-//			p_query(__func__, r);
-//	}
+	//	show_debug_msg(__func__, "Remaining reads: \n");
+	//	for (i = 0; i < ht->n_seqs; i++) {
+	//		r = &ht->seqs[i];
+	//		if (r->status != USED)
+	//			p_query(__func__, r);
+	//	}
 	show_msg(__func__,
 			"----------- Stage 2: branching the %d templates -----------\n",
 			params->all_tpls->size());
