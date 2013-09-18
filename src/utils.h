@@ -25,6 +25,8 @@
 #define BUFSIZE 				1023
 #define FNLEN 					1023
 #define LINELEN					50
+#define	MIN_BP_LEN				100
+#define JUNCTION_BOUNDARY_BASE	8
 
 #define MAX_POOL_SIZE			281474976710655			// @Desperate
 #define MAX_POOL_N_READS		500
@@ -44,6 +46,8 @@
 #define BRANCH_SIMILARITY		0.90
 #define BRANCHING_THRE			0.04
 #define MIN_BRANCH_COV			1.5
+#define LOW_PART_COV			4
+#define MIN_BRANCH_MAIN_COV		0.05
 
 #define IMPOSSIBLE_NEGATIVE		-999999999
 #define N_MISMATCHES			2

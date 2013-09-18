@@ -69,13 +69,13 @@ void destroy_junction(junction *j) {
 		branch_tpl = j->branch_tpl;
 
 		/**
-		show_debug_msg(__func__, "Destroying junction ... \n");
-		p_junction(j);
-		p_junctions(main_tpl->m_juncs);
-		p_junctions(main_tpl->b_juncs);
-		p_junctions(branch_tpl->m_juncs);
-		p_junctions(branch_tpl->b_juncs);
-		**/
+		 show_debug_msg(__func__, "Destroying junction ... \n");
+		 p_junction(j);
+		 p_junctions(main_tpl->m_juncs);
+		 p_junctions(main_tpl->b_juncs);
+		 p_junctions(branch_tpl->m_juncs);
+		 p_junctions(branch_tpl->b_juncs);
+		 **/
 
 		if (j->reads)
 			g_ptr_array_free(j->reads, TRUE);
@@ -88,7 +88,7 @@ void destroy_junction(junction *j) {
 			j->branch_tpl->l_tail = NULL;
 		}
 		if (main_tpl->m_juncs) {
-			for (i = main_tpl->m_juncs->len - 1; i >= 0 ; i--) {
+			for (i = main_tpl->m_juncs->len - 1; i >= 0; i--) {
 				jun = (junction*) g_ptr_array_index(main_tpl->m_juncs, i);
 				if (jun == j) {
 					g_ptr_array_remove_index_fast(main_tpl->m_juncs, i--);
@@ -232,26 +232,27 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 int count_jun_reads(hash_table *ht, junction *jun) {
 	tpl *main_tpl = NULL, *branch = NULL;
 	bwa_seq_t *left = NULL, *right = NULL, *branch_seq = NULL, *main_seq = NULL;
-	int n_reads = 0, l_len = 0, r_len = 0, t_len = 0;
+	int n_reads = 0, b_l_len = 0, b_r_len = 0, b_t_len = 0;
+	int m_l_len = 0, m_r_len = 0, m_t_len = 0;
 	GPtrArray *j_reads = NULL;
 	if (!jun || jun->status != 0)
 		return 0;
 	//show_debug_msg(__func__, "Setting junction reads...\n");
 	main_tpl = jun->main_tpl;
 	branch = jun->branch_tpl;
-	branch_seq = get_tpl_ctg_wt(branch, &l_len, &r_len, &t_len);
-	main_seq = get_tpl_ctg_wt(main_tpl, &l_len, &r_len, &t_len);
+	branch_seq = get_tpl_ctg_wt(branch, &b_l_len, &b_r_len, &b_t_len);
+	main_seq = get_tpl_ctg_wt(main_tpl, &m_l_len, &m_r_len, &m_t_len);
 	//p_junction(jun);
 	//p_tpl(main_tpl);
 	//p_tpl(branch);
-	left = jun->ori ? new_seq(branch_seq, branch_seq->len, 0) : new_seq(
-			main_seq, jun->locus + l_len, 0);
-	right = jun->ori ? new_seq(main_seq, main_seq->len - jun->locus - r_len,
-			jun->locus + r_len) : new_seq(branch_seq, branch_seq->len, 0);
+	left = jun->ori ? new_seq(branch_seq, branch_seq->len - b_r_len, 0) : new_seq(
+			main_seq, jun->locus + m_l_len, 0);
+	right = jun->ori ? new_seq(main_seq, main_seq->len - jun->locus - m_l_len,
+			jun->locus + m_l_len) : new_seq(branch_seq, branch->len + b_r_len, b_l_len);
 	//p_ctg_seq("Main", main_tpl->ctg);
 	//p_ctg_seq("Bran", branch->ctg);
-	j_reads = find_junc_reads(ht, left, right, (ht->o->read_len - N_MISMATCHES
-			- 1) * 2, &n_reads);
+	j_reads = find_junc_reads(ht, left, right, (ht->o->read_len
+			- JUNCTION_BOUNDARY_BASE) * 2, &n_reads);
 	//p_readarray(j_reads, 1);
 	g_ptr_array_free(j_reads, TRUE);
 	bwa_free_read_seq(1, left);
@@ -502,13 +503,13 @@ void destory_tpl_junctions(tpl *t) {
 	if (!t)
 		return;
 	if (t->m_juncs) {
-		while(t->m_juncs->len > 0) {
+		while (t->m_juncs->len > 0) {
 			jun = (junction*) g_ptr_array_index(t->m_juncs, 0);
 			destroy_junction(jun);
 		}
 	}
 	if (t->b_juncs) {
-		while(t->b_juncs->len > 0) {
+		while (t->b_juncs->len > 0) {
 			jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
 			destroy_junction(jun);
 		}
