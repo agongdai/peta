@@ -804,6 +804,13 @@ void prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				jun->status = 1;
 				continue;
 			}
+			if (jun->locus < 0 || jun->locus >= t->len) {
+				show_debug_msg(__func__, "[WARNING] Junction locus not correct. Removed. \n");
+				p_junction(jun);
+				destroy_junction(jun);
+				freed = 1;
+				break;
+			}
 			//p_junction(jun);
 			//p_tpl(branch);
 			//p_tpl_reads(branch);
@@ -815,6 +822,7 @@ void prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 						branch->cov, main_cov);
 				if (branch->len > jun->locus && main_cov < LOW_PART_COV
 						&& branch->cov > main_cov) {
+					mv_reads_bt_tpls(branch, t, jun->locus, 1);
 					new_seq = (ubyte_t*) calloc(branch->len + t->len,
 							sizeof(ubyte_t));
 					memcpy(new_seq, branch->ctg->seq, sizeof(ubyte_t)
@@ -854,6 +862,7 @@ void prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 						branch->cov, main_cov);
 				if (branch->len > (t->len - jun->locus) && main_cov
 						< LOW_PART_COV && branch->cov > main_cov) {
+					mv_reads_bt_tpls(branch, t, t->len - jun->locus, 0);
 					new_seq = (ubyte_t*) calloc(branch->len + t->len,
 							sizeof(ubyte_t));
 					memcpy(new_seq, t->ctg->seq, sizeof(ubyte_t) * jun->locus);
@@ -1209,10 +1218,10 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		return NULL;
 	}
 
-//	if (kmer_ctg_id == 1)
-//		read = &seqs[253];
-//		if (kmer_ctg_id == 2)
-//			read = &seqs[67860];
+	if (fresh_trial == 0)
+		read = &seqs[2471];
+	if (fresh_trial == 1)
+		read = &seqs[209596];
 
 	printf("\n");
 	show_debug_msg(__func__,
@@ -1282,6 +1291,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	if (flag) {
 		reset_to_fresh(read);
 	}
+//	if (t->alive)
+//		p_tpl_reads(t);
 	return NULL;
 }
 
@@ -1331,8 +1342,8 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-//		if (fresh_trial >= 2)
-//			break;
+		if (fresh_trial >= 2)
+			break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",
@@ -1345,7 +1356,7 @@ void kmer_threads(kmer_t_meta *params) {
 	//			p_query(__func__, r);
 	//	}
 
-	///**
+	/**
 	show_msg(__func__,
 			"----------- Stage 2: branching the %d templates -----------\n",
 			params->all_tpls->size());
@@ -1394,7 +1405,7 @@ void kmer_threads(kmer_t_meta *params) {
 		free(counter);
 	}
 	g_ptr_array_free(low_reads, TRUE);
-	//**/
+	**/
 
 	g_thread_pool_free(thread_pool, 0, 1);
 }

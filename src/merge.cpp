@@ -18,6 +18,33 @@
 #include "merge.hpp"
 #include "k_hash.h"
 
+void mv_reads_bt_tpls(tpl *from, tpl *to, int ol, int ori) {
+	bwa_seq_t *r = NULL;
+	int i = 0, new_locus = 0;
+	if (ori) {
+		// 'from' is at left, 'to' is at right
+		for (i = 0; i < to->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(to->reads, i);
+			r->contig_locus += from->len - ol;
+		}
+		for (i = 0; i < from->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
+			add2tpl(to, r, r->contig_locus);
+		}
+	} else {
+		// 'from' is at right, 'to' is at left
+		for (i = 0; i < from->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
+			if (r->status == USED && r->contig_id == from->id) {
+				new_locus = r->contig_locus + to->len - ol;
+				add2tpl(to, r, new_locus);
+			}
+		}
+	}
+	while(from->reads->len > 0)
+		g_ptr_array_remove_index_fast(from->reads, 0);
+}
+
 /**
  * Merge the right template to the left template
  * The right template is not destroyed (its attributes are not altered), it is simply marked as 'DEAD'.
