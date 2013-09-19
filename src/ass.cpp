@@ -424,18 +424,17 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		//p_ctg_seq("MAIN", main_tpl->ctg);
 		//p_ctg_seq("BRANCH", branch->ctg);
 		ol_len = adj_ori ? (r->len - r->cursor) : r->cursor;
-		//find_reads_ahead(branch, ht->o->read_len, ol_len, &weight, ori);
+		find_reads_ahead(branch, ht->o->read_len, ol_len, &weight, ori);
 		//p_query("TESTING", TEST);
-		//valid = weight >= MIN_JUNCTION_READS ? 1 : 0;
+		valid = weight >= MIN_JUNCTION_READS ? 1 : 0;
 		//show_debug_msg(__func__, "BRANCH READS: %d \n", branch->reads->len);
 		//p_readarray(branch->reads, 1);
 		//show_debug_msg(__func__, "Junction reads: %d \n", weight);
 
-		//if (!valid) {
-		//	show_debug_msg(__func__, "No enough junction reads. Ignore. \n");
-		//	continue;
-		//			}
-		//} // End of checking junction reads and pairs
+		if (!valid) {
+			show_debug_msg(__func__, "No enough junction reads. Ignore. \n");
+			break;
+		} // End of checking junction reads and pairs
 
 		// Make sure the truncated subsequence is exactly the same on branch and main
 		truncated_len = 0;
@@ -635,7 +634,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		}
 
 		//p_query("TESTING", TEST);
-		if (t->id == 21 || t->id == 22) {
+		if (t->id == 21) {
 			show_debug_msg(__func__,
 					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 					t->len, "ACGTN"[max_c]);
@@ -774,7 +773,7 @@ tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, int len,
 /**
  * For those branches at the head/tail, choose the longer branch
  */
-void prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
+int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 	GPtrArray *branches = t->m_juncs;
 	junction *jun = NULL, *jun2 = NULL;
 	int i = 0, j = 0, changed = 0, pruned_right = 0;
@@ -783,7 +782,7 @@ void prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 	ubyte_t *new_seq = NULL;
 	float main_cov = 0.0, branch_cov = 0.0;
 	if (!branches || branches->len <= 0 || !t->alive)
-		return;
+		return 0;
 
 	show_debug_msg(__func__, "Pruning head/tails of template [%d, %d] ... \n",
 			t->id, t->len);
@@ -905,9 +904,7 @@ void prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 			//p_tpl(t);
 		}
 	}
-	if (changed) {
-		refresh_tpl_reads(ht, t, N_MISMATCHES);
-	}
+	return changed;
 }
 
 /**
@@ -935,19 +932,25 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	for (i = 0; i <= t->len - least_ol_len; i++) {
 		if (i > 0) {
 			if (ori)
-				ext_que(tail, t->ctg->seq[t->len - i + least_ol_len - 1], 1);
+				ext_que(tail, t->ctg->seq[t->len - i - least_ol_len], 1);
 			else
 				ext_que(tail, t->ctg->seq[i - 1 + least_ol_len], 0);
 		}
+
 		if (!has_next_bit(ht, tail, ori)) {
 			continue;
 		}
-		shift = i;
+		shift = ori ? t->len - least_ol_len - i: i;
+
+		//show_debug_msg(__func__, "Template [%d, %d] at %d (i: %d) \n", t->id,
+		//					t->len, shift, i);
+		//p_query(__func__, tail);
+
 		b_reads = check_branch_tail(ht, t, tail, shift, mismatches, FRESH, ori);
 		if (b_reads->len > 0) {
 			printf("\n ---- \n");
 			show_debug_msg(__func__, "Template [%d, %d] at %d \n", t->id,
-					t->len, i);
+					t->len, shift);
 			p_query(__func__, tail);
 			//p_readarray(b_reads, 1);
 		}
@@ -971,7 +974,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 
 			//p_query(__func__, tail);
 			//p_ctg_seq(__func__, t->ctg);
-			p_query("BRANCH_QUERY", branch_read);
+			//p_query("BRANCH_QUERY", branch_read);
 			//show_debug_msg(__func__, "i: %d; CURSOR: %d\n", i, cursor);
 			//p_query("TESTING", TEST);
 			//p_pool(__func__, p, NULL);
@@ -984,7 +987,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 
 			// Add the branching junction first;
 			// Later may add connection junction
-			con_pos = ori ? i - (pos - cursor - 1) : cursor - pos + i;
+			con_pos = ori ? shift - (pos - cursor - 1) : cursor - pos + shift;
 			//show_debug_msg(__func__, "Connect position: %d\n", con_pos);
 			if (ori) {
 				branch->len = cursor + 1;
@@ -1000,7 +1003,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 
 			p_query(__func__, tail);
 			p_query("BRANCH_QUERY", branch_read);
-			show_debug_msg(__func__, "i: %d; CURSOR: %d\n", i, cursor);
+			show_debug_msg(__func__, "shift: %d; CURSOR: %d\n", shift, cursor);
 			show_debug_msg(__func__, "Branching at %d \n", con_pos);
 			p_pool(__func__, p, NULL);
 			p_ctg_seq("AFTER TRUNCATE", branch->ctg);
@@ -1019,7 +1022,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			show_debug_msg(
 					__func__,
 					"===== Branching template [%d, %d] to %s at %d; Locus %d, Started %d ===== \n",
-					t->id, t->len, ori ? "left" : "right", i, con_pos,
+					t->id, t->len, ori ? "left" : "right", shift, con_pos,
 					branch->id);
 
 			to_connect = kmer_ext_tpl(ht, all_tpls, p, branch, query, ori);
@@ -1080,6 +1083,7 @@ void try_connect(hash_table *ht, tpl_hash *all_tpls, int to_con_left,
  */
 void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 		int to_con_left, int to_con_right) {
+	int changed = 1;
 	unfrozen_tried(t);
 	if (t->alive) {
 		set_rev_com(t->ctg);
@@ -1104,13 +1108,15 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 					"==== End of tpl %d with length: %d; reads: %d; Alive: %d ==== \n\n",
 					t->id, t->len, t->reads->len, t->alive);
 			correct_tpl_base(t, ht->o->read_len);
-			if (to_branching) {
-				branching(ht, all_tpls, t, LESS_MISMATCH, 0);
-				branching(ht, all_tpls, t, LESS_MISMATCH, 1);
+			while(changed) {
+				if (to_branching) {
+					branching(ht, all_tpls, t, LESS_MISMATCH, 0);
+					branching(ht, all_tpls, t, LESS_MISMATCH, 1);
+				}
+				changed = prune_tpl_tails(ht, all_tpls, t);
+				set_jun_reads(ht, t);
+				strip_branches(ht, all_tpls, t);
 			}
-			prune_tpl_tails(ht, all_tpls, t);
-			set_jun_reads(ht, t);
-			strip_branches(ht, all_tpls, t);
 		}
 	}
 	rm_global_tpl(all_tpls, t, DEAD);
@@ -1218,10 +1224,10 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		return NULL;
 	}
 
-	if (fresh_trial == 0)
-		read = &seqs[2471];
-	if (fresh_trial == 1)
-		read = &seqs[209596];
+	//if (fresh_trial == 0)
+	//	read = &seqs[181];
+	//if (fresh_trial == 1)
+	//	read = &seqs[401826];
 
 	printf("\n");
 	show_debug_msg(__func__,
@@ -1342,8 +1348,8 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		if (fresh_trial >= 2)
-			break;
+		//if (fresh_trial >= 2)
+		//	break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",
@@ -1356,7 +1362,7 @@ void kmer_threads(kmer_t_meta *params) {
 	//			p_query(__func__, r);
 	//	}
 
-	/**
+	////**
 	show_msg(__func__,
 			"----------- Stage 2: branching the %d templates -----------\n",
 			params->all_tpls->size());
@@ -1405,7 +1411,7 @@ void kmer_threads(kmer_t_meta *params) {
 		free(counter);
 	}
 	g_ptr_array_free(low_reads, TRUE);
-	**/
+	//**/
 
 	g_thread_pool_free(thread_pool, 0, 1);
 }

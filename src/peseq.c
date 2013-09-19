@@ -946,22 +946,28 @@ int head_tail_similar(bwa_seq_t *ref, bwa_seq_t *query, const int len,
 	if (!ref || !query || ref->len < len || query->len < len)
 		return 0;
 	// Check whether forward sequences are similar
-	//p_query("REF", ref);
-	//p_query("QUE", query);
+	//if (query->full_len == 1000) {
+	//	p_query("REF", ref);
+	//	p_query("QUE", query);
+	//}
 	// Head: similar_bytes(ref->seq, query->seq, len, mismatches)
-	if (similar_bytes(ref->seq + (ref->len - len), query->seq + (query->len
-			- len), len, mismatches)) {
+	if (similar_bytes(ref->seq, query->seq, len, mismatches) && similar_bytes(
+			ref->seq + (ref->len - len), query->seq + (query->len - len), len,
+			mismatches)) {
 		similar = 1;
 		*rev_com = 0;
 	} else { // Check reverse sequence
 		// Head: similar_bytes(ref->seq, query->rseq, len, mismatches)
-		if (similar_bytes(ref->seq + (ref->len - len), query->rseq
-				+ (query->len - len), len, mismatches)) {
+		if (similar_bytes(ref->seq, query->rseq, len, mismatches)
+				&& similar_bytes(ref->seq + (ref->len - len), query->rseq
+						+ (query->len - len), len, mismatches)) {
 			similar = 1;
 			*rev_com = 1;
 		}
 	}
-	//show_debug_msg(__func__, "SIMILAR: %d\n", similar);
+	//if (query->full_len == 1000)
+	//	show_debug_msg(__func__, "SIMILAR: %d; REV_COM: %d\n", similar,
+	//			*rev_com);
 	return similar;
 }
 

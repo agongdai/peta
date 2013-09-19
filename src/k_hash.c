@@ -569,8 +569,8 @@ GPtrArray *find_both_fr_full_reads(hash_table *ht, bwa_seq_t *query,
 
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		//if (strcmp(query->name, "SOME") == 0)
-		//	p_query(__func__, r);
+		//if (query->full_len == 1000)
+			//p_query(__func__, r);
 		r->pos = IMPOSSIBLE_NEGATIVE;
 		if (head_tail_similar(r, query, ht->o->k, mismatches, &rev_com)) {
 			r->rev_com = rev_com;
