@@ -419,6 +419,66 @@ def find_splicing(args):
             ids.write(tx + '\n')
     print 'Check file %s.nots.ids' % args.psl
 
+def extract(args):
+    ref = FastaFile(args.ref)
+    reads = FastaFile(args.reads)
+    part_reads = FastaFile()
+    part_ref = FastaFile()
+    read_id = 0
+    read_len = len(reads.seqs['0'])
+    saved_ids = []
+    for t in args.tx:
+        part_ref.seqs[t] = ref.seqs[t]
+        cmd = 'grep %s %s.psl' % (t, args.reads)
+        raw_lines = runInShell(cmd)
+        lines = raw_lines.split('\n')
+        tx_hits = read_psl_hits(lines, 'ref')
+        hits = tx_hits[t]
+        print '%d hits on %s' % (len(hits), t)
+        for h in hits:
+#            if read_id > 30:
+#                break
+            if h.qname in reads.seqs and not h.qname in saved_ids:
+                #print '>%s' % h.qname
+                #print reads.seqs[h.qname]
+                # if the read is left mate
+                saved_ids.append(h.qname)
+                if int(h.qname) % 2 == 0:
+                    part_reads.seqs[read_id] = reads.seqs[h.qname]
+                    mate_id = str(int(h.qname) + 1)
+                    for h2 in hits:
+                        if h2.qname == mate_id:
+                            #print '>%s' % h2.qname
+                            #print reads.seqs[h2.qname]
+                            read_id += 1
+                            part_reads.seqs[read_id] = reads.seqs[mate_id]
+                            break
+                    if read_id % 2 == 0:
+                        read_id += 1
+                        part_reads.seqs[read_id] = 'N' * read_len
+                    read_id += 1
+                    saved_ids.append(mate_id)
+                else:
+                    read_id += 1
+                    part_reads.seqs[read_id] = reads.seqs[h.qname]
+                    mate_id = str(int(h.qname) - 1)
+                    has_mate = False
+                    for h2 in hits:
+                        if h2.qname == mate_id:
+                            #print '>%s' % h2.qname
+                            #print reads.seqs[h2.qname]
+                            part_reads.seqs[read_id - 1] = reads.seqs[mate_id]
+                            has_mate = True
+                            break
+                    if not has_mate:
+                        part_reads.seqs[read_id - 1] = 'N' * read_len
+                    read_id += 1
+                    saved_ids.append(mate_id)
+    part_ref.save_to_disk(args.ref + '.part.fa')
+    print 'Check %d transcripts in file %s.part.fa' % (len(args.tx), args.ref)
+    part_reads.save_to_disk(args.reads[:-3] + '.tx.fa')
+    print 'Check %d reads in file %s.tx.fa' % (read_id, args.reads[:-3])
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -471,6 +531,12 @@ def main():
     parser_splice = subparsers.add_parser('splice', help='Get transcripts with splicing')
     parser_splice.set_defaults(func=find_splicing)
     parser_splice.add_argument('psl', help='PSL after removing self-to-self alignments')
+    
+    parser_extract = subparsers.add_parser('extract', help='Extract hits on transcripts')
+    parser_extract.set_defaults(func=extract)
+    parser_extract.add_argument('ref', help='transcript fasta')
+    parser_extract.add_argument('reads', help='reads fasta')
+    parser_extract.add_argument("tx", nargs='+', help="[transcript ids]")
 
     args = parser.parse_args()
     args.func(args)

@@ -1031,7 +1031,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			if (ori)
 				upd_locus_on_tpl(branch, 0, 0);
 
-			if (to_connect) {
+			if (to_connect && stage == 1) {
 				connected = connect_by_full_reads(ht, all_tpls, branch, ori);
 			}
 			set_rev_com(branch->ctg);
@@ -1225,7 +1225,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 	//if (fresh_trial == 0)
-	//	read = &seqs[181];
+		//read = &seqs[1707];
 	//if (fresh_trial == 1)
 	//	read = &seqs[401826];
 
@@ -1348,8 +1348,8 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		//if (fresh_trial >= 2)
-		//	break;
+		//if (fresh_trial >= 1)
+			//break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",
@@ -1362,7 +1362,7 @@ void kmer_threads(kmer_t_meta *params) {
 	//			p_query(__func__, r);
 	//	}
 
-	////**
+	///**
 	show_msg(__func__,
 			"----------- Stage 2: branching the %d templates -----------\n",
 			params->all_tpls->size());

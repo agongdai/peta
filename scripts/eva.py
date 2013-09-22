@@ -772,7 +772,8 @@ def get_unaligned(args):
 def paths(args):
 	all_hits = read_blat_hits(args.psl, 'ref')
 	no = 1
-	print '%d reference transcripts hit' % len(all_hits)
+	full_length = 0
+	print >> sys.stderr, '%d reference transcripts hit' % len(all_hits)
 #	print all_hits['ENST00000475972']
 	for tx_name, hits in all_hits.iteritems():
 		paths = []
@@ -793,14 +794,16 @@ def paths(args):
 						vertexes.append(h)
 						pre_h = h
 		if len(paths) > 0 or len(vertexes) > 0:
-			print no, tx_name, 'length:', tx_len
+			print >> sys.stderr, no, tx_name, 'length:', tx_len
 			no+=1
 		if len(paths) > 0:
+			full_length += 1
 			for (p, n_mis) in paths:
-				print '\tPath %s: \t\t mismatch %d' % (p, n_mis)
+				print >> sys.stderr, '\tPath %s: \t\t mismatch %d' % (p, n_mis)
 		if len(vertexes) > 0:
 			for h in vertexes:
-				print '\tVertex %s: [%d, %d] \t mismatch %d indels %d/%d' % (h.qname, h.rstart, h.rend, h.n_mismatch, h.n_ref_gap, h.n_query_gap)
+				print >> sys.stderr, '\tVertex %s: [%d, %d] \t mismatch %d indels %d/%d' % (h.qname, h.rstart, h.rend, h.n_mismatch, h.n_ref_gap, h.n_query_gap)
+	print >> sys.stderr, "\nFull-length: %d/%d" % (full_length, len(all_hits))
 
 def diff_novo(args):
 	tx = FastaFile(args.transcript)
