@@ -376,7 +376,7 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 	int start = 0, end = 0, n_reads = 0;
 	bwa_seq_t *seq = NULL;
 	GPtrArray *reads = NULL;
-	int read_len = ht->o->read_len;
+	int read_len = ht->o->read_len, acc_len = 0;
 	path *p = NULL;
 	vertex *v = NULL;
 	edge *e = NULL;
@@ -388,6 +388,7 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 		for (j = 0; j < p->edges->len; j++) {
 			w = p->weights[j * 2 + 1];
 			if (w <= 0) {
+				p_p(p);
 				show_debug_msg(__func__, "Path %d is not valid with 0 edge \n",
 						p->id);
 				destroy_path(p);
@@ -404,13 +405,14 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 		// Ignore the first exon
 		v = (vertex*) g_ptr_array_index(p->vertexes, 0);
 		start = v->len;
+		acc_len = v->len;
 		for (j = 1; j < p->vertexes->len; j++) {
 			v = (vertex*) g_ptr_array_index(p->vertexes, j);
 			// If the vertex is smaller than the k value (25)
-			if (v->len < ht->o->k + N_MISMATCHES) {
-				end = start + read_len - N_MISMATCHES * 2;
+			if (v->len < read_len - JUNCTION_BOUNDARY_BASE * 2) {
+				end = acc_len + read_len - JUNCTION_BOUNDARY_BASE;
 				end = end > p->len ? p->len : end;
-				start = start - (read_len - v->len) + N_MISMATCHES * 2;
+				start = acc_len - (read_len - v->len - JUNCTION_BOUNDARY_BASE);
 				start = start < 0 ? 0 : start;
 				seq = new_seq(p->ctg, end - start, start);
 				reads = reads_on_seq(seq, ht, N_MISMATCHES);
@@ -419,7 +421,7 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 				 show_debug_msg(__func__, "Path %d exon %d: [%d, %d)\n", p->id, v->id, start, end);
 				 p_ctg_seq("PATH", p->ctg);
 				 p_ctg_seq("EXON", seq);
-				 p_readarray(reads, 0);
+				 p_readarray(reads, 1);
 				**/
 
 				n_reads = reads->len;
@@ -427,12 +429,13 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 				bwa_free_read_seq(1, seq);
 				if (n_reads == 0) {
 					show_debug_msg(__func__, "Path %d is not valid \n", p->id);
+					p_p(p);
 					destroy_path(p);
 					g_ptr_array_remove_index_fast(paths, i--);
 					break;
 				}
 			}
-			start += v->len;
+			acc_len += v->len;
 		}
 	}
 }

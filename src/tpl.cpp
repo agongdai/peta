@@ -943,19 +943,24 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	int is_picked = 0;
 	ubyte_t c = 0, read_c = 0;
 
-	//if (shift == 308)
-	//	p_readarray(hits, 1);
+	if (shift == 707) {
+		show_debug_msg(__func__, "----\n");
+		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
+				: "right");
+		p_query(__func__, query);
+		p_readarray(hits, 1);
+	}
 
 	if (hits->len <= 0) {
 		return hits;
 	}
 
 	//if (shift == 1324) {
-	//	show_debug_msg(__func__, "----\n");
-	//	show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
-	//			: "right");
-	//	p_query(__func__, query);
-	//	p_readarray(hits, 1);
+		show_debug_msg(__func__, "----\n");
+		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
+				: "right");
+		p_query(__func__, query);
+		p_readarray(hits, 1);
 	//}
 
 	//if (shift == 587) {

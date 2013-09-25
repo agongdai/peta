@@ -317,6 +317,9 @@ void set_jun_reads(hash_table *ht, tpl *t) {
 		jun = (junction*) g_ptr_array_index(juncs, i);
 		if (jun->status != 0 || jun->weight > 0)
 			continue;
+		//p_junction(jun);
+		//p_tpl_reads(jun->main_tpl);
+		//p_tpl_reads(jun->branch_tpl);
 		//p_tpl(jun->main_tpl);
 		//p_tpl(jun->branch_tpl);
 		jun->weight = count_jun_reads(ht, jun);
@@ -356,10 +359,10 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	}
 	//p_query(__func__, TEST);
 	con_reads = find_connected_reads(ht, all_tpls, branch, ori);
-	//show_debug_msg(__func__, "Connecting reads: \n");
-	//p_readarray(con_reads, 1);
+	show_debug_msg(__func__, "Connecting reads: \n");
+	p_readarray(con_reads, 1);
 	max_trial = con_reads->len > 4 ? 4 : con_reads->len;
-	//p_query(__func__, TEST);
+	p_query("TEST", TEST);
 	//p_tpl(branch);
 	for (i = 0; i < max_trial; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(con_reads, i);
@@ -394,6 +397,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		 */
 		tail = ori ? get_tail(branch, r->len - r->cursor - 1, 1) : get_tail(
 				branch, r->cursor, 0);
+		p_query("TEST", TEST);
 		p_query("BRANCH TAIL", tail);
 		p_query("CONNECTOR", r);
 		con_pos = ori ? r->contig_locus + 1 + r->cursor : r->contig_locus;
@@ -633,8 +637,8 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			}
 		}
 
-		//p_query("TESTING", TEST);
-		if (t->id == 21) {
+		p_query("TEST", TEST);
+		if (t->id == 2 || t->id == 4300) {
 			show_debug_msg(__func__,
 					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 					t->len, "ACGTN"[max_c]);
@@ -803,6 +807,10 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				jun->status = 1;
 				continue;
 			}
+			if (jun->ori == 0 && t->r_tail)
+				continue;
+			if (jun->ori == 1 && t->l_tail)
+				continue;
 			if (jun->locus < 0 || jun->locus >= t->len) {
 				show_debug_msg(__func__, "[WARNING] Junction locus not correct. Removed. \n");
 				p_junction(jun);
@@ -810,7 +818,7 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				freed = 1;
 				break;
 			}
-			//p_junction(jun);
+			//
 			//p_tpl(branch);
 			//p_tpl_reads(branch);
 			if (added_len_to_left == 0 && jun->locus < ht->o->read_len
@@ -821,6 +829,7 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 						branch->cov, main_cov);
 				if (branch->len > jun->locus && main_cov < LOW_PART_COV
 						&& branch->cov > main_cov) {
+					p_junction(jun);
 					mv_reads_bt_tpls(branch, t, jun->locus, 1);
 					new_seq = (ubyte_t*) calloc(branch->len + t->len,
 							sizeof(ubyte_t));
@@ -855,6 +864,7 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				}
 			} else if (!pruned_right && jun->locus > (t->len - ht->o->read_len)
 					&& jun->ori == 0) {
+				p_junction(jun);
 				main_cov = calc_tpl_cov(t, jun->locus, t->len, ht->o->read_len);
 				show_debug_msg(__func__,
 						"Branch coverage: %.2f; main coverage: %.2f\n",
@@ -912,8 +922,8 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
  */
 void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		int ori) {
-	bwa_seq_t *tail = NULL, *branch_read = NULL, *query = NULL;
-	int i = 0, j = 0, shift = 0, cursor = 0, pos = 0;
+	bwa_seq_t *tail = NULL, *branch_read = NULL, *jun_read = NULL, *query = NULL;
+	int i = 0, j = 0, x = 0, shift = 0, cursor = 0, pos = 0;
 	int con_pos = 0, n_junc_reads = 0;
 	int exist_ori = ori, dead = 0, to_connect = 0, connected = 0;
 	tpl *branch = NULL;
@@ -937,10 +947,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				ext_que(tail, t->ctg->seq[i - 1 + least_ol_len], 0);
 		}
 
-		if (!has_next_bit(ht, tail, ori)) {
-			continue;
-		}
-		shift = ori ? t->len - least_ol_len - i: i;
+		shift = ori ? t->len - least_ol_len - i : i;
 
 		//show_debug_msg(__func__, "Template [%d, %d] at %d (i: %d) \n", t->id,
 		//					t->len, shift, i);
@@ -969,41 +976,35 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			branch = add_global_tpl(all_tpls, branch_read, branch_read->len,
 					ori);
 
-			p = new_pool();
-			init_pool(ht, p, branch, kmer_len, mismatches, ori);
-
-			//p_query(__func__, tail);
-			//p_ctg_seq(__func__, t->ctg);
-			//p_query("BRANCH_QUERY", branch_read);
-			//show_debug_msg(__func__, "i: %d; CURSOR: %d\n", i, cursor);
-			//p_query("TESTING", TEST);
-			//p_pool(__func__, p, NULL);
-
-			mark_init_reads_used(ht, branch, branch_read, mismatches);
-			if (ori)
-				add2tpl(branch, branch_read, cursor);
-			else
-				add2tpl(branch, branch_read, 0 - cursor);
-
 			// Add the branching junction first;
 			// Later may add connection junction
 			con_pos = ori ? shift - (pos - cursor - 1) : cursor - pos + shift;
-			//show_debug_msg(__func__, "Connect position: %d\n", con_pos);
-			if (ori) {
-				branch->len = cursor + 1;
-			} else {
-				memmove(branch->ctg->seq, branch->ctg->seq + cursor,
-						(branch->len - cursor) * sizeof(ubyte_t));
-				branch->len -= cursor;
-			}
+			show_debug_msg(__func__, "shift: %d; POS: %d; CURSOR: %d\n", shift, pos, cursor);
+			branch->len = 1;
+			branch->ctg->seq[0] = branch->ctg->seq[cursor];
 			branch->ctg->len = branch->len;
-			set_rev_com(branch->ctg);
+			branch->ctg->rseq[0] = 3 - branch->ctg->seq[0];
 			set_tail(branch, t, con_pos, ht->o->read_len - 1, exist_ori);
 			add_a_junction(t, branch, NULL, con_pos, exist_ori, n_junc_reads);
 
+			p = new_pool();
+			for (x = 0; x < b_reads->len; x++) {
+				jun_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
+				jun_read->cursor = ori ? jun_read->cursor - 1 : jun_read->cursor + 1;
+				add2pool(p, jun_read);
+			}
+
+			jun_read = get_tail(t, ht->o->read_len, ori);
+			mark_init_reads_used(ht, branch, jun_read, mismatches);
+			bwa_free_read_seq(1, jun_read);
+			for (x = 0; x < branch->reads->len; x++) {
+				jun_read = (bwa_seq_t*) g_ptr_array_index(branch->reads, x);
+				jun_read->contig_locus = 0 - (jun_read->len - branch->len);
+			}
+
 			p_query(__func__, tail);
 			p_query("BRANCH_QUERY", branch_read);
-			show_debug_msg(__func__, "shift: %d; CURSOR: %d\n", shift, cursor);
+			show_debug_msg(__func__, "shift: %d; POS: %d; CURSOR: %d\n", shift, pos, cursor);
 			show_debug_msg(__func__, "Branching at %d \n", con_pos);
 			p_pool(__func__, p, NULL);
 			p_ctg_seq("AFTER TRUNCATE", branch->ctg);
@@ -1011,8 +1012,8 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			// Initialization
 			if (branch_read->rev_com)
 				switch_fr(branch_read);
-			query = ori ? new_seq(branch_read, kmer_len, 0) : new_seq(
-					branch_read, kmer_len, branch_read->len - kmer_len);
+			query = ori ? new_seq(branch_read, kmer_len, cursor - 1) : new_seq(
+					branch_read, kmer_len, cursor + 1 - kmer_len);
 			query->rev_com = 0;
 			if (branch_read->rev_com)
 				switch_fr(branch_read);
@@ -1042,7 +1043,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 					|| (!branch->alive));
 			if (!dead) {
 				correct_tpl_base(branch, ht->o->read_len);
-				p_tpl(branch);
+				//p_tpl(branch);
 				//p_junctions(branch->b_juncs);
 			} else {
 				g_mutex_lock(kmer_id_mutex);
@@ -1187,8 +1188,8 @@ void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				upd_locus_on_tpl(branch, ori_len, pre_n_reads);
 			}
 		}
-		if (branch->alive)
-			finalize_tpl(ht, all_tpls, branch, 1, 0, 0);
+//		if (branch->alive)
+//			finalize_tpl(ht, all_tpls, branch, 1, 0, 0);
 	}
 }
 
@@ -1224,10 +1225,10 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		return NULL;
 	}
 
-	//if (fresh_trial == 0)
-		//read = &seqs[1707];
-	//if (fresh_trial == 1)
-	//	read = &seqs[401826];
+//	if (fresh_trial == 0)
+//		read = &seqs[1707];
+//	if (fresh_trial == 1)
+//		read = &seqs[401826];
 
 	printf("\n");
 	show_debug_msg(__func__,
@@ -1325,7 +1326,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[588859];
+	TEST = &seqs[2277];
 
 	// shrink_ht(ht);
 
@@ -1348,8 +1349,8 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		//if (fresh_trial >= 1)
-			//break;
+//		if (fresh_trial >= 1)
+//			break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",

@@ -45,7 +45,9 @@ GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch) {
 		hits = find_both_fr_full_reads(ht, part, hits, n_mismatch);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
-			g_ptr_array_add(reads, r);
+			if (seq_ol(r, part, r->len, n_mismatch) >= 0) {
+				g_ptr_array_add(reads, r);
+			}
 		}
 		bwa_free_read_seq(1, part);
 		g_ptr_array_free(hits, TRUE);

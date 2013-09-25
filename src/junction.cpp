@@ -203,9 +203,9 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	memcpy(junc_seq->seq + left_len, right->seq, sizeof(ubyte_t) * right_len);
 	junc_seq->len = left_len + right_len;
 	set_rev_com(junc_seq);
-	p_query("Left  seq", left);
-	p_query("Right seq", right);
-	p_query("Junction seq", junc_seq);
+//	p_query("Left  seq", left);
+//	p_query("Right seq", right);
+//	p_query("Junction seq", junc_seq);
 
 	if (junc_seq->len >= ht->o->read_len) {
 		hits = g_ptr_array_sized_new(4);
@@ -229,7 +229,7 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	}
 
 	n_reads = reads->len;
-	show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
+//	show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
 	*weight = n_reads;
 	bwa_free_read_seq(1, junc_seq);
 	return reads;
@@ -240,9 +240,9 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
  */
 int count_jun_reads(hash_table *ht, junction *jun) {
 	tpl *main_tpl = NULL, *branch = NULL;
-	bwa_seq_t *left = NULL, *right = NULL, *branch_seq = NULL, *main_seq = NULL;
+	bwa_seq_t *left = NULL, *right = NULL, *branch_seq = NULL, *main_seq = NULL, *read = NULL;
 	int n_reads = 0, b_l_len = 0, b_r_len = 0, b_t_len = 0;
-	int m_l_len = 0, m_r_len = 0, m_t_len = 0;
+	int m_l_len = 0, m_r_len = 0, m_t_len = 0, i = 0;
 	GPtrArray *j_reads = NULL;
 	if (!jun || jun->status != 0)
 		return 0;
@@ -252,8 +252,8 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 	branch_seq = get_tpl_ctg_wt(branch, &b_l_len, &b_r_len, &b_t_len);
 	main_seq = get_tpl_ctg_wt(main_tpl, &m_l_len, &m_r_len, &m_t_len);
 	p_junction(jun);
-	p_tpl(main_tpl);
-	p_tpl(branch);
+	//p_tpl(main_tpl);
+	//p_tpl(branch);
 	left = jun->ori ? new_seq(branch_seq, branch_seq->len - b_r_len, 0) : new_seq(
 			main_seq, jun->locus + m_l_len, 0);
 	right = jun->ori ? new_seq(main_seq, main_seq->len - jun->locus - m_l_len,
@@ -262,7 +262,16 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 	//p_ctg_seq("Bran", branch->ctg);
 	j_reads = find_junc_reads(ht, left, right, (ht->o->read_len
 			- JUNCTION_BOUNDARY_BASE) * 2, &n_reads);
+	// The junction reads can only exist on the branch template
+	for (i = 0; i < j_reads->len; i++) {
+		read = (bwa_seq_t*) g_ptr_array_index(j_reads, i);
+		if (read->contig_id != jun->branch_tpl->id || read->status != USED) {
+			g_ptr_array_remove_index_fast(j_reads, i--);
+		}
+	}
+	n_reads = j_reads->len;
 	//p_readarray(j_reads, 1);
+	show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
 	g_ptr_array_free(j_reads, TRUE);
 	bwa_free_read_seq(1, left);
 	bwa_free_read_seq(1, right);
