@@ -112,8 +112,8 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 		return mains;
 	}
 
-//	p_query("TEST", TEST);
-//	p_query(__func__, tail);
+	//	p_query("TEST", TEST);
+	//	p_query(__func__, tail);
 	hits = align_query(ht, tail, USED, N_MISMATCHES);
 
 	//	if (branch->id == 4) {
@@ -369,8 +369,8 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	show_debug_msg(__func__, "Trying to connect template [%d, %d] to %s ...\n",
 			branch->id, branch->len, ori ? "left" : "right");
 	con_reads = find_connected_reads(ht, all_tpls, branch, ori);
-//	show_debug_msg(__func__, "Connecting reads: \n");
-//	p_readarray(con_reads, 1);
+	//	show_debug_msg(__func__, "Connecting reads: \n");
+	//	p_readarray(con_reads, 1);
 	max_trial = con_reads->len > 4 ? 4 : con_reads->len;
 	for (i = 0; i < max_trial; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(con_reads, i);
@@ -406,6 +406,15 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 
 		rev_com = rev_com_on_tpl(main_tpl, r->contig_locus, r);
 		if (rev_com != r->rev_com) {
+			if ((branch->b_juncs && branch->b_juncs->len > 0)
+					|| (branch->m_juncs && branch->m_juncs->len > 0)) {
+				show_debug_msg(
+						__func__,
+						"[WARNING] Template [%d, %d] is already connected, should not reverse. \n",
+						branch->id, branch->len);
+				p_tpl_junctions(all_tpls, branch->id);
+				continue;
+			}
 			//p_tpl(branch);
 			//p_tpl(main_tpl);
 			show_debug_msg(__func__,
@@ -627,14 +636,14 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			}
 		}
 
-//		if (t->id == 2 || t->id == 4300) {
-//			show_debug_msg(__func__,
-//					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
-//					t->len, "ACGTN"[max_c]);
-//			p_query(__func__, tail);
-//			p_ctg_seq("TEMPLATE", t->ctg);
-//			p_pool("CURRENT POOL", p, NULL);
-//		}
+		//		if (t->id == 2 || t->id == 4300) {
+		//			show_debug_msg(__func__,
+		//					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
+		//					t->len, "ACGTN"[max_c]);
+		//			p_query(__func__, tail);
+		//			p_ctg_seq("TEMPLATE", t->ctg);
+		//			p_pool("CURRENT POOL", p, NULL);
+		//		}
 
 		ext_con(t->ctg, max_c, ori);
 		t->len = t->ctg->len;
@@ -1123,7 +1132,7 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
  * 2. otherwise, destroy it and free the reads to FRESH
  */
 void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
-	GPtrArray *branches = t->m_juncs;
+	GPtrArray *branches = t->m_juncs, *near_tpls = NULL;
 	junction *jun = NULL;
 	int i = 0, changed = 0, opp_ori = 0, ori_len = 0, to_connect = 0,
 			pre_n_reads = 0;
@@ -1132,6 +1141,7 @@ void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 	pool *p = NULL;
 	if (!branches || !t->alive)
 		return;
+	near_tpls = nearby_tpls(t);
 	g_ptr_array_sort(branches, (GCompareFunc) cmp_junc_by_branch_id);
 	show_debug_msg(__func__, "There are %d branches on [%d, %d]\n",
 			branches->len, t->id, t->len);
@@ -1151,7 +1161,8 @@ void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 		pre_n_reads = branch->reads->len;
 		//p_junction(jun);
 		if (jun->weight <= MIN_JUNCTION_READS || branch->cov
-				< jun->main_tpl->cov * BRANCHING_THRE) {
+				< jun->main_tpl->cov * BRANCHING_THRE || !has_nearby_pairs(ht,
+				near_tpls, branch, MIN_PAIRS)) {
 			//p_tpl(branch);
 			//p_tpl(jun->main_tpl);
 			opp_ori = jun->ori ? 0 : 1;
@@ -1186,6 +1197,7 @@ void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 		//		if (branch->alive)
 		//			finalize_tpl(ht, all_tpls, branch, 1, 0, 0);
 	}
+	g_ptr_array_free(near_tpls, TRUE);
 }
 
 /**
