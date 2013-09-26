@@ -1188,16 +1188,16 @@ void switch_tpl_fr(tpl *t) {
 		r->contig_locus = t->len - r->contig_locus - r->len;
 		r->rev_com = r->rev_com ? 0 : 1;
 	}
-	if (t->r_tail)
-		tmp = t->r_tail;
-	if (t->l_tail) {
-		switch_fr(t->l_tail);
-		t->r_tail = t->l_tail;
-	}
-	if (tmp) {
-		switch_fr(tmp);
-		t->l_tail = tmp;
-	}
+//	if (t->r_tail)
+//		tmp = t->r_tail;
+//	if (t->l_tail) {
+//		switch_fr(t->l_tail);
+//		t->r_tail = t->l_tail;
+//	}
+//	if (tmp) {
+//		switch_fr(tmp);
+//		t->l_tail = tmp;
+//	}
 }
 
 void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
@@ -1228,7 +1228,7 @@ void destroy_tpl(tpl *t, int status) {
 	index64 i = 0;
 	bwa_seq_t *r = NULL;
 	if (t) {
-		//show_debug_msg(__func__, "Freeing tpl [%d, %d] \n", t->id, t->len);
+		show_debug_msg(__func__, "Freeing tpl [%d, %d] \n", t->id, t->len);
 		if (t->ctg)
 			bwa_free_read_seq(1, t->ctg);
 		if (t->r_tail)
