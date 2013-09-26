@@ -316,6 +316,24 @@ GPtrArray *rm_dup_reads_on_tpl(GPtrArray *reads) {
 }
 
 /**
+ * Test whether the read is reverse-complemented on the template.
+ * Assumption: the read is for sure on the template, at least partially on it.
+ */
+int rev_com_on_tpl(tpl *t, int start, bwa_seq_t *read) {
+	int i = 0, n_mis = 0;
+	for (i = 0; i < read->len; i++) {
+		if (start + i < 0 || start + i >= t->len)
+			break;
+		if (t->ctg->seq[start + i] != read->seq[i])
+			n_mis++;
+	}
+	if (n_mis >= 10)
+		return 1;
+	else
+		return 0;
+}
+
+/**
  * Get the nearest index of read with name as the query
  */
 int binary_search_read(GPtrArray *reads, bwa_seq_t *q) {
@@ -943,24 +961,24 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	int is_picked = 0;
 	ubyte_t c = 0, read_c = 0;
 
-	if (shift == 707) {
-		show_debug_msg(__func__, "----\n");
-		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
-				: "right");
-		p_query(__func__, query);
-		p_readarray(hits, 1);
-	}
+//	if (shift == 707) {
+//		show_debug_msg(__func__, "----\n");
+//		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
+//				: "right");
+//		p_query(__func__, query);
+//		p_readarray(hits, 1);
+//	}
 
 	if (hits->len <= 0) {
 		return hits;
 	}
 
 	//if (shift == 1324) {
-		show_debug_msg(__func__, "----\n");
-		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
-				: "right");
-		p_query(__func__, query);
-		p_readarray(hits, 1);
+//		show_debug_msg(__func__, "----\n");
+//		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
+//				: "right");
+//		p_query(__func__, query);
+//		p_readarray(hits, 1);
 	//}
 
 	//if (shift == 587) {
@@ -1156,6 +1174,30 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 	g_ptr_array_free(hits, TRUE);
 	bwa_free_read_seq(1, tpl_seq);
 	return fresh_reads;
+}
+
+/**
+ * Reverse complement a template, need to update the read locus as well
+ */
+void switch_tpl_fr(tpl *t) {
+	int i = 0;
+	bwa_seq_t *r = NULL, *tmp = NULL;
+	switch_fr(t->ctg);
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		r->contig_locus = t->len - r->contig_locus - r->len;
+		r->rev_com = r->rev_com ? 0 : 1;
+	}
+	if (t->r_tail)
+		tmp = t->r_tail;
+	if (t->l_tail) {
+		switch_fr(t->l_tail);
+		t->r_tail = t->l_tail;
+	}
+	if (tmp) {
+		switch_fr(tmp);
+		t->l_tail = tmp;
+	}
 }
 
 void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,

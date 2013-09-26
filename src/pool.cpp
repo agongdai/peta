@@ -312,8 +312,8 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 	if (!t->start_read || t->start_read->len <= 0)
 		return;
 	read = get_tail(t, ht->o->read_len, ori);
-	p_tpl(t);
-	p_query("Init read", read);
+	//p_tpl(t);
+	//p_query("Init read", read);
 	start = ori ? 0 : 1;
 	end = ori ? read->len - tail_len - 1 : read->len - tail_len;
 	for (i = start; i <= end; i++) {

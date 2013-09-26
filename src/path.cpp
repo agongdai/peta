@@ -388,7 +388,7 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 		for (j = 0; j < p->edges->len; j++) {
 			w = p->weights[j * 2 + 1];
 			if (w <= 0) {
-				p_p(p);
+				//p_p(p);
 				show_debug_msg(__func__, "Path %d is not valid with 0 edge \n",
 						p->id);
 				destroy_path(p);
