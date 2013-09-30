@@ -1123,7 +1123,7 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 			}
 		}
 	}
-	rm_global_tpl(all_tpls, t, DEAD);
+	rm_global_tpl(all_tpls, t, FRESH);
 }
 
 /**
