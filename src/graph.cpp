@@ -351,7 +351,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_table *ht) {
 		g_ptr_array_add(g->vertexes, v);
 		g_ptr_array_add(this_vs, v);
 		pre_start = j->locus;
-		//show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
+		show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
 	}
 
 	// Create the last vertex
@@ -359,7 +359,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_table *ht) {
 	g_ptr_array_add(g->vertexes, v);
 	g_ptr_array_add(this_vs, v);
 
-	//show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
+	show_debug_msg(__func__, "Template %d, Vertex %d \n", t->id, v->id);
 
 	// Create the edges between vertexes
 	pre_start = 0;

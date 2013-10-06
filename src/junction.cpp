@@ -79,11 +79,11 @@ void destroy_junction(junction *j) {
 
 		if (j->reads)
 			g_ptr_array_free(j->reads, TRUE);
-		if (j->locus == 1 && j->branch_tpl->r_tail) {
+		if (j->ori == 1 && j->branch_tpl->r_tail) {
 			bwa_free_read_seq(1, j->branch_tpl->r_tail);
 			j->branch_tpl->r_tail = NULL;
 		}
-		if (j->locus == 0 && j->branch_tpl->l_tail) {
+		if (j->ori == 0 && j->branch_tpl->l_tail) {
 			bwa_free_read_seq(1, j->branch_tpl->l_tail);
 			j->branch_tpl->l_tail = NULL;
 		}
@@ -566,6 +566,10 @@ void get_junction_arr(GPtrArray *read_tpls, GPtrArray *junctions) {
 	for (i = 0; i < junctions->len; i++) {
 		junc = (junction*) g_ptr_array_index(junctions, i);
 		junc->status = 0;
+		if (junc->weight < MIN_JUNCTION_READS) {
+			g_ptr_array_remove_index_fast(junctions, i--);
+			destroy_junction(junc);
+		}
 	}
 }
 

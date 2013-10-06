@@ -636,14 +636,14 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			}
 		}
 
-		//		if (t->id == 2 || t->id == 4300) {
-		//			show_debug_msg(__func__,
-		//					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
-		//					t->len, "ACGTN"[max_c]);
-		//			p_query(__func__, tail);
-		//			p_ctg_seq("TEMPLATE", t->ctg);
-		//			p_pool("CURRENT POOL", p, NULL);
-		//		}
+//		if (t->id == 17) {
+//			show_debug_msg(__func__,
+//					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
+//					t->len, "ACGTN"[max_c]);
+//			p_query(__func__, tail);
+//			p_ctg_seq("TEMPLATE", t->ctg);
+//			p_pool("CURRENT POOL", p, NULL);
+//		}
 
 		ext_con(t->ctg, max_c, ori);
 		t->len = t->ctg->len;
@@ -1127,6 +1127,22 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 }
 
 /**
+ * Validate templates after all reads are visited
+ */
+void re_valid_tpls(hash_table *ht, tpl_hash *all_tpls) {
+	tpl *t = NULL;
+	for (tpl_hash::iterator m = all_tpls->begin(); m != all_tpls->end(); ++m) {
+		t = (tpl*) m->second;
+		if (t->alive) {
+			finalize_tpl(ht, all_tpls, t, 0, 0, 0);
+		} else {
+			//destory_tpl_junctions(t);
+			destroy_tpl(t, TRIED);
+		}
+	}
+}
+
+/**
  * For branches without enough junction reads,
  * 1. try to extend to another direction
  * 2. otherwise, destroy it and free the reads to FRESH
@@ -1232,10 +1248,10 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		return NULL;
 	}
 
-	//	if (fresh_trial == 0)
-	//		read = &seqs[1707];
-	//	if (fresh_trial == 1)
-	//		read = &seqs[401826];
+//	if (fresh_trial == 0)
+//		read = &seqs[158776];
+//	if (fresh_trial == 1)
+//		read = &seqs[7317];
 
 	printf("\n");
 	show_debug_msg(__func__,
@@ -1304,7 +1320,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		reset_to_fresh(read);
 	}
 	//	if (t->alive)
-	//		p_tpl_reads(t);
+	//p_tpl_reads(t);
 	return NULL;
 }
 
@@ -1354,8 +1370,8 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		//		if (fresh_trial >= 1)
-		//			break;
+		//if (fresh_trial >= 2)
+		//		break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",
@@ -1368,7 +1384,7 @@ void kmer_threads(kmer_t_meta *params) {
 	//			p_query(__func__, r);
 	//	}
 
-	///**
+	/**
 	show_msg(__func__,
 			"----------- Stage 2: branching the %d templates -----------\n",
 			params->all_tpls->size());
@@ -1417,7 +1433,7 @@ void kmer_threads(kmer_t_meta *params) {
 		free(counter);
 	}
 	g_ptr_array_free(low_reads, TRUE);
-	//**/
+	**/
 
 	g_thread_pool_free(thread_pool, 0, 1);
 }
@@ -1541,6 +1557,32 @@ void iter_merge(hash_table *ht, tpl_hash *all_tpls, kmer_hash *tpl_kmer_hash) {
 	}
 }
 
+void merge_together_tpls(tpl_hash *all_tpls) {
+	tpl *t = NULL;
+	junction *jun = NULL;
+	int i = 0;
+	GPtrArray *tpls = g_ptr_array_sized_new(all_tpls->size());
+	for (tpl_hash::iterator m = all_tpls->begin(); m != all_tpls->end(); ++m) {
+		t = (tpl*) m->second;
+		if (!t->alive || !t->m_juncs || t->m_juncs->len <= 0)
+			continue;
+		for (i = 0; i < t->m_juncs->len; i++) {
+			jun = (junction*) g_ptr_array_index(t->m_juncs, i);
+			if (jun->status != 0)
+				continue;
+			if (jun->locus <= 2 && jun->ori == 1) {
+				destroy_junction(jun);
+				merge_tpls(jun->branch_tpl, t, jun->locus, 0);
+			} else {
+				if (jun->locus >= t->len - 2 && jun->ori == 0) {
+					destroy_junction(jun);
+					merge_tpls(t, jun->branch_tpl, t->len - jun->locus, 0);
+				}
+			}
+		}
+	}
+}
+
 void test_smith_waterman(char *fn) {
 	bwa_seq_t *r1 = NULL, *r2 = NULL;
 	int similar = 0;
@@ -1581,6 +1623,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	//test_kmer_ext(params);
 	//exit(1);
 	kmer_threads(params);
+	re_valid_tpls(ht, &all_tpls);
 	// Start branching after the frequent kmers are consumed already.
 	//start_branching(&all_tpls, params);
 
@@ -1593,6 +1636,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	show_debug_msg(__func__,
 			"Merging %d templates by pairs and overlapping ...\n",
 			all_tpls.size());
+	merge_together_tpls(&all_tpls);
 	iter_merge(ht, &all_tpls, &tpl_kmer_hash);
 
 	show_msg(__func__, "Saving contigs: %.2f sec\n",

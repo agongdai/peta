@@ -33,6 +33,7 @@ path *new_path() {
 	p->junction_lengths = NULL;
 	p->coverage = 0;
 	p->status = 0;
+	p->is_paired = 0;
 	return p;
 }
 
@@ -103,11 +104,12 @@ void p_p(path *p) {
 	vertex *v = NULL;
 	edge *e = NULL;
 	show_debug_msg(__func__, "==== Path %d ====\n", p->id);
-	printf("\tLength: %d\n", p->len);
+	printf("\tLength: %d; Is_tpl: %d\n", p->len, p->is_paired);
 	printf("\tVertexes: %d \n", p->vertexes->len);
 	for (i = 0; i < p->vertexes->len; i++) {
 		v = (vertex*) g_ptr_array_index(p->vertexes, i);
-		printf("\t\tVertex %d: %d; Weight %.2f\n", v->id, v->len, v->weight);
+		printf("\t\tVertex %d from tpl [%d, %d]: %d; Weight %.2f\n", v->id,
+				v->from->id, v->from->len, v->len, v->weight);
 	}
 	printf("\tEdges: %d \n", p->edges->len);
 	for (i = 0; i < p->edges->len; i++) {
@@ -134,10 +136,10 @@ void p_paths(GPtrArray *paths, char *fn) {
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
 		if (p->status == 0)
-		sprintf(
-				entry,
-				"%d [label=\"Path %d\" style=filled fillcolor=\"yellow\" shape=box]; \n",
-				p->id, p->id);
+			sprintf(
+					entry,
+					"%d [label=\"Path %d\" style=filled fillcolor=\"yellow\" shape=box]; \n",
+					p->id, p->id);
 		else
 			sprintf(
 					entry,
@@ -174,9 +176,14 @@ void save_paths(GPtrArray *paths, char *fn, const int to_save_all) {
 		p = (path*) g_ptr_array_index(paths, i);
 		// If we are not saving all paths and the status is not 0, skip
 		if (!to_save_all) {
-            if (p->status != 0 || p->len < 100)
-			    continue;
-        }
+			if (p->len < 100)
+				continue;
+			if (p->is_paired) {
+			} else {
+				if (p->status != 0)
+					continue;
+			}
+		}
 		sprintf(entry, ">%d length: %d\n", p->id, p->len);
 		save_con(entry, p->ctg, p_fp);
 	}
@@ -278,7 +285,8 @@ GPtrArray *get_vertex_levels(comp *c) {
 		has_more = 0;
 		next_level = NULL;
 		n_level++;
-		show_debug_msg(__func__, "Level %d: %d \n", n_level, level_vertexes->len);
+		show_debug_msg(__func__, "Level %d: %d \n", n_level,
+				level_vertexes->len);
 		for (i = 0; i < level_vertexes->len; i++) {
 			v = (vertex*) g_ptr_array_index(level_vertexes, i);
 			//p_vertex(v);
@@ -422,7 +430,7 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 				 p_ctg_seq("PATH", p->ctg);
 				 p_ctg_seq("EXON", seq);
 				 p_readarray(reads, 1);
-				**/
+				 **/
 
 				n_reads = reads->len;
 				g_ptr_array_free(reads, TRUE);
@@ -806,13 +814,13 @@ void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 			}
 
 			/**
-			show_debug_msg(__func__, "sum_next_f_p[%d]: %.2f\n", j,
-					sum_next_f_p);
-			show_debug_msg(__func__, "sum_next_f_t_p[%d]: %.2f\n", j,
-					sum_next_f_t_p);
-			show_debug_msg(__func__, "this_Ns[%d]/Sum: %.2f / %.2f \n", j,
-					this_Ns[j], sum_N);
-			**/
+			 show_debug_msg(__func__, "sum_next_f_p[%d]: %.2f\n", j,
+			 sum_next_f_p);
+			 show_debug_msg(__func__, "sum_next_f_t_p[%d]: %.2f\n", j,
+			 sum_next_f_t_p);
+			 show_debug_msg(__func__, "this_Ns[%d]/Sum: %.2f / %.2f \n", j,
+			 this_Ns[j], sum_N);
+			 **/
 
 			sum_denominator = (sum_next_f_t_p * (sum_N - this_Ns[j]));
 			if (sum_denominator > 0.0) {
@@ -835,11 +843,11 @@ void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		stop = 1;
 		for (j = 0; j < n_paths; j++) {
 			/**
-			show_debug_msg(__func__, "%.5f vs %.5f \n", paths_p[j],
-					next_paths_p[j]);
-			show_debug_msg(__func__, "Difference: %.5f \n", get_abs(paths_p[j]
-					- next_paths_p[j]));
-			**/
+			 show_debug_msg(__func__, "%.5f vs %.5f \n", paths_p[j],
+			 next_paths_p[j]);
+			 show_debug_msg(__func__, "Difference: %.5f \n", get_abs(paths_p[j]
+			 - next_paths_p[j]));
+			 **/
 			if ((float) (get_abs(paths_p[j] - next_paths_p[j]))
 					> stop_threshold) {
 				stop = 0;
@@ -855,15 +863,15 @@ void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 		coverage = calc_features_coverage(paths, read_len, paths_p, coverage);
 
 		/**
-		printf("\n\n==== Iteration %d ====\n", round);
-		for (i = 0; i < n_paths; i++) {
-			p = (path*) g_ptr_array_index(paths, i);
-			show_debug_msg(__func__, "---- %d: Path %d ---- \n", i, p->id);
-			printf("\t\t\tCoverage: %.2f \n", p_covs[i]);
-			printf("\t\t\tN_reads: %.2f \n", this_Ns[i]);
-			printf("\t\t\tProbability: %.3f \n", paths_p[i]);
-		}
-		**/
+		 printf("\n\n==== Iteration %d ====\n", round);
+		 for (i = 0; i < n_paths; i++) {
+		 p = (path*) g_ptr_array_index(paths, i);
+		 show_debug_msg(__func__, "---- %d: Path %d ---- \n", i, p->id);
+		 printf("\t\t\tCoverage: %.2f \n", p_covs[i]);
+		 printf("\t\t\tN_reads: %.2f \n", this_Ns[i]);
+		 printf("\t\t\tProbability: %.3f \n", paths_p[i]);
+		 }
+		 **/
 
 	}
 	show_debug_msg(__func__, "Stop at Iteration %d \n", round);
@@ -884,26 +892,52 @@ void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 }
 
 gint cmp_paths_by_cov(gpointer a, gpointer b) {
-    path *p_a = *((path**) a);
-    path *p_b = *((path**) b);
-    if (p_a->coverage >= p_b->coverage)
-        return 1;
-    else
-        return -1;
+	path *p_a = *((path**) a);
+	path *p_b = *((path**) b);
+	if (p_a->coverage >= p_b->coverage)
+		return 1;
+	else
+		return -1;
 }
 
 void high_cov_paths(GPtrArray *paths, const int max_n_paths) {
-    uint32_t i = 0;
-    path *p = NULL;
-    g_ptr_array_sort(paths, (GCompareFunc) cmp_paths_by_cov);
-    for (i = 0; i < paths->len; i++) {
-        if (i >= max_n_paths - 1)
-            break;
-        p = (path*) g_ptr_array_index(paths, i);
-        show_debug_msg(__func__, "Path [%d, %d] with coverage %.2f obtained\n", p->id, p->len, p->coverage);
-    }
-    while(paths->len > max_n_paths) 
-        g_ptr_array_remove_index_fast(paths, paths->len - 1);
+	uint32_t i = 0;
+	path *p = NULL;
+	g_ptr_array_sort(paths, (GCompareFunc) cmp_paths_by_cov);
+	for (i = 0; i < paths->len; i++) {
+		if (i >= max_n_paths - 1)
+			break;
+		p = (path*) g_ptr_array_index(paths, i);
+		show_debug_msg(__func__, "Path [%d, %d] with coverage %.2f obtained\n",
+				p->id, p->len, p->coverage);
+	}
+	while (paths->len > max_n_paths)
+		g_ptr_array_remove_index_fast(paths, paths->len - 1);
+}
+
+/**
+ * Mark the paths from the original templates
+ */
+void find_tpl_paths(GPtrArray *paths) {
+	int i = 0, j = 0, is_tpl = 0;
+	path *p = NULL;
+	vertex *v = NULL, *pre_v = NULL;
+	for (i = 0; i < paths->len; i++) {
+		p = (path*) g_ptr_array_index(paths, i);
+		is_tpl = 1;
+		if (!p->vertexes || p->vertexes->len <= 0)
+			continue;
+		pre_v = (vertex*) g_ptr_array_index(p->vertexes, 0);
+		for (j = 1; j < p->vertexes->len; j++) {
+			v = (vertex*) g_ptr_array_index(p->vertexes, j);
+			if (v->id - pre_v->id != 1) {
+				is_tpl = 0;
+				break;
+			}
+			pre_v = v;
+		}
+		p->is_paired = is_tpl;
+	}
 }
 
 /**
@@ -927,19 +961,21 @@ GPtrArray *comp_paths(comp *c, hash_table *ht) {
 		printf("\n");
 	}
 	GPtrArray *paths = combinatorial_paths(levels);
+	find_tpl_paths(paths);
 	destory_levels(levels);
 	assign_path_attrs(paths, ht);
 	validate_short_exons(paths, ht);
 
-    if (paths->len > 2000) {
-        high_cov_paths(paths, 3);
-        return paths;
-    }
+	if (paths->len > 2000) {
+		high_cov_paths(paths, 3);
+		return paths;
+	}
 
 	paths_prob = init_path_prob(paths, ht->o->read_len);
 	diffsplice_em(c, paths, ht->o->read_len, paths_prob);
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
+		p_p(p);
 		// If the probability of the paths is small, mark it as not alive.
 		if (paths_prob[i] <= 0.02 && paths_prob[i] * paths->len < 0.5)
 			p->status = 1;
@@ -958,24 +994,27 @@ void append_paths(GPtrArray *all_paths, GPtrArray *paths) {
 }
 
 GPtrArray *paths_from_tpl(comp *c) {
-    tpl *from = NULL;
-    uint32_t i = 0;
-    vertex *v = NULL;
-    path *p = NULL;
-    GPtrArray *paths = g_ptr_array_sized_new(4);
-    for (i = 0; i < c->vertexes->len; i++) {
-        v = (vertex*) g_ptr_array_index(c->vertexes, i);
-        from = v->from;
-        if (from->alive) {
-            show_debug_msg(__func__, "Component too complicated, graph template [%d, %d] only. \n", from->id, from->len);
-            p = new_path();
-            p->ctg = new_seq(from->ctg, from->len, 0);
-            g_ptr_array_add(paths, p);
-            // Mark it as 'dead', in case duplicated
-            from->alive = 0;
-        }
-    }
-    return paths;
+	tpl *from = NULL;
+	uint32_t i = 0;
+	vertex *v = NULL;
+	path *p = NULL;
+	GPtrArray *paths = g_ptr_array_sized_new(4);
+	for (i = 0; i < c->vertexes->len; i++) {
+		v = (vertex*) g_ptr_array_index(c->vertexes, i);
+		from = v->from;
+		if (from->alive) {
+			show_debug_msg(
+					__func__,
+					"Component too complicated, graph template [%d, %d] only. \n",
+					from->id, from->len);
+			p = new_path();
+			p->ctg = new_seq(from->ctg, from->len, 0);
+			g_ptr_array_add(paths, p);
+			// Mark it as 'dead', in case duplicated
+			from->alive = 0;
+		}
+	}
+	return paths;
 }
 
 void determine_paths(splice_graph *g, hash_table *ht, char *save_dir) {
@@ -987,11 +1026,11 @@ void determine_paths(splice_graph *g, hash_table *ht, char *save_dir) {
 			g->vertexes->len / 10);
 	for (i = 0; i < g->components->len; i++) {
 		c = (comp*) g_ptr_array_index(g->components, i);
-        p_comp(c, save_dir);
+		p_comp(c, save_dir);
 		if (c->vertexes->len >= MAX_VS_IN_COMP)
-            paths = paths_from_tpl(c);
-        else 
-		    paths = comp_paths(c, ht);
+			paths = paths_from_tpl(c);
+		else
+			paths = comp_paths(c, ht);
 		append_paths(all_paths, paths);
 	}
 	fn = get_output_file("paths.fa", save_dir);
