@@ -506,8 +506,8 @@ float calc_tpl_cov(tpl *t, int start, int end, int read_len) {
 	int i = 0, j = 0, ol = 0;
 	float sum = 0.0, cov = 0.0;
 	//p_tpl_reads(t);
-	show_debug_msg(__func__, "Template [%d, %d] %d~%d\n", t->id, t->len, start,
-			end);
+	//show_debug_msg(__func__, "Template [%d, %d] %d~%d\n", t->id, t->len, start,
+	//		end);
 	if (start == 0 && t->l_tail)
 		start -= t->l_tail->len;
 	if (!t || end < 0 || end > t->len || end <= start || read_len <= 0)
@@ -529,8 +529,8 @@ float calc_tpl_cov(tpl *t, int start, int end, int read_len) {
 		}
 	}
 	cov = sum / (float) (end - start);
-	show_debug_msg(__func__, "Calculated template coverage [%d, %d]: %.2f \n",
-			t->id, t->len, cov);
+	//show_debug_msg(__func__, "Calculated template coverage [%d, %d]: %.2f \n",
+	//		t->id, t->len, cov);
 	return cov;
 }
 
@@ -573,12 +573,13 @@ int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
  * Return:                      ==========++++
  * '++++' is the partial virtual tail of current tpl
  */
-bwa_seq_t *cut_tpl_tail(tpl *t, const int pos, const int tail_len,
+bwa_seq_t *cut_tpl_tail(tpl *t, int pos, const int tail_len,
 		const int ori) {
 	bwa_seq_t *tail = NULL, *partial = NULL, *main_tail = NULL;
 	int v_tail_len = 0;
 	if (t->len < pos)
-		return new_seq(t->ctg, t->len, 0);
+		pos = t->len;
+		//return new_seq(t->ctg, t->len, 0);
 	if (ori) {
 		partial = new_seq(t->ctg, t->len - pos, pos);
 		main_tail = t->r_tail;
@@ -674,7 +675,7 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	int i = 0, j = 0, not_covered_len = 0;
 	ubyte_t base_1 = 0, base_2 = 0;
 	GPtrArray *refresh = NULL, *hits = NULL;
-	if (!t || !t->alive || !t->reads || t->reads->len <= 0 || t->len < 0)
+	if (!t || !t->alive || !t->reads || t->reads->len < 0 || t->len < 0)
 		return;
 	//unfrozen_tried(t);
 

@@ -636,14 +636,14 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			}
 		}
 
-//		if (t->id == 17) {
-//			show_debug_msg(__func__,
-//					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
-//					t->len, "ACGTN"[max_c]);
-//			p_query(__func__, tail);
-//			p_ctg_seq("TEMPLATE", t->ctg);
-//			p_pool("CURRENT POOL", p, NULL);
-//		}
+		//		if (t->id == 17) {
+		//			show_debug_msg(__func__,
+		//					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
+		//					t->len, "ACGTN"[max_c]);
+		//			p_query(__func__, tail);
+		//			p_ctg_seq("TEMPLATE", t->ctg);
+		//			p_pool("CURRENT POOL", p, NULL);
+		//		}
 
 		ext_con(t->ctg, max_c, ori);
 		t->len = t->ctg->len;
@@ -720,9 +720,6 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 						is_valid = 1;
 				}
 			}
-		} else {
-			if (stage != 1)
-				is_valid = 1;
 		}
 		if (!is_valid)
 			show_debug_msg(__func__,
@@ -1248,10 +1245,10 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		return NULL;
 	}
 
-//	if (fresh_trial == 0)
-//		read = &seqs[158776];
-//	if (fresh_trial == 1)
-//		read = &seqs[7317];
+	//	if (fresh_trial == 0)
+	//		read = &seqs[158776];
+	//	if (fresh_trial == 1)
+	//		read = &seqs[7317];
 
 	printf("\n");
 	show_debug_msg(__func__,
@@ -1385,55 +1382,55 @@ void kmer_threads(kmer_t_meta *params) {
 	//	}
 
 	/**
-	show_msg(__func__,
-			"----------- Stage 2: branching the %d templates -----------\n",
-			params->all_tpls->size());
-	stage = 2;
-	//branching_long(ht, params->all_tpls);
-	show_msg(__func__, "%d templates are obtained. \n",
-			params->all_tpls->size());
+	 show_msg(__func__,
+	 "----------- Stage 2: branching the %d templates -----------\n",
+	 params->all_tpls->size());
+	 stage = 2;
+	 //branching_long(ht, params->all_tpls);
+	 show_msg(__func__, "%d templates are obtained. \n",
+	 params->all_tpls->size());
 
-	show_msg(__func__,
-			"----------- Stage 3: remaining fragmented reads -----------\n");
-	stage = 3;
-	show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
+	 show_msg(__func__,
+	 "----------- Stage 3: remaining fragmented reads -----------\n");
+	 stage = 3;
+	 show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
 
-	low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
-	// Reset not USED/DEAD reads to FRESH
-	for (i = 0; i < ht->n_seqs; i++) {
-		r = &seqs[i];
-		//show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
-		if (r->status != USED && r->status != DEAD) {
-			reset_to_fresh(r);
-			counter = (kmer_counter*) malloc(sizeof(kmer_counter));
-			counter->kmer = i;
-			counter->count = 0;
-			g_ptr_array_add(low_reads, counter);
-		}
-	}
+	 low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
+	 // Reset not USED/DEAD reads to FRESH
+	 for (i = 0; i < ht->n_seqs; i++) {
+	 r = &seqs[i];
+	 //show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
+	 if (r->status != USED && r->status != DEAD) {
+	 reset_to_fresh(r);
+	 counter = (kmer_counter*) malloc(sizeof(kmer_counter));
+	 counter->kmer = i;
+	 counter->count = 0;
+	 g_ptr_array_add(low_reads, counter);
+	 }
+	 }
 
-	sort_by_kmers(ht, low_reads);
-	//show_msg(__func__, "Shrinking the hash table ... \n");
-	//shrink_ht(ht);
-	show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
-	params->to_try_connect = 1;
-	for (i = 0; i < low_reads->len / 10; i++) {
-		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
-		// If the read does not even share any 11-mer with others, ignore
-		if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
-			continue;
-		}
-		if (i % 100000 == 0)
-			show_msg(__func__, "Extending %" ID64 "-th low read ... \n", i);
-		kmer_ext_thread(counter, params);
-		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
-	}
-	for (i = 0; i < low_reads->len; i++) {
-		counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
-		free(counter);
-	}
-	g_ptr_array_free(low_reads, TRUE);
-	**/
+	 sort_by_kmers(ht, low_reads);
+	 //show_msg(__func__, "Shrinking the hash table ... \n");
+	 //shrink_ht(ht);
+	 show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
+	 params->to_try_connect = 1;
+	 for (i = 0; i < low_reads->len / 10; i++) {
+	 counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
+	 // If the read does not even share any 11-mer with others, ignore
+	 if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
+	 continue;
+	 }
+	 if (i % 100000 == 0)
+	 show_msg(__func__, "Extending %" ID64 "-th low read ... \n", i);
+	 kmer_ext_thread(counter, params);
+	 //g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
+	 }
+	 for (i = 0; i < low_reads->len; i++) {
+	 counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
+	 free(counter);
+	 }
+	 g_ptr_array_free(low_reads, TRUE);
+	 **/
 
 	g_thread_pool_free(thread_pool, 0, 1);
 }
@@ -1673,43 +1670,263 @@ void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,
 	tpl *t = NULL, *main_tpl = NULL, *branch = NULL;
 	tpl_hash tpls;
 	char buf[BUFSIZ];
-	char *attr[18];
+	char *attr[18], *idstr[18];
 	junction *jun = NULL;
 	for (i = 0; i < n_ctgs; i++) {
-		ctg = &seqs[i];
 		t = new_tpl();
-		if (atoi(ctg->name) - id == 1) {
-			ctg = &seqs[i];
-			t->id = atoi(ctg->name);
-			t->ctg = new_seq(ctg, ctg->len, 0);
-			id = t->id;
-		} else {
-			t->ctg = blank_seq(0);
-			t->id = ++id;
-			i--;
-		}
+		ctg = &seqs[i];
+		t->id = atoi(ctg->name);
+		t->ctg = new_seq(ctg, ctg->len, 0);
+		id = t->id;
+
 		tpls[t->id] = t;
+		//show_debug_msg(__func__, "template %d \n", t->id);
 		t->len = t->ctg->len;
 		t->alive = 1;
 		g_ptr_array_add(all_tpls, t);
 	}
 
+	int line = 0;
 	while (fgets(buf, sizeof(buf), junc_fp)) {
+		line++;
+		if (line == 1)
+			continue;
 		i = 0;
 		attr[0] = strtok(buf, "\t");
 		while (attr[i] != NULL) { //ensure a pointer was found
 			//			printf("fields[%d] = %s\n", i, fields[i]);
 			attr[++i] = strtok(NULL, "\t"); //continue to tokenize the string
 		}
-		if (atoi(attr[3]) < 2)
-			continue;
-		main_tpl = tpls[atoi(attr[0])];
-		branch = tpls[atoi(attr[1])];
-		jun = new_junction(main_tpl, branch, 0, atoi(attr[2]), atoi(attr[4]),
-				atoi(attr[3]));
+		idstr[0] = strtok(attr[0], ", ");
+		idstr[1] = strtok(NULL, ", ");
+		i = 0;
+		while (idstr[0][++i] != '\0') {
+			idstr[0][i - 1] = idstr[0][i];
+		}
+		idstr[0][i - 1] = '\0';
+
+		idstr[2] = strtok(attr[1], ", ");
+		idstr[3] = strtok(NULL, ", ");
+		i = 0;
+		while (idstr[2][++i] != '\0') {
+			idstr[2][i - 1] = idstr[2][i];
+		}
+		idstr[2][i - 1] = '\0';
+		//printf("%d\n", atoi(idstr[0]));
+		//printf("%d\n", atoi(idstr[2]));
+
+		main_tpl = (tpl*) tpls[atoi(idstr[0])];
+		branch = (tpl*) tpls[atoi(idstr[2])];
+		jun
+				= new_junction(main_tpl, branch, 0, atoi(attr[2]),
+						atoi(attr[4]), 0);
+		//atoi(attr[3]));
+		//p_tpl(main_tpl);
+		//p_tpl(branch);
+		if (!main_tpl->m_juncs)
+			main_tpl->m_juncs = g_ptr_array_sized_new(4);
+		if (!branch->b_juncs)
+			branch->b_juncs = g_ptr_array_sized_new(4);
+		g_ptr_array_add(main_tpl->m_juncs, jun);
+		g_ptr_array_add(branch->b_juncs, jun);
 		g_ptr_array_add(all_junctions, jun);
 	}
 	bwa_free_read_seq(n_ctgs, seqs);
+}
+
+GPtrArray *read_blat_hits(char *blat_psl) {
+	char buf[1000];
+	int line_no = 0, i = 0;
+	char *attr[32], *intstr[32];
+	FILE *psl_fp = xopen(blat_psl, "r");
+	GPtrArray *hits = g_ptr_array_sized_new(32);
+	blat_hit *h = NULL;
+	while (fgets(buf, sizeof(buf), psl_fp)) {
+		line_no++;
+		if (line_no <= 5)
+			continue;
+		i = 0;
+		attr[0] = strtok(buf, "\t");
+		while (attr[i] != NULL) { //ensure a pointer was found
+			attr[++i] = strtok(NULL, "\t"); //continue to tokenize the string
+		}
+		if (i < 20)
+			break;
+		h = (blat_hit*) malloc(sizeof(blat_hit));
+		h->n_match = atoi(attr[0]);
+		h->n_mismatch = atoi(attr[1]);
+		h->n_rep = atoi(attr[2]);
+		h->n_n = atoi(attr[3]);
+		h->n_query_gap = atoi(attr[4]);
+		h->n_query_gap_base = atoi(attr[5]);
+		h->n_ref_gap = atoi(attr[6]);
+		h->n_ref_gap_base = atoi(attr[7]);
+		h->strand = attr[8][0];
+		h->query = strdup(attr[9]);
+		h->q_len = atoi(attr[10]);
+		h->q_start = atoi(attr[11]);
+		h->q_end = atoi(attr[12]);
+		h->ref = strdup(attr[13]);
+		h->r_len = atoi(attr[14]);
+		h->r_start = atoi(attr[15]);
+		h->r_end = atoi(attr[16]);
+		h->n_block = atoi(attr[17]);
+		h->block_size = (int*) calloc(h->n_block, sizeof(int));
+		h->block_size[0] = atoi(strtok(attr[18], ","));
+		i = 0;
+		while (i < h->n_block - 1) {
+			h->block_size[++i] = atoi(strtok(NULL, ",")); //continue to tokenize the string
+		}
+		h->query_block_start = (int*) calloc(h->n_block, sizeof(int));
+		h->query_block_start[0] = atoi(strtok(attr[19], ","));
+		i = 0;
+		while (i < h->n_block - 1) {
+			h->query_block_start[++i] = atoi(strtok(NULL, ",")); //continue to tokenize the string
+		}
+		h->ref_block_start = (int*) calloc(h->n_block, sizeof(int));
+		h->ref_block_start[0] = atoi(strtok(attr[20], ","));
+		i = 0;
+		while (i < h->n_block - 1) {
+			h->ref_block_start[++i] = atoi(strtok(NULL, ",")); //continue to tokenize the string
+		}
+		g_ptr_array_add(hits, h);
+	}
+	fclose(psl_fp);
+	return hits;
+}
+
+void p_blat_hit(blat_hit *h) {
+	int i = 0;
+	printf("Hit\t");
+	printf("%d\t", h->n_match);
+	printf("%d\t", h->n_mismatch);
+	printf("%d\t", h->n_rep);
+	printf("%d\t", h->n_n);
+	printf("%d\t", h->n_query_gap);
+	printf("%d\t", h->n_query_gap_base);
+	printf("%d\t", h->n_ref_gap);
+	printf("%d\t", h->n_ref_gap_base);
+	printf("%c\t", h->strand);
+	printf("%s\t", h->query);
+	printf("%d\t", h->q_len);
+	printf("%d\t", h->q_start);
+	printf("%d\t", h->q_end);
+	printf("%s\t", h->ref);
+	printf("%d\t", h->r_len);
+	printf("%d\t", h->r_start);
+	printf("%d\t", h->r_end);
+	printf("%d\t", h->n_block);
+	for (i = 0; i < h->n_block; i++) {
+		printf("%d,", h->block_size[i]);
+	}
+	printf("\t");
+	for (i = 0; i < h->n_block; i++) {
+		printf("%d,", h->query_block_start[i]);
+	}
+	printf("\t");
+	for (i = 0; i < h->n_block; i++) {
+		printf("%d,", h->ref_block_start[i]);
+	}
+	printf("\t\n");
+}
+
+void validate_junctions(char *junc_fn, char *pair_fa, char *pair_psl,
+		char *hash_fn) {
+	int i = 0, j = 0, x = 0, has_hit = 0, has_valid_hit = 0;
+	int left_len = 0, right_len = 0, half_len = 0;
+	tpl *t = NULL;
+	junction *jun = NULL;
+	GPtrArray *all_tpls = g_ptr_array_sized_new(32);
+	GPtrArray *all_junctions = g_ptr_array_sized_new(32);
+	GPtrArray *paired_hits = NULL;
+	blat_hit *h = NULL;
+	bwa_seq_t *junc_seq = NULL, *main_part = NULL;
+
+	paired_hits = read_blat_hits(pair_psl);
+
+	read_juncs_from_file(junc_fn, pair_fa, all_tpls, all_junctions);
+	hash_table *ht = load_k_hash(hash_fn);
+	half_len = ht->o->read_len - JUNCTION_BOUNDARY_BASE;
+	for (i = 0; i < all_tpls->len; i++) {
+		t = (tpl*) g_ptr_array_index(all_tpls, i);
+		t->reads = g_ptr_array_sized_new(64);
+		refresh_tpl_reads(ht, t, N_MISMATCHES);
+		g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
+	}
+	for (i = 0; i < all_tpls->len; i++) {
+		t = (tpl*) g_ptr_array_index(all_tpls, i);
+		printf("Inspecting template [%d, %d] ...\n", t->id, t->len);
+		set_jun_reads(ht, t);
+		if (t->m_juncs) {
+			printf("\nMain template hits: \n");
+			for (j = 0; j < paired_hits->len; j++) {
+				h = (blat_hit*) g_ptr_array_index(paired_hits, j);
+				if (atoi(h->query) == t->id) {
+					p_blat_hit(h);
+				}
+			}
+			printf("\nBranch template hits: \n");
+			for (x = 0; x < t->m_juncs->len; x++) {
+				jun = (junction*) g_ptr_array_index(t->m_juncs, x);
+				p_junction(jun);
+				has_hit = 0;
+				has_valid_hit = 0;
+				if (jun->ori) {
+					junc_seq = get_junc_seq(jun->branch_tpl,
+							jun->branch_tpl->len, &left_len, t, jun->locus,
+							&right_len, half_len * 2);
+					main_part = cut_tpl_tail(t, jun->locus
+							- min(half_len, jun->branch_tpl->len), half_len
+							+ min(half_len, jun->branch_tpl->len), 1);
+				} else {
+					junc_seq = get_junc_seq(t, jun->locus, &left_len,
+							jun->branch_tpl, 0, &right_len, half_len * 2);
+					main_part = cut_tpl_tail(t, jun->locus
+							+ min(half_len, jun->branch_tpl->len), half_len
+							+ min(half_len, jun->branch_tpl->len), 0);
+				}
+				p_query("Junc Seq", junc_seq);
+				p_query("Main Seq", main_part);
+				bwa_free_read_seq(1, junc_seq);
+				bwa_free_read_seq(1, main_part);
+
+				for (j = 0; j < paired_hits->len; j++) {
+					h = (blat_hit*) g_ptr_array_index(paired_hits, j);
+					if (atoi(h->query) == jun->branch_tpl->id) {
+						has_hit = 1;
+						if (h->n_query_gap == 0 && h->n_ref_gap == 0
+								&& h->n_mismatch < 5) {
+							if (jun->ori == 0) {
+								if (h->q_start <= 2) {
+									has_valid_hit = 1;
+
+								}
+							} else {
+								if (h->q_end >= h->q_len - 2) {
+									has_valid_hit = 1;
+								}
+							}
+						}
+						p_blat_hit(h);
+					}
+				}
+				if (!has_hit) {
+					printf("No hit for branch template [%d, %d] \n",
+							jun->branch_tpl->id, jun->branch_tpl->len);
+				} else {
+					if (has_valid_hit) {
+						printf("The branch [%d, %d] is valid. \n",
+								jun->branch_tpl->id, jun->branch_tpl->len);
+					} else {
+						printf("Wrong branch: [%d, %d] \n",
+								jun->branch_tpl->id, jun->branch_tpl->len);
+					}
+				}
+			}
+			printf("\n+++\n");
+		}
+	}
+
 }
 
 void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
@@ -1723,10 +1940,11 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 
 int pe_kmer(int argc, char *argv[]) {
 
-	//	process_only("../SRR097897_out/paired.junctions.nolen",
-	//			"../SRR097897_out/paired.fa",
-	//			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.fa");
-	//	return 0;
+	validate_junctions("../SRR097897_branch/paired.junctions",
+			"../SRR097897_branch/paired.fa",
+			"../SRR097897_branch/paired.fa.psl",
+			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.part.fa");
+	return 0;
 
 	int c = 0;
 	clock_gettime(CLOCK_MONOTONIC, &kmer_start_time);

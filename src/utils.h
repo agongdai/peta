@@ -81,6 +81,7 @@ extern "C" {
 	char *get_output_file(const char *file_name, const char *out_root);
 	int find_in_array(GPtrArray *arr, gpointer value);
 	char *str_dup(const char * s);
+	int min3(int a, int b, int c);
 
 #ifdef __cplusplus
 }

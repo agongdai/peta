@@ -205,7 +205,7 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	set_rev_com(junc_seq);
 //	p_query("Left  seq", left);
 //	p_query("Right seq", right);
-//	p_query("Junction seq", junc_seq);
+	p_query("Junction seq", junc_seq);
 
 	if (junc_seq->len >= ht->o->read_len) {
 		hits = g_ptr_array_sized_new(4);
@@ -219,7 +219,21 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 			hits = find_both_fr_full_reads(ht, window, hits, LESS_MISMATCH);
 			while(hits->len > 0) {
 				r = (bwa_seq_t*) g_ptr_array_index(hits, 0);
-				//p_query("HIT", r);
+
+//				if (reads->len % 15 == 0) {
+//					for (j = 0; j < junc_seq->len; j++) {
+//						printf("%c", "ACGTN"[junc_seq->seq[j]]);
+//					}
+//					printf("\n");
+//				}
+//				for (j = 0; j < i; j++) {
+//					printf(" ");
+//				}
+//				for (j = 0; j < r->len; j++) {
+//					printf("%c", r->rev_com ? "ACGTN"[r->rseq[j]] : "ACGTN"[r->seq[j]]);
+//				}
+//				printf("\t%c%s\n", r->rev_com ? '-' : '+', r->name);
+
 				g_ptr_array_add(reads, r);
 				g_ptr_array_remove_index_fast(hits, 0);
 			}
@@ -240,7 +254,7 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
  */
 int count_jun_reads(hash_table *ht, junction *jun) {
 	tpl *main_tpl = NULL, *branch = NULL;
-	bwa_seq_t *left = NULL, *right = NULL, *branch_seq = NULL, *main_seq = NULL, *read = NULL;
+	bwa_seq_t *left = NULL, *right = NULL, *branch_seq = NULL, *main_seq = NULL, *mate = NULL, *read = NULL;
 	int n_reads = 0, b_l_len = 0, b_r_len = 0, b_t_len = 0;
 	int m_l_len = 0, m_r_len = 0, m_t_len = 0, i = 0;
 	GPtrArray *j_reads = NULL;
@@ -251,9 +265,9 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 	branch = jun->branch_tpl;
 	branch_seq = get_tpl_ctg_wt(branch, &b_l_len, &b_r_len, &b_t_len);
 	main_seq = get_tpl_ctg_wt(main_tpl, &m_l_len, &m_r_len, &m_t_len);
-	p_junction(jun);
-	//p_tpl(main_tpl);
-	//p_tpl(branch);
+	//p_junction(jun);
+	p_tpl(main_tpl);
+	p_tpl(branch);
 	left = jun->ori ? new_seq(branch_seq, branch_seq->len - b_r_len, 0) : new_seq(
 			main_seq, jun->locus + m_l_len, 0);
 	right = jun->ori ? new_seq(main_seq, main_seq->len - jun->locus - m_l_len,
@@ -263,15 +277,33 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 	j_reads = find_junc_reads(ht, left, right, (ht->o->read_len
 			- JUNCTION_BOUNDARY_BASE) * 2, &n_reads);
 	// The junction reads can only exist on the branch template
+//	for (i = 0; i < j_reads->len; i++) {
+//		read = (bwa_seq_t*) g_ptr_array_index(j_reads, i);
+//		if (read->contig_id != jun->branch_tpl->id || read->status != USED) {
+//			g_ptr_array_remove_index_fast(j_reads, i--);
+//		}
+//	}
+	n_reads = j_reads->len;
+
+	int n_pairs_main = 0, n_pairs_branch = 0;
 	for (i = 0; i < j_reads->len; i++) {
 		read = (bwa_seq_t*) g_ptr_array_index(j_reads, i);
-		if (read->contig_id != jun->branch_tpl->id || read->status != USED) {
-			g_ptr_array_remove_index_fast(j_reads, i--);
+		mate = get_mate(read, ht->seqs);
+		if (mate->contig_id == main_tpl->id) {
+			n_pairs_main++;
+			//p_query("READ", read);
+			//p_query("MATE", mate);
+		}
+		if (mate->contig_id == branch->id) {
+			n_pairs_branch++;
+			//p_query("READ", read);
+			//p_query("MATE", mate);
 		}
 	}
-	n_reads = j_reads->len;
-	//p_readarray(j_reads, 1);
-	show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
+	p_junction(jun);
+	printf("Main Pairs: %d\n", n_pairs_main);
+	printf("Branch Pairs: %d\n", n_pairs_branch);
+
 	g_ptr_array_free(j_reads, TRUE);
 	bwa_free_read_seq(1, left);
 	bwa_free_read_seq(1, right);

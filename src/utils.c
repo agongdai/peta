@@ -125,8 +125,16 @@ int find_in_array(GPtrArray *arr, gpointer value) {
 	return -1;
 }
 
-char *str_dup(const char * s)
-{
+int min3(int a, int b, int c) {
+	if (a <= b && a <= c)
+		return a;
+	if (b <= a && b <= c)
+		return b;
+	if (c <= a && c <= b)
+		return c;
+}
+
+char *str_dup(const char * s) {
   size_t len = 1+strlen(s);
   char *p = malloc(len);
   return p ? memcpy(p, s, len) : NULL;
