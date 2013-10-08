@@ -1833,7 +1833,7 @@ void p_blat_hit(blat_hit *h) {
 void validate_junctions(char *junc_fn, char *pair_fa, char *pair_psl,
 		char *hash_fn) {
 	int i = 0, j = 0, x = 0, has_hit = 0, has_valid_hit = 0;
-	int left_len = 0, right_len = 0, half_len = 0;
+	int left_len = 0, right_len = 0, half_len = 0, len = 0;
 	tpl *t = NULL;
 	junction *jun = NULL;
 	GPtrArray *all_tpls = g_ptr_array_sized_new(32);
@@ -1872,21 +1872,18 @@ void validate_junctions(char *junc_fn, char *pair_fa, char *pair_psl,
 				has_hit = 0;
 				has_valid_hit = 0;
 				if (jun->ori) {
-					junc_seq = get_junc_seq(jun->branch_tpl,
-							jun->branch_tpl->len, &left_len, t, jun->locus,
-							&right_len, half_len * 2);
-					main_part = cut_tpl_tail(t, jun->locus
-							- min(half_len, jun->branch_tpl->len), half_len
-							+ min(half_len, jun->branch_tpl->len), 1);
+					len = min3(jun->branch_tpl->len, half_len, jun->locus);
+					junc_seq = new_seq(jun->branch_tpl->ctg, len,
+							jun->branch_tpl->len - len);
+					main_part = new_seq(t->ctg, len, jun->locus - len);
 				} else {
-					junc_seq = get_junc_seq(t, jun->locus, &left_len,
-							jun->branch_tpl, 0, &right_len, half_len * 2);
-					main_part = cut_tpl_tail(t, jun->locus
-							+ min(half_len, jun->branch_tpl->len), half_len
-							+ min(half_len, jun->branch_tpl->len), 0);
+					len = min3(jun->branch_tpl->len, half_len, t->len - jun->locus);
+					junc_seq = new_seq(jun->branch_tpl->ctg, len, 0);
+					main_part = new_seq(t->ctg, len, jun->locus);
 				}
-				p_query("Junc Seq", junc_seq);
-				p_query("Main Seq", main_part);
+				p_query("Branch_junc", junc_seq);
+				p_query("Main_junc", main_part);
+				printf("Mismatches: %d\n", seq_ol(junc_seq, main_part, main_part->len, main_part->len));
 				bwa_free_read_seq(1, junc_seq);
 				bwa_free_read_seq(1, main_part);
 
@@ -1911,14 +1908,14 @@ void validate_junctions(char *junc_fn, char *pair_fa, char *pair_psl,
 					}
 				}
 				if (!has_hit) {
-					printf("No hit for branch template [%d, %d] \n",
+					printf("VALID: No hit for branch template [%d, %d] \n",
 							jun->branch_tpl->id, jun->branch_tpl->len);
 				} else {
 					if (has_valid_hit) {
-						printf("The branch [%d, %d] is valid. \n",
+						printf("VALID: The branch [%d, %d] is valid. \n",
 								jun->branch_tpl->id, jun->branch_tpl->len);
 					} else {
-						printf("Wrong branch: [%d, %d] \n",
+						printf("VALID: Wrong branch: [%d, %d] \n",
 								jun->branch_tpl->id, jun->branch_tpl->len);
 					}
 				}

@@ -300,9 +300,9 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 			//p_query("MATE", mate);
 		}
 	}
-	p_junction(jun);
-	printf("Main Pairs: %d\n", n_pairs_main);
-	printf("Branch Pairs: %d\n", n_pairs_branch);
+	//p_junction(jun);
+	printf("Main_Pairs: %d\n", n_pairs_main);
+	printf("Branch_Pairs: %d\n", n_pairs_branch);
 
 	g_ptr_array_free(j_reads, TRUE);
 	bwa_free_read_seq(1, left);
