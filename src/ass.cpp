@@ -1096,7 +1096,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				g_mutex_unlock(kmer_id_mutex);
 				show_debug_msg(__func__, "Branching failed.\n");
 				destory_tpl_junctions(branch);
-				destroy_tpl(branch, DEAD);
+				destroy_tpl(branch, read_status);
 			}
 			break;
 		}
@@ -1109,7 +1109,6 @@ void try_connect(hash_table *ht, tpl_hash *all_tpls, int to_con_left,
 		int to_con_right, tpl *t) {
 	int connected = 0;
 	int ori = 0;
-	return;
 	if (!t->alive)
 		return;
 	//if (t->id == 3)
@@ -1158,8 +1157,8 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 			correct_tpl_base(t, ht->o->read_len);
 			while (changed) {
 				if (to_branching) {
-					//branching(ht, all_tpls, t, LESS_MISMATCH, 0);
-					//branching(ht, all_tpls, t, LESS_MISMATCH, 1);
+					branching(ht, all_tpls, t, LESS_MISMATCH, 0);
+					branching(ht, all_tpls, t, LESS_MISMATCH, 1);
 				}
 				changed = prune_tpl_tails(ht, all_tpls, t);
 				set_jun_reads(ht, t);
