@@ -172,6 +172,18 @@ void reset_reads_to_fresh(GPtrArray *reads) {
 	}
 }
 
+void reset_unpaired_reads(bwa_seq_t *seqs, tpl *t) {
+	bwa_seq_t *mate = NULL, *read = NULL;
+	int i = 0;
+	for (i = 0; i < t->reads->len; i++) {
+		read = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		mate = get_mate(read, seqs);
+		if (mate->status != USED || mate->contig_id != t->id) {
+			reset_to_fresh(mate);
+		}
+	}
+}
+
 /**
  * Reset those not USED reads to fresh.
  * And clear the 'tried' reads on the template
@@ -1053,18 +1065,18 @@ int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
 	bwa_seq_t *r = NULL, *m = NULL;
 	int i = 0, j = 0;
 	tpl *near = NULL;
-	show_debug_msg(__func__, "Checking pairs for template [%d, %d] \n", t->id,
-			t->len);
+	//show_debug_msg(__func__, "Checking pairs for template [%d, %d] \n", t->id,
+	//		t->len);
 	for (i = 1; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		m = get_mate(r, ht->seqs);
-		if (m->status == USED) {
+		if (r->contig_locus >= 0 && m->status == USED) {
 			for (j = 0; j < tpls->len; j++) {
 				near = (tpl*) g_ptr_array_index(tpls, j);
-				if (m->contig_id == near->id && m->contig_id != t->id) {
+				if (m->contig_id == near->id && m->contig_id != t->id && m->contig_locus >= 0) {
 					n++;
-					p_query("READ", r);
-					p_query("MATE", m);
+					//p_query("READ", r);
+					//p_query("MATE", m);
 					break;
 				}
 			}

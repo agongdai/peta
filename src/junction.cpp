@@ -56,6 +56,7 @@ junction *add_a_junction(tpl *main_tpl, tpl *branch_tpl, bwa_seq_t *connector,
 	g_ptr_array_add(main_tpl->m_juncs, new_j);
 	if (!branch_tpl->b_juncs)
 		branch_tpl->b_juncs = g_ptr_array_sized_new(2);
+	new_j->reads = g_ptr_array_sized_new(0);
 	g_ptr_array_add(branch_tpl->b_juncs, new_j);
 	return new_j;
 }
@@ -68,10 +69,9 @@ void destroy_junction(junction *j) {
 		main_tpl = j->main_tpl;
 		branch_tpl = j->branch_tpl;
 
-		/**
-		 show_debug_msg(__func__, "Destroying junction ... \n");
-		 p_junction(j);
-		 p_junctions(main_tpl->m_juncs);
+		show_debug_msg(__func__, "Destroying junction ... \n");
+		p_junction(j);
+		/** p_junctions(main_tpl->m_juncs);
 		 p_junctions(main_tpl->b_juncs);
 		 p_junctions(branch_tpl->m_juncs);
 		 p_junctions(branch_tpl->b_juncs);
@@ -183,10 +183,49 @@ void reset_is_root(GPtrArray *tpls) {
 }
 
 GPtrArray *nearby_tpls(tpl *t) {
+	int i = 0;
+	tpl *near_t = NULL;
 	GPtrArray *near = g_ptr_array_sized_new(4);
 	near = get_nearby_tpls(t, near);
 	reset_is_root(near);
+	// Remove the template itself
+	for (i = 0; i < near->len; i++) {
+		t = (tpl*) g_ptr_array_index(near, i);
+		if (near_t == t) {
+			g_ptr_array_remove_index_fast(near, i--);
+		}
+	}
 	return near;
+}
+
+/**
+ * Count how many paired-end reads spanning the junction templates
+ */
+int count_pairs(bwa_seq_t *seqs, junction *jun) {
+	bwa_seq_t *read = NULL, *mate = NULL;
+	int i = 0, n_pairs = 0;
+	tpl *main_tpl = jun->main_tpl, *branch_tpl = jun->branch_tpl;
+	for (i = 0; i < branch_tpl->reads->len; i++) {
+		read = (bwa_seq_t*) g_ptr_array_index(branch_tpl->reads, i);
+		mate = get_mate(read, seqs);
+		if (mate->contig_id == main_tpl->id) {
+			if (jun->ori == 0 && mate->contig_locus < jun->locus - read->len)
+				n_pairs++;
+			if (jun->ori == 1 && mate->contig_locus > jun->locus)
+				n_pairs++;
+		}
+	}
+	//	for (i = 0; i < jun->reads->len; i++) {
+	//		read = (bwa_seq_t*) g_ptr_array_index(jun->reads, i);
+	//		mate = get_mate(read, seqs);
+	//		if (mate->contig_id == main_tpl->id) {
+	//			if (jun->ori == 0 && mate->contig_locus < jun->locus - read->len)
+	//				n_pairs++;
+	//			if (jun->ori == 1 && mate->contig_locus > jun->locus)
+	//				n_pairs++;
+	//		}
+	//	}
+	return n_pairs;
 }
 
 GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
@@ -203,36 +242,36 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	memcpy(junc_seq->seq + left_len, right->seq, sizeof(ubyte_t) * right_len);
 	junc_seq->len = left_len + right_len;
 	set_rev_com(junc_seq);
-//	p_query("Left  seq", left);
-//	p_query("Right seq", right);
-	p_query("Junction seq", junc_seq);
+	//	p_query("Left  seq", left);
+	//	p_query("Right seq", right);
+	//p_query("Junction seq", junc_seq);
 
 	if (junc_seq->len >= ht->o->read_len) {
 		hits = g_ptr_array_sized_new(4);
 		window = new_seq(junc_seq, ht->o->read_len, 0);
-//		window->full_len = 1000;
+		//		window->full_len = 1000;
 		for (i = 0; i <= junc_seq->len - ht->o->read_len; i++) {
 			if (i > 0)
 				ext_que(window, junc_seq->seq[i - 1 + ht->o->read_len], 0);
 			//printf("\n---\n");
 			//p_query(__func__, window);
 			hits = find_both_fr_full_reads(ht, window, hits, LESS_MISMATCH);
-			while(hits->len > 0) {
+			while (hits->len > 0) {
 				r = (bwa_seq_t*) g_ptr_array_index(hits, 0);
 
-//				if (reads->len % 15 == 0) {
-//					for (j = 0; j < junc_seq->len; j++) {
-//						printf("%c", "ACGTN"[junc_seq->seq[j]]);
-//					}
-//					printf("\n");
-//				}
-//				for (j = 0; j < i; j++) {
-//					printf(" ");
-//				}
-//				for (j = 0; j < r->len; j++) {
-//					printf("%c", r->rev_com ? "ACGTN"[r->rseq[j]] : "ACGTN"[r->seq[j]]);
-//				}
-//				printf("\t%c%s\n", r->rev_com ? '-' : '+', r->name);
+				//				if (reads->len % 15 == 0) {
+				//					for (j = 0; j < junc_seq->len; j++) {
+				//						printf("%c", "ACGTN"[junc_seq->seq[j]]);
+				//					}
+				//					printf("\n");
+				//				}
+				//				for (j = 0; j < i; j++) {
+				//					printf(" ");
+				//				}
+				//				for (j = 0; j < r->len; j++) {
+				//					printf("%c", r->rev_com ? "ACGTN"[r->rseq[j]] : "ACGTN"[r->seq[j]]);
+				//				}
+				//				printf("\t%c%s\n", r->rev_com ? '-' : '+', r->name);
 
 				g_ptr_array_add(reads, r);
 				g_ptr_array_remove_index_fast(hits, 0);
@@ -243,7 +282,7 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	}
 
 	n_reads = reads->len;
-//	show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
+	//	show_debug_msg(__func__, "# of junction reads: %d \n", n_reads);
 	*weight = n_reads;
 	bwa_free_read_seq(1, junc_seq);
 	return reads;
@@ -254,7 +293,8 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
  */
 int count_jun_reads(hash_table *ht, junction *jun) {
 	tpl *main_tpl = NULL, *branch = NULL;
-	bwa_seq_t *left = NULL, *right = NULL, *branch_seq = NULL, *main_seq = NULL, *mate = NULL, *read = NULL;
+	bwa_seq_t *left = NULL, *right = NULL, *branch_seq = NULL,
+			*main_seq = NULL, *mate = NULL, *read = NULL;
 	int n_reads = 0, b_l_len = 0, b_r_len = 0, b_t_len = 0;
 	int m_l_len = 0, m_r_len = 0, m_t_len = 0, i = 0;
 	GPtrArray *j_reads = NULL;
@@ -266,23 +306,24 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 	branch_seq = get_tpl_ctg_wt(branch, &b_l_len, &b_r_len, &b_t_len);
 	main_seq = get_tpl_ctg_wt(main_tpl, &m_l_len, &m_r_len, &m_t_len);
 	//p_junction(jun);
-	p_tpl(main_tpl);
-	p_tpl(branch);
-	left = jun->ori ? new_seq(branch_seq, branch_seq->len - b_r_len, 0) : new_seq(
-			main_seq, jun->locus + m_l_len, 0);
+	//p_tpl(main_tpl);
+	//p_tpl(branch);
+	left = jun->ori ? new_seq(branch_seq, branch_seq->len - b_r_len, 0)
+			: new_seq(main_seq, jun->locus + m_l_len, 0);
 	right = jun->ori ? new_seq(main_seq, main_seq->len - jun->locus - m_l_len,
-			jun->locus + m_l_len) : new_seq(branch_seq, branch->len + b_r_len, b_l_len);
+			jun->locus + m_l_len) : new_seq(branch_seq, branch->len + b_r_len,
+			b_l_len);
 	//p_ctg_seq("Main", main_tpl->ctg);
 	//p_ctg_seq("Bran", branch->ctg);
 	j_reads = find_junc_reads(ht, left, right, (ht->o->read_len
 			- JUNCTION_BOUNDARY_BASE) * 2, &n_reads);
 	// The junction reads can only exist on the branch template
-//	for (i = 0; i < j_reads->len; i++) {
-//		read = (bwa_seq_t*) g_ptr_array_index(j_reads, i);
-//		if (read->contig_id != jun->branch_tpl->id || read->status != USED) {
-//			g_ptr_array_remove_index_fast(j_reads, i--);
-//		}
-//	}
+	//	for (i = 0; i < j_reads->len; i++) {
+	//		read = (bwa_seq_t*) g_ptr_array_index(j_reads, i);
+	//		if (read->contig_id != jun->branch_tpl->id || read->status != USED) {
+	//			g_ptr_array_remove_index_fast(j_reads, i--);
+	//		}
+	//	}
 	n_reads = j_reads->len;
 
 	int n_pairs_main = 0, n_pairs_branch = 0;
@@ -301,10 +342,10 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 		}
 	}
 	//p_junction(jun);
-	printf("Main_Pairs: %d\n", n_pairs_main);
-	printf("Branch_Pairs: %d\n", n_pairs_branch);
+	//printf("Main_Pairs: %d\n", n_pairs_main);
+	//printf("Branch_Pairs: %d\n", n_pairs_branch);
 
-	g_ptr_array_free(j_reads, TRUE);
+	jun->reads = j_reads;
 	bwa_free_read_seq(1, left);
 	bwa_free_read_seq(1, right);
 	bwa_free_read_seq(1, branch_seq);
@@ -488,11 +529,12 @@ void p_junction(junction *jun) {
 		show_debug_msg(__func__, "Junction is NULL.\n");
 	else
 		show_debug_msg(__func__,
-				"[%d%c, %d]\t[%d%c, %d]\t%d\t%d\t%d\tStatus:%d\n",
+				"[%d%c, %d, %.2f]\t[%d%c, %d, %.2f]\t%d\t%d\t%d\tStatus:%d\n",
 				jun->main_tpl->id, jun->main_tpl->alive ? '@' : '!',
-				jun->main_tpl->len, jun->branch_tpl->id,
+				jun->main_tpl->len, jun->main_tpl->cov, jun->branch_tpl->id,
 				jun->branch_tpl->alive ? '@' : '!', jun->branch_tpl->len,
-				jun->locus, jun->weight, jun->ori, jun->status);
+				jun->branch_tpl->cov, jun->locus, jun->weight, jun->ori,
+				jun->status);
 }
 
 void p_junctions(GPtrArray *juns) {
@@ -552,6 +594,8 @@ void destory_tpl_junctions(tpl *t) {
 	junction *jun = NULL, *jun2 = NULL;
 	if (!t)
 		return;
+	show_debug_msg(__func__, "Destroying template junctions [%d, %d] \n",
+			t->id, t->len);
 	if (t->m_juncs) {
 		while (t->m_juncs->len > 0) {
 			jun = (junction*) g_ptr_array_index(t->m_juncs, 0);
@@ -603,6 +647,24 @@ void get_junction_arr(GPtrArray *read_tpls, GPtrArray *junctions) {
 			destroy_junction(junc);
 		}
 	}
+}
+
+/**
+ * Check whether there is any existing junction (ori 0) and locus is near.
+ */
+int has_nearby_junc(tpl *t, int locus) {
+	int i = 0;
+	GPtrArray *juncs = t->m_juncs;
+	junction *jun = NULL;
+	if (juncs) {
+		for (i = 0; i < juncs->len; i++) {
+			jun = (junction*) g_ptr_array_index(juncs, i);
+			if (jun->ori == 0 && locus - jun->locus <= 4 && locus - jun->locus
+					>= 0)
+				return 1;
+		}
+	}
+	return 0;
 }
 
 /**

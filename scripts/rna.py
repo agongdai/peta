@@ -49,16 +49,32 @@ def junc(args):
     junctions = read_junctions(args.jun)
     fa = FastaFile(args.fa)
     joint = FastaFile()
+    seq_names = []
     for j in junctions:
-        name = j.main + '_' + j.branch + '_' + str(j.locus) + '_' + str(j.ori)
         if j.ori == 0:
+            name = j.main + '_' + j.branch + '_' + str(j.locus) + '_' + str(j.ori)
             left = fa.seqs[j.main][0:j.locus]
             right = fa.seqs[j.branch]
         else:
+            name = j.main + '_' + j.branch + '_' + str(j.branch_len) + '_' + str(j.ori)
             left = fa.seqs[j.branch]
             right = fa.seqs[j.main][j.locus:j.main_len]
         joint.seqs[name] = left + right
-    joint.save_to_disk(args.fa[:-3] + '.joint.fa')
+        seq_names.append(name);
+    
+    with open(args.fa[:-3] + '.joint.fa', 'w') as out:
+        for tx_name in seq_names:
+            seq = joint.seqs[tx_name]
+            out.write('>%s length: %d\n' % (tx_name, len(seq)))
+            l = 0
+            for c in seq:
+                out.write(c)
+                l += 1
+                if l % 50 == 0:
+                    out.write('\n')
+            if not l % 50 == 0:
+                out.write('\n')
+    
     print 'Check file %s.joint.fa' % (args.fa[:-3])
 
 def simple_format_junctions(args):

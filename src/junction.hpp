@@ -40,6 +40,7 @@ extern "C" {
 	int same_main_juncs(junction *jun_1, junction *jun_2);
 	void reset_is_root(GPtrArray *tpls);
 	GPtrArray *nearby_tpls(tpl *t);
+	int count_pairs(bwa_seq_t *seqs, junction *jun);
 	GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 			const int max_len, int *weight);
 	GPtrArray *find_junc_reads_w_tails(hash_table *ht, tpl *left, tpl *right,
@@ -49,6 +50,7 @@ extern "C" {
 			GPtrArray *all_tpls);
 	gint cmp_junc_by_id(gpointer a, gpointer b);
 	void rm_junc_w_dead_tpls(GPtrArray *junctions, tpl *t);
+	int has_nearby_junc(tpl *t, int locus);
 	void mark_tpl_dead(tpl *t);
 	void destory_tpl_junctions(tpl *t);
 	void clean_junctions(GPtrArray *junctions);
