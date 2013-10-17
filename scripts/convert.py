@@ -1,5 +1,34 @@
 from zoom import *
 
+def psl2bed12(psl, out):
+    with open(out, 'w') as o:
+        blat_lines = []
+        with open(psl, 'r') as p:
+            for line in p:
+                line = line.strip()
+                blat_lines.append(line)
+        hits = read_psl_hits(blat_lines, 'ref')
+        for chr, chr_hits in hits.iteritems():
+            for h in chr_hits:
+                o.write('%s\t' % chr)
+                o.write('%d\t' % h.rstart)
+                o.write('%d\t' % h.rend)
+                o.write('%s\t' % h.qname)
+                o.write('0\t')
+                o.write('%c\t' % h.strand)
+                o.write('%d\t' % h.rstart)
+                o.write('%d\t' % h.rend)
+                o.write('0\t')
+                o.write('%d\t' % h.n_blocks)
+                for s in h.block_sizes:
+                    o.write('%d,' % s)
+                o.write('\t')
+                for s in h.r_block_starts:
+                    o.write('%d,' % s)
+                o.write('\t')
+                o.write('\n')
+    print 'Check BED12 file %s' % out
+
 def psl2gene(psl, asm):
     cmd = r"""tail -n +6 %s | awk -F "\t" 'BEGIN {{ OFS="\t"; }} {{ if ($5 == 0) print $10, $14, $9, $16, $17, $16, $17, $18, $21, $19;}}'""" % (psl)
     print cmd
@@ -112,6 +141,7 @@ def count_not_align(psl):
 #psl2gene('/home/carl/Projects/peta_dev/scripts/spombe_630.genome.psl')
 #psl2gene('/home/carl/Projects/peta/rnaseq/Spombe/genome/tx.630.oracle.genome.psl')
 #psl2gene('/home/carl/Projects/peta_dev/spombe_630/paired.630.oracle.psl')
-psl2gene('/home/ariyaratnep/shaojiang/peta_copies/peta_dev/SRX011545_out/idba-60.hg19.psl', 'hg19')
+#psl2gene('/home/ariyaratnep/shaojiang/peta_copies/peta_dev/SRX011545_out/idba-60.hg19.psl', 'hg19')
 #bed2gene('/home/ariyaratnep/shaojiang/peta/rnaseq/hg19/ensembl.genes.bed')
 #count_not_align('/home/carl/Projects/peta/rnaseq/Spombe/630.tx.rev.psl')
+psl2bed12('spombe.tx.uni.psl', 'spombe.tx.uni.bed')

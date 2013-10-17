@@ -76,6 +76,62 @@ def junc(args):
                 out.write('\n')
     
     print 'Check file %s.joint.fa' % (args.fa[:-3])
+    
+def collect_last_reads(args):
+    paired = FastaFile(args.paired)
+    reads = FastaFile(args.reads)
+    last_reads = FastaFile()
+    junctions = read_junctions(args.junc)
+    single_juncs = []
+    for this_j in junctions:
+        multi = False
+        for that_j in junctions:
+            if not this_j == that_j and this_j.branch == that_j.branch:
+                multi = True
+                break
+        if not multi:
+            single_juncs.append(this_j)
+    print single_juncs
+        
+    i = 0
+    ctg_read_dict = {}
+    for name, seq in paired.seqs.iteritems():
+        ids = name.split('_')
+        tpl_id = ids[0]
+        last_read_id = ids[1]
+        ctg_read_dict[last_read_id] = tpl_id
+        if not last_read_id == '0':
+            for j in junctions:
+                if j.branch == tpl_id:
+                    i += 1
+                    print i, name
+                    read = reads.seqs[last_read_id]
+                    last_reads.seqs[last_read_id] = read
+    last_reads.save_to_disk(args.paired[:-3] + '.last.fa')
+    print 'Check file %s.last.fa' % args.paired[:-3]
+    
+    cmd = 'blat spombe.fa %s.last.fa %s.last.ref.psl' % (args.paired[:-3], args.paired[:-3])
+    print runInShell(cmd)
+    hits = read_blat_hits('%s.last.ref.psl' % args.paired[:-3], 'query')
+    n_half = 0
+    n_single_half = 0
+    n_total = 0
+    for r in last_reads.seqs.iterkeys():
+        n_total += 1
+        if not r in hits:
+            print 'Read not aligned: %s' % r
+        else:
+            hs = hits[r]
+        for h in hs:
+            if h.n_match < h.qlen - 2:
+                print h.hit_line
+                n_half += 1
+                for j in single_juncs:
+                    if ctg_read_dict[r] == j.branch:
+                        n_single_half += 1
+                        break
+    print '%d/%d' % (n_half, n_total)
+    print '%d/%d' % (n_single_half, len(single_juncs))
 
 def simple_format_junctions(args):
     junctions = read_junctions(args.junc)
@@ -553,6 +609,12 @@ def main():
     parser_extract.add_argument('ref', help='transcript fasta')
     parser_extract.add_argument('reads', help='reads fasta')
     parser_extract.add_argument("tx", nargs='+', help="[transcript ids]")
+
+    parser_last = subparsers.add_parser('last', help='Get last read of branch templates')
+    parser_last.set_defaults(func=collect_last_reads)
+    parser_last.add_argument('paired', help='paired.fa')
+    parser_last.add_argument('junc', help='paired.junctions')
+    parser_last.add_argument('reads', help='reads.fa')
 
     args = parser.parse_args()
     args.func(args)

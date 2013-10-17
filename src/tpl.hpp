@@ -40,6 +40,7 @@ typedef struct {
 	float cov;				// Coverage
 	uint64_t tid;			// Thread id
 	bwa_seq_t *start_read;	// The starting kmer
+	bwa_seq_t *last_read;	// The last read
 	uint32_t kmer_freq;		// Sum of all kmer frequencies
 	GPtrArray *reads;		// Reads on it. Used for paired validation
 	GPtrArray *tried;		// Reads that loaded to pool once, then removed, marked as TRIED

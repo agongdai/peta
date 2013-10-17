@@ -77,7 +77,9 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 	for (tpl_hash::iterator m = all_tpls->begin(); m != all_tpls->end(); ++m) {
 		t = (tpl*) m->second;
 		if (t->alive) {
-			//show_debug_msg(__func__, "Template [%d, %d] \n", t->id, t->len);
+			show_debug_msg(__func__, "LAST READ [%d, %d] \n", t->id, t->len);
+			p_query("LAST READ", t->last_read);
+			p_tpl_reads(t);
 			//p_junctions(t->m_juncs);
 			//p_junctions(t->b_juncs);
 			g_ptr_array_add(tpls, t);
@@ -392,8 +394,8 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	show_debug_msg(__func__, "Trying to connect template [%d, %d] to %s ...\n",
 			branch->id, branch->len, ori ? "left" : "right");
 	con_reads = find_connected_reads(ht, all_tpls, branch, ori);
-//	show_debug_msg(__func__, "Connecting reads: \n");
-//	p_readarray(con_reads, 1);
+	//	show_debug_msg(__func__, "Connecting reads: \n");
+	//	p_readarray(con_reads, 1);
 	max_trial = con_reads->len > 4 ? 4 : con_reads->len;
 	for (i = 0; i < max_trial; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(con_reads, i);
@@ -614,6 +616,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 	int ext_len = 0, no_read_len = 0;
 	GPtrArray *near_tpls = g_ptr_array_sized_new(4);
 	bwa_seq_t *tail = new_seq(query, query->len, 0);
+	bwa_seq_t *last_read = NULL;
 
 	show_debug_msg(__func__,
 			"------ Started extending tpl %d to ori %d ... ------\n", t->id,
@@ -641,18 +644,22 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			break;
 		}
 
-//		if (t->id == 5) {
-//			p_query(__func__, tail);
-//			p_ctg_seq("TEMPLATE", t->ctg);
-//			p_pool("CURRENT POOL", p, NULL);
-//		}
+		if (p->reads->len > 0)
+			last_read
+					= (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len - 1);
+
+		//		if (t->id == 5) {
+					p_query(__func__, tail);
+					p_ctg_seq("TEMPLATE", t->ctg);
+					p_pool("CURRENT POOL", p, NULL);
+		//		}
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
-//		if (t->id == 5)
-//			show_debug_msg(__func__,
-//					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
-//					t->len, "ZACGTN"[max_c + 1]);
+		//		if (t->id == 5)
+					show_debug_msg(__func__,
+							"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
+							t->len, "ZACGTN"[max_c + 1]);
 
 		// If cannot extend, try to add mates into the pool
 		if (max_c == -1) {
@@ -665,6 +672,9 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			if (max_c == -1) {
 				show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
 						ori, t->id, t->len);
+				p_query("LAST READ", last_read);
+				if (last_read)
+					t->last_read = last_read;
 				to_connect = 1;
 				break;
 			} else {
@@ -1292,8 +1302,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		return NULL;
 	}
 
-	//if (fresh_trial == 0)
-	//	read = &seqs[2141];
+	if (fresh_trial == 0)
+		read = &seqs[4579];
 	//	if (fresh_trial == 1)
 	//		read = &seqs[7317];
 
@@ -1414,8 +1424,8 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-//		if (fresh_trial >= 1)
-//			break;
+				if (fresh_trial >= 1)
+					break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",
@@ -1917,9 +1927,10 @@ void validate_junctions(char *junc_fn, char *pair_fa, char *pair_psl,
 	junction *jun = NULL;
 	GPtrArray *all_tpls = g_ptr_array_sized_new(32);
 	GPtrArray *all_junctions = g_ptr_array_sized_new(32);
+	GPtrArray *junc_seqs = g_ptr_array_sized_new(32);
 	GPtrArray *paired_hits = NULL;
 	blat_hit *h = NULL;
-	bwa_seq_t *junc_seq = NULL, *main_part = NULL;
+	bwa_seq_t *branch_part = NULL, *main_part = NULL, *junc_seq = NULL;
 
 	paired_hits = read_blat_hits(pair_psl);
 
@@ -1952,22 +1963,45 @@ void validate_junctions(char *junc_fn, char *pair_fa, char *pair_psl,
 				has_valid_hit = 0;
 				if (jun->ori) {
 					len = min3(jun->branch_tpl->len, half_len, jun->locus);
-					junc_seq = new_seq(jun->branch_tpl->ctg, len,
+					branch_part = new_seq(jun->branch_tpl->ctg, len,
 							jun->branch_tpl->len - len);
 					main_part = new_seq(t->ctg, len, jun->locus - len);
 				} else {
 					len = min3(jun->branch_tpl->len, half_len, t->len
 							- jun->locus);
-					junc_seq = new_seq(jun->branch_tpl->ctg, len, 0);
+					branch_part = new_seq(jun->branch_tpl->ctg, len, 0);
 					main_part = new_seq(t->ctg, len, jun->locus);
 				}
 				printf("Junction_pairs: %d \n", count_pairs(ht->seqs, jun));
-				p_query("Branch_junc", junc_seq);
+				p_query("Branch_junc", branch_part);
 				p_query("Main_junc", main_part);
-				printf("Mismatches: %d\n", seq_ol(junc_seq, main_part,
+				printf("Mismatches: %d\n", seq_ol(branch_part, main_part,
 						main_part->len, main_part->len));
-				bwa_free_read_seq(1, junc_seq);
+				//bwa_free_read_seq(1, branch_part);
 				bwa_free_read_seq(1, main_part);
+
+				if (jun->ori) {
+					len = min3(jun->branch_tpl->len, half_len, t->len
+							- jun->locus);
+					main_part = new_seq(t->ctg, len, jun->locus);
+					junc_seq = blank_seq(main_part->len + branch_part->len);
+					memcpy(junc_seq->seq, branch_part->seq, branch_part->len);
+					memcpy(junc_seq->seq + branch_part->len, main_part->seq,
+							main_part->len);
+				} else {
+					len = min3(jun->branch_tpl->len, half_len, jun->locus);
+					main_part = new_seq(t->ctg, len, jun->locus - len);
+					junc_seq = blank_seq(main_part->len + branch_part->len);
+					memcpy(junc_seq->seq, main_part->seq, main_part->len);
+					memcpy(junc_seq->seq + main_part->len, branch_part->seq,
+							branch_part->len);
+				}
+				junc_seq->len = branch_part->len + main_part->len;
+				set_rev_com(junc_seq);
+				junc_seq->name = (char*) malloc(sizeof(char) * 1024);
+				sprintf(junc_seq->name, ">%d_%d_%d_%d\n", t->id,
+						jun->branch_tpl->id, jun->locus, jun->ori);
+				g_ptr_array_add(junc_seqs, junc_seq);
 
 				for (j = 0; j < paired_hits->len; j++) {
 					h = (blat_hit*) g_ptr_array_index(paired_hits, j);
@@ -2004,6 +2038,12 @@ void validate_junctions(char *junc_fn, char *pair_fa, char *pair_psl,
 			printf("\n+++\n");
 		}
 	}
+	FILE *fp = xopen("../SRR097897_branch/junc.fa", "w");
+	for (i = 0; i < junc_seqs->len; i++) {
+		junc_seq = (bwa_seq_t*) g_ptr_array_index(junc_seqs, i);
+		save_con(junc_seq->name, junc_seq, fp);
+	}
+	fclose(fp);
 }
 
 void blat_ref(char *joint_fa, char *joint_psl) {
@@ -2068,8 +2108,8 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 }
 
 int pe_kmer(int argc, char *argv[]) {
-	//	validate_junctions("../SRR097897_part/paired.junctions",
-	//			"../SRR097897_part/paired.fa", "../SRR097897_part/paired.fa.psl",
+	//	validate_junctions("../SRR097897_branch/paired.junctions",
+	//			"../SRR097897_branch/paired.fa", "../SRR097897_branch/paired.fa.psl",
 	//			"/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.part.fa");
 	//	blat_ref("../SRR097897_part/paired.joint.fa", "../SRR097897_part/paired.joint.fa.psl");
 	//	return 0;

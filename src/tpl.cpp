@@ -124,6 +124,7 @@ tpl *new_tpl() {
 	t->is_root = 0;
 	t->ori = 0;
 	t->start_read = NULL;
+	t->last_read = NULL;
 	t->tid = 0;
 	t->kmer_freq = 0;
 	t->cov = 0.0;
@@ -1075,8 +1076,8 @@ int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
 				near = (tpl*) g_ptr_array_index(tpls, j);
 				if (m->contig_id == near->id && m->contig_id != t->id && m->contig_locus >= 0) {
 					n++;
-					//p_query("READ", r);
-					//p_query("MATE", m);
+					p_query("READ", r);
+					p_query("MATE", m);
 					break;
 				}
 			}
@@ -1231,8 +1232,12 @@ void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 			contig = t->ctg;
 			if (ori)
 				seq_reverse(contig->len, contig->seq, 0);
-			sprintf(h, ">%d length: %d start: %s\n", t->id, contig->len,
+			if (t->last_read)
+			sprintf(h, ">%d_%s length: %d start: %s\n", t->id, t->last_read->name, contig->len,
 					t->start_read->name);
+			else
+				sprintf(h, ">%d_0 length: %d start: %s\n", t->id, contig->len,
+									t->start_read->name);
 			save_con(h, contig, ass_fa);
 		}
 	}
