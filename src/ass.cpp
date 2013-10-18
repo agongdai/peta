@@ -649,17 +649,17 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 					= (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len - 1);
 
 		//		if (t->id == 5) {
-					p_query(__func__, tail);
-					p_ctg_seq("TEMPLATE", t->ctg);
-					p_pool("CURRENT POOL", p, NULL);
+		//p_query(__func__, tail);
+		//p_ctg_seq("TEMPLATE", t->ctg);
+		//p_pool("CURRENT POOL", p, NULL);
 		//		}
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
 		//		if (t->id == 5)
-					show_debug_msg(__func__,
-							"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
-							t->len, "ZACGTN"[max_c + 1]);
+		//show_debug_msg(__func__,
+		//		"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
+		//		t->len, "ZACGTN"[max_c + 1]);
 
 		// If cannot extend, try to add mates into the pool
 		if (max_c == -1) {
@@ -1424,8 +1424,8 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-				if (fresh_trial >= 1)
-					break;
+		//if (fresh_trial >= 1)
+		//	break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",
@@ -1680,6 +1680,34 @@ void test_smith_waterman(char *fn) {
 	exit(1);
 }
 
+/*
+ * After merging, may go through some low coverage junctions
+ */
+void ext_after_merging(hash_table *ht, tpl_hash *all_tpls) {
+	tpl *t = NULL;
+	pool *p = new_pool();
+	bwa_seq_t *query = NULL;
+	int to_connect = 0;
+	for (tpl_hash::iterator m = all_tpls->begin(); m != all_tpls->end(); ++m) {
+		t = (tpl*) m->second;
+		if (!t->alive || t->len <= kmer_len)
+			continue;
+		show_debug_msg(__func__, "Template [%d, %d]\n", t->id, t->len);
+		while (p->reads->len > 0)
+			g_ptr_array_remove_index_fast(p->reads, 0);
+		if (!t->r_tail) {
+			query = new_seq(t->ctg, kmer_len, t->len - kmer_len);
+			to_connect = kmer_ext_tpl(ht, all_tpls, p, t, query, 0);
+		}
+		if (!t->l_tail) {
+			query = new_seq(t->ctg, kmer_len, 0);
+			to_connect = kmer_ext_tpl(ht, all_tpls, p, t, query, 1);
+		}
+		show_debug_msg(__func__, "Template [%d, %d]---\n\n", t->id, t->len);
+	}
+	destroy_pool(p);
+}
+
 void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	FILE *contigs = NULL;
 	kmer_t_meta *params = (kmer_t_meta*) calloc(1, sizeof(kmer_t_meta));
@@ -1721,8 +1749,9 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 			all_tpls.size());
 	merge_together_tpls(&all_tpls);
 	iter_merge(ht, &all_tpls, &tpl_kmer_hash);
+	ext_after_merging(ht, &all_tpls);
 
-	show_msg(__func__, "Removing junctions without pairs ...\n");
+	//show_msg(__func__, "Removing junctions without pairs ...\n");
 	//rm_no_pair_junctions(ht, &all_tpls);
 
 	show_msg(__func__, "Saving contigs: %.2f sec\n",
