@@ -837,6 +837,7 @@ void correct_tpl_base(tpl *t, const int read_len) {
 	if (!t->reads || t->reads->len == 0)
 		return;
 	counters = g_ptr_array_sized_new(t->len);
+	p_ctg_seq("BEFORE", t->ctg);
 	//p_tpl_reads(t);
 
 	for (i = 0; i < t->len; i++) {
@@ -880,6 +881,7 @@ void correct_tpl_base(tpl *t, const int read_len) {
 		free(cs);
 	}
 	g_ptr_array_free(counters, TRUE);
+	p_ctg_seq("AFTER", t->ctg);
 }
 
 void clear_tpl_tails(tpl *t) {

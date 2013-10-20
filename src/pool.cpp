@@ -158,24 +158,15 @@ int get_next_char(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 	c[0] = c[1] = c[2] = c[3] = c[4] = 0;
 	for (i = 0; i < reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
-		if (t->id == 49) {
-			p_query(__func__, r);
-		}
 		pre_cursor = ori ? (r->cursor + 1) : (r->cursor - 1);
 		// Check only if there are more than 2 reads
 		// If in the previous round, this read has a mismatch, then does not count it this time
 		if (pre_t_c > -1 && pre_cursor >= 0 && pre_cursor < r->len) {
 			pre_c = r->rev_com ? r->rseq[pre_cursor] : r->seq[pre_cursor];
-			if (t->id == 49) {
-				show_debug_msg(__func__, "pre_c: %d; pre_t_c: %d \n", pre_c, pre_t_c);
-			}
 			if (pre_c != 4 && pre_c != pre_t_c)
 				continue;
 		}
 		this_c = r->rev_com ? r->rseq[r->cursor] : r->seq[r->cursor];
-		if (t->id == 49) {
-			show_debug_msg(__func__, "this_c: %d \n", this_c);
-		}
 		// Simply ignore 'N's
 		if (this_c == 4)
 			continue;
@@ -185,7 +176,7 @@ int get_next_char(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		// Minus the mismatches with the template
 		weight -= r->pos * MISMATCH_WEIGHT;
 		// If its mate is nearby, triple the weight
-		if (m->status == USED) {
+		if (t->len > 100 && m->status == USED) {
 			for (j = 0; j < near_tpls->len; j++) {
 				main_tpl = (tpl*) g_ptr_array_index(near_tpls, j);
 				if (m->contig_id == main_tpl->id) {
@@ -215,9 +206,6 @@ int get_next_char(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		if (c[i] > max_c) {
 			max_c = c[i];
 			next_char = i;
-		}
-		if (t->id == 49) {
-			show_debug_msg(__func__, "i, %d: %.2f - Max: %.2f \n", i, c[i], max_c);
 		}
 	}
 	if (max_c == 0.0)

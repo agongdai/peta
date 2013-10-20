@@ -93,6 +93,30 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 }
 
 /**
+ * Reset the rev_com flag on used reads
+ */
+void reset_rev_com(tpl_hash *all_tpls, bwa_seq_t *r) {
+	int rev_com = 0, n_mis = 0, i = 0;
+	tpl *t = NULL;
+	tpl_hash::iterator it = all_tpls->find(r->contig_id);
+	if (it == all_tpls->end()) {
+		return;
+	}
+	t = (tpl*) it->second;
+	for (i = 0; i < r->len; i++) {
+		if (r->contig_locus + i < 0 || r->contig_locus + i >= t->len)
+			continue;
+		if (r->seq[i] != t->ctg->seq[r->contig_locus + i])
+			n_mis++;
+		if (n_mis > N_MISMATCHES + 2)
+			rev_com = 1;
+	}
+	r->rev_com = rev_com ? 1 : 0;
+	r->cursor = -1;
+	r->pos = IMPOSSIBLE_NEGATIVE;
+}
+
+/**
  * Use read-length tail to search,
  * 	find those templates could be connected to current branch
  */
@@ -145,16 +169,14 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
 		if (r->contig_id == branch->id) {
-			r->cursor = -1;
-			r->pos = IMPOSSIBLE_NEGATIVE;
+			reset_rev_com(all_tpls, r);
 			continue;
 		}
 		n_mis = -1;
 		if (ori) {
 			ol_len = r->len - r->pos;
 			if (branch->len < ol_len) {
-				r->cursor = -1;
-				r->pos = IMPOSSIBLE_NEGATIVE;
+				reset_rev_com(all_tpls, r);
 				continue;
 			}
 			copy_partial(branch->ctg, branch_seq, 0, ol_len);
@@ -164,8 +186,7 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 		} else {
 			ol_len = r->pos + tail->len;
 			if (branch->len < ol_len) {
-				r->cursor = -1;
-				r->pos = IMPOSSIBLE_NEGATIVE;
+				reset_rev_com(all_tpls, r);
 				continue;
 			}
 			copy_partial(branch->ctg, branch_seq, branch->len - ol_len, ol_len);
@@ -181,11 +202,7 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 		if (n_mis >= 0) {
 			g_ptr_array_add(mains, r);
 		} else {
-			// Reset the rev_com flag on used reads
-			r->cursor = -1;
-			r->pos = IMPOSSIBLE_NEGATIVE;
-			if (!branch_main_same_ori)
-				r->rev_com = r->rev_com ? 0 : 1;
+			reset_rev_com(all_tpls, r);
 		}
 	}
 	bwa_free_read_seq(1, branch_seq);
@@ -394,8 +411,8 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	show_debug_msg(__func__, "Trying to connect template [%d, %d] to %s ...\n",
 			branch->id, branch->len, ori ? "left" : "right");
 	con_reads = find_connected_reads(ht, all_tpls, branch, ori);
-	//	show_debug_msg(__func__, "Connecting reads: \n");
-	//	p_readarray(con_reads, 1);
+	//show_debug_msg(__func__, "Connecting reads: \n");
+	//p_readarray(con_reads, 1);
 	max_trial = con_reads->len > 4 ? 4 : con_reads->len;
 	for (i = 0; i < max_trial; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(con_reads, i);
@@ -1302,8 +1319,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		return NULL;
 	}
 
-	if (fresh_trial == 0)
-		read = &seqs[4579];
+	//if (fresh_trial == 0)
+	//	read = &seqs[110425];
 	//	if (fresh_trial == 1)
 	//		read = &seqs[7317];
 
@@ -1401,7 +1418,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[2277];
+	TEST = &seqs[367536];
 
 	// shrink_ht(ht);
 
