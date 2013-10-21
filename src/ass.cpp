@@ -79,7 +79,7 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 		if (t->alive) {
 			show_debug_msg(__func__, "LAST READ [%d, %d] \n", t->id, t->len);
 			p_query("LAST READ", t->last_read);
-			p_tpl_reads(t);
+			//p_tpl_reads(t);
 			//p_junctions(t->m_juncs);
 			//p_junctions(t->b_juncs);
 			g_ptr_array_add(tpls, t);
@@ -1067,7 +1067,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			show_debug_msg(__func__, "shift: %d; POS: %d; CURSOR: %d\n", shift,
 					pos, cursor);
 			show_debug_msg(__func__, "Branching at %d \n", con_pos);
-			p_pool(__func__, p, NULL);
+			//p_pool(__func__, p, NULL);
 			p_ctg_seq("AFTER TRUNCATE", branch->ctg);
 
 			// Initialization
@@ -1206,7 +1206,9 @@ void re_valid_tpls(hash_table *ht, tpl_hash *all_tpls) {
 		if (t->alive) {
 			finalize_tpl(ht, all_tpls, t, 0, 0, 0);
 		} else {
-			//destory_tpl_junctions(t);
+			g_mutex_lock(kmer_id_mutex);
+			all_tpls->erase(t->id);
+			g_mutex_unlock(kmer_id_mutex);
 			destroy_tpl(t, TRIED);
 		}
 	}
