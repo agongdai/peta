@@ -38,6 +38,7 @@ int stage = 1;
 int fresh_trial = 0;
 uint32_t n_used_reads = 0;
 char *kmer_out = NULL;
+GPtrArray *tried_reads = NULL;
 
 bwa_seq_t *TEST = NULL;
 
@@ -825,6 +826,36 @@ tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, int len,
 }
 
 /**
+ * Mark the reads on a template as TRIED temporarily
+ */
+void mark_as_tried_tmp(tpl *t) {
+	bwa_seq_t *r = 0;
+	int i = 0;
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		r->status = TRIED;
+		r->pos = IMPOSSIBLE_NEGATIVE;
+		r->cursor = -1;
+		r->contig_id = -1;
+		r->contig_locus = -1;
+		r->rev_com = 0;
+		g_ptr_array_add(tried_reads, r);
+	}
+}
+
+/**
+ * Unfrozen all TRIED reads
+ */
+void unfrozen_tried_reads() {
+	bwa_seq_t *r = NULL;
+	while(tried_reads->len > 0) {
+		r = (bwa_seq_t*) g_ptr_array_index(tried_reads, 0);
+		reset_to_fresh(r);
+		g_ptr_array_remove_index_fast(tried_reads, 0);
+	}
+}
+
+/**
  * For those branches at the head/tail, choose the longer branch
  */
 int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
@@ -1107,7 +1138,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			if (!dead) {
 				if (!val_branch_by_pairs(ht, t, branch)) {
 					dead = 1;
-					read_status = FRESH;
+					mark_as_tried_tmp(branch);
 				}
 			}
 
@@ -1127,6 +1158,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		}
 		g_ptr_array_free(b_reads, TRUE);
 	}
+	unfrozen_tried_reads();
 	bwa_free_read_seq(1, tail);
 }
 
@@ -1737,6 +1769,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	GPtrArray *read_tpls = NULL, *branching_events = NULL;
 	hash_table *ht = NULL;
 	char *fn = NULL, *lib_fn_copy = NULL;
+	tried_reads = g_ptr_array_sized_new(1024);
 	kmer_hash tpl_kmer_hash;
 
 	show_msg(__func__, "Library: %s \n", lib_file);
