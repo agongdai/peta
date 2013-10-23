@@ -269,16 +269,17 @@ def cal_base_cover(annotated_tx, hits):
 	return base_cover
 
 def cal_accuracy(annotated_tx, hits):
-	covered = 0.0
-	base_cover = cal_base_cover(annotated_tx, hits)
-	for tx_name, binary_covered in base_cover.iteritems():
-		n_covered = 0
-		for i in binary_covered:
-			n_covered += i
-		tx_cover = n_covered / len(annotated_tx[tx_name])
-		#print 'tx: %s, %d / %d = %.2f' % (tx_name, n_covered, len(tx_seq), tx_cover)
-		covered += tx_cover
-	covered /= len(annotated_tx)
+	n_mis = 0.0
+	n_correct = 0.0
+	for tx_name, tx_hits in hits.iteritems():
+		tx_hits.sort(key=lambda x: x.n_match, reverse=True)
+		if len(tx_hits) > 0:
+			h = tx_hits[0]
+			n_correct += h.n_match
+			n_mis += h.n_mismatch
+			#print tx_name
+			#print h.hit_line
+	covered = n_correct / (n_correct + n_mis)
 	return covered
 
 def cal_completeness(annotated_tx, hits, threshold=0.99):

@@ -828,12 +828,12 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
  * Assumption: the reads on the template are sorted by contig locus.
  * Correct template bases.
  */
-void correct_tpl_base(tpl *t, const int read_len) {
-	int *cs = NULL, max = 0;
+void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len) {
+	int *cs = NULL, max = 0, weight = 0;
 	GPtrArray *counters = NULL;
 	int c = 0, max_c = 0;
 	int i = 0, j = 0, locus = 0;
-	bwa_seq_t *r = NULL;
+	bwa_seq_t *r = NULL, *m = NULL;
 	if (!t->reads || t->reads->len == 0)
 		return;
 	counters = g_ptr_array_sized_new(t->len);
@@ -848,12 +848,16 @@ void correct_tpl_base(tpl *t, const int read_len) {
 	// Count the occurrences of nucleotides at every position
 	for (i = 0; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		m = get_mate(r, seqs);
+		weight = 1;
+		if (m->status == USED && m->contig_id == t->id)
+			weight = 1;
 		for (j = 0; j < r->len; j++) {
 			locus = r->contig_locus + j;
 			if (locus >= 0 && locus < t->len) {
 				c = r->rev_com ? r->rseq[j] : r->seq[j];
 				cs = (int*) g_ptr_array_index(counters, locus);
-				cs[c]++;
+				cs[c] += weight;
 			}
 		}
 	}

@@ -1143,7 +1143,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			}
 
 			if (!dead) {
-				correct_tpl_base(branch, ht->o->read_len);
+				correct_tpl_base(ht->seqs, branch, ht->o->read_len);
 				//p_tpl(branch);
 				//p_junctions(branch->b_juncs);
 			} else {
@@ -1211,7 +1211,7 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 					__func__,
 					"==== End of tpl %d with length: %d; reads: %d; Alive: %d ==== \n\n",
 					t->id, t->len, t->reads->len, t->alive);
-			correct_tpl_base(t, ht->o->read_len);
+			correct_tpl_base(ht->seqs, t, ht->o->read_len);
 			while (changed) {
 				if (to_branching) {
 					branching(ht, all_tpls, t, LESS_MISMATCH, 0);
@@ -1229,24 +1229,6 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 		}
 	}
 	rm_global_tpl(all_tpls, t, FRESH);
-}
-
-/**
- * Validate templates after all reads are visited
- */
-void re_valid_tpls(hash_table *ht, tpl_hash *all_tpls) {
-	tpl *t = NULL;
-	for (tpl_hash::iterator m = all_tpls->begin(); m != all_tpls->end(); ++m) {
-		t = (tpl*) m->second;
-		if (t->alive) {
-			finalize_tpl(ht, all_tpls, t, 0, 0, 0);
-		} else {
-			g_mutex_lock(kmer_id_mutex);
-			all_tpls->erase(t->id);
-			g_mutex_unlock(kmer_id_mutex);
-			destroy_tpl(t, TRIED);
-		}
-	}
 }
 
 /**
@@ -1357,7 +1339,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 	//if (fresh_trial == 0)
-	//	read = &seqs[64008];
+	//	read = &seqs[2296];
 	//if (fresh_trial == 1)
 	//	read = &seqs[38071];
 
@@ -1478,7 +1460,7 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		//if (fresh_trial >= 2)
+		//if (fresh_trial >= 1)
 		//	break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
@@ -1789,7 +1771,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	//test_kmer_ext(params);
 	//exit(1);
 	kmer_threads(params);
-	re_valid_tpls(ht, &all_tpls);
+	//re_valid_tpls(ht, &all_tpls);
 	// Start branching after the frequent kmers are consumed already.
 	//start_branching(&all_tpls, params);
 
