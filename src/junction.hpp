@@ -39,7 +39,7 @@ extern "C" {
 	void p_tpl_juncs(tpl *t, GPtrArray *t_juncs);
 	int same_main_juncs(junction *jun_1, junction *jun_2);
 	void reset_is_root(GPtrArray *tpls);
-	GPtrArray *nearby_tpls(tpl *t);
+	GPtrArray *nearby_tpls(tpl *t, int get_self);
 	int count_pairs(bwa_seq_t *seqs, junction *jun);
 	GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 			const int max_len, int *weight);

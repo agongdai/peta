@@ -25,14 +25,28 @@ void mv_reads_bt_tpls(tpl *from, tpl *to, int ol, int ori) {
 		// 'from' is at left, 'to' is at right
 		for (i = 0; i < to->reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(to->reads, i);
-			r->contig_locus += from->len - ol;
+			if (r->contig_locus < ol) {
+				p_query("DEAD", r);
+				reset_to_dead(r);
+				g_ptr_array_remove_index_fast(to->reads, i--);
+			} else
+				r->contig_locus += from->len - ol;
 		}
 		for (i = 0; i < from->reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
+			// Reset to fresh if out of range; otherwise, template correction problematic
 			add2tpl(to, r, r->contig_locus);
 		}
 	} else {
 		// 'from' is at right, 'to' is at left
+		for (i = 0; i < to->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(to->reads, i);
+			if (r->contig_locus + r->len >= to->len - ol) {
+				p_query("DEAD", r);
+				reset_to_dead(r);
+				g_ptr_array_remove_index_fast(to->reads, i--);
+			}
+		}
 		for (i = 0; i < from->reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
 			if (r->status == USED && r->contig_id == from->id) {
@@ -41,7 +55,7 @@ void mv_reads_bt_tpls(tpl *from, tpl *to, int ol, int ori) {
 			}
 		}
 	}
-	while(from->reads->len > 0)
+	while (from->reads->len > 0)
 		g_ptr_array_remove_index_fast(from->reads, 0);
 }
 
@@ -98,8 +112,8 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 			"Merging templates [%d, %d] and [%d, %d] with reverse complement: %d \n",
 			left->id, left->len, right->id, right->len, rev_com);
 
-    //p_tpl(left);
-    //p_tpl(right);
+	//p_tpl(left);
+	//p_tpl(right);
 
 	l_len = left->len;
 	// Copy the template sequence from right to left
@@ -133,17 +147,17 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 	while (right->reads->len > 0)
 		g_ptr_array_remove_index_fast(right->reads, 0);
 
-    // The junctions on the right now go to the left template
+	// The junctions on the right now go to the left template
 	if (right->b_juncs) {
 		for (i = 0; i < right->b_juncs->len; i++) {
 			jun = (junction*) g_ptr_array_index(right->b_juncs, i);
 			if (jun->branch_tpl == right) {
 				jun->branch_tpl = left;
-                // If right template connects to somewhere on the right, 
-                //  now the left templates connects to it.
-                if (!left->b_juncs)
-                    left->b_juncs = g_ptr_array_sized_new(2);
-                g_ptr_array_add(left->b_juncs, jun);
+				// If right template connects to somewhere on the right,
+				//  now the left templates connects to it.
+				if (!left->b_juncs)
+					left->b_juncs = g_ptr_array_sized_new(2);
+				g_ptr_array_add(left->b_juncs, jun);
 			}
 		}
 	}
@@ -152,17 +166,17 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 			jun = (junction*) g_ptr_array_index(right->m_juncs, i);
 			if (jun->main_tpl == right) {
 				jun->main_tpl = left;
-                // Update the junction locus
+				// Update the junction locus
 				jun->locus += l_len;
-                if (!left->m_juncs)
-                    left->m_juncs = g_ptr_array_sized_new(2);
-                g_ptr_array_add(left->m_juncs, jun);
+				if (!left->m_juncs)
+					left->m_juncs = g_ptr_array_sized_new(2);
+				g_ptr_array_add(left->m_juncs, jun);
 			}
 		}
 	}
 
-    //p_tpl(left);
+	//p_tpl(left);
 	right->alive = 0;
-    return 1;
+	return 1;
 }
 

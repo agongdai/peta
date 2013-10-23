@@ -53,6 +53,7 @@ extern "C" {
 	void copy_partial(bwa_seq_t *s, bwa_seq_t *copied, int start, int len);
 	void set_rev_com(bwa_seq_t *s);
 	void reset_to_fresh(bwa_seq_t *r);
+	void reset_to_dead(bwa_seq_t *r);
 	bwa_seq_t *blank_seq(const int len);
 	bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol,
 			const int shift);

@@ -443,15 +443,15 @@ void correct_init_tpl_base(pool *p, tpl *t, int ori) {
 /**
  * Find the fresh mates which overlap with the template tail, at least 11bp with 0 mismatches
  */
-void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
-		int mismatches, int ori) {
+void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
+		int tail_len, int mismatches, int ori) {
 	bwa_seq_t *m = NULL, *r = NULL, *tail = NULL, *part = NULL;
-	index64 i = 0;
+	int i = 0, j = 0;
 	int ol = 0, rev_com = 0, n_mis = 0;
 	tail = get_pure_tail(t, tail_len, ori);
 	junction *jun = NULL;
-	tpl *main_tpl = NULL;
-	GPtrArray *existing_reads = t->reads;
+	tpl *near = NULL;
+	GPtrArray *existing_reads = NULL;
 
 	// In case the tail is an biased seq like: TTTTCTTTTTT
 	if (!tail || is_biased_q(tail) || has_n(tail, 1)) {
@@ -459,18 +459,16 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 		return;
 	}
 
-	if (t->b_juncs && t->b_juncs->len > 0) {
-		jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
-		main_tpl = jun->main_tpl;
-		existing_reads = g_ptr_array_sized_new(t->reads->len
-				+ main_tpl->reads->len);
-		for (i = 0; i < t->reads->len; i++) {
-			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
-			g_ptr_array_add(existing_reads, r);
-		}
-		for (i = 0; i < main_tpl->reads->len; i++) {
-			r = (bwa_seq_t*) g_ptr_array_index(main_tpl->reads, i);
-			g_ptr_array_add(existing_reads, r);
+	existing_reads = g_ptr_array_sized_new(t->reads->len);
+
+	for (i = 0; i < near_tpls->len; i++) {
+		near = (tpl*) g_ptr_array_index(near_tpls, i);
+		for (j = 0; j < near->reads->len; j++) {
+			r = (bwa_seq_t*) g_ptr_array_index(near->reads, j);
+			m = get_mate(r, ht->seqs);
+			if (m->status == FRESH && !is_bad_query(m)) {
+				g_ptr_array_add(existing_reads, r);
+			}
 		}
 	}
 
@@ -513,9 +511,7 @@ void find_match_mates(hash_table *ht, pool *p, tpl *t, int tail_len,
 			add2pool(p, m);
 		}
 	}
-	if (main_tpl) {
-		g_ptr_array_free(existing_reads, TRUE);
-	}
+	g_ptr_array_free(existing_reads, TRUE);
 	bwa_free_read_seq(1, tail);
 }
 
@@ -582,8 +578,8 @@ void keep_paired_reads(hash_table *ht, pool *p, tpl *t) {
  * Find those reads with at least 11 * 2 overlap with the template,
  * 	by searching the hash table with LESS_MISMATCH
  */
-void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
-		int mismatches, int ori) {
+void find_hashed_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
+		int full_tail_len, int mismatches, int ori) {
 	int tail_len = ht->o->k * 2, limit = 0;
 	int i = 0, ol = 0, rev_com = 0, n_mis = 0, shift = 0;
 	int added = 0;
@@ -648,7 +644,7 @@ void find_hashed_mates(hash_table *ht, pool *p, tpl *t, int full_tail_len,
 	// With even shorter overlap and less mismatches allow.
 	// Base by base overlapping.
 	if (!added) {
-		find_match_mates(ht, p, t, ht->o->read_len - 1, mismatches, ori);
+		find_match_mates(ht, p, near_tpls, t, ht->o->read_len - 1, mismatches, ori);
 	}
 	rm_bad_ol_reads(p, t, ori);
 	keep_fewer_mis_reads(p);

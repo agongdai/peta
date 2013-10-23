@@ -145,7 +145,6 @@ GPtrArray *find_branch_junctions(GPtrArray *all, tpl *branch) {
 }
 
 /**
- * Concatenate all reads on nearby templates;
  * For paired reads finding
  * The attribute is_root is used as an indicator temporarily.
  */
@@ -170,6 +169,15 @@ GPtrArray *get_nearby_tpls(tpl *t, GPtrArray *tpls) {
 				get_nearby_tpls(jun->main_tpl, tpls);
 		}
 	}
+	if (t->m_juncs && t->m_juncs->len > 0) {
+		for (j = 0; j < t->m_juncs->len; j++) {
+			jun = (junction*) g_ptr_array_index(t->m_juncs, j);
+			//p_junction(jun);
+			//p_tpl(jun->main_tpl);
+			if (jun->branch_tpl->is_root == 0)
+				get_nearby_tpls(jun->branch_tpl, tpls);
+		}
+	}
 	return tpls;
 }
 
@@ -182,17 +190,22 @@ void reset_is_root(GPtrArray *tpls) {
 	}
 }
 
-GPtrArray *nearby_tpls(tpl *t) {
+GPtrArray *nearby_tpls(tpl *t, int get_self) {
 	int i = 0;
 	tpl *near_t = NULL;
 	GPtrArray *near = g_ptr_array_sized_new(4);
 	near = get_nearby_tpls(t, near);
 	reset_is_root(near);
+	//p_junctions(t->m_juncs);
 	// Remove the template itself
 	for (i = 0; i < near->len; i++) {
-		t = (tpl*) g_ptr_array_index(near, i);
-		if (near_t == t) {
+		near_t = (tpl*) g_ptr_array_index(near, i);
+		if (near_t == t && !get_self) {
 			g_ptr_array_remove_index_fast(near, i--);
+		} else {
+			//show_debug_msg(__func__,
+			//		"Nearby template: [%d, %d] of [%d, %d] \n", near_t->id,
+			//		near_t->len, t->id, t->len);
 		}
 	}
 	return near;
@@ -650,7 +663,7 @@ void get_junction_arr(GPtrArray *read_tpls, GPtrArray *junctions) {
 }
 
 /**
- * Check whether there is any existing junction (ori 0) and locus is near.
+ * Check whether there is any existing junction (ori 0/1) and locus is near.
  */
 int has_nearby_junc(tpl *t, int locus) {
 	int i = 0;
@@ -661,6 +674,8 @@ int has_nearby_junc(tpl *t, int locus) {
 			jun = (junction*) g_ptr_array_index(juncs, i);
 			if (jun->ori == 0 && locus - jun->locus <= 4 && locus - jun->locus
 					>= 0)
+				return 1;
+			if (jun->ori == 1 && jun->locus - locus <= 4 && jun->locus - locus >= 0)
 				return 1;
 		}
 	}

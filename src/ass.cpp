@@ -366,7 +366,7 @@ int val_branch_by_pairs(hash_table *ht, tpl *main_tpl, tpl *branch_tpl) {
 	if (branch_tpl->alive == 0)
 		return 0;
 	GPtrArray *near_tpls = NULL;
-	near_tpls = nearby_tpls(branch_tpl);
+	near_tpls = nearby_tpls(branch_tpl, 0);
 	has_pairs = has_nearby_pairs(ht, near_tpls, branch_tpl, MIN_PAIRS);
 	g_ptr_array_free(near_tpls, TRUE);
 	if (!has_pairs) {
@@ -639,7 +639,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			"------ Started extending tpl %d to ori %d ... ------\n", t->id,
 			ori);
 	p_query(__func__, tail);
-	near_tpls = nearby_tpls(t);
+	near_tpls = nearby_tpls(t, 1);
 	while (1) {
 		// If the query is bad, stop
 		if (is_bad_query(tail)) {
@@ -662,18 +662,17 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		}
 
 		if (p->reads->len > 0)
-			last_read
-					= (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len - 1);
+			last_read = (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len - 1);
 
-		//		if (t->id == 5) {
+		//if (t->id == 1 || t->id == 146) {
 		//p_query(__func__, tail);
 		//p_ctg_seq("TEMPLATE", t->ctg);
 		//p_pool("CURRENT POOL", p, NULL);
-		//		}
+		//}
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
-		//		if (t->id == 5)
+		//if (t->id == 1 || t->id == 146)
 		//show_debug_msg(__func__,
 		//		"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 		//		t->len, "ZACGTN"[max_c + 1]);
@@ -684,7 +683,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			//show_debug_msg(__func__, "Looking for mates on [%d, %d] ...\n",
 			//		t->id, t->len);
 			//p_tpl_reads(t);
-			find_hashed_mates(ht, p, t, tail->len + 1, N_MISMATCHES, ori);
+			find_hashed_mates(ht, p, near_tpls, t, tail->len + 1, N_MISMATCHES, ori);
 			max_c = get_next_char(ht, p, near_tpls, t, ori);
 			if (max_c == -1) {
 				show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
@@ -870,7 +869,6 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				freed = 1;
 				break;
 			}
-			//
 			//p_tpl(branch);
 			//p_tpl_reads(branch);
 			if (added_len_to_left == 0 && jun->locus < ht->o->read_len
@@ -1157,7 +1155,7 @@ void try_connect(hash_table *ht, tpl_hash *all_tpls, int to_con_left,
  */
 void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 		int to_con_left, int to_con_right) {
-	int changed = 1;
+	int changed = 1, pre_n_m_juncs = 0;
 	unfrozen_tried(t);
 	if (t->alive) {
 		set_rev_com(t->ctg);
@@ -1185,7 +1183,12 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 			while (changed) {
 				if (to_branching) {
 					branching(ht, all_tpls, t, LESS_MISMATCH, 0);
+					if (t->m_juncs)
+						pre_n_m_juncs = t->m_juncs->len;
 					branching(ht, all_tpls, t, LESS_MISMATCH, 1);
+					// In case some junctions are removed because of no pairs in the first round
+					if (t->m_juncs && t->m_juncs->len > pre_n_m_juncs)
+						branching(ht, all_tpls, t, LESS_MISMATCH, 0);
 				}
 				changed = prune_tpl_tails(ht, all_tpls, t);
 				set_jun_reads(ht, t);
@@ -1229,7 +1232,7 @@ void strip_branches(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 	pool *p = NULL;
 	if (!branches || !t->alive)
 		return;
-	near_tpls = nearby_tpls(t);
+	near_tpls = nearby_tpls(t, 1);
 	g_ptr_array_sort(branches, (GCompareFunc) cmp_junc_by_branch_id);
 	show_debug_msg(__func__, "There are %d branches on [%d, %d]\n",
 			branches->len, t->id, t->len);
@@ -1322,9 +1325,9 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 	//if (fresh_trial == 0)
-	//	read = &seqs[110425];
-	//	if (fresh_trial == 1)
-	//		read = &seqs[7317];
+	//	read = &seqs[64008];
+	//if (fresh_trial == 1)
+	//	read = &seqs[38071];
 
 	printf("\n");
 	show_debug_msg(__func__,
@@ -1443,7 +1446,7 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		//if (fresh_trial >= 1)
+		//if (fresh_trial >= 2)
 		//	break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
