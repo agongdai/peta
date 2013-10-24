@@ -845,7 +845,7 @@ void do_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *r) {
 	bwa_free_read_seq(1, query);
 
 	show_debug_msg(__func__, "Jumping tpl %d with length: %d \n", t->id, t->len);
-	p_tpl_reads(t);
+	//p_tpl_reads(t);
 }
 
 void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
@@ -853,7 +853,8 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 	bwa_seq_t *r = NULL, *m = NULL;
 	tpl *to = NULL;
 	pool *p = NULL;
-	p_tpl_reads(from);
+	if (!from || !from->alive)
+		return;
 	for (i = 0; i < from->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
 		m = get_mate(r, ht->seqs);
@@ -866,6 +867,8 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 		if (!to)
 			continue;
 		do_jumping(ht, all_tpls, to, m);
+		// Jump from the new template again
+		tpl_jumping(ht, all_tpls, to);
 	}
 }
 
@@ -1442,7 +1445,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 	//if (fresh_trial == 0)
-	//	read = &seqs[22133];
+	//	read = &seqs[96181];
 	//if (fresh_trial == 1)
 	//	read = &seqs[38071];
 
