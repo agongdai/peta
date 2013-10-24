@@ -54,6 +54,7 @@
 #define N_BAD_TAIL_SHIFT		2
 #define MORE_MISMATCH			4
 #define LESS_MISMATCH			1
+#define MIN_GAPPED_PAIRS		4
 #define MAX_GAPS				4
 #define MIN_PAIRS				2
 #define MIN_JUNCTION_READS	    4

@@ -360,6 +360,30 @@ void p_tpl_junctions(tpl_hash *all_tpls, int id) {
 }
 
 /**
+ * Remove a dead template from the global template hash
+ */
+void rm_global_tpl(tpl_hash *all_tpls, tpl *t, int status) {
+	if (!t->alive) {
+		show_debug_msg(__func__, "Template [%d, %d] is destroyed.\n", t->id,
+				t->len);
+		g_mutex_lock(kmer_id_mutex);
+		all_tpls->erase(t->id);
+		g_mutex_unlock(kmer_id_mutex);
+		destory_tpl_junctions(t);
+		destroy_tpl(t, status);
+	}
+}
+
+tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, int len,
+		int ori) {
+	tpl *branch = blank_tpl(branch_read, len, ori);
+	g_mutex_lock(kmer_id_mutex);
+	all_tpls->insert(make_pair<int, tpl*> ((int) branch->id, (tpl*) branch));
+	g_mutex_unlock(kmer_id_mutex);
+	return branch;
+}
+
+/**
  * Check whether a branch has paired reads with current component.
  */
 int val_branch_by_pairs(hash_table *ht, tpl *main_tpl, tpl *branch_tpl) {
@@ -663,7 +687,8 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 		}
 
 		if (p->reads->len > 0)
-			last_read = (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len - 1);
+			last_read
+					= (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len - 1);
 
 		//if (t->id == 1 || t->id == 146) {
 		//p_query(__func__, tail);
@@ -684,7 +709,8 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			//show_debug_msg(__func__, "Looking for mates on [%d, %d] ...\n",
 			//		t->id, t->len);
 			//p_tpl_reads(t);
-			find_hashed_mates(ht, p, near_tpls, t, tail->len + 1, N_MISMATCHES, ori);
+			find_hashed_mates(ht, p, near_tpls, t, tail->len + 1, N_MISMATCHES,
+					ori);
 			max_c = get_next_char(ht, p, near_tpls, t, ori);
 			if (max_c == -1) {
 				show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
@@ -739,6 +765,108 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 	g_ptr_array_free(near_tpls, TRUE);
 	bwa_free_read_seq(1, tail);
 	return to_connect;
+}
+
+void kmer_etx_jump(hash_table *ht, tpl *t) {
+
+}
+
+/**
+ * Check whether need to jump, starting from the 'read'
+ * At least MIN_GAPPED_PAIRS pairs should be found
+ */
+tpl *please_jump(hash_table *ht, tpl_hash *all_tpls, tpl *from, bwa_seq_t *read) {
+	pool *p = new_pool();
+	tpl *to = NULL;
+	int i = 0;
+	bwa_seq_t *r = NULL, *m = NULL;
+	to = add_global_tpl(all_tpls, read, read->len, 0);
+	init_pool(ht, p, to, kmer_len, N_MISMATCHES, 0);
+	init_pool(ht, p, to, kmer_len, N_MISMATCHES, 1);
+	g_ptr_array_add(p->reads, read);
+	//p_readarray(p->reads, 1);
+	for (i = 0; i < p->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
+		m = get_mate(r, ht->seqs);
+		if (m->status == USED && m->contig_id == from->id) {
+			//p_query("USED ", m);
+			//p_query("FRESH", r);
+		} else {
+			reset_to_fresh(r);
+			g_ptr_array_remove_index_fast(p->reads, i--);
+		}
+	}
+	if (p->reads->len < MIN_GAPPED_PAIRS) {
+		to->alive = 0;
+		rm_global_tpl(all_tpls, to, FRESH);
+		destroy_pool(p);
+		return NULL;
+	} else {
+		destroy_pool(p);
+		return to;
+	}
+}
+
+/**
+ * Reaching this step, the initial pool cannot be empty
+ */
+void do_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *r) {
+	pool *p = new_pool();
+	int to_con_left = 0, to_con_right = 0;
+	bwa_seq_t *query = NULL;
+	int pre_len = t->len;
+	int pre_n_reads = t->reads->len;
+
+	show_debug_msg(__func__, "Jumping to read %s as template %d\n", r->name, t->id);
+
+	init_pool(ht, p, t, kmer_len, N_MISMATCHES, 1);
+	correct_init_tpl_base(p, t, 1);
+	query = get_tail(t, kmer_len, 1);
+	to_con_left = kmer_ext_tpl(ht, all_tpls, p, t, query, 1);
+	bwa_free_read_seq(1, query);
+	destroy_pool(p);
+	set_rev_com(t->ctg);
+
+	// Maybe marked as not alive in last extension
+	if (!t->alive)
+		return;
+
+	upd_locus_on_tpl(t, pre_len, pre_n_reads);
+
+	// Then extend to the left
+	query = get_tail(t, kmer_len, 0);
+	p = new_pool();
+	init_pool(ht, p, t, kmer_len, N_MISMATCHES, 0);
+	//p_query(__func__, query);
+	//p_pool("INITIAL_POOL", p, NULL);
+	to_con_right = kmer_ext_tpl(ht, all_tpls, p, t, query, 0);
+	set_rev_com(t->ctg);
+	destroy_pool(p);
+	bwa_free_read_seq(1, query);
+
+	show_debug_msg(__func__, "Jumping tpl %d with length: %d \n", t->id, t->len);
+	p_tpl_reads(t);
+}
+
+void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
+	int i = 0;
+	bwa_seq_t *r = NULL, *m = NULL;
+	tpl *to = NULL;
+	pool *p = NULL;
+	p_tpl_reads(from);
+	for (i = 0; i < from->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
+		m = get_mate(r, ht->seqs);
+		// If the read is in the middle of the template, must do not jump from its mate
+		if (m->status != FRESH || (r->contig_locus > ins_size + 100
+				&& r->contig_locus < from->len - ins_size - 100))
+			continue;
+		show_debug_msg(__func__, "Trying to jump to %s ...\n", m->name);
+		to = please_jump(ht, all_tpls, from, m);
+		if (!to)
+			continue;
+		do_jumping(ht, all_tpls, to, m);
+	}
 }
 
 /**
@@ -800,32 +928,6 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 }
 
 /**
- * Remove a dead template from the global template hash
- */
-void rm_global_tpl(tpl_hash *all_tpls, tpl *t, int status) {
-	int i = 0;
-	junction *jun = NULL;
-	if (!t->alive) {
-		show_debug_msg(__func__, "Template [%d, %d] is destroyed.\n", t->id,
-				t->len);
-		g_mutex_lock(kmer_id_mutex);
-		all_tpls->erase(t->id);
-		g_mutex_unlock(kmer_id_mutex);
-		destory_tpl_junctions(t);
-		destroy_tpl(t, status);
-	}
-}
-
-tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, int len,
-		int ori) {
-	tpl *branch = blank_tpl(branch_read, len, ori);
-	g_mutex_lock(kmer_id_mutex);
-	all_tpls->insert(make_pair<int, tpl*> ((int) branch->id, (tpl*) branch));
-	g_mutex_unlock(kmer_id_mutex);
-	return branch;
-}
-
-/**
  * Mark the reads on a template as TRIED temporarily
  */
 void mark_as_tried_tmp(tpl *t) {
@@ -848,7 +950,7 @@ void mark_as_tried_tmp(tpl *t) {
  */
 void unfrozen_tried_reads() {
 	bwa_seq_t *r = NULL;
-	while(tried_reads->len > 0) {
+	while (tried_reads->len > 0) {
 		r = (bwa_seq_t*) g_ptr_array_index(tried_reads, 0);
 		reset_to_fresh(r);
 		g_ptr_array_remove_index_fast(tried_reads, 0);
@@ -1226,6 +1328,7 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 				set_jun_reads(ht, t);
 				strip_branches(ht, all_tpls, t);
 			}
+			tpl_jumping(ht, all_tpls, t);
 		}
 	}
 	rm_global_tpl(all_tpls, t, FRESH);
@@ -1339,7 +1442,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 	//if (fresh_trial == 0)
-	//	read = &seqs[2296];
+	//	read = &seqs[22133];
 	//if (fresh_trial == 1)
 	//	read = &seqs[38071];
 

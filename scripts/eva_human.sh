@@ -1,13 +1,13 @@
 #!/bin/bash
 
-query="peta"
+query="paired"
 root_dir="/home/carl/Projects/"
 eva_exe="$root_dir/peta_pair/scripts/eva.py"
 db_dir="$root_dir/peta/rnaseq/hg19/"
 db="ensembl.genes.fa.oracle"
 blastdb="$root_dir/ncbi-blast-2.2.26+/db/"
 similarity="99"
-query_dir="$root_dir/peta_pair/SRR027876_branch/"
+query_dir="$root_dir/peta_pair/SRR027876_part/"
 
 blastn_exe="blastn"
 blat_exe="$root_dir/blat/blat"

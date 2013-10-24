@@ -125,6 +125,17 @@ void mark_pool_reads_tried(pool *p, tpl *t) {
 	}
 }
 
+void empty_pool(pool *p) {
+	if (!p || !p->reads || p->reads->len <= 0)
+		return;
+	bwa_seq_t *r = NULL;
+	while(p->reads->len > 0) {
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads, 0);
+		reset_to_fresh(r);
+		g_ptr_array_remove_index_fast(p->reads, 0);
+	}
+}
+
 /**
  * Remove a read from the pool and reset the the read status
  */

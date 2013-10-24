@@ -851,7 +851,7 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len) {
 		m = get_mate(r, seqs);
 		weight = 1;
 		if (m->status == USED && m->contig_id == t->id)
-			weight = 1;
+			weight = MATE_MULTI;
 		for (j = 0; j < r->len; j++) {
 			locus = r->contig_locus + j;
 			if (locus >= 0 && locus < t->len) {
