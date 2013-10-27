@@ -383,6 +383,38 @@ tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, int len,
 	return branch;
 }
 
+
+/**
+ * Mark the reads on a template as TRIED temporarily
+ */
+void mark_as_hang_tmp(tpl *t) {
+	bwa_seq_t *r = 0;
+	int i = 0;
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		r->status = TRIED;
+		r->pos = IMPOSSIBLE_NEGATIVE;
+		r->cursor = -1;
+		r->contig_id = -1;
+		r->contig_locus = -1;
+		r->rev_com = 0;
+		g_ptr_array_add(tried_reads, r);
+	}
+}
+
+/**
+ * Unfrozen all TRIED reads
+ */
+void unfrozen_hang_reads() {
+	bwa_seq_t *r = NULL;
+	while (tried_reads->len > 0) {
+		r = (bwa_seq_t*) g_ptr_array_index(tried_reads, 0);
+		//if (r->status == HANG)
+		reset_to_fresh(r);
+		g_ptr_array_remove_index_fast(tried_reads, 0);
+	}
+}
+
 /**
  * Check whether a branch has paired reads with current component.
  */
@@ -781,6 +813,7 @@ tpl *please_jump(hash_table *ht, tpl_hash *all_tpls, tpl *from, bwa_seq_t *read)
 	int i = 0;
 	bwa_seq_t *r = NULL, *m = NULL;
 	to = add_global_tpl(all_tpls, read, read->len, 0);
+	return to;
 	init_pool(ht, p, to, kmer_len, N_MISMATCHES, 0);
 	init_pool(ht, p, to, kmer_len, N_MISMATCHES, 1);
 	g_ptr_array_add(p->reads, read);
@@ -849,15 +882,19 @@ void do_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *r) {
 }
 
 void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
-	int i = 0;
+	int i = 0, merged = 0;
 	bwa_seq_t *r = NULL, *m = NULL;
 	tpl *to = NULL;
 	pool *p = NULL;
 	if (!from || !from->alive)
 		return;
+//	g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 	for (i = 0; i < from->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
 		m = get_mate(r, ht->seqs);
+//		show_debug_msg(__func__, "i = %d\n", i);
+//		p_query(__func__, r);
+//		p_query(__func__, m);
 		// If the read is in the middle of the template, must do not jump from its mate
 		if (m->status != FRESH || (r->contig_locus > ins_size + 100
 				&& r->contig_locus < from->len - ins_size - 100))
@@ -867,9 +904,22 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 		if (!to)
 			continue;
 		do_jumping(ht, all_tpls, to, m);
-		// Jump from the new template again
-		tpl_jumping(ht, all_tpls, to);
+		if (!to->alive)
+			continue;
+		merged = merged_jumped(ht, from, to, MORE_MISMATCH);
+		if (merged) {
+			show_debug_msg(__func__, "Jumped to read %s [%d, %d] as [%d, %d]...\n", m->name,
+					to->id, to->len, from->id, from->len);
+//			g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+			//p_tpl_reads(from);
+			i = 0;
+		}
+		mark_as_hang_tmp(to);
+		to->alive = 0;
+		rm_global_tpl(all_tpls, to, HANG);
+		show_debug_msg(__func__, "--- End of jumping %s\n\n", m->name);
 	}
+	unfrozen_hang_reads();
 }
 
 /**
@@ -930,35 +980,6 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 	return 0;
 }
 
-/**
- * Mark the reads on a template as TRIED temporarily
- */
-void mark_as_tried_tmp(tpl *t) {
-	bwa_seq_t *r = 0;
-	int i = 0;
-	for (i = 0; i < t->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
-		r->status = TRIED;
-		r->pos = IMPOSSIBLE_NEGATIVE;
-		r->cursor = -1;
-		r->contig_id = -1;
-		r->contig_locus = -1;
-		r->rev_com = 0;
-		g_ptr_array_add(tried_reads, r);
-	}
-}
-
-/**
- * Unfrozen all TRIED reads
- */
-void unfrozen_tried_reads() {
-	bwa_seq_t *r = NULL;
-	while (tried_reads->len > 0) {
-		r = (bwa_seq_t*) g_ptr_array_index(tried_reads, 0);
-		reset_to_fresh(r);
-		g_ptr_array_remove_index_fast(tried_reads, 0);
-	}
-}
 
 /**
  * For those branches at the head/tail, choose the longer branch
@@ -1243,7 +1264,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			if (!dead) {
 				if (!val_branch_by_pairs(ht, t, branch)) {
 					dead = 1;
-					mark_as_tried_tmp(branch);
+					mark_as_hang_tmp(branch);
 				}
 			}
 
@@ -1263,7 +1284,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		}
 		g_ptr_array_free(b_reads, TRUE);
 	}
-	unfrozen_tried_reads();
+	unfrozen_hang_reads();
 	bwa_free_read_seq(1, tail);
 }
 

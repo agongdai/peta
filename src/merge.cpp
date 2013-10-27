@@ -60,6 +60,134 @@ void mv_reads_bt_tpls(tpl *from, tpl *to, int ol, int ori) {
 }
 
 /**
+ * Merge jumped template to the main template;
+ * Main template is at the left
+ */
+void merge_tpl_to_right(tpl *t, tpl *jumped, int ol, int rev_com) {
+	int i = 0, l_len = 0, new_locus = 0;
+	bwa_seq_t *r = NULL;
+	ubyte_t c = 0;
+	show_debug_msg(__func__, "Merging Right: [%d, %d] Vs. [%d, %d]; ol: %d\n",
+					t->id, t->len, jumped->id, jumped->len, ol);
+	if (!t || !jumped || ol > t->len || ol > jumped->len)
+		return;
+	if (t->l_tail) {
+		show_debug_msg(
+				__func__,
+				"[WARNING]: jumped template [%d, %d] cannot be merged to [%d, %d] \n",
+				jumped->id, jumped->len, t->id, t->len);
+		return;
+	}
+
+	l_len = t->len;
+	// Copy the template sequence from right to left
+	for (i = jumped->len - ol - 1; i >= 0; i--) {
+		c = rev_com ? jumped->ctg->rseq[i] : jumped->ctg->seq[i];
+		ext_con(t->ctg, c, 1);
+	}
+	t->len = t->ctg->len;
+	set_rev_com(t->ctg);
+
+	// Update the read locus on the main template
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		r->contig_locus += jumped->len - ol;
+	}
+
+	// Add the reads on jumped template to the main template
+	for (i = 0; i < jumped->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(jumped->reads, i);
+		if (r->status == USED && r->contig_id == jumped->id) {
+			new_locus = r->contig_locus;
+			if (rev_com) {
+				r->rev_com = r->rev_com ? 0 : 1;
+				new_locus = jumped->len - r->contig_locus - r->len;
+			}
+			add2tpl(t, r, new_locus);
+		}
+	}
+	while (jumped->reads->len > 0)
+		g_ptr_array_remove_index_fast(jumped->reads, 0);
+	jumped->alive = 0;
+}
+
+/**
+ * Merge jumped template to the main template;
+ * Main template is at the left
+ */
+void merge_tpl_to_left(tpl *t, tpl *jumped, int ol, int rev_com) {
+	int i = 0, l_len = 0, new_locus = 0;
+	bwa_seq_t *r = NULL;
+	ubyte_t c = 0;
+	if (!t || !jumped || ol < t->len || ol < jumped->len)
+		return;
+	if (t->r_tail) {
+		show_debug_msg(
+				__func__,
+				"[WARNING]: jumped template [%d, %d] cannot be merged to [%d, %d] \n",
+				jumped->id, jumped->len, t->id, t->len);
+		return;
+	}
+	l_len = t->len;
+	show_debug_msg(__func__, "Merging Left: [%d, %d] Vs. [%d, %d]; ol: %d\n",
+			t->id, t->len, jumped->id, jumped->len, ol);
+	// Copy the template sequence from right to left
+	for (i = ol; i < jumped->len; i++) {
+		c = rev_com ? jumped->ctg->rseq[i] : jumped->ctg->seq[i];
+		ext_con(t->ctg, c, 0);
+	}
+	t->len = t->ctg->len;
+	set_rev_com(t->ctg);
+
+	// Add the reads on right template to the left template
+	for (i = 0; i < jumped->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(jumped->reads, i);
+		if (r->status == USED && r->contig_id == jumped->id) {
+			// Update the locus
+			new_locus = rev_com ? (jumped->len - r->contig_locus - r->len
+					+ l_len - ol) : (r->contig_locus + l_len - ol);
+			// If need to reverse complement the right template,
+			//	need to reverse the reverse complement flag on the reads
+			if (rev_com) {
+				r->rev_com = r->rev_com ? 0 : 1;
+			}
+			add2tpl(t, r, new_locus);
+		}
+	}
+	while (jumped->reads->len > 0)
+		g_ptr_array_remove_index_fast(jumped->reads, 0);
+	jumped->alive = 0;
+}
+
+/**
+ * Try to merge two templates.
+ * The 'jumped' template does not have any junctions on it
+ */
+int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
+	int ol = 0;
+	int rev_com = 0, n_mis = 0;
+//	p_tpl_reads(t);
+//	p_tpl_reads(jumped);
+	if (!paired_by_reads(ht->seqs, t, jumped, 2))
+		return 0;
+	ol = find_fr_ol_within_k(jumped->ctg, t->ctg, mis, ht->o->k,
+			ht->o->read_len, 0, &rev_com, &n_mis);
+	show_debug_msg(__func__, "OVERLAP: %d\n", ol);
+	if (ol >= ht->o->k && ol >= n_mis * ht->o->k) {
+		merge_tpl_to_left(jumped, t, ol, rev_com);
+		return 1;
+	}
+	ol = find_fr_ol_within_k(t->ctg, jumped->ctg, mis, ht->o->k,
+			ht->o->read_len, 0, &rev_com, &n_mis);
+	show_debug_msg(__func__, "OVERLAP: %d\n", ol);
+	if (ol >= ht->o->k && ol >= n_mis * ht->o->k) {
+		merge_tpl_to_right(t, jumped, ol, rev_com);
+		return 1;
+	}
+	return 0;
+}
+
+/**
  * Merge the right template to the left template
  * The right template is not destroyed (its attributes are not altered), it is simply marked as 'DEAD'.
  * The right template is destroyed at hash_to_array in ass.cpp.
