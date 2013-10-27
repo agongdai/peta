@@ -382,7 +382,7 @@ void correct_init_tpl_base(pool *p, tpl *t, int ori) {
 	int n_counted = 0;
 	if (!p || !p->reads || p->reads->len < 3)
 		return;
-	p_ctg_seq("ORIGINAL ", t->ctg);
+	//p_ctg_seq("ORIGINAL ", t->ctg);
 	for (i = 1; i < t->len; i++) {
 		max = 0;
 		max_c = 0;
@@ -448,7 +448,7 @@ void correct_init_tpl_base(pool *p, tpl *t, int ori) {
 		 */
 	} // End of template base correction
 	set_rev_com(t->ctg);
-	p_ctg_seq("CORRECTED ", t->ctg);
+	//p_ctg_seq("CORRECTED ", t->ctg);
 }
 
 /**

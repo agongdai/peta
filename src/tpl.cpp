@@ -478,6 +478,8 @@ int paired_by_reads(bwa_seq_t *seqs, tpl *t_1, tpl *t_2, int n_pairs) {
 		if (r->status == USED && m->status == USED && r->contig_id == loop_id
 				&& m->contig_id == pair_id) {
 			found_pairs++;
+			//p_query(__func__, r);
+			//p_query(__func__, m);
 		}
 		if (found_pairs >= n_pairs)
 			return 1;

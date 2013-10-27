@@ -740,15 +740,19 @@ gint align_read_thread(gpointer r, gpointer para) {
 		return 0;
 	if (is_biased_q(query) || too_many_ns(query, query->len))
 		return 0;
-	//p_query("QUERY", query);
 	find_both_fr_full_reads(ht, query, hits, N_MISMATCHES);
+	for (i = 0; i < hits->len; i++) {
+		tmp = (bwa_seq_t*) g_ptr_array_index(hits, i);
+		if (seq_ol(tmp, query, tmp->len, N_MISMATCHES) == -1) {
+			g_ptr_array_remove_index_fast(hits, i--);
+		}
+	}
 	// Mark 'pos' as not -1, to save time
 	//show_debug_msg(__func__, "Hits: %d\n", hits->len);
 	for (i = 0; i < hits->len; i++) {
 		tmp = (bwa_seq_t*) g_ptr_array_index(hits, i);
 		tmp->pos = hits->len;
 		n_kmers[atoll(tmp->name)] = hits->len;
-		//p_query(__func__, tmp);
 	}
 	//show_debug_msg(__func__, "---------------------\n");
 	n_kmers[read_id] = hits->len;

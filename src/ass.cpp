@@ -38,7 +38,7 @@ int stage = 1;
 int fresh_trial = 0;
 uint32_t n_used_reads = 0;
 char *kmer_out = NULL;
-GPtrArray *tried_reads = NULL;
+GPtrArray *hang_reads = NULL;
 
 bwa_seq_t *TEST = NULL;
 
@@ -383,22 +383,35 @@ tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, int len,
 	return branch;
 }
 
-
 /**
  * Mark the reads on a template as TRIED temporarily
  */
 void mark_as_hang_tmp(tpl *t) {
 	bwa_seq_t *r = 0;
 	int i = 0;
-	for (i = 0; i < t->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
-		r->status = TRIED;
-		r->pos = IMPOSSIBLE_NEGATIVE;
-		r->cursor = -1;
-		r->contig_id = -1;
-		r->contig_locus = -1;
-		r->rev_com = 0;
-		g_ptr_array_add(tried_reads, r);
+	if (t->reads) {
+		for (i = 0; i < t->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+			r->status = HANG;
+			r->pos = IMPOSSIBLE_NEGATIVE;
+			r->cursor = -1;
+			r->contig_id = -1;
+			r->contig_locus = -1;
+			r->rev_com = 0;
+			g_ptr_array_add(hang_reads, r);
+		}
+	}
+	if (t->tried) {
+		for (i = 0; i < t->tried->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
+			r->status = HANG;
+			r->pos = IMPOSSIBLE_NEGATIVE;
+			r->cursor = -1;
+			r->contig_id = -1;
+			r->contig_locus = -1;
+			r->rev_com = 0;
+			g_ptr_array_add(hang_reads, r);
+		}
 	}
 }
 
@@ -407,11 +420,11 @@ void mark_as_hang_tmp(tpl *t) {
  */
 void unfrozen_hang_reads() {
 	bwa_seq_t *r = NULL;
-	while (tried_reads->len > 0) {
-		r = (bwa_seq_t*) g_ptr_array_index(tried_reads, 0);
+	while (hang_reads->len > 0) {
+		r = (bwa_seq_t*) g_ptr_array_index(hang_reads, 0);
 		//if (r->status == HANG)
 		reset_to_fresh(r);
-		g_ptr_array_remove_index_fast(tried_reads, 0);
+		g_ptr_array_remove_index_fast(hang_reads, 0);
 	}
 }
 
@@ -722,18 +735,18 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			last_read
 					= (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len - 1);
 
-		//if (t->id == 1 || t->id == 146) {
-		//p_query(__func__, tail);
-		//p_ctg_seq("TEMPLATE", t->ctg);
-		//p_pool("CURRENT POOL", p, NULL);
-		//}
+//		if (t->id == 5) {
+//		p_query(__func__, tail);
+//		p_ctg_seq("TEMPLATE", t->ctg);
+//		p_pool("CURRENT POOL", p, NULL);
+//		}
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
-		//if (t->id == 1 || t->id == 146)
-		//show_debug_msg(__func__,
-		//		"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
-		//		t->len, "ZACGTN"[max_c + 1]);
+//		if (t->id == 5)
+//		show_debug_msg(__func__,
+//				"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
+//				t->len, "ZACGTN"[max_c + 1]);
 
 		// If cannot extend, try to add mates into the pool
 		if (max_c == -1) {
@@ -850,7 +863,8 @@ void do_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *t, bwa_seq_t *r) {
 	int pre_len = t->len;
 	int pre_n_reads = t->reads->len;
 
-	show_debug_msg(__func__, "Jumping to read %s as template %d\n", r->name, t->id);
+	show_debug_msg(__func__, "Jumping to read %s as template %d\n", r->name,
+			t->id);
 
 	init_pool(ht, p, t, kmer_len, N_MISMATCHES, 1);
 	correct_init_tpl_base(p, t, 1);
@@ -888,13 +902,14 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 	pool *p = NULL;
 	if (!from || !from->alive)
 		return;
-//	g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+	//	g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 	for (i = 0; i < from->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
 		m = get_mate(r, ht->seqs);
-//		show_debug_msg(__func__, "i = %d\n", i);
-//		p_query(__func__, r);
-//		p_query(__func__, m);
+		//p_query("TEST", TEST);
+		//		show_debug_msg(__func__, "i = %d\n", i);
+		//		p_query(__func__, r);
+		//		p_query(__func__, m);
 		// If the read is in the middle of the template, must do not jump from its mate
 		if (m->status != FRESH || (r->contig_locus > ins_size + 100
 				&& r->contig_locus < from->len - ins_size - 100))
@@ -903,17 +918,21 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 		to = please_jump(ht, all_tpls, from, m);
 		if (!to)
 			continue;
+		mark_init_reads_used(ht, to, m, N_MISMATCHES);
 		do_jumping(ht, all_tpls, to, m);
 		if (!to->alive)
 			continue;
 		merged = merged_jumped(ht, from, to, MORE_MISMATCH);
 		if (merged) {
-			show_debug_msg(__func__, "Jumped to read %s [%d, %d] as [%d, %d]...\n", m->name,
+			show_debug_msg(__func__,
+					"Jumped to read %s [%d, %d] as [%d, %d]...\n", m->name,
 					to->id, to->len, from->id, from->len);
-//			g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+			//			g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 			//p_tpl_reads(from);
 			i = 0;
 		}
+		//p_tpl_reads(from);
+		//p_tpl_reads(to);
 		mark_as_hang_tmp(to);
 		to->alive = 0;
 		rm_global_tpl(all_tpls, to, HANG);
@@ -979,7 +998,6 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 	}
 	return 0;
 }
-
 
 /**
  * For those branches at the head/tail, choose the longer branch
@@ -1465,10 +1483,10 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		return NULL;
 	}
 
-	//if (fresh_trial == 0)
-	//	read = &seqs[96181];
-	//if (fresh_trial == 1)
-	//	read = &seqs[38071];
+//	if (fresh_trial == 0)
+//		read = &seqs[96181];
+//	if (fresh_trial == 1)
+//		read = &seqs[68550];
 
 	printf("\n");
 	show_debug_msg(__func__,
@@ -1564,7 +1582,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[367536];
+	TEST = &seqs[144353];
 
 	// shrink_ht(ht);
 
@@ -1587,8 +1605,8 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		//if (fresh_trial >= 1)
-		//	break;
+//		if (fresh_trial >= 1)
+//		break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",
@@ -1866,6 +1884,7 @@ void ext_after_merging(hash_table *ht, tpl_hash *all_tpls) {
 			query = new_seq(t->ctg, kmer_len, 0);
 			to_connect = kmer_ext_tpl(ht, all_tpls, p, t, query, 1);
 		}
+		tpl_jumping(ht, all_tpls, t);
 		show_debug_msg(__func__, "Template [%d, %d]---\n\n", t->id, t->len);
 	}
 	destroy_pool(p);
@@ -1878,7 +1897,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	GPtrArray *read_tpls = NULL, *branching_events = NULL;
 	hash_table *ht = NULL;
 	char *fn = NULL, *lib_fn_copy = NULL;
-	tried_reads = g_ptr_array_sized_new(1024);
+	hang_reads = g_ptr_array_sized_new(1024);
 	kmer_hash tpl_kmer_hash;
 
 	show_msg(__func__, "Library: %s \n", lib_file);
