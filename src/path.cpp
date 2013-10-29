@@ -190,6 +190,23 @@ void save_paths(GPtrArray *paths, char *fn, const int to_save_all) {
 	fclose(p_fp);
 }
 
+/**
+ * We expect that the exon length is shorter than read_len - SHORT_BRANCH_SHIFT
+ */
+bwa_seq_t *get_short_exon_seq(path *p, int index, int read_len) {
+	GPtrArray *vertexes = p->vertexes;
+	int *points = p->junction_points;
+	vertex *v = (vertex*) g_ptr_array_index(vertexes, index);
+	int start = v->len / 2 - read_len + 1, end = v->len + read_len - 1;
+	if (index > 0) {
+		start += points[index];
+		end += points[index];
+	}
+	start = (start < 0) ? 0 : start;
+	end = (end >= p->ctg->len) ? p->ctg->len : end;
+	return new_seq(p->ctg, end - start, start);
+}
+
 /*
  * Get junction sequences
  */
@@ -201,44 +218,52 @@ bwa_seq_t *get_breaking_seq(path *p, int breaking_index, int read_len) {
 	int start = points[breaking_index] - half_max, end = points[breaking_index]
 			+ half_max;
 	int shared_start = 0, shared_end = 0, shared_size;
-	int tuned_end = 0, tuned_start = 0;
+	int tuned_end = 0, tuned_start = 0, next_end = 0, pre_start = 0;
 	// Make sure not to double count any read between adjacent junctions
-	//show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
+//	p_p(p);
+//	show_debug_msg(__func__, "Breaking index: %d; \n", breaking_index);
+//	show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
 	if (n_points > breaking_index + 1) {
+		next_end = points[breaking_index + 1];
+		if (next_end < end)
+			end = points[breaking_index] + (next_end - points[breaking_index]) / 2;
 		// Size of shared region of current junction and next junction (if any)
-		shared_size = end - (points[breaking_index + 1] - half_max);
-		if (shared_size >= read_len) {
-			shared_start = points[breaking_index + 1] - half_max;
-			shared_end = shared_start + shared_size;
-			tuned_end = ((shared_end - (read_len - 1)) + shared_start) / 2
-					+ (read_len - 1);
-			end = tuned_end < end ? tuned_end : end;
-			/**
-			 show_debug_msg(__func__, "Shared: [%d -> %d]\n", shared_start,
-			 shared_end);
-			 show_debug_msg(__func__, "Tuned end at breaking index %d: %d \n",
-			 breaking_index, end);
-			 **/
-		}
+//		shared_size = end - (points[breaking_index + 1] - half_max);
+//		if (shared_size >= read_len) {
+//			shared_start = points[breaking_index + 1] - half_max;
+//			shared_end = shared_start + shared_size;
+//			tuned_end = ((shared_end - (read_len - 1)) + shared_start) / 2
+//					+ (read_len - 1);
+//			end = tuned_end < end ? tuned_end : end;
+//			///**
+//			 show_debug_msg(__func__, "Shared: [%d -> %d]\n", shared_start,
+//			 shared_end);
+//			 show_debug_msg(__func__, "Tuned end at breaking index %d: %d \n",
+//			 breaking_index, end);
+//			// **/
+//		}
 	}
 	if (breaking_index > 0) {
-		shared_size = points[breaking_index - 1] + half_max - start;
-		if (shared_size >= read_len) {
-			shared_start = start;
-			shared_end = shared_start + shared_size;
-			tuned_start = ((shared_end - (read_len - 1)) + shared_start) / 2;
-			start = tuned_start > start ? tuned_start : start;
-			/**
-			 show_debug_msg(__func__, "Shared: [%d -> %d]\n", shared_start,
-			 shared_end);
-			 show_debug_msg(__func__, "Tuned start at breaking index %d: %d \n",
-			 breaking_index, start);
-			 **/
-		}
+		pre_start = points[breaking_index - 1];
+		if (pre_start > start)
+			start = points[breaking_index] - (points[breaking_index] - pre_start) / 2;
+//		shared_size = points[breaking_index - 1] + half_max - start;
+//		if (shared_size >= read_len) {
+//			shared_start = start;
+//			shared_end = shared_start + shared_size;
+//			tuned_start = ((shared_end - (read_len - 1)) + shared_start) / 2;
+//			start = tuned_start > start ? tuned_start : start;
+//			///**
+//			 show_debug_msg(__func__, "Shared: [%d -> %d]\n", shared_start,
+//			 shared_end);
+//			 show_debug_msg(__func__, "Tuned start at breaking index %d: %d \n",
+//			 breaking_index, start);
+//			// **/
+//		}
 	}
 	start = (start < 0) ? 0 : start;
 	end = (end >= seq->len) ? seq->len : end;
-	//show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
+//	show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
 	return new_seq(seq, end - start, start);
 }
 
@@ -498,7 +523,14 @@ void assign_path_attrs(GPtrArray *paths, hash_table *ht) {
 		p->junction_lengths = (int*) calloc(p->edges->len, sizeof(int));
 		for (j = 0; j < p->vertexes->len; j++) {
 			v = (vertex*) g_ptr_array_index(p->vertexes, j);
-			p->weights[2 * j] = (float) v->weight;
+			if (v->len < ht->o->read_len - SHORT_BRANCH_SHIFT) {
+				seq = get_short_exon_seq(p, j, ht->o->read_len);
+				reads = reads_on_seq(seq, ht, N_MISMATCHES);
+				p->weights[2 * j] = (float) reads->len;
+				g_ptr_array_free(reads, TRUE);
+				bwa_free_read_seq(1, seq);
+			} else
+				p->weights[2 * j] = (float) v->weight;
 			//show_debug_msg(__func__, "Weight of vertex %d: %.2f\n", v->id,
 			//		v->weight);
 		}

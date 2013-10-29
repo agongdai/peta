@@ -1161,6 +1161,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 
 	if (!t || !t->alive || !t->ctg || t->len <= least_ol_len)
 		return;
+	unfrozen_tried(t);
 	printf("\n");
 	show_debug_msg(__func__,
 			"===== Branching template [%d, %d] to %s ===== \n", t->id, t->len,
@@ -1484,7 +1485,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 //	if (fresh_trial == 0)
-//		read = &seqs[96181];
+//		read = &seqs[28301];
 //	if (fresh_trial == 1)
 //		read = &seqs[68550];
 
