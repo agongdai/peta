@@ -415,21 +415,21 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 	edge *e = NULL;
 	float w = 0.0;
 	// Destroy path with any edge weight 0
-	for (i = 0; i < paths->len; i++) {
-		p = (path*) g_ptr_array_index(paths, i);
-		//p_p(p);
-		for (j = 0; j < p->edges->len; j++) {
-			w = p->weights[j * 2 + 1];
-			if (w <= 0) {
-				//p_p(p);
-				show_debug_msg(__func__, "Path %d is not valid with 0 edge \n",
-						p->id);
-				destroy_path(p);
-				g_ptr_array_remove_index_fast(paths, i--);
-				break;
-			}
-		}
-	}
+//	for (i = 0; i < paths->len; i++) {
+//		p = (path*) g_ptr_array_index(paths, i);
+//		p_p(p);
+//		for (j = 0; j < p->edges->len; j++) {
+//			w = p->weights[j * 2 + 1];
+//			if (w <= 0) {
+//				//p_p(p);
+//				show_debug_msg(__func__, "Path %d is not valid with 0 edge \n",
+//						p->id);
+//				destroy_path(p);
+//				g_ptr_array_remove_index_fast(paths, i--);
+//				break;
+//			}
+//		}
+//	}
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
 		start = end = 0;

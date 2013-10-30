@@ -949,3 +949,18 @@ void filter_junctions(GPtrArray *junctions, GPtrArray *tpls, hash_table *ht) {
 	remove_dead_junctions(junctions);
 	g_ptr_array_sort(junctions, (GCompareFunc) cmp_junc_by_id);
 }
+
+/**
+ * Check whether the junction is at the tail/head
+ */
+int is_tail_junction(junction *jun) {
+	tpl *main_tpl = jun->main_tpl;
+	if (jun->ori == 0) {
+		if (jun->branch_tpl->len > main_tpl->len - jun->locus - 20)
+			return 1;
+	} else {
+		if (jun->branch_tpl->len > jun->locus - 20)
+			return 1;
+	}
+	return 0;
+}

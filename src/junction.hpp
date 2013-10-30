@@ -72,6 +72,7 @@ extern "C" {
 	GPtrArray *tpl_junctions(tpl *t, GPtrArray *all_juncs, int start_index,
 			int to_get_main);
 	void filter_junctions(GPtrArray *junctions, GPtrArray *tpls, hash_table *ht);
+	int is_tail_junction(junction *jun);
 	int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, GPtrArray *junc_reads,
 			hash_table *ht, const int con_pos, const int ins_size, const int ori);
 

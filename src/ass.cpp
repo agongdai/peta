@@ -1129,7 +1129,8 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				branch->alive = 0;
 			merge_branch_to_main(ht, branch);
 			val_branch_by_pairs(ht, t, branch);
-			try_destroy_tpl(ht, all_tpls, branch, ht->o->read_len);
+			if (!is_tail_junction(jun))
+				try_destroy_tpl(ht, all_tpls, branch, ht->o->read_len);
 
 			//p_tpl(t);
 			if (!branch->alive) {
@@ -1201,16 +1202,17 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 
 			cursor = branch_read->cursor;
 			pos = branch_read->pos;
-			// Create a new template
-			branch = add_global_tpl(all_tpls, branch_read, branch_read->len,
-					ori);
 
 			// Add the branching junction first;
 			// Later may add connection junction
 			con_pos = ori ? shift - (pos - cursor - 1) : cursor - pos + shift;
 			// In case the junctions create some small loop
-			if (has_nearby_junc(t, con_pos))
+			if (has_nearby_junc(t, con_pos)) {
 				break;
+			}
+			// Create a new template
+			branch = add_global_tpl(all_tpls, branch_read, branch_read->len,
+					ori);
 			branch->len = 1;
 			branch->ctg->seq[0] = branch->ctg->seq[cursor];
 			branch->ctg->len = branch->len;
@@ -1275,7 +1277,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			//unfrozen_tried(branch);
 			refresh_tpl_reads(ht, branch, mismatches);
 			dead = 0;
-			if ((branch->len <= branch_read->len && !connected)
+			if ((branch->len <= branch_read->len && !connected && !is_tail_junction(jun))
 					|| (!branch->alive) || (t->cov * MIN_BRANCH_MAIN_COV)
 					> branch->cov)
 				dead = 1;
@@ -1485,9 +1487,9 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 //	if (fresh_trial == 0)
-//		read = &seqs[28301];
+//		read = &seqs[157322];
 //	if (fresh_trial == 1)
-//		read = &seqs[68550];
+//		read = &seqs[68550];10897
 
 	printf("\n");
 	show_debug_msg(__func__,

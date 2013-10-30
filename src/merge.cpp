@@ -63,13 +63,13 @@ void mv_reads_bt_tpls(tpl *from, tpl *to, int ol, int ori) {
  * Merge jumped template to the main template;
  * Main template is at the left
  */
-void merge_tpl_to_right(tpl *t, tpl *jumped, int ol, int rev_com) {
+void merge_tpl_to_right(tpl *jumped, tpl *t, int ol, int rev_com) {
 	int i = 0, l_len = 0, new_locus = 0;
 	bwa_seq_t *r = NULL;
 	ubyte_t c = 0;
 	show_debug_msg(__func__, "Merging Right: [%d, %d] Vs. [%d, %d]; ol: %d\n",
 					t->id, t->len, jumped->id, jumped->len, ol);
-	if (!t || !jumped || ol > t->len || ol > jumped->len)
+	if (!t || !jumped || ol >= t->len || ol >= jumped->len)
 		return;
 	if (t->l_tail) {
 		show_debug_msg(
@@ -119,7 +119,7 @@ void merge_tpl_to_left(tpl *t, tpl *jumped, int ol, int rev_com) {
 	int i = 0, l_len = 0, new_locus = 0;
 	bwa_seq_t *r = NULL;
 	ubyte_t c = 0;
-	if (!t || !jumped || ol < t->len || ol < jumped->len)
+	if (!t || !jumped || ol >= t->len || ol >= jumped->len)
 		return;
 	if (t->r_tail) {
 		show_debug_msg(
@@ -135,6 +135,7 @@ void merge_tpl_to_left(tpl *t, tpl *jumped, int ol, int rev_com) {
 	for (i = ol; i < jumped->len; i++) {
 		c = rev_com ? jumped->ctg->rseq[i] : jumped->ctg->seq[i];
 		ext_con(t->ctg, c, 0);
+		//p_ctg_seq(__func__, t->ctg);
 	}
 	t->len = t->ctg->len;
 	set_rev_com(t->ctg);
@@ -172,16 +173,17 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 		return 0;
 	ol = find_fr_ol_within_k(jumped->ctg, t->ctg, mis, ht->o->k,
 			ht->o->read_len, 0, &rev_com, &n_mis);
-	show_debug_msg(__func__, "OVERLAP: %d\n", ol);
+	//show_debug_msg(__func__, "OVERLAP: %d; n_mis: %d\n", ol, n_mis);
 	if (ol >= ht->o->k && ol >= n_mis * ht->o->k) {
-		merge_tpl_to_left(jumped, t, ol, rev_com);
+		//show_debug_msg(__func__, "Merging to left...\n");
+		merge_tpl_to_left(t, jumped, ol, rev_com);
 		return 1;
 	}
 	ol = find_fr_ol_within_k(t->ctg, jumped->ctg, mis, ht->o->k,
 			ht->o->read_len, 0, &rev_com, &n_mis);
-	show_debug_msg(__func__, "OVERLAP: %d\n", ol);
+	//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 	if (ol >= ht->o->k && ol >= n_mis * ht->o->k) {
-		merge_tpl_to_right(t, jumped, ol, rev_com);
+		merge_tpl_to_right(jumped, t, ol, rev_com);
 		return 1;
 	}
 	return 0;
