@@ -821,12 +821,13 @@ void kmer_etx_jump(hash_table *ht, tpl *t) {
  * At least MIN_GAPPED_PAIRS pairs should be found
  */
 tpl *please_jump(hash_table *ht, tpl_hash *all_tpls, tpl *from, bwa_seq_t *read) {
-	pool *p = new_pool();
+	pool *p = NULL;
 	tpl *to = NULL;
 	int i = 0;
 	bwa_seq_t *r = NULL, *m = NULL;
 	to = add_global_tpl(all_tpls, read, read->len, 0);
 	return to;
+	p = new_pool();
 	init_pool(ht, p, to, kmer_len, N_MISMATCHES, 0);
 	init_pool(ht, p, to, kmer_len, N_MISMATCHES, 1);
 	g_ptr_array_add(p->reads, read);
@@ -1274,7 +1275,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			}
 			set_rev_com(branch->ctg);
 
-			//unfrozen_tried(branch);
+			unfrozen_tried(branch);
 			refresh_tpl_reads(ht, branch, mismatches);
 			dead = 0;
 			if ((branch->len <= branch_read->len && !connected && !is_tail_junction(jun))
