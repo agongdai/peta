@@ -37,6 +37,7 @@
 #define NO_REPEAT_BASES			3
 #define NO_REPEAT_LEN 			15
 #define	SHORT_BRANCH_SHIFT		4
+#define HEAD_TAIL_SHORT			4
 #define	MATCH_SCORE				1
 #define MISMATCH_WEIGHT			1
 #define	MISMATCH_SCORE			-1

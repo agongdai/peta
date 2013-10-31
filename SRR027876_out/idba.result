@@ -1,6 +1,6 @@
 /home/carl/Projects//blat/blat /home/carl/Projects//peta/rnaseq/hg19/ensembl.genes.fa.oracle /home/carl/Projects//peta_pair/SRR027876_out/idba.fa -ooc=/home/carl/Projects//blat/11.ooc /home/carl/Projects//peta_pair/SRR027876_out/idba.fa.psl
 Loaded 23645406 letters in 20067 sequences
-Searched 6691623 bases in 8095 sequences
+Searched 6674271 bases in 8077 sequences
 python /home/carl/Projects//peta_pair/scripts/eva.py blat -t /home/carl/Projects//peta/rnaseq/hg19/ensembl.genes.fa.oracle -c /home/carl/Projects//peta_pair/SRR027876_out/idba.fa -p /home/carl/Projects//peta_pair/SRR027876_out/idba.fa.psl -o /home/carl/Projects//peta_pair/SRR027876_out/ -s 0.99
 ===================================================================
 Summary of /home/carl/Projects//peta/rnaseq/hg19/ensembl.genes.fa.oracle
@@ -13,34 +13,34 @@ Summary of /home/carl/Projects//peta/rnaseq/hg19/ensembl.genes.fa.oracle
 ===================================================================
 ===================================================================
 Summary of /home/carl/Projects//peta_pair/SRR027876_out/idba.fa
-	Total base: 		6691623
-	# of transcripts: 	8095
+	Total base: 		6674271
+	# of transcripts: 	8077
 	Longest length: 	8885
 	Shortest length: 	300
-	Average length: 	826.64
-	N50 value: 		1049
+	Average length: 	826.33
+	N50 value: 		1051
 ===================================================================
 ===================================================================
 Evaluation result of /home/carl/Projects//peta_pair/SRR027876_out/idba.fa
 [similarity threshold: 0.99]
 [full length threshold: 0.99]
 [n_mismatches + n_indels < 10]
-	Assembled base:               6691623
-	Bases aligned:                16393314
-	# of contigs:                 8095
-	# of Full length:             447
-	# of Ctgs not aligned:        2210
-	Bases not aligned:            1292144
-	# of Ctgs not reached:        5359
-	Bases not reached:            4732462
+	Assembled base:               6674271
+	Bases aligned:                16434874
+	# of contigs:                 8077
+	# of Full length:             481
+	# of Ctgs not aligned:        2216
+	Bases not aligned:            1294135
+	# of Ctgs not reached:        5373
+	Bases not reached:            4748496
 	Optimal N50:                  1661
-	Raw N50:                      1049
-	Aligned N50:                  806
+	Raw N50:                      1051
+	Aligned N50:                  805
 	Accuracy:                     99.78%
-	Completeness 80%:             35.65%
-	Contiguity 80%:               14.89%
-	# of chimaeras:               785
-	Chimerism:                    9.70%
+	Completeness 80%:             35.61%
+	Contiguity 80%:               14.93%
+	# of chimaeras:               784
+	Chimerism:                    9.71%
 	Variant resolution:           0.00%
 ===================================================================
 Check /home/carl/Projects//peta_pair/SRR027876_out/idba.fa.full

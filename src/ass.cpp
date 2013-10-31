@@ -699,6 +699,22 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 }
 
 /**
+ * Look harder for mate reads at head/tail
+ */
+void look_harder_at_tail(hash_table *ht, pool *p,
+		GPtrArray *near_tpls, tpl *t, int ori) {
+	bwa_seq_t *tail = NULL;
+	int i = 0, start = 1, end = ht->o->read_len;
+	if (!t || t->len < ht->o->read_len)
+		return;
+	if (ori) {
+
+	} else {
+
+	}
+}
+
+/**
  * Extend a template until no next kmer
  */
 int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
@@ -741,7 +757,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			last_read
 					= (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len - 1);
 
-		if (t->id == 123062) {
+		if (t->id == 1) {
 		p_query(__func__, tail);
 		p_ctg_seq("TEMPLATE", t->ctg);
 		p_pool("CURRENT POOL", p, NULL);
@@ -749,7 +765,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
-		if (t->id == 123062)
+		if (t->id == 1)
 		show_debug_msg(__func__,
 				"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 				t->len, "ZACGTN"[max_c + 1]);
@@ -760,17 +776,21 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			//show_debug_msg(__func__, "Looking for mates on [%d, %d] ...\n",
 			//		t->id, t->len);
 			//p_tpl_reads(t);
-			find_hashed_mates(ht, p, near_tpls, t, tail->len + 1, N_MISMATCHES,
+			find_hashed_mates(ht, p, near_tpls, t, tail, N_MISMATCHES,
 					ori);
 			max_c = get_next_char(ht, p, near_tpls, t, ori);
 			if (max_c == -1) {
-				show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
-						ori, t->id, t->len);
-				p_query("LAST READ", last_read);
-				if (last_read)
-					t->last_read = last_read;
-				to_connect = 1;
-				break;
+				look_harder_at_tail(ht, p, near_tpls, t, ori);
+				max_c = get_next_char(ht, p, near_tpls, t, ori);
+				if (max_c == -1) {
+					show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
+							ori, t->id, t->len);
+					p_query("LAST READ", last_read);
+					if (last_read)
+						t->last_read = last_read;
+					to_connect = 1;
+					break;
+				}
 			} else {
 				p_query("TAIL", tail);
 				show_debug_msg(__func__, "Added mates: ori %d \n", ori);
@@ -1247,9 +1267,9 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			}
 
 			p_query("BRANCH_QUERY", branch_read);
-			show_debug_msg(__func__, "shift: %d; POS: %d; CURSOR: %d\n", shift,
-					pos, cursor);
-			show_debug_msg(__func__, "Branching at %d \n", con_pos);
+			//show_debug_msg(__func__, "shift: %d; POS: %d; CURSOR: %d\n", shift,
+			//		pos, cursor);
+			//show_debug_msg(__func__, "Branching at %d \n", con_pos);
 			//p_pool(__func__, p, NULL);
 			p_ctg_seq("AFTER TRUNCATE", branch->ctg);
 
@@ -1492,8 +1512,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		return NULL;
 	}
 
-//	if (fresh_trial == 0)
-//		read = &seqs[464];
+	if (fresh_trial == 0)
+		read = &seqs[1533609];
 //	if (fresh_trial == 1)
 //		read = &seqs[68550];10897
 
@@ -1616,7 +1636,7 @@ void kmer_threads(kmer_t_meta *params) {
 		free(counter);
 //		if (fresh_trial >= 1)
 //		if (kmer_ctg_id >= 123062)
-//		break;
+		break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",

@@ -226,7 +226,7 @@ class BlastHit(object):
 			self.similarity = self.n_match / self.alen
 		if not (self.rend - self.rstart == 0):
 			self.identity = self.n_match / abs(self.rend - self.rstart)
-		self.n_bad_bases = self.n_mismatch + self.n_ref_gap_bases + self.n_query_gap_bases
+		self.n_bad_bases = self.n_mismatch + self.n_ref_gap_bases
 		
 	def set_mate(self, mate):
 		self.mate = mate
@@ -1055,7 +1055,7 @@ def analyze(args):
 		tx_hits = hits[tx]
 		tx_hits.sort(key=lambda x:x.n_match, reverse=True)
 		h = tx_hits[0]
-		if (h.rstart < 100 and h.rend > (h.rlen - 100)) and h.n_mismatch < 10 and h.n_bad_bases < 10:
+		if (h.rstart < 100 and h.rend > (h.rlen - 100)) and h.n_mismatch < 10 and (h.n_query_gap_bases + h.n_bad_bases) < 10:
 			head_tail_missing.append(tx)
 			ht_missing_hits[tx] = h
 		else:
@@ -1095,7 +1095,7 @@ def analyze(args):
 				continue
 			if not end == 99999999 and h.rend < end:
 				continue
-			if h.n_mismatch < 10 and h.n_bad_bases < 10:
+			if h.n_mismatch < 10 and (h.n_query_gap_bases + h.n_bad_bases) < 10:
 				if start == -1:
 					start = h.rstart
 				end = h.rend

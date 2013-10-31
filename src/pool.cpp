@@ -196,6 +196,10 @@ int get_next_char(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 				}
 			}
 		}
+		if (ori == 0 && r->len - r->cursor <= HEAD_TAIL_SHORT)
+			weight /= 2.0;
+		if (ori == 1 && r->cursor <= HEAD_TAIL_SHORT)
+			weight /= 2.0;
 		c[this_c] += weight;
 		counted++;
 		// At most count MAX_POOL_N_READS reads, in case the pool is large
@@ -455,18 +459,17 @@ void correct_init_tpl_base(pool *p, tpl *t, int ori) {
  * Find the fresh mates which overlap with the template tail, at least 11bp with 0 mismatches
  */
 void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
-		int tail_len, int mismatches, int ori) {
-	bwa_seq_t *m = NULL, *r = NULL, *tail = NULL, *part = NULL;
+		bwa_seq_t *tail, int mismatches, int ori) {
+	bwa_seq_t *m = NULL, *r = NULL, *part = NULL;
 	int i = 0, j = 0;
 	int ol = 0, rev_com = 0, n_mis = 0;
-	tail = get_pure_tail(t, tail_len, ori);
 	junction *jun = NULL;
 	tpl *near = NULL;
 	GPtrArray *existing_reads = NULL;
 
+	//p_query(__func__, tail);
 	// In case the tail is an biased seq like: TTTTCTTTTTT
 	if (!tail || is_biased_q(tail) || has_n(tail, 1)) {
-		bwa_free_read_seq(1, tail);
 		return;
 	}
 
@@ -497,8 +500,8 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 			continue;
 		}
 		// Find the overlapping between mate and tail
-		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1, tail_len
-				- 1, ori, &rev_com, &n_mis);
+		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1,
+				tail->len, ori, &rev_com, &n_mis);
 		if (strcmp(m->name, "588859") == 0) {
 			p_query(__func__, m);
 			p_query("MAIN_TPL", tail);
@@ -523,7 +526,6 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		}
 	}
 	g_ptr_array_free(existing_reads, TRUE);
-	bwa_free_read_seq(1, tail);
 }
 
 /**
@@ -590,18 +592,18 @@ void keep_paired_reads(hash_table *ht, pool *p, tpl *t) {
  * 	by searching the hash table with LESS_MISMATCH
  */
 void find_hashed_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
-		int full_tail_len, int mismatches, int ori) {
+		bwa_seq_t *tail, int mismatches, int ori) {
 	int tail_len = ht->o->k * 2, limit = 0;
 	int i = 0, ol = 0, rev_com = 0, n_mis = 0, shift = 0;
 	int added = 0;
 	bwa_seq_t *seqs = ht->seqs;
 	// Query tail and overlap tail are used in different length
-	bwa_seq_t *ol_tail = 0, *q_tail = NULL, *r = NULL, *m = NULL;
+	bwa_seq_t *q_tail = NULL, *r = NULL, *m = NULL;
 	GPtrArray *mates = NULL;
 	junction *jun = NULL;
 	tpl *main_tpl = NULL;
 
-	if (t->len < tail_len || t->len < 0)
+	if (t->len < 0)
 		return;
 	if (t->b_juncs && t->b_juncs->len > 0) {
 		jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
@@ -609,14 +611,12 @@ void find_hashed_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 	}
 	//show_debug_msg(__func__, "Looking for shorter; ori %d...\n", ori);
 	// Query tail: shorter than a normal tail, just 22bp, query 2 kmers.
-	q_tail = get_tail(t, tail_len, ori);
+	q_tail = ori ? new_seq(tail, tail_len, 0) : new_seq(tail, tail_len, tail->len - tail_len);
 	// In case the tail is an biased seq like: TTTTCTTTTTT
 	if (is_biased_q(q_tail) || is_repetitive_q(q_tail) || has_n(q_tail, 1)) {
 		bwa_free_read_seq(1, q_tail);
 		return;
 	}
-	// Overlap tail. Used to verify the overlapping between mate and template.
-	ol_tail = get_tail(t, full_tail_len, ori);
 
 	shift = ori ? 0 : ht->o->read_len - q_tail->len;
 	mates = align_tpl_tail(ht, t, q_tail, limit, shift, mismatches, FRESH, ori);
@@ -635,8 +635,8 @@ void find_hashed_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		}
 		// Find the overlapping between mate and tail
 
-		ol = find_fr_ol_within_k(m, ol_tail, mismatches, tail_len - 1,
-				full_tail_len - 1, ori, &rev_com, &n_mis);
+		ol = find_fr_ol_within_k(m, tail, mismatches, tail_len - 1,
+				tail->len, ori, &rev_com, &n_mis);
 
 		if (r->rev_com == rev_com && ol >= ht->o->k && ol >= n_mis * ht->o->k) {
 			m->rev_com = rev_com;
@@ -651,11 +651,10 @@ void find_hashed_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 	}
 	g_ptr_array_free(mates, TRUE);
 	bwa_free_read_seq(1, q_tail);
-	bwa_free_read_seq(1, ol_tail);
 	// With even shorter overlap and less mismatches allow.
 	// Base by base overlapping.
 	if (!added) {
-		find_match_mates(ht, p, near_tpls, t, ht->o->read_len - 1, mismatches, ori);
+		find_match_mates(ht, p, near_tpls, t, tail, mismatches, ori);
 	}
 	rm_bad_ol_reads(p, t, ori);
 	keep_fewer_mis_reads(p);
