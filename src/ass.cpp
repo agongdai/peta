@@ -1136,8 +1136,7 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				branch->alive = 0;
 			merge_branch_to_main(ht, branch);
 			val_branch_by_pairs(ht, t, branch);
-			if (!is_tail_junction(jun))
-				try_destroy_tpl(ht, all_tpls, branch, ht->o->read_len);
+			try_destroy_tpl(ht, all_tpls, branch, ht->o->read_len);
 
 			//p_tpl(t);
 			if (!branch->alive) {
