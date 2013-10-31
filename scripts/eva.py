@@ -226,7 +226,7 @@ class BlastHit(object):
 			self.similarity = self.n_match / self.alen
 		if not (self.rend - self.rstart == 0):
 			self.identity = self.n_match / abs(self.rend - self.rstart)
-		self.n_bad_bases = self.n_mismatch + self.n_ref_gap_bases
+		self.n_bad_bases = self.n_mismatch + self.n_ref_gap_bases + self.n_query_gap_bases
 		
 	def set_mate(self, mate):
 		self.mate = mate
@@ -999,6 +999,131 @@ def comps(args):
 		print 'n_abit_shorter: %d' % (n_abit_shorter)
 		print 'n_not_covered: %d' % (n_not_covered)
 
+def analyze(args):
+	in_path_ids = []
+	with open(args.in_paths, 'r') as p:
+		for line in p:
+			line = line.strip()
+			if len(line) > 0:
+				in_path_ids.append(line) 
+	ids = []
+	with open(args.id_file, 'r') as i:
+		for line in i:
+			line = line.strip()
+			if len(line) > 0:
+				ids.append(line)
+				
+	print 'Totally %d missing transcripts' % len(ids)
+
+	captured_in_paths = []
+	for id in ids:
+		if id in in_path_ids:
+			captured_in_paths.append(id)
+	print '------------ In path: %d ---------------' % len(captured_in_paths)
+	for id in captured_in_paths:
+		print id
+	ids = list(set(ids) - set(in_path_ids))
+		
+	hits = read_blat_hits(args.paired2tx, 'ref')
+	not_covered = []
+	for id in ids:
+		if not id in hits:
+			not_covered.append(id)
+	print '----------- No touched: %d ---------------' % len(not_covered)
+	for id in not_covered:
+		print id
+	ids = list(set(ids) - set(not_covered))
+	
+	annotated_tx = FastaFile(args.tx)
+	base_cover = cal_base_cover(annotated_tx.seqs, hits)
+	partial = []
+	ht_partial = {}
+	head_tail_missing = []
+	ht_missing_hits = {}
+	for tx in ids:
+		bases = base_cover[tx]
+		n = 0.0
+		for i in bases:
+			n += i
+		percentage = n / len(bases)
+		if percentage < 0.99:
+			partial.append(tx)
+			ht_partial[tx] = hits[tx][0]
+	gap_in_middle = []
+	ht_gap_m = {}
+	for tx in partial:
+		tx_hits = hits[tx]
+		tx_hits.sort(key=lambda x:x.n_match, reverse=True)
+		h = tx_hits[0]
+		if (h.rstart < 100 and h.rend > (h.rlen - 100)) and h.n_mismatch < 10 and h.n_bad_bases < 10:
+			head_tail_missing.append(tx)
+			ht_missing_hits[tx] = h
+		else:
+			if h.rend - h.rstart > h.rlen * 0.99:
+				gap_in_middle.append(tx)
+				ht_gap_m[tx] = h
+	ids = list(set(ids) - set(partial))
+	print '----------- Covered <0.99: %d ---------------' % len(partial)
+	partial = list(set(partial) - set(head_tail_missing))
+	partial = list(set(partial) - set(gap_in_middle)) 
+	for id in partial:
+		h = ht_partial[id]
+		r = 'Range [%d, %d] / %d' % (h.rstart, h.rend, h.rlen)
+		print '%20s: \tBadBases: %d \t %30s; mismatches: %d; gaps: %d ' % (id, h.n_bad_bases, r, h.n_mismatch, h.n_query_gap + h.n_ref_gap)
+	print '\t--- Head/Tail Missing: %d ---' % len(head_tail_missing)
+	for id in head_tail_missing:
+		h = ht_missing_hits[id]
+		print '\t%20s: \tBadBases: %d \t Range [%d, %d] / %d; mismatches: %d; gaps: %d ' % (id, h.n_bad_bases, h.rstart, h.rend, h.rlen, h.n_mismatch, h.n_query_gap + h.n_ref_gap)
+	print '\t--- Gap in the middle: %d ---' % len(gap_in_middle)
+	for id in gap_in_middle:
+		h = ht_gap_m[id]
+		print '\t%20s: \tRefGap: %d,%dbp; QueryGap: %d,%d; Mismatches: %d' % (id, h.n_ref_gap, h.n_ref_gap_bases, h.n_query_gap, h.n_query_gap_bases, h.n_mismatch)
+	
+	
+	missing_junctions = {}
+	n = 0
+	for tx in ids:
+		tx_hits = hits[tx]
+		tx_hits.sort(key=lambda x:x.rstart)
+		h = tx_hits[0]
+		tx_len = h.rlen
+		start = -1
+		end = 99999999
+		missing_junctions[tx] = []
+		for h in tx_hits:
+			if h.rstart > end + 2:
+				continue
+			if not end == 99999999 and h.rend < end:
+				continue
+			if h.n_mismatch < 10 and h.n_bad_bases < 10:
+				if start == -1:
+					start = h.rstart
+				end = h.rend
+				missing_junctions[tx].append(h)
+		n_covered = abs(end - start) 
+		if n_covered / tx_len < 0.99:
+			missing_junctions[tx] = []
+		else:
+			n += 1
+	
+	print '-------------- Missing junctions: %d ---------------' % n
+	tmp = []
+	for tx, hits in missing_junctions.iteritems():
+		if len(hits) > 0:
+			n += 1
+			tmp.append(tx)
+			n_bad = 0
+			for h in hits:
+				n_bad += h.n_bad_bases
+			line = '%20s: \tBadBases: %d \t Ranges: %d\t' % (tx, n_bad, hits[0].rlen)
+			for h in hits:
+				line += '[%d, %d] ' % (h.rstart, h.rend)
+			print line
+	
+	ids = list(set(ids) - set(tmp))		
+	print '-------------- Others: %d -----------------' % len(ids)
+	for id in ids:
+		print id
 
 def main():
     parser = ArgumentParser()
@@ -1051,6 +1176,15 @@ def main():
     parser_comps.add_argument('psl', help='component-to-ref PSL file')
     parser_comps.add_argument('id_file', help='file of id list to check')
     parser_comps.add_argument('csv', help='components.csv')
+    
+    parser_analyze = subparsers.add_parser('any', help='Analyse missing transcripts')
+    parser_analyze.set_defaults(func=analyze)
+    parser_analyze.add_argument('id_file', help='file of id list to check')
+    parser_analyze.add_argument('tx', help='reference transcript file')
+    parser_analyze.add_argument('in_paths', help='ids captured in paths')
+    parser_analyze.add_argument('read2tx', help='read-to-transcript psl')
+    parser_analyze.add_argument('paired2tx', help='paired-to-transcript psl')
+    parser_analyze.add_argument('junctions', help='paired.junctions')
     
     args = parser.parse_args()
     args.func(args)
