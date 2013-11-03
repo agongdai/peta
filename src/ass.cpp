@@ -699,36 +699,43 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 }
 
 /**
- * Look harder for mate reads at head/tail
+ * Look harder for mate reads at head/tail;
+ * If there is another direction supported by a paired read, switch to that direction
  */
-void look_harder_at_tail(hash_table *ht, pool *p,
+bwa_seq_t *look_harder_at_tail(hash_table *ht, pool *p,
 		GPtrArray *near_tpls, tpl *t, int ori) {
 	bwa_seq_t *r = NULL, *tail = NULL;
 	int i = 0, j = 0, start = 1, end = ht->o->read_len;
 	if (!t || t->len < ht->o->read_len)
-		return;
+		return NULL;
 	if (ori == 0) {
 		start = t->len - ht->o->read_len;
 		end = t->len;
 	}
 	tail = new_seq(t->ctg, kmer_len, start);
-	for (i = start; i < end; i++) {
-
+	show_debug_msg(__func__, "Looking harder at [%d, %d] ...\n", start, end);
+	p_ctg_seq("ORI", t->ctg);
+	for (i = start; i < end - kmer_len; i++) {
+		p_query(__func__, tail);
 		find_match_mates(ht, p, near_tpls, t, tail, N_MISMATCHES, ori);
 		if (p->reads->len > 0) {
+			p_pool("HARDER", p, NULL);
 			if (ori) {
-				t->len = i;
-				t->ctg->len = t->len;
-				memmove(t->ctg->seq, t->len, sizeof(ubyte_t) * t->len);
-				set_rev_com(t->ctg);
-			} else {
 				t->len -= i;
 				t->ctg->len = t->len;
+				memmove(t->ctg->seq, t->ctg->seq + i, sizeof(ubyte_t) * t->len);
+				set_rev_com(t->ctg);
+			} else {
+				t->len = i;
+				t->ctg->len = t->len;
 			}
-
-			return;
+			p_ctg_seq("TRUNCATED", t->ctg);
+			return tail;
 		}
+		ext_que(tail, t->ctg->seq[i + kmer_len], 0);
 	}
+	bwa_free_read_seq(1, tail);
+	return NULL;
 }
 
 /**
@@ -740,7 +747,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 	int to_connect = 0;
 	int ext_len = 0, no_read_len = 0;
 	GPtrArray *near_tpls = g_ptr_array_sized_new(4);
-	bwa_seq_t *tail = new_seq(query, query->len, 0);
+	bwa_seq_t *tail = new_seq(query, query->len, 0), *adj_tail = NULL;
 	bwa_seq_t *last_read = NULL;
 
 	show_debug_msg(__func__,
@@ -797,8 +804,12 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 					ori);
 			max_c = get_next_char(ht, p, near_tpls, t, ori);
 			if (max_c == -1) {
-				look_harder_at_tail(ht, p, near_tpls, t, ori);
-				max_c = get_next_char(ht, p, near_tpls, t, ori);
+				//adj_tail = look_harder_at_tail(ht, p, near_tpls, t, ori);
+				if (adj_tail) {
+					bwa_free_read_seq(1, tail);
+					tail = adj_tail;
+					max_c = get_next_char(ht, p, near_tpls, t, ori);
+				}
 				if (max_c == -1) {
 					show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n",
 							ori, t->id, t->len);
