@@ -488,7 +488,7 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 
 	//p_tpl(t);
 	//show_debug_msg(__func__, "ORI: %d \n", ori);
-	//p_query(__func__, tail);
+	p_query(__func__, tail);
 
 	for (i = 0; i < existing_reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(existing_reads, i);
@@ -513,7 +513,7 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol, tail->len
 					- ol);
 			//p_query(__func__, part);
-			if (is_biased_q(part) || has_n(part, 1)) {
+			if (has_n(part, 1)) {
 				bwa_free_read_seq(1, part);
 				continue;
 			}

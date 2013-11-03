@@ -384,8 +384,11 @@ tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, int len,
 }
 
 void p_test_read() {
-	return;
-	p_query("TEST", TEST);
+//	p_query("TEST", TEST);
+//	if (TEST->status == FRESH && TEST->pos != IMPOSSIBLE_NEGATIVE) {
+//		show_debug_msg(__func__, "ID: %d \n", kmer_ctg_id);
+//		exit(1);
+//	}
 }
 
 /**
@@ -713,23 +716,40 @@ bwa_seq_t *look_harder_at_tail(hash_table *ht, pool *p,
 		end = t->len;
 	}
 	tail = new_seq(t->ctg, kmer_len, start);
-	show_debug_msg(__func__, "Looking harder at [%d, %d] ...\n", start, end);
-	p_ctg_seq("ORI", t->ctg);
+	//show_debug_msg(__func__, "Looking harder at [%d, %d] ...\n", start, end);
+	//p_ctg_seq("ORI", t->ctg);
 	for (i = start; i < end - kmer_len; i++) {
-		p_query(__func__, tail);
+		//p_query(__func__, tail);
 		find_match_mates(ht, p, near_tpls, t, tail, N_MISMATCHES, ori);
 		if (p->reads->len > 0) {
-			p_pool("HARDER", p, NULL);
+			//p_pool("HARDER", p, NULL);
 			if (ori) {
 				t->len -= i;
 				t->ctg->len = t->len;
 				memmove(t->ctg->seq, t->ctg->seq + i, sizeof(ubyte_t) * t->len);
 				set_rev_com(t->ctg);
+				for (j = t->reads->len - 1; j >= 0; j--) {
+					r = (bwa_seq_t*) g_ptr_array_index(t->reads, j);
+					if (r->contig_locus >= t->len) {
+						reset_to_dead(r);
+						g_ptr_array_remove_index_fast(t->reads, j);
+					} else
+						break;
+				}
 			} else {
 				t->len = i;
 				t->ctg->len = t->len;
+				// Remove reads without range
+				for (j = t->reads->len - 1; j >= 0; j--) {
+					r = (bwa_seq_t*) g_ptr_array_index(t->reads, j);
+					if (r->contig_locus + r->len >= i) {
+						reset_to_dead(r);
+						g_ptr_array_remove_index_fast(t->reads, j);
+					} else
+						break;
+				}
 			}
-			p_ctg_seq("TRUNCATED", t->ctg);
+			//p_ctg_seq("TRUNCATED", t->ctg);
 			return tail;
 		}
 		ext_que(tail, t->ctg->seq[i + kmer_len], 0);
@@ -972,6 +992,7 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 			continue;
 		mark_init_reads_used(ht, to, m, N_MISMATCHES);
 		do_jumping(ht, all_tpls, to, m);
+		unfrozen_tried(to);
 		if (!to->alive) {
 			mark_as_hang_tmp(to);
 			to->alive = 0;
@@ -986,6 +1007,7 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 			//			g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 			//p_tpl_reads(from);
 			i = 0;
+			unfrozen_hang_reads();
 		}
 		// For TRIED reads; to->reads is empty after merging
 		mark_as_hang_tmp(to);
@@ -1239,6 +1261,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		//p_query(__func__, tail);
 
 		b_reads = check_branch_tail(ht, t, tail, shift, mismatches, FRESH, ori);
+		p_test_read();
 		if (b_reads->len > 0) {
 			printf("\n ---- \n");
 			show_debug_msg(__func__, "Template [%d, %d] at %d \n", t->id,
@@ -1541,7 +1564,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 //	if (fresh_trial == 0)
-//		read = &seqs[1533609];
+//		read = &seqs[242415];
 //	if (fresh_trial == 1)
 //		read = &seqs[68550];10897
 
@@ -1639,7 +1662,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[2023];
+	TEST = &seqs[396776];
 
 	// shrink_ht(ht);
 

@@ -67,6 +67,7 @@ void merge_tpl_to_right(tpl *jumped, tpl *t, int ol, int rev_com) {
 	int i = 0, l_len = 0, new_locus = 0;
 	bwa_seq_t *r = NULL;
 	ubyte_t c = 0;
+	junction *jun = 0;
 	show_debug_msg(__func__, "Merging Right: [%d, %d] Vs. [%d, %d]; ol: %d\n",
 					t->id, t->len, jumped->id, jumped->len, ol);
 	if (!t || !jumped || ol >= t->len || ol >= jumped->len)
@@ -92,6 +93,13 @@ void merge_tpl_to_right(tpl *jumped, tpl *t, int ol, int rev_com) {
 	for (i = 0; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		r->contig_locus += jumped->len - ol;
+	}
+
+	if (t->m_juncs) {
+		for (i = 0; i < t->m_juncs->len; i++) {
+			jun = (junction*) g_ptr_array_index(t->m_juncs, i);
+			jun->locus += jumped->len - ol;
+		}
 	}
 
 	// Add the reads on jumped template to the main template

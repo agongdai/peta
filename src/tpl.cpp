@@ -1012,8 +1012,10 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	for (i = 0; i < hits->len; i++) {
 		is_picked = 0;
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
-		if (has_n(r, 1))
+		if (has_n(r, 1)) {
+			reset_to_fresh(r);
 			continue;
+		}
 
 		ol_len = ori ? r->len - r->pos : query->len + r->pos;
 		start = ori ? shift : shift - r->pos;
