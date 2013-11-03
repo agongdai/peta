@@ -703,14 +703,31 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
  */
 void look_harder_at_tail(hash_table *ht, pool *p,
 		GPtrArray *near_tpls, tpl *t, int ori) {
-	bwa_seq_t *tail = NULL;
-	int i = 0, start = 1, end = ht->o->read_len;
+	bwa_seq_t *r = NULL, *tail = NULL;
+	int i = 0, j = 0, start = 1, end = ht->o->read_len;
 	if (!t || t->len < ht->o->read_len)
 		return;
-	if (ori) {
+	if (ori == 0) {
+		start = t->len - ht->o->read_len;
+		end = t->len;
+	}
+	tail = new_seq(t->ctg, kmer_len, start);
+	for (i = start; i < end; i++) {
 
-	} else {
+		find_match_mates(ht, p, near_tpls, t, tail, N_MISMATCHES, ori);
+		if (p->reads->len > 0) {
+			if (ori) {
+				t->len = i;
+				t->ctg->len = t->len;
+				memmove(t->ctg->seq, t->len, sizeof(ubyte_t) * t->len);
+				set_rev_com(t->ctg);
+			} else {
+				t->len -= i;
+				t->ctg->len = t->len;
+			}
 
+			return;
+		}
 	}
 }
 
@@ -757,7 +774,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 			last_read
 					= (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len - 1);
 
-		if (t->id == 1) {
+		if (t->id == -1) {
 		p_query(__func__, tail);
 		p_ctg_seq("TEMPLATE", t->ctg);
 		p_pool("CURRENT POOL", p, NULL);
@@ -765,7 +782,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
-		if (t->id == 1)
+		if (t->id == -1)
 		show_debug_msg(__func__,
 				"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 				t->len, "ZACGTN"[max_c + 1]);
@@ -1512,8 +1529,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		return NULL;
 	}
 
-	if (fresh_trial == 0)
-		read = &seqs[1533609];
+//	if (fresh_trial == 0)
+//		read = &seqs[1533609];
 //	if (fresh_trial == 1)
 //		read = &seqs[68550];10897
 
@@ -1636,7 +1653,7 @@ void kmer_threads(kmer_t_meta *params) {
 		free(counter);
 //		if (fresh_trial >= 1)
 //		if (kmer_ctg_id >= 123062)
-		break;
+//		break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",

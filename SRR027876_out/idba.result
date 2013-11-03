@@ -1,6 +1,3 @@
-/home/carl/Projects//blat/blat /home/carl/Projects//peta/rnaseq/hg19/ensembl.genes.fa.oracle /home/carl/Projects//peta_pair/SRR027876_out/idba.fa -ooc=/home/carl/Projects//blat/11.ooc /home/carl/Projects//peta_pair/SRR027876_out/idba.fa.psl
-Loaded 23645406 letters in 20067 sequences
-Searched 6674271 bases in 8077 sequences
 python /home/carl/Projects//peta_pair/scripts/eva.py blat -t /home/carl/Projects//peta/rnaseq/hg19/ensembl.genes.fa.oracle -c /home/carl/Projects//peta_pair/SRR027876_out/idba.fa -p /home/carl/Projects//peta_pair/SRR027876_out/idba.fa.psl -o /home/carl/Projects//peta_pair/SRR027876_out/ -s 0.99
 ===================================================================
 Summary of /home/carl/Projects//peta/rnaseq/hg19/ensembl.genes.fa.oracle
