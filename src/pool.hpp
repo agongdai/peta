@@ -38,8 +38,8 @@ extern "C" {
 			int mismatches, const int ori);
 	void correct_init_tpl_base(pool *p, tpl *t, int ori);
 	void rm_half_clip_reads(pool *p, tpl *t, int tpl_c, int mismatches, int ori);
-	void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t, bwa_seq_t *tail,
-			int mismatches, int ori);
+	void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
+			bwa_seq_t *to_match, int mismatches, int ori);
 	void find_hashed_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t, bwa_seq_t *tail,
 			int mismatches, int ori);
 	void rm_bad_ol_reads(pool *p, tpl *t, const int ori);

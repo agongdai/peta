@@ -1,4 +1,5 @@
 from zoom import *
+from merge import *
 
 def psl2bed12(psl, out):
     with open(out, 'w') as o:
@@ -135,8 +136,27 @@ def count_not_align(psl):
             fields = line.split('\t')
             transcripts[fields[13]] = 1
             reads_have_hits[fields[9]] = 1
-    print 'Reads having hits on %d transcripts: %d' % (len(transcripts), len(reads_have_hits))            
+    print 'Reads having hits on %d transcripts: %d' % (len(transcripts), len(reads_have_hits))      
     
+def petaFasta2paired(fn_in, fn_out):
+    id = 0
+    with open(fn_out, 'w') as out:
+        with open(fn_in) as input:
+            for line in input:
+                if '>' in line:
+                    if id % 2 == 0:
+                        out.write('>%d/1\n' % id)
+                    else:
+                        out.write('>%d/2\n' % id)
+                else:
+                    if id % 2 == 0:
+                        out.write(line)
+                    else:
+                        line = line.strip()
+                        out.write(rev_comp(line) + '\n')
+                    id += 1     
+
+petaFasta2paired('SRR097897.part.fa', 'SRR097897.part.shuffled.fa')
 #psl2gene('/home/carl/Projects/peta/rnaseq/Spombe/genome/tx.rev.genome.psl')
 #psl2gene('/home/carl/Projects/peta_dev/scripts/spombe_630.genome.psl')
 #psl2gene('/home/carl/Projects/peta/rnaseq/Spombe/genome/tx.630.oracle.genome.psl')
@@ -144,4 +164,4 @@ def count_not_align(psl):
 #psl2gene('/home/ariyaratnep/shaojiang/peta_copies/peta_dev/SRX011545_out/idba-60.hg19.psl', 'hg19')
 #bed2gene('/home/ariyaratnep/shaojiang/peta/rnaseq/hg19/ensembl.genes.bed')
 #count_not_align('/home/carl/Projects/peta/rnaseq/Spombe/630.tx.rev.psl')
-psl2bed12('spombe.tx.uni.psl', 'spombe.tx.uni.bed')
+#psl2bed12('spombe.tx.uni.psl', 'spombe.tx.uni.bed')

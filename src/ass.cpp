@@ -707,8 +707,8 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
  */
 bwa_seq_t *look_harder_at_tail(hash_table *ht, pool *p,
 		GPtrArray *near_tpls, tpl *t, int ori) {
-	bwa_seq_t *r = NULL, *tail = NULL;
-	int i = 0, j = 0, start = 1, end = ht->o->read_len;
+	bwa_seq_t *r = NULL, *tail = NULL, *part = NULL;
+	int i = 0, j = 0, start = 1, end = ht->o->read_len, has_good_mate = 0;
 	if (!t || t->len < ht->o->read_len)
 		return NULL;
 	if (ori == 0) {
@@ -717,12 +717,36 @@ bwa_seq_t *look_harder_at_tail(hash_table *ht, pool *p,
 	}
 	tail = new_seq(t->ctg, kmer_len, start);
 	//show_debug_msg(__func__, "Looking harder at [%d, %d] ...\n", start, end);
+	p_test_read();
 	//p_ctg_seq("ORI", t->ctg);
+	part = new_seq(t->ctg, t->len, 0);
 	for (i = start; i < end - kmer_len; i++) {
 		//p_query(__func__, tail);
-		find_match_mates(ht, p, near_tpls, t, tail, N_MISMATCHES, ori);
+		has_good_mate = 0;
+		memmove(part->seq, part->seq + 1, part->len - 1);
+		part->len--;
+		set_rev_com(part);
+		find_match_mates(ht, p, near_tpls, t, part, N_MISMATCHES, ori);
 		if (p->reads->len > 0) {
-			//p_pool("HARDER", p, NULL);
+			// At least read can be extended to be longer than current template
+			for (j = 0; j < p->reads->len; j++) {
+				r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
+				if (ori) {
+					if (r->cursor > i) {
+						has_good_mate = 1;
+						break;
+					}
+				} else {
+					if ((r->len - r->cursor) > (t->len - i)) {
+						has_good_mate = 1;
+						break;
+					}
+				}
+			}
+			if (!has_good_mate)
+				continue;
+			p_ctg_seq("ORI", t->ctg);
+			p_pool("HARDER", p, NULL);
 			if (ori) {
 				t->len -= i;
 				t->ctg->len = t->len;
@@ -749,12 +773,15 @@ bwa_seq_t *look_harder_at_tail(hash_table *ht, pool *p,
 						break;
 				}
 			}
-			//p_ctg_seq("TRUNCATED", t->ctg);
+			p_ctg_seq("TRUNCATED", t->ctg);
+			bwa_free_read_seq(1, part);
+			empty_pool(p);
 			return tail;
 		}
 		ext_que(tail, t->ctg->seq[i + kmer_len], 0);
 	}
 	bwa_free_read_seq(1, tail);
+	bwa_free_read_seq(1, part);
 	return NULL;
 }
 
@@ -824,7 +851,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *t,
 					ori);
 			max_c = get_next_char(ht, p, near_tpls, t, ori);
 			if (max_c == -1) {
-				//adj_tail = look_harder_at_tail(ht, p, near_tpls, t, ori);
+				adj_tail = look_harder_at_tail(ht, p, near_tpls, t, ori);
 				if (adj_tail) {
 					bwa_free_read_seq(1, tail);
 					tail = adj_tail;
@@ -983,8 +1010,8 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 		//		p_query(__func__, r);
 		//		p_query(__func__, m);
 		// If the read is in the middle of the template, must do not jump from its mate
-		if (m->status != FRESH || (r->contig_locus > ins_size + 100
-				&& r->contig_locus < from->len - ins_size - 100))
+		if (m->status != FRESH || (r->contig_locus > ins_size + 150
+				&& r->contig_locus < from->len - ins_size - 150))
 			continue;
 		show_debug_msg(__func__, "Trying to jump to %s ...\n", m->name);
 		to = please_jump(ht, all_tpls, from, m);
@@ -1005,7 +1032,8 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 					"Jumped to read %s [%d, %d] as [%d, %d]...\n", m->name,
 					to->id, to->len, from->id, from->len);
 			//			g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
-			//p_tpl_reads(from);
+			p_tpl_reads(from);
+			p_test_read();
 			i = 0;
 			unfrozen_hang_reads();
 		}
@@ -1564,7 +1592,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 //	if (fresh_trial == 0)
-//		read = &seqs[242415];
+//		read = &seqs[71461];
 //	if (fresh_trial == 1)
 //		read = &seqs[68550];10897
 
@@ -1662,7 +1690,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[396776];
+	TEST = &seqs[16748];
 
 	// shrink_ht(ht);
 

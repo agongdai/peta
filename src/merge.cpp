@@ -180,7 +180,7 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 	if (!paired_by_reads(ht->seqs, t, jumped, 2))
 		return 0;
 	ol = find_fr_ol_within_k(jumped->ctg, t->ctg, mis, ht->o->k,
-			ht->o->read_len, 0, &rev_com, &n_mis);
+			ht->o->read_len * 1.5, 0, &rev_com, &n_mis);
 	//show_debug_msg(__func__, "OVERLAP: %d; n_mis: %d\n", ol, n_mis);
 	if (ol >= ht->o->k && ol >= n_mis * ht->o->k) {
 		//show_debug_msg(__func__, "Merging to left...\n");
@@ -188,7 +188,7 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 		return 1;
 	}
 	ol = find_fr_ol_within_k(t->ctg, jumped->ctg, mis, ht->o->k,
-			ht->o->read_len, 0, &rev_com, &n_mis);
+			ht->o->read_len * 1.5, 0, &rev_com, &n_mis);
 	//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
 	if (ol >= ht->o->k && ol >= n_mis * ht->o->k) {
 		merge_tpl_to_right(jumped, t, ol, rev_com);

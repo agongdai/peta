@@ -988,9 +988,11 @@ int find_ol_within_k(const bwa_seq_t *mate, const bwa_seq_t *tpl,
 		const int mismatches, const int min_len, const int max_len,
 		const int ori, int *n_mis) {
 	int i = 0, olpped = -1;
+	int m = 0;
 	if (!mate || !tpl || min_len <= 0 || max_len <= 0 || max_len < min_len)
 		return 0;
-	for (i = max_len; i >= min_len; i--) {
+	m = min3(max_len, mate->len, tpl->len);
+	for (i = m; i >= min_len; i--) {
 		olpped = ori ? seq_ol(mate, tpl, i, mismatches) : seq_ol(tpl, mate, i,
 				mismatches);
 		if (olpped >= 0) {
