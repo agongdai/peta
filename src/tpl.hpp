@@ -102,6 +102,7 @@ extern "C" {
 	void unfrozen_tried(tpl *t);
 	void reset_unpaired_reads(bwa_seq_t *seqs, tpl *t);
 	int find_tried_tpl(tpl *t, const int tid);
+	void reset_reads_status(GPtrArray *reads, int status);
 	void add2tried(tpl *t, bwa_seq_t *r);
 	void rm_from_tpl(tpl *t, int index);
 	void rm_from_tried(tpl *t, const int rm_id);

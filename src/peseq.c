@@ -548,8 +548,7 @@ void set_rev_com(bwa_seq_t *s) {
 	s->rseq[s->len] = '\0';
 }
 
-void reset_to_fresh(bwa_seq_t *r) {
-	r->status = FRESH;
+void reset_read(bwa_seq_t *r) {
 	r->pos = IMPOSSIBLE_NEGATIVE;
 	r->cursor = -1;
 	r->contig_id = -1;
@@ -557,13 +556,19 @@ void reset_to_fresh(bwa_seq_t *r) {
 	r->rev_com = 0;
 }
 
+void reset_to_fresh(bwa_seq_t *r) {
+	r->status = FRESH;
+	reset_read(r);
+}
+
 void reset_to_dead(bwa_seq_t *r) {
 	r->status = DEAD;
-	r->pos = IMPOSSIBLE_NEGATIVE;
-	r->cursor = -1;
-	r->contig_id = -1;
-	r->contig_locus = -1;
-	r->rev_com = 0;
+	reset_read(r);
+}
+
+void reset_to_hang(bwa_seq_t *r) {
+	r->status = HANG;
+	reset_read(r);
 }
 
 bwa_seq_t *blank_seq(const int len) {

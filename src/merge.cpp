@@ -69,7 +69,7 @@ void merge_tpl_to_right(tpl *jumped, tpl *t, int ol, int rev_com) {
 	ubyte_t c = 0;
 	junction *jun = 0;
 	show_debug_msg(__func__, "Merging Right: [%d, %d] Vs. [%d, %d]; ol: %d\n",
-					t->id, t->len, jumped->id, jumped->len, ol);
+			t->id, t->len, jumped->id, jumped->len, ol);
 	if (!t || !jumped || ol >= t->len || ol >= jumped->len)
 		return;
 	if (t->l_tail) {
@@ -175,10 +175,11 @@ void merge_tpl_to_left(tpl *t, tpl *jumped, int ol, int rev_com) {
 int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 	int ol = 0;
 	int rev_com = 0, n_mis = 0;
-//	p_tpl_reads(t);
-//	p_tpl_reads(jumped);
+	//	p_tpl_reads(t);
+	//	p_tpl_reads(jumped);
 	if (!paired_by_reads(ht->seqs, t, jumped, 2))
 		return 0;
+
 	ol = find_fr_ol_within_k(jumped->ctg, t->ctg, mis, ht->o->k,
 			ht->o->read_len * 1.5, 0, &rev_com, &n_mis);
 	//show_debug_msg(__func__, "OVERLAP: %d; n_mis: %d\n", ol, n_mis);

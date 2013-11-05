@@ -25,7 +25,7 @@
 #define BUFSIZE 				1023
 #define FNLEN 					1023
 #define LINELEN					50
-#define	MIN_BP_LEN				100
+#define	MIN_TPL_LEN				100
 #define JUNCTION_BOUNDARY_BASE	8
 
 #define MAX_POOL_SIZE			281474976710655			// @Desperate

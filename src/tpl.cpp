@@ -164,12 +164,13 @@ void add2tried(tpl *t, bwa_seq_t *r) {
 	g_ptr_array_add(t->tried, r);
 }
 
-void reset_reads_to_fresh(GPtrArray *reads) {
+void reset_reads_status(GPtrArray *reads, int status) {
 	index64 i = 0;
 	bwa_seq_t *r = NULL;
 	for (i = 0; i < reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
-		reset_to_fresh(r);
+		r->status = status;
+		reset_read(r);
 	}
 }
 
@@ -588,13 +589,12 @@ int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
  * Return:                      ==========++++
  * '++++' is the partial virtual tail of current tpl
  */
-bwa_seq_t *cut_tpl_tail(tpl *t, int pos, const int tail_len,
-		const int ori) {
+bwa_seq_t *cut_tpl_tail(tpl *t, int pos, const int tail_len, const int ori) {
 	bwa_seq_t *tail = NULL, *partial = NULL, *main_tail = NULL;
 	int v_tail_len = 0;
 	if (t->len < pos)
 		pos = t->len;
-		//return new_seq(t->ctg, t->len, 0);
+	//return new_seq(t->ctg, t->len, 0);
 	if (ori) {
 		partial = new_seq(t->ctg, t->len - pos, pos);
 		main_tail = t->r_tail;
@@ -616,12 +616,14 @@ bwa_seq_t *cut_tpl_tail(tpl *t, int pos, const int tail_len,
 			tail = blank_seq(v_tail_len);
 			if (ori) {
 				memcpy(tail->seq, partial->seq, sizeof(ubyte_t) * partial->len);
-				memcpy(tail->seq + partial->len, tail->seq, sizeof(ubyte_t)
-						* (v_tail_len - partial->len));
+				memcpy(tail->seq + partial->len, tail->seq,
+						sizeof(ubyte_t) * (v_tail_len - partial->len));
 			} else {
-				memcpy(tail->seq, main_tail->seq + (main_tail->len
-						+ partial->len - v_tail_len), sizeof(ubyte_t)
-						* (v_tail_len - partial->len));
+				memcpy(
+						tail->seq,
+						main_tail->seq + (main_tail->len + partial->len
+								- v_tail_len),
+						sizeof(ubyte_t) * (v_tail_len - partial->len));
 				memcpy(tail->seq + (v_tail_len - partial->len), partial->seq,
 						sizeof(ubyte_t) * partial->len);
 			}
@@ -802,11 +804,11 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 				: t->len;
 		len = t->r_tail->len + borrow_len;
 		s = blank_seq(len);
-		memcpy(s->seq, t->ctg->seq + (t->len - borrow_len), borrow_len
-				* sizeof(ubyte_t));
+		memcpy(s->seq, t->ctg->seq + (t->len - borrow_len),
+				borrow_len * sizeof(ubyte_t));
 		s->len = borrow_len;
-		memcpy(s->seq + s->len, t->r_tail->seq, t->r_tail->len
-				* sizeof(ubyte_t));
+		memcpy(s->seq + s->len, t->r_tail->seq,
+				t->r_tail->len * sizeof(ubyte_t));
 		s->len += t->r_tail->len;
 
 		for (i = 0; i <= s->len - ht->o->read_len; i++) {
@@ -839,7 +841,7 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len) {
 	if (!t->reads || t->reads->len == 0)
 		return;
 	counters = g_ptr_array_sized_new(t->len);
-	p_ctg_seq("BEFORE", t->ctg);
+	//p_ctg_seq("BEFORE", t->ctg);
 	//p_tpl_reads(t);
 
 	for (i = 0; i < t->len; i++) {
@@ -887,7 +889,7 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len) {
 		free(cs);
 	}
 	g_ptr_array_free(counters, TRUE);
-	p_ctg_seq("AFTER", t->ctg);
+	//p_ctg_seq("AFTER", t->ctg);
 }
 
 void clear_tpl_tails(tpl *t) {
@@ -983,24 +985,24 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	int is_picked = 0;
 	ubyte_t c = 0, read_c = 0;
 
-//	if (shift == 707) {
-//		show_debug_msg(__func__, "----\n");
-//		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
-//				: "right");
-//		p_query(__func__, query);
-//		p_readarray(hits, 1);
-//	}
+	//	if (shift == 707) {
+	//		show_debug_msg(__func__, "----\n");
+	//		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
+	//				: "right");
+	//		p_query(__func__, query);
+	//		p_readarray(hits, 1);
+	//	}
 
 	if (hits->len <= 0) {
 		return hits;
 	}
 
 	//if (shift == 1324) {
-//		show_debug_msg(__func__, "----\n");
-//		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
-//				: "right");
-//		p_query(__func__, query);
-//		p_readarray(hits, 1);
+	//		show_debug_msg(__func__, "----\n");
+	//		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
+	//				: "right");
+	//		p_query(__func__, query);
+	//		p_readarray(hits, 1);
 	//}
 
 	//if (shift == 587) {
@@ -1081,10 +1083,12 @@ int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
 	for (i = 1; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		m = get_mate(r, ht->seqs);
-		if (r->contig_locus >= 0 && m->status == USED) {
+		if (r->contig_locus >= 0 && r->contig_locus + r->len <= t->len && m->status == USED) {
 			for (j = 0; j < tpls->len; j++) {
 				near = (tpl*) g_ptr_array_index(tpls, j);
-				if (m->contig_id == near->id && m->contig_id != t->id && m->contig_locus >= 0) {
+				if (m->contig_id == near->id && m->contig_id != t->id
+						&& m->contig_locus >= 0 && m->contig_locus + m->len
+						<= near->len) {
 					n++;
 					p_query("READ", r);
 					p_query("MATE", m);
@@ -1214,16 +1218,16 @@ void switch_tpl_fr(tpl *t) {
 		r->contig_locus = t->len - r->contig_locus - r->len;
 		r->rev_com = r->rev_com ? 0 : 1;
 	}
-//	if (t->r_tail)
-//		tmp = t->r_tail;
-//	if (t->l_tail) {
-//		switch_fr(t->l_tail);
-//		t->r_tail = t->l_tail;
-//	}
-//	if (tmp) {
-//		switch_fr(tmp);
-//		t->l_tail = tmp;
-//	}
+	//	if (t->r_tail)
+	//		tmp = t->r_tail;
+	//	if (t->l_tail) {
+	//		switch_fr(t->l_tail);
+	//		t->r_tail = t->l_tail;
+	//	}
+	//	if (tmp) {
+	//		switch_fr(tmp);
+	//		t->l_tail = tmp;
+	//	}
 }
 
 void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
@@ -1243,11 +1247,11 @@ void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 			if (ori)
 				seq_reverse(contig->len, contig->seq, 0);
 			if (t->last_read)
-			sprintf(h, ">%d_%s length: %d start: %s\n", t->id, t->last_read->name, contig->len,
-					t->start_read->name);
+				sprintf(h, ">%d_%s length: %d start: %s\n", t->id,
+						t->last_read->name, contig->len, t->start_read->name);
 			else
 				sprintf(h, ">%d_0 length: %d start: %s\n", t->id, contig->len,
-									t->start_read->name);
+						t->start_read->name);
 			save_con(h, contig, ass_fa);
 		}
 	}
@@ -1353,8 +1357,8 @@ bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len) {
 	memcpy(s->seq + s->len, t->ctg->seq, t->len);
 	s->len += t->len;
 	if (t->r_tail) {
-		memcpy(s->seq + s->len, t->r_tail->seq, t->r_tail->len
-				* sizeof(ubyte_t));
+		memcpy(s->seq + s->len, t->r_tail->seq,
+				t->r_tail->len * sizeof(ubyte_t));
 		s->len += t->r_tail->len;
 	}
 	set_rev_com(s);

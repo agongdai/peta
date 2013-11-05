@@ -1069,7 +1069,7 @@ def analyze(args):
 	for id in partial:
 		h = ht_partial[id]
 		r = 'Range [%d, %d] / %d' % (h.rstart, h.rend, h.rlen)
-		print '%20s: \tBadBases: %d \t %30s; mismatches: %d; gaps: %d ' % (id, h.n_bad_bases, r, h.n_mismatch, h.n_query_gap + h.n_ref_gap)
+		print '%20s: \tBadBases: %d+%d \t %30s; mismatches: %d; gaps: %d ' % (id, h.n_bad_bases, h.n_query_gap_bases, r, h.n_mismatch, h.n_query_gap + h.n_ref_gap)
 	print '\t--- Head/Tail Missing: %d ---' % len(head_tail_missing)
 	for id in head_tail_missing:
 		h = ht_missing_hits[id]

@@ -500,15 +500,19 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		r = (bwa_seq_t*) g_ptr_array_index(existing_reads, i);
 		m = get_mate(r, ht->seqs);
 
+		//p_query(__func__, r);
+		//p_query(__func__, m);
+
 		// If the mate is used already
 		// If the orientation is not correct
-		if (m->status != FRESH || is_paired(r, ori) || is_bad_query(m)) {
+		if (m->status != FRESH || is_bad_query(m)) {
 			continue;
 		}
 		// Find the overlapping between mate and tail
 		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1,
 				ht->o->read_len, ori, &rev_com, &n_mis);
-		if (strcmp(m->name, "588859") == 0) {
+		if (strcmp(m->name, "-4345688") == 0) {
+			p_query(__func__, r);
 			p_query(__func__, m);
 			p_query("MAIN_TPL", tail);
 			show_debug_msg(__func__, "OL: %d; rev_cov: %d\n", ol, rev_com);

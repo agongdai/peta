@@ -607,8 +607,6 @@ void destory_tpl_junctions(tpl *t) {
 	junction *jun = NULL, *jun2 = NULL;
 	if (!t)
 		return;
-	show_debug_msg(__func__, "Destroying template junctions [%d, %d] \n",
-			t->id, t->len);
 	if (t->m_juncs) {
 		while (t->m_juncs->len > 0) {
 			jun = (junction*) g_ptr_array_index(t->m_juncs, 0);
