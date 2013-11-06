@@ -84,6 +84,7 @@ extern "C" {
 	int find_in_array(GPtrArray *arr, gpointer value);
 	char *str_dup(const char * s);
 	int min3(int a, int b, int c);
+	int max3(int a, int b, int c);
 
 #ifdef __cplusplus
 }

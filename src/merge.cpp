@@ -180,6 +180,17 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 	if (!paired_by_reads(ht->seqs, t, jumped, 2))
 		return 0;
 
+	if (jumped->len > ht->o->read_len && t->len > ht->o->read_len) {
+		int seq_1_stop = 0, seq_2_stop = 0;
+	bwa_seq_t *seq_1 = new_seq(jumped->ctg, ht->o->read_len, jumped->len - ht->o->read_len);
+	bwa_seq_t *seq_2 = new_seq(t->ctg, ht->o->read_len, 0);
+	p_ctg_seq("seq_1", seq_1);
+	p_ctg_seq("seq_2", seq_2);
+	show_debug_msg(__func__, "LCS: %d \n", smith_waterman_simple(seq_1, seq_2, &seq_1_stop, &seq_2_stop));
+	show_debug_msg(__func__, "seq_1 stop: %d; seq_2 stop: %d\n", seq_1_stop, seq_2_stop);
+	}
+
+
 	ol = find_fr_ol_within_k(jumped->ctg, t->ctg, mis, ht->o->k,
 			ht->o->read_len * 1.5, 0, &rev_com, &n_mis);
 	//show_debug_msg(__func__, "OVERLAP: %d; n_mis: %d\n", ol, n_mis);

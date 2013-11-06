@@ -132,6 +132,17 @@ int min3(int a, int b, int c) {
 		return b;
 	if (c <= a && c <= b)
 		return c;
+	return a;
+}
+
+int max3(int a, int b, int c) {
+	if (c <= a && b <= a)
+		return a;
+	if (a <= b && c <= b)
+		return b;
+	if (a <= c && b <= c)
+		return c;
+	return a;
 }
 
 char *str_dup(const char * s) {

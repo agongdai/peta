@@ -80,6 +80,7 @@ extern "C" {
 	void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 			const int p_all, const int min_len);
 	void find_reads_ahead(tpl *t, const int read_len, int ol_len, int *n_reads, const int ori);
+	int find_reads_at_tail(tpl *t, int len, int min, int ori);
 	void upd_reads_after_truncate(tpl *t, int trun_len);
 	float calc_tpl_cov(tpl *t, int start, int end, int read_len);
 	int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,

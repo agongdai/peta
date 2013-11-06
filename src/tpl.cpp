@@ -515,6 +515,37 @@ void find_reads_ahead(tpl *t, const int read_len, int ol_len, int *n_reads,
 }
 
 /**
+ *
+ */
+int find_reads_at_tail(tpl *t, int len, int min, int ori) {
+	int i = 0, n = 0;
+	bwa_seq_t *r = NULL;
+	//p_tpl_reads(t);
+	if (ori == 0) {
+		for (i = t->reads->len - 1; i >= 0; i--) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+			if (r->contig_locus + r->len >= t->len - len) {
+				//p_query(__func__, r);
+				n++;
+			}
+			if (n > min) return 1;
+		}
+	} else {
+		for (i = 0; i < t->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+			if (r->contig_locus < len) {
+				//p_query(__func__, r);
+				n++;
+			}
+			if (n > min) return 1;
+		}
+	}
+	show_debug_msg(__func__, "[%d, %d]: Len %d; Ori %d; n_reads: %d\n", t->id,
+			t->len, len, ori, n);
+	return 0;
+}
+
+/**
  * Assumption: the reads on template are sorted by contig_locus
  */
 float calc_tpl_cov(tpl *t, int start, int end, int read_len) {
@@ -616,14 +647,12 @@ bwa_seq_t *cut_tpl_tail(tpl *t, int pos, const int tail_len, const int ori) {
 			tail = blank_seq(v_tail_len);
 			if (ori) {
 				memcpy(tail->seq, partial->seq, sizeof(ubyte_t) * partial->len);
-				memcpy(tail->seq + partial->len, tail->seq,
-						sizeof(ubyte_t) * (v_tail_len - partial->len));
+				memcpy(tail->seq + partial->len, tail->seq, sizeof(ubyte_t)
+						* (v_tail_len - partial->len));
 			} else {
-				memcpy(
-						tail->seq,
-						main_tail->seq + (main_tail->len + partial->len
-								- v_tail_len),
-						sizeof(ubyte_t) * (v_tail_len - partial->len));
+				memcpy(tail->seq, main_tail->seq + (main_tail->len
+						+ partial->len - v_tail_len), sizeof(ubyte_t)
+						* (v_tail_len - partial->len));
 				memcpy(tail->seq + (v_tail_len - partial->len), partial->seq,
 						sizeof(ubyte_t) * partial->len);
 			}
@@ -804,11 +833,11 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 				: t->len;
 		len = t->r_tail->len + borrow_len;
 		s = blank_seq(len);
-		memcpy(s->seq, t->ctg->seq + (t->len - borrow_len),
-				borrow_len * sizeof(ubyte_t));
+		memcpy(s->seq, t->ctg->seq + (t->len - borrow_len), borrow_len
+				* sizeof(ubyte_t));
 		s->len = borrow_len;
-		memcpy(s->seq + s->len, t->r_tail->seq,
-				t->r_tail->len * sizeof(ubyte_t));
+		memcpy(s->seq + s->len, t->r_tail->seq, t->r_tail->len
+				* sizeof(ubyte_t));
 		s->len += t->r_tail->len;
 
 		for (i = 0; i <= s->len - ht->o->read_len; i++) {
@@ -1083,7 +1112,8 @@ int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
 	for (i = 1; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		m = get_mate(r, ht->seqs);
-		if (r->contig_locus >= 0 && r->contig_locus + r->len <= t->len && m->status == USED) {
+		if (r->contig_locus >= 0 && r->contig_locus + r->len <= t->len
+				&& m->status == USED) {
 			for (j = 0; j < tpls->len; j++) {
 				near = (tpl*) g_ptr_array_index(tpls, j);
 				if (m->contig_id == near->id && m->contig_id != t->id
@@ -1357,8 +1387,8 @@ bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len) {
 	memcpy(s->seq + s->len, t->ctg->seq, t->len);
 	s->len += t->len;
 	if (t->r_tail) {
-		memcpy(s->seq + s->len, t->r_tail->seq,
-				t->r_tail->len * sizeof(ubyte_t));
+		memcpy(s->seq + s->len, t->r_tail->seq, t->r_tail->len
+				* sizeof(ubyte_t));
 		s->len += t->r_tail->len;
 	}
 	set_rev_com(s);

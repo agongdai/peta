@@ -511,7 +511,7 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		// Find the overlapping between mate and tail
 		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1,
 				ht->o->read_len, ori, &rev_com, &n_mis);
-		if (strcmp(m->name, "-4345688") == 0) {
+		if (strcmp(m->name, "-693935") == 0) {
 			p_query(__func__, r);
 			p_query(__func__, m);
 			p_query("MAIN_TPL", tail);

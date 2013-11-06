@@ -697,6 +697,51 @@ int same_bytes(const ubyte_t *s, const int k) {
 }
 
 /**
+ * Smith-Waterman algorithm to get a common subsequence
+ */
+int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
+		int *seq_1_start, int *seq_2_start, int *seq_1_stop, int *seq_2_stop) {
+	int *previous_row = NULL, *current_row = NULL;
+	int columns = seq_1->len + 1, max_score = 0, rows = seq_2->len + 1;
+	int i = 0, j = 0;
+	int up_left = 0, up = 0, left = 0;
+	previous_row = (int*) calloc(columns + 1, sizeof(int));
+	current_row = (int*) calloc(columns + 1, sizeof(int));
+	*seq_1_stop = 0;
+	*seq_2_stop = 0;
+	for (i = 1; i < rows; i++) {
+		for (j = 1; j < columns; j++) {
+			up = previous_row[j] - 1; // not updated, so is the value from previous row
+			left = current_row[j - 1] - 1; // updated already, so is the value from current row
+			if (seq_1->seq[j - 1] == seq_2->seq[i - 1])
+				up_left = previous_row[j - 1] + 1;
+			else
+				up_left = previous_row[j - 1] - 1;
+			current_row[j] = max3(left, up, up_left);
+		}
+		for (j = 0; j < columns; j++) {
+			previous_row[j] = current_row[j];
+			if (current_row[j] > max_score) {
+				max_score = current_row[j];
+				*seq_1_stop = j - 1;
+				*seq_2_stop = i - 1;
+			}
+		}
+	}
+	// Back trace to find the starting points
+	*seq_1_start = 0;
+	*seq_2_start = 0;
+	for (i = *seq_1_stop; i >= 1; i--) {
+		for (j = *seq_2_stop; j >= 1; j--) {
+
+		}
+	}
+	free(previous_row);
+	free(current_row);
+	return max_score;
+}
+
+/**
  * http://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm
  */
 int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
