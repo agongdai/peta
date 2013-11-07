@@ -168,44 +168,86 @@ void merge_tpl_to_left(tpl *t, tpl *jumped, int ol, int rev_com) {
 	jumped->alive = 0;
 }
 
+int similar_to_merge(bwa_seq_t *from, bwa_seq_t *jumped, int unique_len) {
+	int from_s = 0, from_e = 0, jumped_s = 0, jumped_e = 0;
+	int score = 0, similar = 0;
+	int min_score = unique_len;
+
+	score = smith_waterman_simple(from, jumped, &from_s, &from_e, &jumped_s,
+			&jumped_e, min_score);
+	if (score > min_score && score + 4 > from_e - from_e)
+		return 1;
+}
+
 /**
  * Try to merge two templates.
  * The 'jumped' template does not have any junctions on it
  */
 int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
-	int ol = 0;
 	int rev_com = 0, n_mis = 0;
+	int from_s = 0, from_e = 0, jumped_s = 0, jumped_e = 0;
+	int score = 0, similar = 0, ori_len;
+	int max_ol = ht->o->read_len * 1.5;
+	bwa_seq_t *from = NULL, *jumped_seq = NULL, *r = NULL;
 	//	p_tpl_reads(t);
 	//	p_tpl_reads(jumped);
 	if (!paired_by_reads(ht->seqs, t, jumped, 2))
 		return 0;
 
-	if (jumped->len > ht->o->read_len && t->len > ht->o->read_len) {
-		int seq_1_stop = 0, seq_2_stop = 0;
-	bwa_seq_t *seq_1 = new_seq(jumped->ctg, ht->o->read_len, jumped->len - ht->o->read_len);
-	bwa_seq_t *seq_2 = new_seq(t->ctg, ht->o->read_len, 0);
-	p_ctg_seq("seq_1", seq_1);
-	p_ctg_seq("seq_2", seq_2);
-	show_debug_msg(__func__, "LCS: %d \n", smith_waterman_simple(seq_1, seq_2, &seq_1_stop, &seq_2_stop));
-	show_debug_msg(__func__, "seq_1 stop: %d; seq_2 stop: %d\n", seq_1_stop, seq_2_stop);
-	}
-
-
-	ol = find_fr_ol_within_k(jumped->ctg, t->ctg, mis, ht->o->k,
-			ht->o->read_len * 1.5, 0, &rev_com, &n_mis);
-	//show_debug_msg(__func__, "OVERLAP: %d; n_mis: %d\n", ol, n_mis);
-	if (ol >= ht->o->k && ol >= n_mis * ht->o->k) {
-		//show_debug_msg(__func__, "Merging to left...\n");
-		merge_tpl_to_left(t, jumped, ol, rev_com);
+	from = new_seq(t->ctg, min(max_ol, t->len), t->len - min(max_ol, t->len));
+	jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), 0);
+	score = smith_waterman_simple(from, jumped_seq, &from_s, &from_e,
+			&jumped_s, &jumped_e, ht->o->k);
+	/**
+	p_ctg_seq("FROM", from);
+	p_ctg_seq("JUMPED", jumped_seq);
+	show_debug_msg(__func__, "Score: %d \n", score);
+	show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
+	show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
+	p_tpl_reads(jumped);
+	**/
+	if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
+			&& score >= (jumped_e - jumped_s) * SM_SIMILARY) {
+		truncate_tpl(t, from->len - from_e, 0);
+		truncate_tpl(jumped, jumped_e, 1);
+		bwa_free_read_seq(1, from);
+		bwa_free_read_seq(1, jumped_seq);
+		ori_len = t->len;
+		merge_tpl_to_left(t, jumped, 0, rev_com);
+		correct_tpl_base(ht->seqs, t, ht->o->read_len, ori_len
+				- ht->o->read_len, ori_len + ht->o->read_len);
 		return 1;
 	}
-	ol = find_fr_ol_within_k(t->ctg, jumped->ctg, mis, ht->o->k,
-			ht->o->read_len * 1.5, 0, &rev_com, &n_mis);
-	//show_debug_msg(__func__, "OVERLAP: %d\n", ol);
-	if (ol >= ht->o->k && ol >= n_mis * ht->o->k) {
-		merge_tpl_to_right(jumped, t, ol, rev_com);
+	bwa_free_read_seq(1, from);
+	bwa_free_read_seq(1, jumped_seq);
+
+	// From right template jump to left
+	from = new_seq(t->ctg, min(max_ol, t->len), 0);
+	jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), jumped->len
+			- min(jumped->len, max_ol));
+	score = smith_waterman_simple(from, jumped_seq, &from_s, &from_e,
+			&jumped_s, &jumped_e, ht->o->k);
+	/**
+	p_ctg_seq("FROM", from);
+	p_ctg_seq("JUMPED", jumped_seq);
+	show_debug_msg(__func__, "Score: %d \n", score);
+	show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
+	show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
+	**/
+	if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
+			&& score >= (jumped_e - jumped_s) * SM_SIMILARY) {
+		truncate_tpl(t, from_s, 1);
+		truncate_tpl(jumped, jumped_seq->len - jumped_s, 0);
+		bwa_free_read_seq(1, from);
+		bwa_free_read_seq(1, jumped_seq);
+		ori_len = jumped->len;
+		merge_tpl_to_right(jumped, t, 0, rev_com);
+		correct_tpl_base(ht->seqs, t, ht->o->read_len, ori_len
+				- ht->o->read_len, ori_len + ht->o->read_len);
 		return 1;
 	}
+	bwa_free_read_seq(1, from);
+	bwa_free_read_seq(1, jumped_seq);
 	return 0;
 }
 

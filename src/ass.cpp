@@ -851,7 +851,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 			last_read = (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len
 					- 1);
 
-		if (t->id == 4) {
+		if (t->id == 163) {
 			p_query(__func__, tail);
 			p_ctg_seq("TEMPLATE", t->ctg);
 			p_pool("CURRENT POOL", p, NULL);
@@ -859,7 +859,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
-		if (t->id == 4)
+		if (t->id == 163)
 			show_debug_msg(__func__,
 					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 					t->len, "ZACGTN"[max_c + 1]);
@@ -873,8 +873,8 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 			find_hashed_mates(ht, p, near_tpls, t, tail, N_MISMATCHES, ori);
 			max_c = get_next_char(ht, p, near_tpls, t, ori);
 			if (max_c == -1) {
-				if (harder)
-					adj_tail = look_harder_at_tail(ht, p, near_tpls, t, ori);
+				//if (harder)
+				//	adj_tail = look_harder_at_tail(ht, p, near_tpls, t, ori);
 				if (adj_tail) {
 					bwa_free_read_seq(1, tail);
 					tail = adj_tail;
@@ -918,7 +918,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 		//	2. the reads in pool is less than 4
 		//	3. not consuming the pool
 		if (t->len % 1 == 0 || p->reads->len <= 4)
-			next_pool(ht, p, t, tail, LESS_MISMATCH, ori);
+			next_pool(ht, p, t, tail, N_MISMATCHES, ori);
 
 		if (t->len % 100 == 0)
 			show_debug_msg(__func__, "Ori %d, tpl %d, length %d \n", ori,
@@ -1114,13 +1114,18 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 		mark_init_reads_used(ht, to, m, N_MISMATCHES);
 		do_jumping(ht, all_tpls, from, to, m);
 		unfrozen_tried(to);
+		//refresh_tpl_reads(ht, to, N_MISMATCHES);
 		if (!to->alive) {
 			mark_as_hang_tmp(to);
 			to->alive = 0;
 			rm_global_tpl(all_tpls, to, HANG);
 			continue;
 		}
+		p_test_read();
+		show_debug_msg(__func__, "Alive: %d \n", to->alive);
+		correct_tpl_base(ht->seqs, to, ht->o->read_len, 0, to->len);
 		merged = merged_jumped(ht, from, to, MORE_MISMATCH);
+		p_test_read();
 		if (merged) {
 			show_debug_msg(__func__,
 					"Jumped to read %s [%d, %d] as [%d, %d]...\n", m->name,
@@ -1487,7 +1492,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 
 			if (!dead) {
 				unfrozen_tried(branch);
-				correct_tpl_base(ht->seqs, branch, ht->o->read_len);
+				correct_tpl_base(ht->seqs, branch, ht->o->read_len, 0, branch->len);
 			} else {
 				mark_as_hang_tmp(branch);
 				branch->alive = 0;
@@ -1531,17 +1536,12 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 	int changed = 1, pre_n_m_juncs = 0;
 	int i = 0;
 	bwa_seq_t *r = NULL;
-	GPtrArray *t_tried = g_ptr_array_sized_new(t->tried->len);
 	if (t->alive) {
 		set_rev_com(t->ctg);
 		refresh_tpl_reads(ht, t, N_MISMATCHES);
 	}
 	// TRIED reads are not going to be used by JUMPING, but not BRANCHING
 	p_test_read();
-	for (i = 0; i < t->tried->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
-		g_ptr_array_add(t_tried, r);
-	}
 	unfrozen_tried(t);
 	p_test_read();
 	try_connect(ht, all_tpls, to_con_left, to_con_right, t);
@@ -1562,9 +1562,9 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 					__func__,
 					"==== End of tpl %d with length: %d; reads: %d; Alive: %d ==== \n\n",
 					t->id, t->len, t->reads->len, t->alive);
-			correct_tpl_base(ht->seqs, t, ht->o->read_len);
+			correct_tpl_base(ht->seqs, t, ht->o->read_len, 0, t->len);
 			while (changed) {
-				if (to_branching) {
+				if (0) {
 					branching(ht, all_tpls, t, LESS_MISMATCH, 0);
 					if (t->m_juncs)
 						pre_n_m_juncs = t->m_juncs->len;
@@ -1578,12 +1578,9 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 				strip_branches(ht, all_tpls, t);
 			}
 			// When jumping, don't use the previous TRIED reads
-			reset_reads_status(t_tried, HANG);
 			tpl_jumping(ht, all_tpls, t);
-			reset_reads_status(t_tried, FRESH);
 		}
 	}
-	g_ptr_array_free(t_tried, TRUE);
 	rm_global_tpl(all_tpls, t, FRESH);
 }
 
@@ -1686,7 +1683,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 	//	if (fresh_trial == 0)
-	read = &seqs[23422];
+	//read = &seqs[677133];
 	//	if (fresh_trial == 1)
 	//		read = &seqs[68550];10897
 
@@ -1719,7 +1716,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[121927];
+	TEST = &seqs[712786];
 
 	// shrink_ht(ht);
 
@@ -1744,7 +1741,7 @@ void kmer_threads(kmer_t_meta *params) {
 		free(counter);
 		//		if (fresh_trial >= 1)
 		//		if (kmer_ctg_id >= 123062)
-		break;
+		//break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",

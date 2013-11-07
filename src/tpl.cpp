@@ -528,7 +528,8 @@ int find_reads_at_tail(tpl *t, int len, int min, int ori) {
 				//p_query(__func__, r);
 				n++;
 			}
-			if (n > min) return 1;
+			if (n > min)
+				return 1;
 		}
 	} else {
 		for (i = 0; i < t->reads->len; i++) {
@@ -537,7 +538,8 @@ int find_reads_at_tail(tpl *t, int len, int min, int ori) {
 				//p_query(__func__, r);
 				n++;
 			}
-			if (n > min) return 1;
+			if (n > min)
+				return 1;
 		}
 	}
 	show_debug_msg(__func__, "[%d, %d]: Len %d; Ori %d; n_reads: %d\n", t->id,
@@ -861,7 +863,8 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
  * Assumption: the reads on the template are sorted by contig locus.
  * Correct template bases.
  */
-void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len) {
+void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len,
+		int start, int end) {
 	int *cs = NULL, max = 0, weight = 0;
 	GPtrArray *counters = NULL;
 	int c = 0, max_c = 0;
@@ -869,7 +872,10 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len) {
 	bwa_seq_t *r = NULL, *m = NULL;
 	if (!t->reads || t->reads->len == 0)
 		return;
+	start = max(0, start);
+	end = min(t->len, end);
 	counters = g_ptr_array_sized_new(t->len);
+	show_debug_msg(__func__, "Correcting template [%d, %d] at range [%d, %d] ...\n", t->id, t->len, start, end);
 	//p_ctg_seq("BEFORE", t->ctg);
 	//p_tpl_reads(t);
 
@@ -887,7 +893,7 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len) {
 			weight = MATE_MULTI;
 		for (j = 0; j < r->len; j++) {
 			locus = r->contig_locus + j;
-			if (locus >= 0 && locus < t->len) {
+			if (locus >= start && locus <= end) {
 				c = r->rev_com ? r->rseq[j] : r->seq[j];
 				cs = (int*) g_ptr_array_index(counters, locus);
 				cs[c] += weight;
@@ -949,6 +955,42 @@ void rm_from_tpl(tpl *t, int index) {
 	bwa_seq_t * r = (bwa_seq_t*) g_ptr_array_index(t->reads, index);
 	reset_to_fresh(r);
 	g_ptr_array_remove_index_fast(t->reads, index);
+}
+
+/**
+ * Truncate the template by some length at left/right side;
+ * The reads falling within this range will be marked as DEAD.
+ */
+void truncate_tpl(tpl *t, int len, int ori) {
+	bwa_seq_t *r = NULL;
+	int i = 0;
+	if (ori) {
+		show_debug_msg(__func__, "Ori: %d; Truncated: %d \n", ori, len);
+		for (i = 0; i < t->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+			r->contig_locus -= len;
+			//p_query("DEAD", r);
+			//reset_to_dead(r);
+			//g_ptr_array_remove_index_fast(t->reads, i--);
+		}
+		memcpy(t->ctg->seq, t->ctg->seq + len, sizeof(ubyte_t) * t->len - len);
+		t->len -= len;
+		t->ctg->len = t->len;
+		set_rev_com(t->ctg);
+	} else {
+		show_debug_msg(__func__, "Ori: %d; Truncated: %d \n", ori, len);
+		//for (i = t->reads->len - 1; i >= 0; i--) {
+		//	r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		//	if (r->contig_locus + r->len <= t->len - len)
+		//		break;
+		//p_query("DEAD", r);
+		//reset_to_dead(r);
+		//g_ptr_array_remove_index_fast(t->reads, i);
+		//}
+		t->len -= len;
+		t->ctg->len = t->len;
+		set_rev_com(t->ctg);
+	}
 }
 
 /**
@@ -1153,6 +1195,7 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 	GPtrArray *fresh_reads = g_ptr_array_sized_new(hits->len);
 
 	tpl_seq = get_tail(t, ht->o->read_len, ori);
+	p_ctg_seq(__func__, tpl_seq);
 
 	// These reads are not duplicated
 	for (i = 0; i < hits->len; i++) {
@@ -1165,7 +1208,8 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 		// pos is the kmer position on the read
 		cursor = ori ? (r->pos - 1) : (r->pos + tail->len);
 
-		//if (t->len >= 615 && t->id == 13) {
+		//if (t->len == 153 && t->id == 3) {
+		//	p_query(__func__, tail);
 		//p_query(__func__, r);
 		//show_debug_msg(__func__, "CURSOR: %d\n", cursor);
 		//}
@@ -1180,7 +1224,10 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 			ol = tpl_seq->len - locus;
 			cursor = ol;
 		}
-		//show_debug_msg(__func__, "LOCUS: %d; OL: %d; CURSOR: %d\n", locus, ol, cursor);
+		if (t->len == 68 && t->id == 163) {
+			p_query(__func__, r);
+			show_debug_msg(__func__, "LOCUS: %d; OL: %d; CURSOR: %d\n", locus, ol, cursor);
+		}
 		if (ol >= tail->len && locus >= 0 && locus < tpl_seq->len && (cursor
 				>= 0 && cursor <= r->len - 1)) {
 			//ol_seq = ori ? new_seq(tpl_seq, ol, 0)
@@ -1190,7 +1237,7 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 			} else {
 				n_mis = seq_ol(tpl_seq, r, ol, mismatches);
 			}
-			//if (t->len >= 615 && t->id == 13) {
+			//if (t->len == 153 && t->id == 3) {
 			//p_query("CONTIG", tpl_seq);
 			//p_query("READ  ", r);
 			//p_ctg_seq("OVERLP", ol_seq);
@@ -1233,6 +1280,9 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 	//show_debug_msg(__func__, "Reads with the tail: %d\n", fresh_reads->len);
 	g_ptr_array_free(hits, TRUE);
 	bwa_free_read_seq(1, tpl_seq);
+//	if (t->len == 153 && t->id == 3) {
+//		p_readarray(fresh_reads, 1);
+//	}
 	return fresh_reads;
 }
 

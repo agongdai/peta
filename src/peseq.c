@@ -697,47 +697,86 @@ int same_bytes(const ubyte_t *s, const int k) {
 }
 
 /**
- * Smith-Waterman algorithm to get a common subsequence
+ * Smith-Waterman algorithm to compare two sequences
+ * Score for match: 1; mismatch: -1; indel: -2
+ * @min_score: the minimal score we accept
  */
 int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
-		int *seq_1_start, int *seq_2_start, int *seq_1_stop, int *seq_2_stop) {
-	int *previous_row = NULL, *current_row = NULL;
+		int *seq_1_start, int *seq_1_stop, int *seq_2_start, int *seq_2_stop,
+		int min_score) {
+	int score_m = 1, score_mis = 2, score_gap = 3;
+	int *scores = NULL;
 	int columns = seq_1->len + 1, max_score = 0, rows = seq_2->len + 1;
-	int i = 0, j = 0;
-	int up_left = 0, up = 0, left = 0;
-	previous_row = (int*) calloc(columns + 1, sizeof(int));
-	current_row = (int*) calloc(columns + 1, sizeof(int));
+	int i = 0, j = 0, s = 0;
+	int up_left = 0, up = 0, left = 0, remain = 0;
+	// A simulated 2d-array to store scores.
+	scores = (int*) calloc(rows * columns, sizeof(int));
 	*seq_1_stop = 0;
 	*seq_2_stop = 0;
 	for (i = 1; i < rows; i++) {
 		for (j = 1; j < columns; j++) {
-			up = previous_row[j] - 1; // not updated, so is the value from previous row
-			left = current_row[j - 1] - 1; // updated already, so is the value from current row
+			up = scores[(i - 1) * columns + j] - score_gap;
+			left = scores[i * columns + j - 1] - score_gap;
 			if (seq_1->seq[j - 1] == seq_2->seq[i - 1])
-				up_left = previous_row[j - 1] + 1;
+				up_left = scores[(i - 1) * columns + j - 1] + score_m;
 			else
-				up_left = previous_row[j - 1] - 1;
-			current_row[j] = max3(left, up, up_left);
+				up_left = scores[(i - 1) * columns + j - 1] - score_mis;
+			scores[i * columns + j] = max3(left, up, up_left);
 		}
 		for (j = 0; j < columns; j++) {
-			previous_row[j] = current_row[j];
-			if (current_row[j] > max_score) {
-				max_score = current_row[j];
-				*seq_1_stop = j - 1;
-				*seq_2_stop = i - 1;
+			if (scores[i * columns + j] > max_score) {
+				max_score = scores[i * columns + j];
+				*seq_1_stop = j;
+				*seq_2_stop = i;
+				remain = min(rows - i, columns - j);
+				if (max_score + remain < min_score)
+					return 0;
 			}
 		}
 	}
+//	printf("\t\t");
+//	for (i = 0; i < seq_1->len; i++) {
+//		printf("%c\t", "ACGTN"[seq_1->seq[i]]);
+//	}
+//	printf("\n");
+//	for (i = 0; i < rows; i++) {
+//		if (i == 0)
+//			printf("\t");
+//		else
+//			printf("%c\t", "ACGTN"[seq_2->seq[i - 1]]);
+//		for (j = 0; j < columns; j++) {
+//			printf("%d\t", scores[i * columns + j]);
+//		}
+//		printf("\n");
+//	}
 	// Back trace to find the starting points
-	*seq_1_start = 0;
+	*seq_1_start = *seq_1_stop - 1;
 	*seq_2_start = 0;
-	for (i = *seq_1_stop; i >= 1; i--) {
-		for (j = *seq_2_stop; j >= 1; j--) {
-
+	for (i = *seq_2_stop; i >= 1; i--) {
+		s = scores[(i) * columns + *seq_1_start + 1];
+		up_left = scores[(i - 1) * columns + *seq_1_start];
+		left = scores[(i) * columns + *seq_1_start];
+//		printf("%d\n", up_left);
+//		printf("%d\t%d\n", left, s);
+		if (s == 1) {
+			*seq_2_start = i - 1;
+			break;
 		}
+//		show_debug_msg(__func__, "seq_1: %c; seq_2: %c \n",
+//				"ACGTN"[seq_1->seq[*seq_1_start]], "ACGTN"[seq_2->seq[i - 1]]);
+		if (seq_1->seq[*seq_1_start] == seq_2->seq[i - 1]) {
+			if (s == up_left + score_m)
+				*seq_1_start = *seq_1_start - 1;
+		} else {
+			if (s == up_left - score_mis || s == left - score_gap)
+				*seq_1_start = *seq_1_start - 1;
+		}
+//		printf("i: %d; seq_1_start: %d; seq_2_start: %d\n", i, *seq_1_start, i
+//				- 1);
 	}
-	free(previous_row);
-	free(current_row);
+//	printf("seq_1: [%d, %d]; seq_2: [%d, %d] \n", *seq_1_start, *seq_1_stop,
+//			*seq_2_start, *seq_2_stop);
+	free(scores);
 	return max_score;
 }
 
