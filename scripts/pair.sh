@@ -6,4 +6,4 @@ query_dir=/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/
 #../src/peta ass -k 29 -m 197 -s 62 -t 4 -o ../simu_out/ $query_dir/simu.pe.fa $query_dir/SRR097897.solid
 #../src/peta ass -k 29 -m 197 -s 62 -t 4 -o ../simu_out/ $query_dir/simu.pe.fa $query_dir/SRR097897.solid
 
-../src/peta ass -k 25 -m 197 -s 62 -t 1 -o ../SRR097897_branch/ $query_dir/SRR097897.part.fa $query_dir/SRR097897.solid
+../src/peta ass -k 25 -m 197 -s 62 -t 1 -o ../SRR097897_single/ $query_dir/SRR097897.part.fa $query_dir/SRR097897.solid

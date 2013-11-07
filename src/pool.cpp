@@ -328,12 +328,12 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 		return;
 	read = get_tail(t, ht->o->read_len, ori);
 	//p_tpl(t);
-	p_query("Init read", read);
+	//p_query("Init read", read);
 	start = ori ? 0 : 1;
 	end = ori ? read->len - tail_len - 1 : read->len - tail_len;
 	for (i = start; i <= end; i++) {
 		tail = new_seq(read, tail_len, i);
-		p_query("TAIL", tail);
+		//p_query("TAIL", tail);
 		hits = align_tpl_tail(ht, t, tail, 0, i, mismatches, FRESH, ori);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);

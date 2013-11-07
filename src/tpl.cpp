@@ -893,7 +893,7 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len,
 			weight = MATE_MULTI;
 		for (j = 0; j < r->len; j++) {
 			locus = r->contig_locus + j;
-			if (locus >= start && locus <= end) {
+			if (locus >= start && locus < end) {
 				c = r->rev_com ? r->rseq[j] : r->seq[j];
 				cs = (int*) g_ptr_array_index(counters, locus);
 				cs[c] += weight;
@@ -1195,7 +1195,7 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 	GPtrArray *fresh_reads = g_ptr_array_sized_new(hits->len);
 
 	tpl_seq = get_tail(t, ht->o->read_len, ori);
-	p_ctg_seq(__func__, tpl_seq);
+	//p_ctg_seq(__func__, tpl_seq);
 
 	// These reads are not duplicated
 	for (i = 0; i < hits->len; i++) {
@@ -1224,10 +1224,10 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 			ol = tpl_seq->len - locus;
 			cursor = ol;
 		}
-		if (t->len == 68 && t->id == 163) {
-			p_query(__func__, r);
-			show_debug_msg(__func__, "LOCUS: %d; OL: %d; CURSOR: %d\n", locus, ol, cursor);
-		}
+		//if (t->len == 68 && t->id == 163) {
+		//	p_query(__func__, r);
+		//	show_debug_msg(__func__, "LOCUS: %d; OL: %d; CURSOR: %d\n", locus, ol, cursor);
+		//}
 		if (ol >= tail->len && locus >= 0 && locus < tpl_seq->len && (cursor
 				>= 0 && cursor <= r->len - 1)) {
 			//ol_seq = ori ? new_seq(tpl_seq, ol, 0)

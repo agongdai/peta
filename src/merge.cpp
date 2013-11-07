@@ -198,16 +198,17 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 	jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), 0);
 	score = smith_waterman_simple(from, jumped_seq, &from_s, &from_e,
 			&jumped_s, &jumped_e, ht->o->k);
-	/**
-	p_ctg_seq("FROM", from);
-	p_ctg_seq("JUMPED", jumped_seq);
-	show_debug_msg(__func__, "Score: %d \n", score);
-	show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
-	show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
-	p_tpl_reads(jumped);
-	**/
+
+	//p_ctg_seq("FROM", t->ctg);
+	//p_ctg_seq("JUMPED", jumped->ctg);
+	//show_debug_msg(__func__, "Score: %d \n", score);
+	//show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
+	//show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
+	//p_tpl_reads(jumped);
+
 	if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
-			&& score >= (jumped_e - jumped_s) * SM_SIMILARY) {
+			&& score >= (jumped_e - jumped_s) * SM_SIMILARY && jumped_e + 4
+			< jumped->len) {
 		truncate_tpl(t, from->len - from_e, 0);
 		truncate_tpl(jumped, jumped_e, 1);
 		bwa_free_read_seq(1, from);
@@ -228,14 +229,15 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 	score = smith_waterman_simple(from, jumped_seq, &from_s, &from_e,
 			&jumped_s, &jumped_e, ht->o->k);
 	/**
-	p_ctg_seq("FROM", from);
-	p_ctg_seq("JUMPED", jumped_seq);
-	show_debug_msg(__func__, "Score: %d \n", score);
-	show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
-	show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
-	**/
+	 p_ctg_seq("FROM", from);
+	 p_ctg_seq("JUMPED", jumped_seq);
+	 show_debug_msg(__func__, "Score: %d \n", score);
+	 show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
+	 show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
+	 **/
 	if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
-			&& score >= (jumped_e - jumped_s) * SM_SIMILARY) {
+			&& score >= (jumped_e - jumped_s) * SM_SIMILARY && (jumped->len
+			- jumped_seq->len + jumped_s) > 4) {
 		truncate_tpl(t, from_s, 1);
 		truncate_tpl(jumped, jumped_seq->len - jumped_s, 0);
 		bwa_free_read_seq(1, from);

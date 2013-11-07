@@ -1100,6 +1100,7 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 	for (i = 0; i < from->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
 		m = get_mate(r, ht->seqs);
+		p_test_read();
 		//p_test();
 		//		show_debug_msg(__func__, "i = %d\n", i);
 		//		p_query(__func__, r);
@@ -1114,7 +1115,7 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 		mark_init_reads_used(ht, to, m, N_MISMATCHES);
 		do_jumping(ht, all_tpls, from, to, m);
 		unfrozen_tried(to);
-		//refresh_tpl_reads(ht, to, N_MISMATCHES);
+		refresh_tpl_reads(ht, to, N_MISMATCHES);
 		if (!to->alive) {
 			mark_as_hang_tmp(to);
 			to->alive = 0;
@@ -1478,16 +1479,16 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			// If because of on pairs, mark as FRESH, not DEAD.
 			show_debug_msg(__func__, "Dead: %d\n", dead);
 			if (dead) {
-				//				if (branch->len >= MIN_TPL_LEN * 2) {
-				//					destory_tpl_junctions(branch);
-				//					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
-				//							to_connect, ori ? 0 : 1);
-				//					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
-				//							to_connect, ori ? 1 : 0);
-				//					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
-				//							to_connect, ori ? 0 : 1);
-				//					dead = 0;
-				//				}
+//				if (branch->len >= MIN_TPL_LEN * 2) {
+//					destory_tpl_junctions(branch);
+//					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
+//							to_connect, ori ? 0 : 1);
+//					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
+//							to_connect, ori ? 1 : 0);
+//					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
+//							to_connect, ori ? 0 : 1);
+//					dead = 0;
+//				}
 			}
 
 			if (!dead) {
@@ -1564,7 +1565,7 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 					t->id, t->len, t->reads->len, t->alive);
 			correct_tpl_base(ht->seqs, t, ht->o->read_len, 0, t->len);
 			while (changed) {
-				if (0) {
+				if (to_branching) {
 					branching(ht, all_tpls, t, LESS_MISMATCH, 0);
 					if (t->m_juncs)
 						pre_n_m_juncs = t->m_juncs->len;
@@ -1683,7 +1684,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 	//	if (fresh_trial == 0)
-	//read = &seqs[677133];
+	read = &seqs[81998];
 	//	if (fresh_trial == 1)
 	//		read = &seqs[68550];10897
 
@@ -1716,7 +1717,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[712786];
+	TEST = &seqs[40621];
 
 	// shrink_ht(ht);
 
@@ -1741,7 +1742,7 @@ void kmer_threads(kmer_t_meta *params) {
 		free(counter);
 		//		if (fresh_trial >= 1)
 		//		if (kmer_ctg_id >= 123062)
-		//break;
+		break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",
