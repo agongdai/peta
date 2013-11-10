@@ -965,7 +965,7 @@ void truncate_tpl(tpl *t, int len, int ori) {
 	bwa_seq_t *r = NULL;
 	int i = 0;
 	if (ori) {
-		show_debug_msg(__func__, "Ori: %d; Truncated: %d \n", ori, len);
+		show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n", t->id, t->len, ori, len);
 		for (i = 0; i < t->reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 			r->contig_locus -= len;
@@ -978,7 +978,7 @@ void truncate_tpl(tpl *t, int len, int ori) {
 		t->ctg->len = t->len;
 		set_rev_com(t->ctg);
 	} else {
-		show_debug_msg(__func__, "Ori: %d; Truncated: %d \n", ori, len);
+		show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n", t->id, t->len, ori, len);
 		//for (i = t->reads->len - 1; i >= 0; i--) {
 		//	r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		//	if (r->contig_locus + r->len <= t->len - len)
@@ -1031,6 +1031,8 @@ void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read,
 	bwa_seq_t *r = NULL;
 	index64 i = 0;
 
+	if (read->rev_com) switch_fr(read);
+
 	hits = find_both_fr_full_reads(ht, read, hits, mismatches);
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
@@ -1039,6 +1041,7 @@ void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read,
 			add2tpl(t, r, 0);
 		}
 	}
+	if (read->rev_com) switch_fr(read);
 	//p_readarray(t->reads, 1);
 	g_ptr_array_free(hits, TRUE);
 }

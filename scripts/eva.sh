@@ -1,6 +1,6 @@
 #!/bin/bash
 
-query="paired"
+query="peta"
 root_dir="/home/carl/Projects/"
 eva_exe="$root_dir/peta_pair/scripts/eva.py"
 db_dir="/home/carl/Projects/peta/rnaseq/Spombe/genome/"
@@ -8,7 +8,7 @@ db="spombe.broad.tx.fasta.rev"
 #db="tx.630.oracle.fa"
 blastdb="$root_dir/ncbi-blast-2.2.26+/db/"
 similarity="99"
-query_dir="$root_dir/peta_pair/SRR097897_single/"
+query_dir="$root_dir/peta_pair/SRR097897_part/"
 #query_dir="$root_dir/peta_pair/spombe_630/"
 
 blastn_exe="blastn"
@@ -48,7 +48,7 @@ if [ $1 = "blat" ];
 	if [ $2 = "new" ];
 		then
 		echo "=======================================" 1>&2
-		echo "$blat_exe $db_dir$db $query_dir$query.fa -ooc=$occ $query_dir$query.fa.psl"
+		echo "$blat_exe -fine $db_dir$db $query_dir$query.fa -ooc=$occ $query_dir$query.fa.psl"
 		$blat_exe $db_dir$db $query_dir$query.fa -ooc=$occ $query_dir$query.fa.psl
 		echo "=======================================" 1>&2
 	fi

@@ -38,7 +38,7 @@ int stage = 1;
 int fresh_trial = 0;
 uint32_t n_used_reads = 0;
 char *kmer_out = NULL;
-GPtrArray *hang_reads = NULL;
+GPtrArray *hang_reads = NULL, *tpls_await_branching = NULL;
 
 bwa_seq_t *TEST = NULL;
 
@@ -843,7 +843,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 					t->len, no_read_len);
 			show_debug_msg(__func__, "No hits, stop ori %d: [%d, %d] \n", ori,
 					t->id, t->len);
-			to_connect = 1;
+			t->alive = 0;
 			break;
 		}
 
@@ -851,15 +851,15 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 			last_read = (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len
 					- 1);
 
-		if (t->id == 163) {
-			p_query(__func__, tail);
+		if (t->id == -1) {
+			p_query("QUERY", tail);
 			p_ctg_seq("TEMPLATE", t->ctg);
 			p_pool("CURRENT POOL", p, NULL);
 		}
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
-		if (t->id == 163)
+		if (t->len == -1)
 			show_debug_msg(__func__,
 					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 					t->len, "ZACGTN"[max_c + 1]);
@@ -918,7 +918,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 		//	2. the reads in pool is less than 4
 		//	3. not consuming the pool
 		if (t->len % 1 == 0 || p->reads->len <= 4)
-			next_pool(ht, p, t, tail, N_MISMATCHES, ori);
+			next_pool(ht, p, t, tail, LESS_MISMATCH, ori);
 
 		if (t->len % 100 == 0)
 			show_debug_msg(__func__, "Ori %d, tpl %d, length %d \n", ori,
@@ -947,8 +947,12 @@ tpl *please_jump(hash_table *ht, tpl_hash *all_tpls, tpl *from, bwa_seq_t *read)
 	tpl *to = NULL;
 	int i = 0;
 	bwa_seq_t *r = NULL, *m = NULL;
+	r = get_mate(read, ht->seqs);
+	read->rev_com = r->rev_com;
 	to = add_global_tpl(all_tpls, read, read->len, 0);
 	return to;
+
+
 	p = new_pool();
 	init_pool(ht, p, to, kmer_len, N_MISMATCHES, 0);
 	init_pool(ht, p, to, kmer_len, N_MISMATCHES, 1);
@@ -1097,6 +1101,7 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 	if (!from || !from->alive)
 		return;
 	//	g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+	//p_tpl_reads(from);
 	for (i = 0; i < from->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
 		m = get_mate(r, ht->seqs);
@@ -1110,18 +1115,30 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 				&& r->contig_locus < from->len - ins_size - 150))
 			continue;
 		to = please_jump(ht, all_tpls, from, m);
+		//if (to->id > 250)
+		//	exit(1);
 		if (!to)
 			continue;
 		mark_init_reads_used(ht, to, m, N_MISMATCHES);
 		do_jumping(ht, all_tpls, from, to, m);
+		//p_tpl_reads(to);
 		unfrozen_tried(to);
-		refresh_tpl_reads(ht, to, N_MISMATCHES);
+		//refresh_tpl_reads(ht, to, N_MISMATCHES);
 		if (!to->alive) {
 			mark_as_hang_tmp(to);
 			to->alive = 0;
 			rm_global_tpl(all_tpls, to, HANG);
 			continue;
 		}
+        refresh_tpl_reads(ht, to, N_MISMATCHES);
+
+        if (!to->alive) {
+            mark_as_hang_tmp(to);
+            to->alive = 0;
+            rm_global_tpl(all_tpls, to, HANG);
+            continue;
+        }
+
 		p_test_read();
 		show_debug_msg(__func__, "Alive: %d \n", to->alive);
 		correct_tpl_base(ht->seqs, to, ht->o->read_len, 0, to->len);
@@ -1137,11 +1154,15 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 			i = 0;
 			unfrozen_hang_reads();
 		}
-		// For TRIED reads; to->reads is empty after merging
-		mark_as_hang_tmp(to);
-		to->alive = 0;
-		rm_global_tpl(all_tpls, to, HANG);
-		show_debug_msg(__func__, "--- End of jumping %s\n\n", m->name);
+		if (to->alive && to->len >= LONG_TPL_LEN) {
+			g_ptr_array_add(tpls_await_branching, to);
+		} else {
+			// For TRIED reads; to->reads is empty after merging
+			mark_as_hang_tmp(to);
+			to->alive = 0;
+			rm_global_tpl(all_tpls, to, HANG);
+			show_debug_msg(__func__, "--- End of jumping %s\n\n", m->name);
+		}
 	}
 	unfrozen_hang_reads();
 }
@@ -1479,16 +1500,17 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			// If because of on pairs, mark as FRESH, not DEAD.
 			show_debug_msg(__func__, "Dead: %d\n", dead);
 			if (dead) {
-//				if (branch->len >= MIN_TPL_LEN * 2) {
-//					destory_tpl_junctions(branch);
-//					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
-//							to_connect, ori ? 0 : 1);
+				if (branch->len >= MIN_TPL_LEN * 2) {
+					destory_tpl_junctions(branch);
+					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
+							to_connect, 1, ori ? 0 : 1);
 //					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
 //							to_connect, ori ? 1 : 0);
 //					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
 //							to_connect, ori ? 0 : 1);
-//					dead = 0;
-//				}
+					dead = 0;
+					g_ptr_array_add(tpls_await_branching, branch);
+				}
 			}
 
 			if (!dead) {
@@ -1669,6 +1691,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	kmer_counter *counter = NULL;
 	bwa_seq_t *read = NULL, *seqs = NULL;
 	tpl *t = NULL;
+	int i = 0;
 
 	kmer_t_meta *params = (kmer_t_meta*) thread_params;
 	tpl_hash *all_tpls = params->all_tpls;
@@ -1684,13 +1707,21 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 	//	if (fresh_trial == 0)
-	read = &seqs[81998];
+	//read = &seqs[205371];
 	//	if (fresh_trial == 1)
 	//		read = &seqs[68550];10897
 
 	t = ext_a_read(ht, all_tpls, read, counter->count);
-	if (t)
+	if (t) finalize_tpl(ht, all_tpls, t, 1, 1, 1);
+	while(tpls_await_branching->len > 0) {
+		t = (tpl*) g_ptr_array_index(tpls_await_branching, tpls_await_branching->len - 1);
+		show_debug_msg(__func__, "Branching template [%d, %d] ... \n", t->id, t->len);
+		ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 1, 0, 1);
+		ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 1, 0, 0);
+		g_ptr_array_remove_index_fast(tpls_await_branching, tpls_await_branching->len - 1);
 		finalize_tpl(ht, all_tpls, t, 1, 1, 1);
+	}
+
 	return NULL;
 }
 
@@ -1717,7 +1748,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[40621];
+	TEST = &seqs[242699];
 
 	// shrink_ht(ht);
 
@@ -1742,7 +1773,7 @@ void kmer_threads(kmer_t_meta *params) {
 		free(counter);
 		//		if (fresh_trial >= 1)
 		//		if (kmer_ctg_id >= 123062)
-		break;
+	    //	break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",
@@ -2035,6 +2066,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	hash_table *ht = NULL;
 	char *fn = NULL, *lib_fn_copy = NULL;
 	hang_reads = g_ptr_array_sized_new(1024);
+	tpls_await_branching = g_ptr_array_sized_new(32);
 	kmer_hash tpl_kmer_hash;
 
 	show_msg(__func__, "Library: %s \n", lib_file);
@@ -2062,6 +2094,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	//			all_tpls.size());
 	//build_tpl_hash(tpl_kmer_hash, &all_tpls, ht->o->k, ht->o->read_len);
 
+	g_ptr_array_free(tpls_await_branching, TRUE);
 	show_msg(__func__, "Merging %d templates by pairs and overlapping ...\n",
 			all_tpls.size());
 	show_debug_msg(__func__,
