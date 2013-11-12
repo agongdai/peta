@@ -1105,7 +1105,7 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 	for (i = 0; i < from->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
 		m = get_mate(r, ht->seqs);
-		p_test_read();
+		//p_test_read();
 		//p_test();
 		//		show_debug_msg(__func__, "i = %d\n", i);
 		//		p_query(__func__, r);
@@ -1114,6 +1114,9 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 		if (m->status != FRESH || (r->contig_locus > ins_size + 150
 				&& r->contig_locus < from->len - ins_size - 150))
 			continue;
+		//p_query(__func__, r);
+		//p_query(__func__, m);
+		//continue;
 		to = please_jump(ht, all_tpls, from, m);
 		//if (to->id > 250)
 		//	exit(1);
@@ -1122,7 +1125,6 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 		mark_init_reads_used(ht, to, m, N_MISMATCHES);
 		do_jumping(ht, all_tpls, from, to, m);
 		//p_tpl_reads(to);
-		unfrozen_tried(to);
 		//refresh_tpl_reads(ht, to, N_MISMATCHES);
 		if (!to->alive) {
 			mark_as_hang_tmp(to);
@@ -1130,6 +1132,7 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 			rm_global_tpl(all_tpls, to, HANG);
 			continue;
 		}
+		unfrozen_tried(to);
         refresh_tpl_reads(ht, to, N_MISMATCHES);
 
         if (!to->alive) {
@@ -1139,20 +1142,20 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
             continue;
         }
 
-		p_test_read();
+		//p_test_read();
 		show_debug_msg(__func__, "Alive: %d \n", to->alive);
 		correct_tpl_base(ht->seqs, to, ht->o->read_len, 0, to->len);
 		merged = merged_jumped(ht, from, to, MORE_MISMATCH);
-		p_test_read();
+		//p_test_read();
 		if (merged) {
 			show_debug_msg(__func__,
 					"Jumped to read %s [%d, %d] as [%d, %d]...\n", m->name,
 					to->id, to->len, from->id, from->len);
 			//			g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 			//p_tpl_reads(from);
-			p_test_read();
-			i = 0;
-			unfrozen_hang_reads();
+			//p_test_read();
+			//i = 0;
+			//unfrozen_hang_reads();
 		}
 		if (to->alive && to->len >= LONG_TPL_LEN) {
 			g_ptr_array_add(tpls_await_branching, to);
@@ -1278,6 +1281,7 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				show_debug_msg(__func__,
 						"Branch coverage: %.2f; main coverage: %.2f\n",
 						branch->cov, main_cov);
+				p_tpl_reads(t);
 				if (branch->len > jun->locus && main_cov < LOW_PART_COV
 						&& branch->cov > main_cov) {
 					p_junction(jun);
@@ -1376,7 +1380,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		int ori) {
 	bwa_seq_t *tail = NULL, *branch_read = NULL, *jun_read = NULL, *query =
 			NULL;
-	int i = 0, j = 0, x = 0, shift = 0, cursor = 0, pos = 0, read_status = DEAD;
+	int i = 0, j = 0, x = 0, shift = 0, cursor = 0, pos = 0, read_status = HANG;
 	int con_pos = 0, n_junc_reads = 0;
 	int exist_ori = ori, dead = 0, to_connect = 0, connected = 0;
 	tpl *branch = NULL;
@@ -1499,7 +1503,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				dead = 1;
 			// If because of on pairs, mark as FRESH, not DEAD.
 			show_debug_msg(__func__, "Dead: %d\n", dead);
-			if (dead) {
+			if (dead && branch->alive) {
 				if (branch->len >= MIN_TPL_LEN * 2) {
 					destory_tpl_junctions(branch);
 					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
@@ -1564,9 +1568,7 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 		refresh_tpl_reads(ht, t, N_MISMATCHES);
 	}
 	// TRIED reads are not going to be used by JUMPING, but not BRANCHING
-	p_test_read();
 	unfrozen_tried(t);
-	p_test_read();
 	try_connect(ht, all_tpls, to_con_left, to_con_right, t);
 	// Reactive the TRIED reads to FRESH, for other starting reads
 	//show_debug_msg(__func__, "Finalizing template [%d, %d] \n", t->id, t->len);
@@ -1598,10 +1600,11 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 				}
 				changed = prune_tpl_tails(ht, all_tpls, t);
 				set_jun_reads(ht, t);
-				strip_branches(ht, all_tpls, t);
+				//strip_branches(ht, all_tpls, t);
+				//break;
 			}
-			// When jumping, don't use the previous TRIED reads
-			tpl_jumping(ht, all_tpls, t);
+			if (t->cov < 20) tpl_jumping(ht, all_tpls, t);
+			else show_debug_msg(__func__, "Template [%d, %d] no branching, coverage %.2f \n", t->id, t->len, t->cov);
 		}
 	}
 	rm_global_tpl(all_tpls, t, FRESH);
@@ -1707,7 +1710,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 	//	if (fresh_trial == 0)
-	//read = &seqs[205371];
+	//read = &seqs[4831897];
 	//	if (fresh_trial == 1)
 	//		read = &seqs[68550];10897
 
@@ -1748,7 +1751,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[242699];
+	TEST = &seqs[35448];
 
 	// shrink_ht(ht);
 

@@ -134,6 +134,57 @@ def pair_to_ref(args):
     print summary
     print 'Check text alignment at file %s.pairs.hits' % tx_name
 
+def qc(args):
+    ref = FastaFile(args.ref)
+    with open(args.ids) as ids:
+        n_ids = 0
+        n_bad = 0
+        for id in ids:
+            n_ids += 1
+            tx = id.strip()
+            seq = ref.seqs[tx]
+            print '-------- %s: length %d --------' % (tx, len(seq))
+            print 'grepping hits...'
+            lines = runInShell('grep ' + tx + ' ' + args.blat_psl)
+            hit_lines = lines.split('\n')
+            print '%d hits' % len(hit_lines)
+            if len(hit_lines) <= 0:
+                print '%s: no hits' % (tx)
+                continue
+            tx_hits = eva.read_psl_hits(hit_lines, 'ref')
+            hits = tx_hits[tx]
+            hits.sort(key=lambda x: x.rstart, reverse=False)
+            n_cover_bases = 0
+            for h in hits:
+                n_cover_bases += h.alen
+            coverage = n_cover_bases / len(seq)
+            print 'Coverage: %.2f' % coverage
+            start = 0
+            end = 999999999
+            pre_h = None
+            is_bad = False
+            if hits[0].rstart > start + 25:
+                print 'head is not covered'
+                is_bad = True
+            for h in hits:
+                if h.rstart > end:
+                    print 'Not covered: [%d, %d]' % (end, h.rend)
+                    is_bad = True
+                elif h.rstart > end - 25:
+                    print 'Low <25bp: [%d, %d]' % (h.rstart, end)
+                    is_bad = True
+#                     print pre_h
+#                     print h
+#                     return
+                if h.rend > end or end == 999999999:
+                    end = h.rend
+                    pre_h = h
+            if is_bad:
+                n_bad += 1
+                print 'Read-to-Ref...'
+                print runInShell('python ~/Projects/peta_pair/scripts/zoom.py rtx -r ~/Projects/peta_pair/scripts/SRR097897.fa -f ~/Projects/peta_pair/scripts/spombe.broad.tx.fasta.rev -p ~/Projects/peta_pair/scripts/SRR097897.fa.psl %s' % tx)
+        print 'Disconnected: %d/%d' % (n_bad, n_ids)
+
 def zoom_tx(tx_name, ref, blat_psl, ctg_or_read='read'):
     lines = runInShell('grep ' + tx_name + ' ' + blat_psl)
     hit_lines = lines.split('\n')
@@ -860,7 +911,13 @@ def main():
     parset_cat.add_argument('fa', help='FASTA file')
     parset_cat.add_argument('out', help='output file')
     parset_cat.add_argument('ids', nargs='+', help='contig ids')
-    parset_cat.set_defaults(func=concat)    
+    parset_cat.set_defaults(func=concat)
+    
+    parset_qc = subparsers.add_parser('qc', help='Quality Control')
+    parset_qc.add_argument('ref', help='Referece file')
+    parset_qc.add_argument('blat_psl', help='read-to-ref PSL file')
+    parset_qc.add_argument('ids', help='ids')
+    parset_qc.set_defaults(func=qc)    
     
     args = parser.parse_args()
     args.func(args)

@@ -729,10 +729,10 @@ int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 				*seq_1_stop = j;
 				*seq_2_stop = i;
 				remain = min(rows - i, columns - j);
-				if (max_score + remain < min_score) {
-					free(scores);
-					return 0;
-				}
+				//if (max_score + remain < min_score) {
+				//	free(scores);
+				//	return 0;
+				//}
 			}
 		}
 	}
