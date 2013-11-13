@@ -199,13 +199,13 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 	score = smith_waterman_simple(from, jumped_seq, &from_s, &from_e,
 			&jumped_s, &jumped_e, ht->o->k);
 
-	//p_ctg_seq("FROM", t->ctg);
-	//p_ctg_seq("FROM_PART END", from);
-	//p_ctg_seq("JUMPED", jumped->ctg);
-	//p_ctg_seq("JUMPED_PART HEAD", jumped_seq);
-	//show_debug_msg(__func__, "SCORE: %d \n", score);
-	//show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
-	//show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
+	p_ctg_seq("FROM", t->ctg);
+	p_ctg_seq("FROM_PART END", from);
+	p_ctg_seq("JUMPED", jumped->ctg);
+	p_ctg_seq("JUMPED_PART HEAD", jumped_seq);
+	show_debug_msg(__func__, "SCORE: %d \n", score);
+	show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
+	show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
 	//p_tpl_reads(jumped);
 
 	if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
@@ -230,13 +230,13 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 			jumped->len - min(jumped->len, max_ol));
 	score = smith_waterman_simple(from, jumped_seq, &from_s, &from_e,
 			&jumped_s, &jumped_e, ht->o->k);
-	/**
+	///**
 	 p_ctg_seq("FROM", from);
 	 p_ctg_seq("JUMPED", jumped_seq);
 	 show_debug_msg(__func__, "Score: %d \n", score);
 	 show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
 	 show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
-	 **/
+	// **/
 	if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
 			&& score >= (jumped_e - jumped_s) * SM_SIMILARY && (jumped->len
 			- jumped_seq->len + jumped_s > from_s)) {
