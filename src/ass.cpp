@@ -365,6 +365,7 @@ void p_tpl_junctions(tpl_hash *all_tpls, int id) {
  * Remove a dead template from the global template hash
  */
 void rm_global_tpl(tpl_hash *all_tpls, tpl *t, int status) {
+	if (t->not_covered) status = DEAD;
 	if (!t->alive) {
 		show_debug_msg(__func__, "Template [%d, %d] is destroyed.\n", t->id,
 				t->len);
@@ -754,11 +755,12 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 		}
 
 		// If any long-enough subsequence is not covered by any read, try to connect
-		if (no_read_len >= ht->o->read_len * 1.5) {
+		if (no_read_len >= ht->o->read_len * 1.5 && !has_n_in_pool(p)) {
 			show_debug_msg(__func__,
 					"[%d, %d] %d bases not covered by a read. \n", t->id,
 					t->len, no_read_len);
 			to_connect = 1;
+			t->not_covered = 1;
 			break;
 		}
 

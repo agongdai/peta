@@ -259,6 +259,17 @@ int forward(pool *p, tpl *t, const int ori) {
 	return some_read_used;
 }
 
+int has_n_in_pool(pool *p) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < p->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
+		if (has_n(r, 1))
+			return 1;
+	}
+	return 0;
+}
+
 /**
  * If a read is at the junction, maybe partially used and later removed
  * The read attribute 'pos' indicates how many mismatches between read and the template

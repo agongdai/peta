@@ -35,6 +35,7 @@ typedef struct {
 	int id; 				// template id
 	int32_t len;			// Length
 	int8_t alive;			// Whether alive
+	int8_t not_covered;		// Whether some region not covered by any reads.
 	int8_t is_root;			// Whether it's a root node in the graph
 	int8_t ori;				// Orientation
 	float cov;				// Coverage

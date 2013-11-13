@@ -121,6 +121,7 @@ tpl *new_tpl() {
 	t->len = 0;
 	t->id = 0;
 	t->alive = 1;
+	t->not_covered = 0;
 	t->is_root = 0;
 	t->ori = 0;
 	t->start_read = NULL;
@@ -195,8 +196,11 @@ void unfrozen_tried(tpl *t) {
 	bwa_seq_t *r = NULL;
 	for (i = 0; i < t->tried->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
-		if (r->status != USED)
-			reset_to_fresh(r);
+		if (r->status != USED) {
+			if (t->not_covered) reset_to_dead(r);
+			else reset_to_fresh(r);
+		}
+
 	}
 	while (t->tried->len > 0)
 		g_ptr_array_remove_index_fast(t->tried, 0);
