@@ -1190,6 +1190,8 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				freed = 1;
 				break;
 			}
+			if (branch->b_juncs && branch->b_juncs->len == 2)
+				continue;
 			//p_tpl(branch);
 			//p_tpl_reads(branch);
 			if (added_len_to_left == 0 && jun->locus < ht->o->read_len
@@ -1299,7 +1301,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			NULL;
 	int i = 0, j = 0, x = 0, shift = 0, cursor = 0, pos = 0, read_status = HANG;
 	int con_pos = 0, n_junc_reads = 0;
-	int exist_ori = ori, dead = 0, to_connect = 0, connected = 1;
+	int exist_ori = ori, dead = 0, to_connect = 1, connected = 1;
 	tpl *branch = NULL;
 	pool *p = NULL;
 	int least_ol_len = kmer_len;

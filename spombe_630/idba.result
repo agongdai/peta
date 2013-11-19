@@ -1,50 +1,51 @@
-python /home/ariyaratnep/shaojiang//peta_copies/peta_dev/scripts/eva.py blat -t /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.fa -c /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/idba-60.fa -p /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/idba-60.fa.psl -o /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/ -s 0.99
+python /home/carl/Projects//peta_pair/scripts/eva.py blat -t /home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta.rev -c /home/carl/Projects//peta_pair/spombe_630/idba.fa -p /home/carl/Projects//peta_pair/spombe_630/idba.fa.psl -o /home/carl/Projects//peta_pair/spombe_630/ -s 0.99
 ===================================================================
-Summary of /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.fa
-        Total base:             7012307
-        # of transcripts:       5063
-        Longest length:         9015
-        Shortest length:        78
-        Average length:         1385.01
-        N50 value:              1752
-===================================================================
-===================================================================
-Summary of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/idba-60.fa
-        Total base:             16694879
-        # of transcripts:       6498
-        Longest length:         17448
-        Shortest length:        300
-        Average length:         2569.23
-        N50 value:              3608
+Summary of /home/carl/Projects/peta/rnaseq/Spombe/genome/spombe.broad.tx.fasta.rev
+	Total base: 		7212774
+	# of transcripts: 	5162
+	Longest length: 	14775
+	Shortest length: 	75
+	Average length: 	1397.28
+	N50 value: 		1770 
 ===================================================================
 ===================================================================
-Evaluation result of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/idba-60.fa
+Summary of /home/carl/Projects//peta_pair/spombe_630/idba.fa
+	Total base: 		16553776
+	# of transcripts: 	6587
+	Longest length: 	17448
+	Shortest length: 	300
+	Average length: 	2513.10
+	N50 value: 		3527
+===================================================================
+===================================================================
+Evaluation result of /home/carl/Projects//peta_pair/spombe_630/idba.fa
 [similarity threshold: 0.99]
 [full length threshold: 0.99]
 [n_mismatches + n_indels < 10]
-        Assembled base:               16694879
-        Bases aligned:                11857762
-        # of contigs:                 6498
-        # of Full length:             4587
-        # of Ctgs not aligned:        628
-        Bases not aligned:            471952
-        # of Ctgs not reached:        25
-        Bases not reached:            10244
-        Optimal N50:                  1752
-        Raw N50:                      3608
-        Aligned N50:                  1733
-        Accuracy:                     98.69%
-        Completeness 80%:             98.14%
-        Contiguity 80%:               94.43%
-        # of chimaeras:               331
-        Chimerism:                    5.09%
-        Variant resolution:           0.00%
+	Assembled base:               16553776
+	Bases aligned:                11919252
+	# of contigs:                 6587
+	# of Full length:             4575
+	# of Ctgs not aligned:        584
+	Bases not aligned:            418209
+	# of Ctgs not reached:        72
+	Bases not reached:            44789
+	Optimal N50:                  1770
+	Raw N50:                      3527
+	Aligned N50:                  1734
+	Accuracy:                     99.97%
+	Completeness 80%:             96.45%
+	Contiguity 80%:               92.66%
+	# of chimaeras:               326
+	Chimerism:                    4.95%
+	Variant resolution:           0.00%
 ===================================================================
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/idba-60.fa_full_length.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/idba-60.fa_one_on_one.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/idba-60.fa_near_full_length.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/idba-60.fa_covered_70.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/idba-60.fa_one_covered.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/idba-60.fa_not_aligned.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/idba-60.fa_partial.txt
-=======================================
+Check /home/carl/Projects//peta_pair/spombe_630/idba.fa.full
+Check /home/carl/Projects//peta_pair/spombe_630/idba.fa_full_length.txt
+Check /home/carl/Projects//peta_pair/spombe_630/idba.fa_one_on_one.txt
+Check /home/carl/Projects//peta_pair/spombe_630/idba.fa_near_full_length.txt
+Check /home/carl/Projects//peta_pair/spombe_630/idba.fa_covered_70.txt
+Check /home/carl/Projects//peta_pair/spombe_630/idba.fa_one_covered.txt
+Check /home/carl/Projects//peta_pair/spombe_630/idba.fa_not_aligned.txt
+Check /home/carl/Projects//peta_pair/spombe_630/idba.fa_partial.txt
+Done

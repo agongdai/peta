@@ -10,7 +10,7 @@ near_full_length = 0.9
 class ResultSummary(object):
 	def __init__(self, contig_fn):
 		self.contig_fn = contig_fn
-		self.n_bases = 0
+		self.n_bases = 0 
 		self.n_aligned_bases = 0
 		self.n_contigs = 0
 		self.n_tx_full_length = 0
@@ -1023,19 +1023,97 @@ def analyze(args):
 	for id in captured_in_paths:
 		print id
 	ids = list(set(ids) - set(in_path_ids))
-		
-	hits = read_blat_hits(args.paired2tx, 'ref')
+	
+	paired_hits = read_blat_hits(args.paired2tx, 'ref')
 	not_covered = []
 	for id in ids:
-		if not id in hits:
+		if not id in paired_hits:
 			not_covered.append(id)
 	print '----------- No touched: %d ---------------' % len(not_covered)
 	for id in not_covered:
 		print id
 	ids = list(set(ids) - set(not_covered))
 	
+	captured_in_paired = []
+	for id in ids:
+		hits = paired_hits[id]
+		hits.sort(key=lambda x: x.alen, reverse=True)
+		h = hits[0]
+		if h.alen >= h.rlen * full_length_perc and h.n_bad_bases + h.n_query_gap_bases < bad_bases_thre:
+			captured_in_paired.append(id)
+	print '------------ In paired: %d ---------------' % len(captured_in_paired)
+	for id in captured_in_paired:
+		print id
+	ids = list(set(ids) - set(captured_in_paired))
+	
+	should_jumped = []
+	should_jumped_hits = {}
+	for id in ids:
+		tx_hits = paired_hits[id]
+		tx_hits.sort(key=lambda x:x.rstart)
+		h = tx_hits[0]
+		should_jumped_hits[id] = tx_hits
+		pre = h
+		n_bad = h.n_bad_bases + h.n_query_gap_bases
+		jumped = False
+		if h.rstart <= 2 and n_bad <= 10 and h.qend >= h.qlen - 2:
+			for i in range(1, len(tx_hits)):
+				if id == 'SPBC18H10.16_T0':
+					print h
+				h = tx_hits[i]
+				if h.rend >= h.rlen - 2:
+					n_bad += h.n_bad_bases + h.n_query_gap_bases
+					jumped = True
+					break
+				if h.rstart - pre.rend < 0 and h.qend >= h.qlen - 2:
+					n_bad += h.n_bad_bases + h.n_query_gap_bases
+				else:
+					break
+				pre = h
+			if jumped:
+				should_jumped.append(id)
+	print '----------- Should jumped: %d ---------------' % len(should_jumped)
+	for id in should_jumped:
+		s = '%20s: \t%d hits\t' % (id, len(should_jumped_hits[id]))
+		for h in should_jumped_hits[id]:
+			s += '[%d, %d] ' % (h.rstart, h.rend)
+		print s
+	ids = list(set(ids) - set(should_jumped))
+	
+	has_repeat = []
+	for id in ids:
+		tx_hits = paired_hits[id]
+		queries = []
+		for h in tx_hits:
+			if h.qname in queries:
+				has_repeat.append(id)
+				break
+			else:
+				queries.append(h.qname)
+	print '----------- Has repeat: %d ---------------' % len(has_repeat)	
+	for id in has_repeat:
+		print id
+	ids = list(set(ids) - set(has_repeat))
+	
+	full_but_gap_id = []
+	for id in ids:
+		tx_hits = paired_hits[id]
+		tx_hits.sort(key=lambda x:x.alen, reverse=False)
+		h = tx_hits[0]
+		if h.alen >= h.rlen - 2:
+			full_but_gap_id.append(id)
+	print '----------- Full but gap in middle: %d ---------------' % len(full_but_gap_id)	
+	for id in full_but_gap_id:
+		s = '%20s: \t%d hits\t' % (id, len(paired_hits[id]))
+		h = paired_hits[id][0]
+		s += 'Mismatch: %d\t' % h.n_mismatch
+		s += 'RefGap: %d,%d\t' % (h.n_ref_gap, h.n_ref_gap_bases)
+		s += 'QueryGap: %d,%d\t' % (h.n_query_gap, h.n_query_gap_bases)
+		print s
+	ids = list(set(ids) - set(full_but_gap_id))
+	
 	annotated_tx = FastaFile(args.tx)
-	base_cover = cal_base_cover(annotated_tx.seqs, hits)
+	base_cover = cal_base_cover(annotated_tx.seqs, paired_hits)
 	partial = []
 	ht_partial = {}
 	head_tail_missing = []
@@ -1048,11 +1126,11 @@ def analyze(args):
 		percentage = n / len(bases)
 		if percentage < 0.99:
 			partial.append(tx)
-			ht_partial[tx] = hits[tx][0]
+			ht_partial[tx] = paired_hits[tx][0]
 	gap_in_middle = []
 	ht_gap_m = {}
 	for tx in partial:
-		tx_hits = hits[tx]
+		tx_hits = paired_hits[tx]
 		tx_hits.sort(key=lambda x:x.n_match, reverse=True)
 		h = tx_hits[0]
 		if (h.rstart < 100 and h.rend > (h.rlen - 100)) and h.n_mismatch < 10 and (h.n_query_gap_bases + h.n_bad_bases) < 10:
@@ -1079,17 +1157,17 @@ def analyze(args):
 		h = ht_gap_m[id]
 		print '\t%20s: \tRefGap: %d,%dbp; QueryGap: %d,%d; Mismatches: %d' % (id, h.n_ref_gap, h.n_ref_gap_bases, h.n_query_gap, h.n_query_gap_bases, h.n_mismatch)
 	
-	
 	missing_junctions = {}
 	n = 0
 	for tx in ids:
-		tx_hits = hits[tx]
+		tx_hits = paired_hits[tx]
 		tx_hits.sort(key=lambda x:x.rstart)
 		h = tx_hits[0]
 		tx_len = h.rlen
 		start = -1
 		end = 99999999
 		missing_junctions[tx] = []
+		should_jumped_merged = []
 		for h in tx_hits:
 			if h.rstart > end + 2:
 				continue
