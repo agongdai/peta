@@ -546,6 +546,8 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 			m->pos = n_mis;
 			add2pool(p, m);
 		}
+		if (p->reads->len >= 15)
+			break;
 	}
 	bwa_free_read_seq(1, tail);
 	g_ptr_array_free(existing_reads, TRUE);

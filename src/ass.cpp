@@ -365,7 +365,8 @@ void p_tpl_junctions(tpl_hash *all_tpls, int id) {
  * Remove a dead template from the global template hash
  */
 void rm_global_tpl(tpl_hash *all_tpls, tpl *t, int status) {
-	if (t->not_covered) status = DEAD;
+	if (t->not_covered)
+		status = DEAD;
 	if (!t->alive) {
 		show_debug_msg(__func__, "Template [%d, %d] is destroyed.\n", t->id,
 				t->len);
@@ -466,7 +467,7 @@ int val_branch_by_pairs(hash_table *ht, tpl *main_tpl, tpl *branch_tpl) {
 	has_pairs = has_nearby_pairs(ht, near_tpls, branch_tpl, MIN_PAIRS);
 	g_ptr_array_free(near_tpls, TRUE);
 	if (!has_pairs) {
-		branch_tpl->alive = 0;
+		//branch_tpl->alive = 0;
 		return 0;
 	}
 	return 1;
@@ -1062,9 +1063,12 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 					"Jumped to read %s [%d, %d] as [%d, %d]...\n\n", m->name,
 					to->id, to->len, from->id, from->len);
 			unfrozen_tried(to);
-			//			g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
-			//p_tpl_reads(from);
-			//p_test_read();
+			if (strcmp(m->name, "348955") == 0) {
+				show_debug_msg("FINDME", "READS ON IT\n");
+				g_ptr_array_sort(from->reads,
+						(GCompareFunc) cmp_reads_by_contig_locus);
+				p_tpl_reads(from);
+			}
 			//i = 0;
 			//unfrozen_hang_reads();
 		} else {
@@ -1130,10 +1134,11 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 	//p_tpl_reads(t);
 	if (is_valid && t->cov <= MIN_BRANCH_COV)
 		is_valid = 0;
-	with_pairs = has_pairs_on_tpl(ht, t, MIN_PAIRS);
+	//with_pairs = has_pairs_on_tpl(ht, t, MIN_PAIRS);
 	//show_debug_msg(__func__, "Has pairs on template [%d, %d]: %d\n", t->id, t->len, with_pairs);
 	// At any stage, if the template is longer than insert size, require some pairs
-	if (is_valid && t->len >= ins_size + 100 && !with_pairs) {
+	if (is_valid && t->len >= ins_size + 100 && !has_pairs_on_tpl(ht, t,
+			MIN_PAIRS)) {
 		show_debug_msg(__func__, "No pairs on template [%d, %d]\n", t->id,
 				t->len);
 		is_valid = 0;
@@ -1305,12 +1310,13 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	tpl *branch = NULL;
 	pool *p = NULL;
 	int least_ol_len = kmer_len;
-	GPtrArray *b_reads = NULL;
+	GPtrArray *b_reads = NULL, *wait_for_val = NULL;
 	junction *jun = NULL;
 
 	if (!t || !t->alive || !t->ctg || t->len <= least_ol_len)
 		return;
 	unfrozen_tried(t);
+	wait_for_val = g_ptr_array_sized_new(4);
 	printf("\n");
 	show_debug_msg(__func__,
 			"===== Branching template [%d, %d] to %s ===== \n", t->id, t->len,
@@ -1338,6 +1344,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			show_debug_msg(__func__, "Template [%d, %d] at %d \n", t->id,
 					t->len, shift);
 			p_query(__func__, tail);
+			//p_ctg_seq(__func__, t->ctg);
 			//p_readarray(b_reads, 1);
 		}
 		if (ori)
@@ -1415,27 +1422,23 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			ext_unit(ht, all_tpls, p, NULL, branch, query, to_connect, ori);
 			branch->cov = calc_tpl_cov(branch, 0, branch->len, ht->o->read_len);
 			dead = 0;
-			if ((branch->len <= branch_read->len) || (!branch->alive)
-					|| (t->cov * MIN_BRANCH_MAIN_COV) > branch->cov
-					|| !val_branch_by_pairs(ht, t, branch))
+			if ((branch->len <= branch_read->len) || (!branch->alive))
 				dead = 1;
 			show_debug_msg(__func__, "Dead: %d\n", dead);
-			if (dead && branch->alive) {
-				// If the branch template is long, put it wait for branching
-				if (branch->len >= MIN_TPL_LEN * 2) {
-					destory_tpl_junctions(branch);
-					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL, 0,
-							ori ? 0 : 1);
-					//					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
-					//							to_connect, ori ? 1 : 0);
-					//					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL,
-					//							to_connect, ori ? 0 : 1);
-					dead = 0;
-					g_ptr_array_add(tpls_await_branching, branch);
-				}
-			}
+			//			if (dead) {
+			//				// If the branch template is long, put it wait for branching
+			//				if (branch->len >= MIN_TPL_LEN * 2) {
+			//					destory_tpl_junctions(branch);
+			//					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL, 0,
+			//							ori ? 0 : 1);
+			//					dead = 0;
+			//					g_ptr_array_add(tpls_await_branching, branch);
+			//				}
+			//			}
+
 
 			if (!dead) {
+				g_ptr_array_add(wait_for_val, branch);
 				unfrozen_tried(branch);
 				refresh_tpl_reads(ht, branch, mismatches);
 				correct_tpl_base(ht->seqs, branch, ht->o->read_len, 0,
@@ -1450,6 +1453,34 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		g_ptr_array_free(b_reads, TRUE);
 	}
 	unfrozen_hang_reads();
+	// For cases where two transcripts are highly similar
+	// There may not be enough spanning pairs during branching
+	// Two branches may validate each other
+	show_debug_msg(__func__, "Striping template [%d, %d] ... \n", t->id, t->len);
+	for (i = wait_for_val->len - 1; i >= 0; i--) {
+		branch = (tpl*) g_ptr_array_index(wait_for_val, i);
+		if ((t->cov * MIN_BRANCH_MAIN_COV) > branch->cov
+				|| !val_branch_by_pairs(ht, t, branch)) {
+			// If the branch is long enough, even though cannot hook, keep it as a separate component
+			if (branch->len >= MIN_TPL_LEN * 2) {
+			} else {
+				branch->alive = 0;
+				rm_global_tpl(all_tpls, branch, FRESH);
+				g_ptr_array_remove_index_fast(wait_for_val, i);
+			}
+		} else
+			g_ptr_array_remove_index_fast(wait_for_val, i);
+	}
+	for (i = 0; i < wait_for_val->len; i++) {
+		branch = (tpl*) g_ptr_array_index(wait_for_val, i);
+		show_debug_msg(__func__, "Striping branch template [%d, %d] ... \n",
+				branch->id, branch->len);
+		destory_tpl_junctions(branch);
+		ext_unit(ht, all_tpls, NULL, NULL, branch, NULL, 0, ori ? 0 : 1);
+		// Don't call refresh_tpl_reads, because will be called in finalize_tpl
+		g_ptr_array_add(tpls_await_branching, branch);
+	}
+	g_ptr_array_free(wait_for_val, TRUE);
 	p_test_read();
 	bwa_free_read_seq(1, tail);
 }
@@ -1631,9 +1662,9 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	}
 
 	//	if (fresh_trial == 0)
-	//		read = &seqs[3197];
+	//		read = &seqs[3879];
 	//	if (fresh_trial == 1)
-	//		read = &seqs[231989];
+	//		read = &seqs[559859];
 	//	if (fresh_trial == 2)
 	//		read = &seqs[7299565];
 
@@ -1645,8 +1676,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 				tpls_await_branching->len - 1);
 		show_debug_msg(__func__, "Await branching template [%d, %d] ... \n",
 				t->id, t->len);
-		to_con_right = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 1, 1);
-		to_con_left = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 1, 0);
+		to_con_right = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
+		to_con_left = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
 		g_ptr_array_remove_index_fast(tpls_await_branching,
 				tpls_await_branching->len - 1);
 		finalize_tpl(ht, all_tpls, t, 1, 0, 0);
@@ -1678,7 +1709,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[35448];
+	TEST = &seqs[3020913];
 
 	// shrink_ht(ht);
 
@@ -1701,7 +1732,7 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		//if (fresh_trial >= 29)
+		//if (fresh_trial >= 2)
 		//if (kmer_ctg_id >= 1200)
 		//if (params->all_tpls->size() > 1000)
 		//	break;
@@ -1710,12 +1741,12 @@ void kmer_threads(kmer_t_meta *params) {
 	show_msg(__func__, "%d templates are obtained. \n",
 			params->all_tpls->size());
 
-	show_debug_msg(__func__, "Remaining reads: \n");
-	for (i = 0; i < ht->n_seqs; i++) {
-		r = &ht->seqs[i];
-		if (r->status != USED && r->status != FRESH && r->status != DEAD)
-			p_query(__func__, r);
-	}
+	//	show_debug_msg(__func__, "Remaining reads: \n");
+	//	for (i = 0; i < ht->n_seqs; i++) {
+	//		r = &ht->seqs[i];
+	//		if (r->status != USED && r->status != DEAD)
+	//			p_query(__func__, r);
+	//	}
 
 	/**
 	 show_msg(__func__,

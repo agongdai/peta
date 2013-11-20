@@ -124,6 +124,58 @@ void p_p(path *p) {
 	}
 }
 
+void p_path_reads(path *p) {
+	GPtrArray *reads = p->reads;
+	bwa_seq_t *r = NULL;
+	int i = 0, j = 0;
+	int read_len = 0;
+	if (!reads || reads->len == 0) {
+		show_debug_msg(__func__, "No reads on path [%d, %d] \n", p->id,
+				p->len);
+		return;
+	}
+	r = (bwa_seq_t*) g_ptr_array_index(reads, 0);
+	read_len = r->len;
+	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_contig_locus);
+	printf("\n==== Here are the reads used on path [%d, %d] \n", p->id,
+				p->len);
+	for (i = 0; i < reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		//if (r->pos == IMPOSSIBLE_NEGATIVE)
+		//	continue;
+		if (i % 15 == 0) {
+			for (j = 0; j < read_len; j++) {
+				printf(" ");
+			}
+			for (j = 0; j < p->len; j++) {
+				printf("%c", "ACGTN"[p->ctg->seq[j]]);
+			}
+			printf("\n");
+		}
+		for (j = 0; j < r->contig_locus + read_len; j++) {
+			printf(" ");
+		}
+		for (j = 0; j < r->len; j++) {
+			if (r->rev_com) {
+				printf("%c", "ACGTN"[(int) r->rseq[j]]);
+			} else {
+				printf("%c", "ACGTN"[(int) r->seq[j]]);
+			}
+		}
+		printf("\t [%s, %d] \t", r->name, r->len);
+		printf(" [status: %d] ", r->status);
+		if (r->rev_com)
+			printf(" [    <<<<@%d]", r->pos);
+		else
+			printf(" [>>>>    @%d]", r->pos);
+		printf(" [%d: %d]", r->contig_id, r->contig_locus);
+		printf(" [cursor: %d]", r->cursor);
+		printf("\n");
+	}
+	printf("==== End of printing reads used on path [%d, %d] ==== \n",
+			p->id, p->len);
+}
+
 void p_paths(GPtrArray *paths, char *fn) {
 	path *p = NULL;
 	uint32_t i = 0, j = 0;
@@ -220,50 +272,52 @@ bwa_seq_t *get_breaking_seq(path *p, int breaking_index, int read_len) {
 	int shared_start = 0, shared_end = 0, shared_size;
 	int tuned_end = 0, tuned_start = 0, next_end = 0, pre_start = 0;
 	// Make sure not to double count any read between adjacent junctions
-//	p_p(p);
-//	show_debug_msg(__func__, "Breaking index: %d; \n", breaking_index);
-//	show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
+	//	p_p(p);
+	//	show_debug_msg(__func__, "Breaking index: %d; \n", breaking_index);
+	//	show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
 	if (n_points > breaking_index + 1) {
 		next_end = points[breaking_index + 1];
 		if (next_end < end)
-			end = points[breaking_index] + (next_end - points[breaking_index]) / 2;
+			end = points[breaking_index] + (next_end - points[breaking_index])
+					/ 2;
 		// Size of shared region of current junction and next junction (if any)
-//		shared_size = end - (points[breaking_index + 1] - half_max);
-//		if (shared_size >= read_len) {
-//			shared_start = points[breaking_index + 1] - half_max;
-//			shared_end = shared_start + shared_size;
-//			tuned_end = ((shared_end - (read_len - 1)) + shared_start) / 2
-//					+ (read_len - 1);
-//			end = tuned_end < end ? tuned_end : end;
-//			///**
-//			 show_debug_msg(__func__, "Shared: [%d -> %d]\n", shared_start,
-//			 shared_end);
-//			 show_debug_msg(__func__, "Tuned end at breaking index %d: %d \n",
-//			 breaking_index, end);
-//			// **/
-//		}
+		//		shared_size = end - (points[breaking_index + 1] - half_max);
+		//		if (shared_size >= read_len) {
+		//			shared_start = points[breaking_index + 1] - half_max;
+		//			shared_end = shared_start + shared_size;
+		//			tuned_end = ((shared_end - (read_len - 1)) + shared_start) / 2
+		//					+ (read_len - 1);
+		//			end = tuned_end < end ? tuned_end : end;
+		//			///**
+		//			 show_debug_msg(__func__, "Shared: [%d -> %d]\n", shared_start,
+		//			 shared_end);
+		//			 show_debug_msg(__func__, "Tuned end at breaking index %d: %d \n",
+		//			 breaking_index, end);
+		//			// **/
+		//		}
 	}
 	if (breaking_index > 0) {
 		pre_start = points[breaking_index - 1];
 		if (pre_start > start)
-			start = points[breaking_index] - (points[breaking_index] - pre_start) / 2;
-//		shared_size = points[breaking_index - 1] + half_max - start;
-//		if (shared_size >= read_len) {
-//			shared_start = start;
-//			shared_end = shared_start + shared_size;
-//			tuned_start = ((shared_end - (read_len - 1)) + shared_start) / 2;
-//			start = tuned_start > start ? tuned_start : start;
-//			///**
-//			 show_debug_msg(__func__, "Shared: [%d -> %d]\n", shared_start,
-//			 shared_end);
-//			 show_debug_msg(__func__, "Tuned start at breaking index %d: %d \n",
-//			 breaking_index, start);
-//			// **/
-//		}
+			start = points[breaking_index] - (points[breaking_index]
+					- pre_start) / 2;
+		//		shared_size = points[breaking_index - 1] + half_max - start;
+		//		if (shared_size >= read_len) {
+		//			shared_start = start;
+		//			shared_end = shared_start + shared_size;
+		//			tuned_start = ((shared_end - (read_len - 1)) + shared_start) / 2;
+		//			start = tuned_start > start ? tuned_start : start;
+		//			///**
+		//			 show_debug_msg(__func__, "Shared: [%d -> %d]\n", shared_start,
+		//			 shared_end);
+		//			 show_debug_msg(__func__, "Tuned start at breaking index %d: %d \n",
+		//			 breaking_index, start);
+		//			// **/
+		//		}
 	}
 	start = (start < 0) ? 0 : start;
 	end = (end >= seq->len) ? seq->len : end;
-//	show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
+	//	show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
 	return new_seq(seq, end - start, start);
 }
 
@@ -364,8 +418,8 @@ GPtrArray *combinatorial_paths(GPtrArray *levels) {
 		for (k = 0; k < paths->len; k++) {
 			p = (path*) g_ptr_array_index(paths, k);
 			new_p = NULL;
-			tail_v = (vertex*) g_ptr_array_index(p->vertexes, p->vertexes->len
-					- 1);
+			tail_v = (vertex*) g_ptr_array_index(p->vertexes,
+					p->vertexes->len - 1);
 			// For each vertex at current level
 			for (j = 0; j < level_vertexes->len; j++) {
 				v = (vertex*) g_ptr_array_index(level_vertexes, j);
@@ -415,21 +469,21 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 	edge *e = NULL;
 	float w = 0.0;
 	// Destroy path with any edge weight 0
-//	for (i = 0; i < paths->len; i++) {
-//		p = (path*) g_ptr_array_index(paths, i);
-//		p_p(p);
-//		for (j = 0; j < p->edges->len; j++) {
-//			w = p->weights[j * 2 + 1];
-//			if (w <= 0) {
-//				//p_p(p);
-//				show_debug_msg(__func__, "Path %d is not valid with 0 edge \n",
-//						p->id);
-//				destroy_path(p);
-//				g_ptr_array_remove_index_fast(paths, i--);
-//				break;
-//			}
-//		}
-//	}
+	//	for (i = 0; i < paths->len; i++) {
+	//		p = (path*) g_ptr_array_index(paths, i);
+	//		p_p(p);
+	//		for (j = 0; j < p->edges->len; j++) {
+	//			w = p->weights[j * 2 + 1];
+	//			if (w <= 0) {
+	//				//p_p(p);
+	//				show_debug_msg(__func__, "Path %d is not valid with 0 edge \n",
+	//						p->id);
+	//				destroy_path(p);
+	//				g_ptr_array_remove_index_fast(paths, i--);
+	//				break;
+	//			}
+	//		}
+	//	}
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
 		start = end = 0;
@@ -439,7 +493,7 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 		v = (vertex*) g_ptr_array_index(p->vertexes, 0);
 		start = v->len;
 		acc_len = v->len;
-		for (j = 1; j < p->vertexes->len; j++) {
+		for (j = 1; j < p->vertexes->len - 1; j++) {
 			v = (vertex*) g_ptr_array_index(p->vertexes, j);
 			// If the vertex is smaller than the k value (25)
 			if (v->len < read_len - JUNCTION_BOUNDARY_BASE * 2) {
@@ -474,6 +528,43 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 }
 
 /**
+ * If there is a >200bp region with no pairs, the path is not valid
+ * The reads on the path must be ordered by contig_locus increasingly
+ */
+int validate_pairs_on_path(hash_table *ht, path *p) {
+	int valid = 1;
+	bwa_seq_t *r = NULL, *m = NULL;
+	int i = 0, no_pairs_len = 0, cursor = ht->o->read_len * 2;
+	if (p->len < MAX_REGION_NO_PAIRS + ht->o->read_len * 2)
+		return valid;
+	for (i = 0; i < p->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
+		r->contig_id = p->id;
+	}
+	//p_path_reads(p);
+	for (i = 0; i < p->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
+		// Head/Tail regions are not counted.
+		if (r->contig_locus + ht->o->read_len < cursor || r->contig_locus
+				> p->len - 2 * r->len)
+			continue;
+		m = get_mate(r, ht->seqs);
+		if (r->contig_id == m->contig_id) {
+			cursor = r->contig_locus + r->len;
+			no_pairs_len = 0;
+		} else {
+			no_pairs_len = r->contig_locus - (cursor - r->len);
+		}
+		//p_query(__func__, r);
+		//p_query(__func__, m);
+		//show_debug_msg(__func__, "Cursor: %d; no_pairs_len: %d \n", cursor, no_pairs_len);
+		if (no_pairs_len >= MAX_REGION_NO_PAIRS)
+			return 0;
+	}
+	return valid;
+}
+
+/**
  * Initialize attributes to paths
  */
 void assign_path_attrs(GPtrArray *paths, hash_table *ht) {
@@ -505,6 +596,14 @@ void assign_path_attrs(GPtrArray *paths, hash_table *ht) {
 		p->len = len;
 		// The coverage, given all reads are from this path
 		p->reads = reads_on_seq(p->ctg, ht, N_MISMATCHES);
+		if (!validate_pairs_on_path(ht, p)) {
+			show_debug_msg(__func__,
+					"Pair information not consistent on path [%d, %d] \n",
+					p->id, p->len);
+			destroy_path(p);
+			g_ptr_array_remove_index_fast(paths, i--);
+			continue;
+		}
 		g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_name);
 		p->coverage = ((float) p->reads->len) * ((float) ht->o->read_len)
 				/ ((float) p->len);
@@ -774,8 +873,9 @@ void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 			//show_debug_msg(__func__, "sum_k_c_te[i]: %.2f\n", i, sum_k_c_te);
 
 			// Coverage of path i in this iteration
-			p_covs[i] = (0 - n_features + sqrt(n_features * n_features + 4
-					* sum_k_te * sum_k_c_te)) / (2 * sum_k_te);
+			p_covs[i] = (0 - n_features + sqrt(
+					n_features * n_features + 4 * sum_k_te * sum_k_c_te)) / (2
+					* sum_k_te);
 
 			//show_debug_msg(__func__, "p_covs[i]: %.2f\n", i, p_covs[i]);
 

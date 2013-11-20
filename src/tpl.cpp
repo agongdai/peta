@@ -977,7 +977,7 @@ void truncate_tpl(tpl *t, int len, int ori) {
 			//reset_to_dead(r);
 			//g_ptr_array_remove_index_fast(t->reads, i--);
 		}
-		memcpy(t->ctg->seq, t->ctg->seq + len, sizeof(ubyte_t) * t->len - len);
+		memmove(t->ctg->seq, t->ctg->seq + len, sizeof(ubyte_t) * (t->len - len));
 		t->len -= len;
 		t->ctg->len = t->len;
 		set_rev_com(t->ctg);
@@ -1063,25 +1063,25 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	int is_picked = 0;
 	ubyte_t c = 0, read_c = 0;
 
-	//	if (shift == 707) {
-	//		show_debug_msg(__func__, "----\n");
-	//		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
-	//				: "right");
-	//		p_query(__func__, query);
-	//		p_readarray(hits, 1);
-	//	}
+//		if (shift == 38) {
+//			show_debug_msg(__func__, "----\n");
+//			show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
+//					: "right");
+//			p_query(__func__, query);
+//			p_readarray(hits, 1);
+//		}
 
 	if (hits->len <= 0) {
 		return hits;
 	}
-
-	//if (shift == 1324) {
-	//		show_debug_msg(__func__, "----\n");
-	//		show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
-	//				: "right");
-	//		p_query(__func__, query);
-	//		p_readarray(hits, 1);
-	//}
+//
+//	if (shift == 38) {
+//			show_debug_msg(__func__, "----\n");
+//			show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
+//					: "right");
+//			p_query(__func__, query);
+//			p_readarray(hits, 1);
+//	}
 
 	//if (shift == 587) {
 	//	p_query(__func__, query);

@@ -191,7 +191,7 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 	bwa_seq_t *from = NULL, *jumped_seq = NULL, *r = NULL;
 	//	p_tpl_reads(t);
 	//	p_tpl_reads(jumped);
-	if (!paired_by_reads(ht->seqs, t, jumped, 2))
+	if (!paired_by_reads(ht->seqs, t, jumped, 2) && jumped->len > ht->o->read_len + 2)
 		return 0;
 
 	from = new_seq(t->ctg, min(max_ol, t->len), t->len - min(max_ol, t->len));
@@ -199,6 +199,7 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 	score = smith_waterman_simple(from, jumped_seq, &from_s, &from_e,
 			&jumped_s, &jumped_e, ht->o->k);
 
+	/**
 	p_ctg_seq("FROM", t->ctg);
 	p_ctg_seq("FROM_PART END", from);
 	p_ctg_seq("JUMPED", jumped->ctg);
@@ -206,13 +207,16 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 	show_debug_msg(__func__, "SCORE: %d \n", score);
 	show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
 	show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
-	//p_tpl_reads(jumped);
+	p_tpl_reads(jumped);
+	**/
 
 	if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
 			&& score >= (jumped_e - jumped_s) * SM_SIMILARY && from->len
 			- from_e < jumped->len - jumped_e) {
 		truncate_tpl(t, from->len - from_e, 0);
+		//p_ctg_seq("JUMPED TO MERGED", jumped->ctg);
 		truncate_tpl(jumped, jumped_e, 1);
+		//p_ctg_seq("JUMPED TO MERGED", jumped->ctg);
 		bwa_free_read_seq(1, from);
 		bwa_free_read_seq(1, jumped_seq);
 		ori_len = t->len;
@@ -230,13 +234,13 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 			jumped->len - min(jumped->len, max_ol));
 	score = smith_waterman_simple(from, jumped_seq, &from_s, &from_e,
 			&jumped_s, &jumped_e, ht->o->k);
-	///**
+	/**
 	 p_ctg_seq("FROM", from);
 	 p_ctg_seq("JUMPED", jumped_seq);
 	 show_debug_msg(__func__, "Score: %d \n", score);
 	 show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
 	 show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
-	// **/
+	 **/
 	if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
 			&& score >= (jumped_e - jumped_s) * SM_SIMILARY && (jumped->len
 			- jumped_seq->len + jumped_s > from_s)) {

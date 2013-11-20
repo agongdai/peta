@@ -38,21 +38,26 @@ GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch) {
 	bwa_seq_t *part = NULL, *r = NULL;
 	GPtrArray *hits = NULL;
 	GPtrArray *reads = g_ptr_array_sized_new(32);
+	if (seq->len < read_len)
+		return reads;
 
+	part = new_seq(seq, read_len, 0);
+	hits = g_ptr_array_sized_new(4);
 	for (i = 0; i <= seq->len - read_len; i++) {
-		part = new_seq(seq, read_len, i);
-		hits = g_ptr_array_sized_new(4);
 		hits = find_both_fr_full_reads(ht, part, hits, n_mismatch);
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
 			if (seq_ol(r, part, r->len, n_mismatch) >= 0) {
 				g_ptr_array_add(reads, r);
+				r->contig_locus = i;
 			}
 		}
-		bwa_free_read_seq(1, part);
-		g_ptr_array_free(hits, TRUE);
-		hits = NULL;
+		while(hits->len > 0)
+			g_ptr_array_remove_index_fast(hits, 0);
+		ext_que(part, seq->seq[i + read_len], 0);
 	}
+	g_ptr_array_free(hits, TRUE);
+	bwa_free_read_seq(1, part);
 	return reads;
 }
 

@@ -59,11 +59,12 @@
 #define MIN_GAPPED_PAIRS		4
 #define MAX_GAPS				4
 #define MIN_PAIRS				2
-#define MIN_JUNCTION_READS	    3
+#define MIN_JUNCTION_READS	    2
 #define MIN_WEIGHT				2
 #define MAX_VS_IN_COMP          100
 #define LONG_TPL_LEN			300
 #define HIHG_COV_THRE		    50 	
+#define MAX_REGION_NO_PAIRS		100
 
 typedef uint64_t index64;
 

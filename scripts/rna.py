@@ -551,6 +551,31 @@ def extract(args):
     part_reads.save_to_disk(args.reads[:-3] + '.tx.fa')
     print 'Check %d reads in file %s.tx.fa' % (read_id, args.reads[:-3])
 
+def check_overlap(args):
+    hits = read_blat_hits(args.tx2tx, 'ref')
+    clustered = {}
+    n_cluster = 0
+    n_tx = 0
+    for tx, tx_hits in hits.iteritems():
+        prefix = tx.split('.')[0]
+        if tx in clustered.iterkeys(): continue
+        has_ol = False
+        for h in tx_hits:
+            if h.qname == tx: continue
+            p = h.qname.split('.')[0]
+            if p == prefix: continue
+            for i in range(h.n_blocks):
+                if h.block_sizes[i] > 68:
+                    if not has_ol:
+                        print '%d: ----------- %s ------------' % (n_cluster, tx)
+                    has_ol = True
+                    print tx, h.qname
+                    clustered[tx] = True
+                    clustered[h.qname] = True
+        if has_ol: n_cluster += 1
+    print '# of cluster: %d' % n_cluster
+    print '# of transcripts clustered: %d' % len(clustered.keys())
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -615,6 +640,11 @@ def main():
     parser_last.add_argument('paired', help='paired.fa')
     parser_last.add_argument('junc', help='paired.junctions')
     parser_last.add_argument('reads', help='reads.fa')
+    
+    parser_ol = subparsers.add_parser('ol', help='Check overlap between S.pombe transcripts')
+    parser_ol.set_defaults(func=check_overlap)
+    parser_ol.add_argument('tx', help='transcript fasta')
+    parser_ol.add_argument('tx2tx', help='tx-to-tx PSL')
 
     args = parser.parse_args()
     args.func(args)
