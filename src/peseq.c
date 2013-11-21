@@ -724,6 +724,7 @@ int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			else
 				up_left = scores[(i - 1) * columns + j - 1] - score_mis;
 			scores[i * columns + j] = max3(left, up, up_left);
+			//scores[i * columns + j] = max(scores[i * columns + j], 0);
 		}
 		for (j = 0; j < columns; j++) {
 			if (scores[i * columns + j] > max_score) {
