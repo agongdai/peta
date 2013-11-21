@@ -1197,92 +1197,91 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				freed = 1;
 				break;
 			}
-			if (branch->b_juncs && branch->b_juncs->len == 2)
-				continue;
-			//p_tpl(branch);
-			//p_tpl_reads(branch);
-			if (added_len_to_left == 0 && jun->locus < ht->o->read_len
-					&& jun->ori == 1) {
-				main_cov = calc_tpl_cov(t, 0, jun->locus, ht->o->read_len);
-				show_debug_msg(__func__,
-						"Branch coverage: %.2f; main coverage: %.2f\n",
-						branch->cov, main_cov);
-				p_tpl_reads(t);
-				if (branch->len > jun->locus && main_cov < LOW_PART_COV
-						&& branch->cov > main_cov) {
-					p_junction(jun);
-					mv_reads_bt_tpls(branch, t, jun->locus, 1);
-					new_seq = (ubyte_t*) calloc(branch->len + t->len,
-							sizeof(ubyte_t));
-					memcpy(new_seq, branch->ctg->seq,
-							sizeof(ubyte_t) * branch->len);
-					memcpy(new_seq + branch->len, t->ctg->seq + jun->locus,
-							sizeof(ubyte_t) * (t->ctg->len - jun->locus));
-					added_len_to_left = branch->len - jun->locus;
-					free(t->ctg->seq);
-					t->ctg->seq = new_seq;
-					t->len = t->len - jun->locus + branch->len;
-					t->ctg->len = t->len;
-					t->ctg->full_len = t->len;
-					set_rev_com(t->ctg);
-					changed = 1;
-					mark_tpl_dead(branch);
+			// If only one end
+			if (!(branch->b_juncs && branch->b_juncs->len == 2)) {
+				//p_tpl(branch);
+				//p_tpl_reads(branch);
+				if (added_len_to_left == 0 && jun->locus < ht->o->read_len
+						&& jun->ori == 1) {
+					main_cov = calc_tpl_cov(t, 0, jun->locus, ht->o->read_len);
 					show_debug_msg(__func__,
-							"Branch [%d, %d] merged to Main [%d, %d]\n",
-							branch->id, branch->len, t->id, t->len);
-					// Update the locus of all other junctions
-					for (j = 0; j < branches->len; j++) {
-						jun2 = (junction*) g_ptr_array_index(branches, j);
-						if (jun2->status == 0) {
-							// Remove all junctions at the trimmed head
-							if (jun2->locus < jun->locus || jun2->branch_tpl
-									== branch)
-								jun2->status = 1;
-							else
-								jun2->locus += added_len_to_left;
+							"Branch coverage: %.2f; main coverage: %.2f\n",
+							branch->cov, main_cov);
+					p_tpl_reads(t);
+					if (branch->len > jun->locus && main_cov < LOW_PART_COV
+							&& branch->cov > main_cov) {
+						p_junction(jun);
+						mv_reads_bt_tpls(branch, t, jun->locus, 1);
+						new_seq = (ubyte_t*) calloc(branch->len + t->len,
+								sizeof(ubyte_t));
+						memcpy(new_seq, branch->ctg->seq,
+								sizeof(ubyte_t) * branch->len);
+						memcpy(new_seq + branch->len, t->ctg->seq + jun->locus,
+								sizeof(ubyte_t) * (t->ctg->len - jun->locus));
+						added_len_to_left = branch->len - jun->locus;
+						free(t->ctg->seq);
+						t->ctg->seq = new_seq;
+						t->len = t->len - jun->locus + branch->len;
+						t->ctg->len = t->len;
+						t->ctg->full_len = t->len;
+						set_rev_com(t->ctg);
+						changed = 1;
+						mark_tpl_dead(branch);
+						show_debug_msg(__func__,
+								"Branch [%d, %d] merged to Main [%d, %d]\n",
+								branch->id, branch->len, t->id, t->len);
+						// Update the locus of all other junctions
+						for (j = 0; j < branches->len; j++) {
+							jun2 = (junction*) g_ptr_array_index(branches, j);
+							if (jun2->status == 0) {
+								// Remove all junctions at the trimmed head
+								if (jun2->locus < jun->locus || jun2->branch_tpl
+										== branch)
+									jun2->status = 1;
+								else
+									jun2->locus += added_len_to_left;
+							}
 						}
 					}
-				}
-			} else if (!pruned_right && jun->locus > (t->len - ht->o->read_len)
-					&& jun->ori == 0) {
-				p_junction(jun);
-				main_cov = calc_tpl_cov(t, jun->locus, t->len, ht->o->read_len);
-				show_debug_msg(__func__,
-						"Branch coverage: %.2f; main coverage: %.2f\n",
-						branch->cov, main_cov);
-				if (branch->len > (t->len - jun->locus) && main_cov
-						< LOW_PART_COV && branch->cov > main_cov) {
-					mv_reads_bt_tpls(branch, t, t->len - jun->locus, 0);
-					new_seq = (ubyte_t*) calloc(branch->len + t->len,
-							sizeof(ubyte_t));
-					memcpy(new_seq, t->ctg->seq, sizeof(ubyte_t) * jun->locus);
-					memcpy(new_seq + jun->locus, branch->ctg->seq, branch->len);
-					free(t->ctg->seq);
-					t->ctg->seq = new_seq;
-					t->len = jun->locus + branch->len;
-					t->ctg->len = t->len;
-					t->ctg->full_len = t->len;
-					set_rev_com(t->ctg);
-					changed = 1;
-					pruned_right = 1;
-					mark_tpl_dead(branch);
+				} else if (!pruned_right && jun->locus > (t->len - ht->o->read_len)
+						&& jun->ori == 0) {
+					p_junction(jun);
+					main_cov = calc_tpl_cov(t, jun->locus, t->len, ht->o->read_len);
 					show_debug_msg(__func__,
-							"Branch [%d, %d] merged to Main [%d, %d]\n",
-							branch->id, branch->len, t->id, t->len);
-					// Update the locus of all other junctions
-					for (j = 0; j < branches->len; j++) {
-						jun2 = (junction*) g_ptr_array_index(branches, j);
-						if (jun2->status == 0) {
-							// Remove all junctions at the trimmed head
-							if (jun2->locus > jun->locus || jun2->branch_tpl
-									== branch)
-								jun2->status = 1;
+							"Branch coverage: %.2f; main coverage: %.2f\n",
+							branch->cov, main_cov);
+					if (branch->len > (t->len - jun->locus) && main_cov
+							< LOW_PART_COV && branch->cov > main_cov) {
+						mv_reads_bt_tpls(branch, t, t->len - jun->locus, 0);
+						new_seq = (ubyte_t*) calloc(branch->len + t->len,
+								sizeof(ubyte_t));
+						memcpy(new_seq, t->ctg->seq, sizeof(ubyte_t) * jun->locus);
+						memcpy(new_seq + jun->locus, branch->ctg->seq, branch->len);
+						free(t->ctg->seq);
+						t->ctg->seq = new_seq;
+						t->len = jun->locus + branch->len;
+						t->ctg->len = t->len;
+						t->ctg->full_len = t->len;
+						set_rev_com(t->ctg);
+						changed = 1;
+						pruned_right = 1;
+						mark_tpl_dead(branch);
+						show_debug_msg(__func__,
+								"Branch [%d, %d] merged to Main [%d, %d]\n",
+								branch->id, branch->len, t->id, t->len);
+						// Update the locus of all other junctions
+						for (j = 0; j < branches->len; j++) {
+							jun2 = (junction*) g_ptr_array_index(branches, j);
+							if (jun2->status == 0) {
+								// Remove all junctions at the trimmed head
+								if (jun2->locus > jun->locus || jun2->branch_tpl
+										== branch)
+									jun2->status = 1;
+							}
 						}
 					}
 				}
 			}
-			if (branch->cov < t->cov * MIN_BRANCH_MAIN_COV)
-				branch->alive = 0;
 			merge_branch_to_main(ht, branch);
 			val_branch_by_pairs(ht, t, branch);
 			try_destroy_tpl(ht, all_tpls, branch, ht->o->read_len);
@@ -1348,6 +1347,10 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			p_query(__func__, tail);
 			//p_ctg_seq(__func__, t->ctg);
 			//p_readarray(b_reads, 1);
+		}
+		if (b_reads->len < 2) {
+			g_ptr_array_free(b_reads, TRUE);
+			continue;
 		}
 		if (ori)
 			g_ptr_array_sort(b_reads, (GCompareFunc) cmp_reads_by_cursor);
