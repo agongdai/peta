@@ -1105,14 +1105,16 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 		if (start >= 0 && start + ol_len <= t->len && ol_len >= query->len) {
 			//tpl_seq = new_seq(t->ctg, ol_len, start);
 			copy_partial(t->ctg, tpl_seq, start, ol_len);
+			//if (shift == 1076) {
 			//p_query("TEMPLATE SEQ", tpl_seq);
 			//p_query("HIT", r);
+			//}
 			if (ori)
 				n_mis = seq_ol(r, tpl_seq, ol_len, mismatches);
 			else
 				n_mis = seq_ol(tpl_seq, r, ol_len, mismatches);
+			//if (shift == 1076)
 			//show_debug_msg(__func__, "n_mis: %d \n", n_mis);
-			//bwa_free_read_seq(1, tpl_seq);
 			if (n_mis >= 0) {
 				if (ori) {
 					// To find the cursor

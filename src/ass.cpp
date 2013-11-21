@@ -1346,9 +1346,13 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 					t->len, shift);
 			p_query(__func__, tail);
 			//p_ctg_seq(__func__, t->ctg);
-			//p_readarray(b_reads, 1);
+			p_readarray(b_reads, 1);
 		}
 		if (b_reads->len < 2) {
+			for (j = 0; j < b_reads->len; j++) {
+				branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
+				reset_to_fresh(branch_read);
+			}
 			g_ptr_array_free(b_reads, TRUE);
 			continue;
 		}
