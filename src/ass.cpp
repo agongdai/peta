@@ -246,7 +246,7 @@ int merge_branch_to_main(hash_table *ht, tpl *branch) {
 		exist_ori = exist_junc->ori;
 		main_tpl = exist_junc->main_tpl;
 		on_main = branch_on_main(main_tpl, branch, exist_junc->locus,
-				branch->len * (1 - BRANCH_SIMILARITY), exist_ori);
+				branch->len * (1 - BRANCH_SIMILARITY) + 2, exist_ori);
 		if (on_main) {
 			// Mark it as 'dead', will be destroyed in kmer_ext_thread.
 			show_debug_msg(__func__,
@@ -290,10 +290,11 @@ int merge_branch_to_main(hash_table *ht, tpl *branch) {
 			sub = new_seq(main_seq, right->locus - left->locus,
 					left->locus + l_len);
 			similar = similar_seqs(sub, branch->ctg,
-					branch->len * (1 - BRANCH_SIMILARITY), MAX_GAPS,
+					branch->len * (1 - BRANCH_SIMILARITY) + 2, MAX_GAPS,
 					MATCH_SCORE, MISMATCH_SCORE, INDEL_SCORE);
 			//p_ctg_seq("MAIN", sub);
 			//p_ctg_seq("BRANCH", branch->ctg);
+			//show_debug_msg(__func__, "Similar: %d\n", similar);
 			if (similar) {
 				merged = 1;
 				for (i = 0; i < branch->reads->len; i++) {
@@ -481,9 +482,9 @@ int val_branch_by_pairs(hash_table *ht, tpl *main_tpl, tpl *branch_tpl) {
 int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		const int ori) {
 	GPtrArray *con_reads = NULL;
-	int i = 0, j = 0, tmp = 0;
+	int i = 0, j = 0, tmp = 0, too_far = 0;
 	bwa_seq_t *r = NULL, *tail = NULL;
-	tpl *main_tpl = NULL;
+	tpl *main_tpl = NULL, *branch_tpl = NULL;
 	ubyte_t branch_c = 0, main_c = 0;
 	// Positions, lengths, etc.
 	int con_pos = 0, exist_ori = 0, loop_len = 0;
@@ -496,6 +497,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	int adj_ori = 0;
 	int max_trial = 0;
 	junction *exist_junc = NULL;
+	GPtrArray *near_tpls = NULL;
 
 	if (!branch || !branch->alive || !branch->reads || branch->reads->len == 0)
 		return 0;
@@ -508,6 +510,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		mark_tpl_dead(branch);
 		return 0;
 	}
+
 	printf("\n");
 	show_debug_msg(__func__, "Trying to connect template [%d, %d] to %s ...\n",
 			branch->id, branch->len, ori ? "left" : "right");
@@ -528,6 +531,19 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		adj_ori = ori;
 		// The candidate template to connect
 		main_tpl = (tpl*) it->second;
+
+		too_far = 1;
+		near_tpls = nearby_tpls(main_tpl, 1);
+		for (j = 0; j < near_tpls->len; j++) {
+			branch_tpl = (tpl*) g_ptr_array_index(near_tpls, j);
+			if (branch == branch_tpl) {
+				too_far = 0;
+				break;
+			}
+		}
+		g_ptr_array_free(near_tpls, TRUE);
+		if (too_far)
+			continue;
 
 		// If the main template is too short, just ignore
 		if (main_tpl->len <= ht->o->k || main_tpl == branch || main_tpl->cov
@@ -1060,7 +1076,8 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 		}
 
 		correct_tpl_base(ht->seqs, to, ht->o->read_len, 0, to->len);
-		show_debug_msg(__func__, "After correcting [%d, %d] \n", to->id, to->len);
+		show_debug_msg(__func__, "After correcting [%d, %d] \n", to->id,
+				to->len);
 		merged = merged_jumped(ht, from, to, MORE_MISMATCH);
 		//p_test_read();
 		if (merged) {
@@ -1137,8 +1154,8 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 					"Template [%d, %d] is shorter than 100bp \n", t->id, t->len);
 	}
 	//p_tpl_reads(t);
-	if (is_valid && t->cov <= MIN_BRANCH_COV)
-		is_valid = 0;
+	//if (is_valid && t->cov <= MIN_BRANCH_COV)
+	//	is_valid = 0;
 	//with_pairs = has_pairs_on_tpl(ht, t, MIN_PAIRS);
 	//show_debug_msg(__func__, "Has pairs on template [%d, %d]: %d\n", t->id, t->len, with_pairs);
 	// At any stage, if the template is longer than insert size, require some pairs
@@ -1182,6 +1199,9 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 		for (i = 0; i < branches->len; i++) {
 			jun = (junction*) g_ptr_array_index(branches, i);
 			branch = jun->branch_tpl;
+			printf("\n");
+			show_debug_msg(__func__, "Branch [%d, %d] %s \n", branch->id,
+					branch->len, branch->alive ? "Alive" : "Dead");
 			if (jun->status != 0 || branch == t)
 				continue;
 			if (!branch->alive) {
@@ -1290,8 +1310,11 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 			}
 			merge_branch_to_main(ht, branch);
 			val_branch_by_pairs(ht, t, branch);
+			show_debug_msg(__func__, "Branch [%d, %d] %s \n", branch->id,
+								branch->len, branch->alive ? "Alive" : "Dead");
 			try_destroy_tpl(ht, all_tpls, branch, ht->o->read_len);
-
+			show_debug_msg(__func__, "Branch [%d, %d] %s \n", branch->id,
+								branch->len, branch->alive ? "Alive" : "Dead");
 			//p_tpl(t);
 			if (!branch->alive) {
 				rm_global_tpl(all_tpls, branch, FRESH);
@@ -1680,15 +1703,15 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	if (TESTING) {
 		if (fresh_trial == 0)
 			read = &seqs[TESTING];
-		//	if (fresh_trial == 1)
-		//		read = &seqs[559859];
+			if (fresh_trial == 1)
+				read = &seqs[2904319];
 		//	if (fresh_trial == 2)
 		//		read = &seqs[7299565];
 	}
 
 	t = ext_a_read(ht, all_tpls, read, counter->count);
 	if (t)
-		finalize_tpl(ht, all_tpls, t, 1, 1, 1);
+		finalize_tpl(ht, all_tpls, t, 1, 0, 0);
 	while (tpls_await_branching->len > 0) {
 		t = (tpl*) g_ptr_array_index(tpls_await_branching,
 				tpls_await_branching->len - 1);
@@ -1753,7 +1776,7 @@ void kmer_threads(kmer_t_meta *params) {
 		//if (fresh_trial >= 2)
 		//if (kmer_ctg_id >= 1200)
 		//if (params->all_tpls->size() > 1000)
-		if (TESTING)
+		if (TESTING && fresh_trial >= 1)
 			break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);

@@ -255,8 +255,8 @@ bwa_seq_t *merge_seq(bwa_seq_t *s1, bwa_seq_t *s2, const int shift) {
 	s1->full_len = (s1->len + s2->len + 1 - shift);
 	kroundup32(s1->full_len);
 	s1->seq = (ubyte_t*) realloc(s1->seq, sizeof(ubyte_t) * s1->full_len);
-	memcpy(&s1->seq[s1->len], &s2->seq[shift], sizeof(ubyte_t) * (s2->len
-			- shift));
+	memcpy(&s1->seq[s1->len], &s2->seq[shift],
+			sizeof(ubyte_t) * (s2->len - shift));
 	s1->len += s2->len - shift;
 	s1->seq[s1->len] = '\0';
 	return s1;
@@ -445,8 +445,8 @@ void ext_con(bwa_seq_t *contig, const ubyte_t c, const int ori) {
 	if (contig->full_len <= contig->len + 2) {
 		contig->full_len = contig->len + 2;
 		kroundup32(contig->full_len);
-		contig->seq = (ubyte_t*) realloc(contig->seq, sizeof(ubyte_t)
-				* contig->full_len);
+		contig->seq = (ubyte_t*) realloc(contig->seq,
+				sizeof(ubyte_t) * contig->full_len);
 	}
 	if (ori) {
 		memmove(&contig->seq[1], contig->seq, contig->len);
@@ -736,21 +736,21 @@ int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			}
 		}
 	}
-//	printf("\t\t");
-//	for (i = 0; i < seq_1->len; i++) {
-//		printf("%c\t", "ACGTN"[seq_1->seq[i]]);
-//	}
-//	printf("\n");
-//	for (i = 0; i < rows; i++) {
-//		if (i == 0)
-//			printf("\t");
-//		else
-//			printf("%c\t", "ACGTN"[seq_2->seq[i - 1]]);
-//		for (j = 0; j < columns; j++) {
-//			printf("%d\t", scores[i * columns + j]);
-//		}
-//		printf("\n");
-//	}
+	//	printf("\t\t");
+	//	for (i = 0; i < seq_1->len; i++) {
+	//		printf("%c\t", "ACGTN"[seq_1->seq[i]]);
+	//	}
+	//	printf("\n");
+	//	for (i = 0; i < rows; i++) {
+	//		if (i == 0)
+	//			printf("\t");
+	//		else
+	//			printf("%c\t", "ACGTN"[seq_2->seq[i - 1]]);
+	//		for (j = 0; j < columns; j++) {
+	//			printf("%d\t", scores[i * columns + j]);
+	//		}
+	//		printf("\n");
+	//	}
 	// Back trace to find the starting points
 	*seq_1_start = *seq_1_stop - 1;
 	*seq_2_start = 0;
@@ -758,14 +758,14 @@ int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 		s = scores[(i) * columns + *seq_1_start + 1];
 		up_left = scores[(i - 1) * columns + *seq_1_start];
 		left = scores[(i) * columns + *seq_1_start];
-//		printf("%d\n", up_left);
-//		printf("%d\t%d\n", left, s);
+		//		printf("%d\n", up_left);
+		//		printf("%d\t%d\n", left, s);
 		if (s == 1) {
 			*seq_2_start = i - 1;
 			break;
 		}
-//		show_debug_msg(__func__, "seq_1: %c; seq_2: %c \n",
-//				"ACGTN"[seq_1->seq[*seq_1_start]], "ACGTN"[seq_2->seq[i - 1]]);
+		//		show_debug_msg(__func__, "seq_1: %c; seq_2: %c \n",
+		//				"ACGTN"[seq_1->seq[*seq_1_start]], "ACGTN"[seq_2->seq[i - 1]]);
 		if (seq_1->seq[*seq_1_start] == seq_2->seq[i - 1]) {
 			if (s == up_left + score_m)
 				*seq_1_start = *seq_1_start - 1;
@@ -773,11 +773,11 @@ int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			if (s == up_left - score_mis || s == left - score_gap)
 				*seq_1_start = *seq_1_start - 1;
 		}
-//		printf("i: %d; seq_1_start: %d; seq_2_start: %d\n", i, *seq_1_start, i
-//				- 1);
+		//		printf("i: %d; seq_1_start: %d; seq_2_start: %d\n", i, *seq_1_start, i
+		//				- 1);
 	}
-//	printf("seq_1: [%d, %d]; seq_2: [%d, %d] \n", *seq_1_start, *seq_1_stop,
-//			*seq_2_start, *seq_2_stop);
+	//	printf("seq_1: [%d, %d]; seq_2: [%d, %d] \n", *seq_1_start, *seq_1_stop,
+	//			*seq_2_start, *seq_2_stop);
 	free(scores);
 	return max_score;
 }
@@ -794,6 +794,12 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 	int up_left = 0, up = 0, left = 0;
 	previous_row = (int*) calloc(columns + 1, sizeof(int));
 	current_row = (int*) calloc(columns + 1, sizeof(int));
+	/**
+	printf("\t\t");
+	for (i = 1; i < columns; i++) {
+		printf("%c\t", "ACGTN"[seq_1->seq[i - 1]]);
+	}
+	**/
 	for (i = 1; i < rows; i++) {
 		for (j = 1; j < columns; j++) {
 			up = previous_row[j] + score_gap; // not updated, so is the value from previous row
@@ -806,25 +812,26 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			max = up_left > max ? up_left : max;
 			current_row[j] = max;
 		}
-		//		printf("Previous row: \n");
 		for (j = 0; j < columns; j++) {
-			//			printf("%d,", previous_row[j]);
 			previous_row[j] = current_row[j];
 			max_score = current_row[j] > max_score ? current_row[j] : max_score;
 		}
-		//		printf("\n");
-		//		printf("Row %d: \t", i);
+		/**
+		printf("\n");
+		printf("Row %c: \t", "ACGTN"[seq_2->seq[i - 1]]);
 		for (j = 0; j < columns; j++) {
 			if (current_row[j] == max_score) {
-				//				printf("[%d]\t", current_row[j]);
+				printf("[%d]\t", current_row[j]);
 			} else {
-				//				printf("%d\t", current_row[j]);
+				printf("%d\t", current_row[j]);
 			}
 		}
-		//		printf("\t\t");
-		//		printf("Max score: %d \n", max_score);
+		printf("\t\t");
+		printf("Max score: %d \n", max_score);
+		**/
 		// If the minimal acceptable score is not reachable, stop and return.
-		if ((max_score + (rows - i) * score_mat) <= min_acceptable_score) {
+		if (max_score <= min_acceptable_score && (max_score + (rows - i) * score_mat) <= min_acceptable_score - 2
+				* score_mis) {
 			free(previous_row);
 			free(current_row);
 			return -1;
@@ -848,8 +855,7 @@ int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
 		return 0;
 	min_len = query->len;
 	min_len = min_len > seq->len ? seq->len : min_len;
-	min_acceptable_score = min_len * score_mat + mismatches * score_mis
-			+ get_abs(query->len - seq->len) * score_gap;
+	min_acceptable_score = min_len * score_mat + mismatches * score_mis * 2;
 	similarity_score = smith_waterman(query, seq, score_mat, score_mis,
 			score_gap, min_acceptable_score);
 	//show_debug_msg(__func__, "Score: %d\n", similarity_score);
@@ -1059,8 +1065,8 @@ int head_tail_similar(bwa_seq_t *ref, bwa_seq_t *query, const int len,
 	} else { // Check reverse sequence
 		// Head: similar_bytes(ref->seq, query->rseq, len, mismatches)
 		if (similar_bytes(ref->seq, query->rseq, len, mismatches)
-				&& similar_bytes(ref->seq + (ref->len - len), query->rseq
-						+ (query->len - len), len, mismatches)) {
+				&& similar_bytes(ref->seq + (ref->len - len),
+						query->rseq + (query->len - len), len, mismatches)) {
 			similar = 1;
 			*rev_com = 1;
 		}

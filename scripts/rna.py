@@ -583,6 +583,77 @@ def get_singleton(args):
             if len(tx_hits) == 1:
                 out.write(tx + '\n')
     print 'Check file %s' % args.out
+    
+def continuous_paired(args):
+    ref = FastaFile(args.ref)
+    ids = []
+    with open(args.ids) as input:
+        for line in input:
+            ids.append(line.strip())
+    n_100 = 0
+    n_200 = 0
+    print 'Totally %d ids' % len(ids)
+    for tx in ids:
+#         tx = 'SPAC4F8.08_T0'
+        seq = ref.seqs[tx]
+        cmd = 'grep %s %s' % (tx, args.fa2tx)
+        hit_lines = runInShell(cmd)
+        lines = hit_lines.split('\n')
+        if len(lines) == 0: continue
+        hits = read_psl_hits(lines, 'ref')
+        if not tx in hits: continue
+        tx_hits = hits[tx]
+        print '------------ %20s length %d: %d hits -----------' % (tx, len(seq), len(lines))
+        tx_hits.sort(key=lambda x:x.rstart)
+        reads = []
+        for h in tx_hits:
+            reads.append(h.qname)
+        bases = [0 for _ in range(len(seq))]
+        
+        for h in tx_hits:
+            read_id = int(h.qname)
+            mname = read_id
+            if read_id % 2 == 0:
+                mname = str(read_id + 1)
+            else:
+                mname = str(read_id - 1)
+            if mname in reads:
+                end = h.rstart + h.qlen
+                if end > h.rlen: end = h.rlen
+                for i in range(h.rstart, end):
+                    bases[i] = 1
+        
+        sum = 0
+        for b in bases:
+            sum += b
+        print 'Sum covered: %d' % sum
+        
+        max = 0
+        not_paired_len = 0
+        start_0 = 0
+        end_0 = 0
+        cursor = 0
+        pre = bases[0]
+        for i in range(1, len(bases)):
+            b = bases[i]
+#             print '%d: %d' % (i, b)
+            if b == 0 and bases[pre] == 1:
+                cursor = i    
+            if (b == 1 and bases[pre] == 0) or (i == len(bases) - 1 and b == 0):
+                if  i - cursor > max:
+                    start_0 = cursor
+                    end_0 = i
+                    max = end_0 - start_0
+            pre = i
+#         if max > 200:
+        print '%s: [%d, %d]' % (tx, start_0, end_0)
+        if max > 100:
+            n_100 += 1
+        if max > 200:
+            n_200 += 1
+#         break
+    print '>100bp: %d' % n_100
+    print '>200bp: %d' % n_200
 
 def main():
     parser = ArgumentParser()
@@ -658,6 +729,12 @@ def main():
     parser_singleton.set_defaults(func=get_singleton)
     parser_singleton.add_argument('tx2tx', help='tx-to-tx PSL')
     parser_singleton.add_argument('out', help='output file')
+    
+    parser_continuous = subparsers.add_parser('blank', help='get max region where no pairs')
+    parser_continuous.set_defaults(func=continuous_paired)
+    parser_continuous.add_argument('ids', help='ids file')
+    parser_continuous.add_argument('ref', help='transcript file')
+    parser_continuous.add_argument('fa2tx', help='read-to-tx PSL')
 
     args = parser.parse_args()
     args.func(args)
