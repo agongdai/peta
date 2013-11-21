@@ -779,7 +779,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
-		if (t->len == -1)
+		if (t->id == -6)
 			show_debug_msg(__func__,
 					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 					t->len, "ZACGTN"[max_c + 1]);
@@ -1006,6 +1006,8 @@ void do_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from, tpl *t,
 	if (!t->alive)
 		return;
 	ext_unit(ht, all_tpls, NULL, from, t, NULL, 0, 0);
+	ext_unit(ht, all_tpls, NULL, from, t, NULL, 0, 1);
+	ext_unit(ht, all_tpls, NULL, from, t, NULL, 0, 0);
 	show_debug_msg(__func__, "Jumping tpl %d with length: %d \n", t->id, t->len);
 	//p_tpl_reads(t);
 }
@@ -1058,6 +1060,7 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 		}
 
 		correct_tpl_base(ht->seqs, to, ht->o->read_len, 0, to->len);
+		show_debug_msg(__func__, "After correcting [%d, %d] \n", to->id, to->len);
 		merged = merged_jumped(ht, from, to, MORE_MISMATCH);
 		//p_test_read();
 		if (merged) {
@@ -1235,18 +1238,19 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 							jun2 = (junction*) g_ptr_array_index(branches, j);
 							if (jun2->status == 0) {
 								// Remove all junctions at the trimmed head
-								if (jun2->locus < jun->locus || jun2->branch_tpl
-										== branch)
+								if (jun2->locus < jun->locus
+										|| jun2->branch_tpl == branch)
 									jun2->status = 1;
 								else
 									jun2->locus += added_len_to_left;
 							}
 						}
 					}
-				} else if (!pruned_right && jun->locus > (t->len - ht->o->read_len)
-						&& jun->ori == 0) {
+				} else if (!pruned_right && jun->locus > (t->len
+						- ht->o->read_len) && jun->ori == 0) {
 					p_junction(jun);
-					main_cov = calc_tpl_cov(t, jun->locus, t->len, ht->o->read_len);
+					main_cov = calc_tpl_cov(t, jun->locus, t->len,
+							ht->o->read_len);
 					show_debug_msg(__func__,
 							"Branch coverage: %.2f; main coverage: %.2f\n",
 							branch->cov, main_cov);
@@ -1255,8 +1259,10 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 						mv_reads_bt_tpls(branch, t, t->len - jun->locus, 0);
 						new_seq = (ubyte_t*) calloc(branch->len + t->len,
 								sizeof(ubyte_t));
-						memcpy(new_seq, t->ctg->seq, sizeof(ubyte_t) * jun->locus);
-						memcpy(new_seq + jun->locus, branch->ctg->seq, branch->len);
+						memcpy(new_seq, t->ctg->seq,
+								sizeof(ubyte_t) * jun->locus);
+						memcpy(new_seq + jun->locus, branch->ctg->seq,
+								branch->len);
 						free(t->ctg->seq);
 						t->ctg->seq = new_seq;
 						t->len = jun->locus + branch->len;
@@ -1274,8 +1280,8 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 							jun2 = (junction*) g_ptr_array_index(branches, j);
 							if (jun2->status == 0) {
 								// Remove all junctions at the trimmed head
-								if (jun2->locus > jun->locus || jun2->branch_tpl
-										== branch)
+								if (jun2->locus > jun->locus
+										|| jun2->branch_tpl == branch)
 									jun2->status = 1;
 							}
 						}
@@ -1340,14 +1346,6 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		//p_query(__func__, tail);
 
 		b_reads = check_branch_tail(ht, t, tail, shift, mismatches, FRESH, ori);
-		if (b_reads->len > 0) {
-			printf("\n ---- \n");
-			show_debug_msg(__func__, "Template [%d, %d] at %d \n", t->id,
-					t->len, shift);
-			p_query(__func__, tail);
-			//p_ctg_seq(__func__, t->ctg);
-			p_readarray(b_reads, 1);
-		}
 		if (b_reads->len < 2) {
 			for (j = 0; j < b_reads->len; j++) {
 				branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
@@ -1355,6 +1353,14 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			}
 			g_ptr_array_free(b_reads, TRUE);
 			continue;
+		}
+		if (b_reads->len > 0) {
+			printf("\n ---- \n");
+			show_debug_msg(__func__, "Template [%d, %d] at %d \n", t->id,
+					t->len, shift);
+			p_query(__func__, tail);
+			//p_ctg_seq(__func__, t->ctg);
+			//p_readarray(b_reads, 1);
 		}
 		if (ori)
 			g_ptr_array_sort(b_reads, (GCompareFunc) cmp_reads_by_cursor);
@@ -1428,10 +1434,12 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 					t->id, t->len, ori ? "left" : "right", shift, con_pos,
 					branch->id);
 
-			connected = ext_unit(ht, all_tpls, p, NULL, branch, query, to_connect, ori);
+			connected = ext_unit(ht, all_tpls, p, NULL, branch, query,
+					to_connect, ori);
 			branch->cov = calc_tpl_cov(branch, 0, branch->len, ht->o->read_len);
 			dead = 0;
-			if (!branch->alive || (!connected && (branch->len <= branch_read->len)))
+			if (!branch->alive || (!connected && (branch->len
+					<= branch_read->len)))
 				dead = 1;
 			show_debug_msg(__func__, "Dead: %d\n", dead);
 			//			if (dead) {
@@ -1468,8 +1476,8 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	show_debug_msg(__func__, "Striping template [%d, %d] ... \n", t->id, t->len);
 	for (i = wait_for_val->len - 1; i >= 0; i--) {
 		branch = (tpl*) g_ptr_array_index(wait_for_val, i);
-		if (branch->b_juncs->len == 1 && ((t->cov * MIN_BRANCH_MAIN_COV) > branch->cov
-				|| !val_branch_by_pairs(ht, t, branch))) {
+		if (branch->b_juncs->len == 1 && ((t->cov * MIN_BRANCH_MAIN_COV)
+				> branch->cov || !val_branch_by_pairs(ht, t, branch))) {
 			// If the branch is long enough, even though cannot hook, keep it as a separate component
 			if (branch->len >= MIN_TPL_LEN * 2) {
 			} else {
@@ -1672,10 +1680,10 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	if (TESTING) {
 		if (fresh_trial == 0)
 			read = &seqs[TESTING];
-	//	if (fresh_trial == 1)
-	//		read = &seqs[559859];
-	//	if (fresh_trial == 2)
-	//		read = &seqs[7299565];
+		//	if (fresh_trial == 1)
+		//		read = &seqs[559859];
+		//	if (fresh_trial == 2)
+		//		read = &seqs[7299565];
 	}
 
 	t = ext_a_read(ht, all_tpls, read, counter->count);
