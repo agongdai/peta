@@ -576,6 +576,14 @@ def check_overlap(args):
     print '# of cluster: %d' % n_cluster
     print '# of transcripts clustered: %d' % len(clustered.keys())
 
+def get_singleton(args):
+    txtx_hits = read_blat_hits(args.tx2tx, 'ref')
+    with open(args.out, 'w') as out:
+        for tx, tx_hits in txtx_hits.iteritems():
+            if len(tx_hits) == 1:
+                out.write(tx + '\n')
+    print 'Check file %s' % args.out
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -645,6 +653,11 @@ def main():
     parser_ol.set_defaults(func=check_overlap)
     parser_ol.add_argument('tx', help='transcript fasta')
     parser_ol.add_argument('tx2tx', help='tx-to-tx PSL')
+    
+    parser_singleton = subparsers.add_parser('single', help='get singleton transcripts')
+    parser_singleton.set_defaults(func=get_singleton)
+    parser_singleton.add_argument('tx2tx', help='tx-to-tx PSL')
+    parser_singleton.add_argument('out', help='output file')
 
     args = parser.parse_args()
     args.func(args)

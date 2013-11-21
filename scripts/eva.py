@@ -1014,6 +1014,18 @@ def analyze(args):
 				ids.append(line)
 				
 	print 'Totally %d missing transcripts' % len(ids)
+	
+	singletons = []
+	with open(args.singleton) as single:
+		for line in single:
+			id = line.strip()
+			singletons.append(id)
+	missing_clusters = list(set(ids) - set(singletons))
+	missing_singletons = list(set(ids) - set(missing_clusters))
+	print 'Missing singletons: %d' % len(missing_singletons)
+	for id in missing_singletons:
+		print id
+	print ''
 
 	captured_in_paths = []
 	for id in ids:
@@ -1258,6 +1270,7 @@ def main():
     parser_analyze = subparsers.add_parser('any', help='Analyse missing transcripts')
     parser_analyze.set_defaults(func=analyze)
     parser_analyze.add_argument('id_file', help='file of id list to check')
+    parser_analyze.add_argument('singleton', help='file of id list of singleton transcripts')
     parser_analyze.add_argument('tx', help='reference transcript file')
     parser_analyze.add_argument('in_paths', help='ids captured in paths')
     parser_analyze.add_argument('read2tx', help='read-to-transcript psl')

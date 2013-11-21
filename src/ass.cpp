@@ -29,6 +29,8 @@
 
 using namespace std;
 
+int TESTING = 0;
+
 int kmer_ctg_id = 1;
 int ins_size = 0;
 int sd_ins_size = 0;
@@ -1419,10 +1421,10 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 					t->id, t->len, ori ? "left" : "right", shift, con_pos,
 					branch->id);
 
-			ext_unit(ht, all_tpls, p, NULL, branch, query, to_connect, ori);
+			connected = ext_unit(ht, all_tpls, p, NULL, branch, query, to_connect, ori);
 			branch->cov = calc_tpl_cov(branch, 0, branch->len, ht->o->read_len);
 			dead = 0;
-			if ((branch->len <= branch_read->len) || (!branch->alive))
+			if (!branch->alive || (!connected && (branch->len <= branch_read->len)))
 				dead = 1;
 			show_debug_msg(__func__, "Dead: %d\n", dead);
 			//			if (dead) {
@@ -1459,8 +1461,8 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	show_debug_msg(__func__, "Striping template [%d, %d] ... \n", t->id, t->len);
 	for (i = wait_for_val->len - 1; i >= 0; i--) {
 		branch = (tpl*) g_ptr_array_index(wait_for_val, i);
-		if ((t->cov * MIN_BRANCH_MAIN_COV) > branch->cov
-				|| !val_branch_by_pairs(ht, t, branch)) {
+		if (branch->b_juncs->len == 1 && ((t->cov * MIN_BRANCH_MAIN_COV) > branch->cov
+				|| !val_branch_by_pairs(ht, t, branch))) {
 			// If the branch is long enough, even though cannot hook, keep it as a separate component
 			if (branch->len >= MIN_TPL_LEN * 2) {
 			} else {
@@ -1660,13 +1662,14 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	if (counter->count < 1) {
 		return NULL;
 	}
-
-	//	if (fresh_trial == 0)
-	//		read = &seqs[3879];
+	if (TESTING) {
+		if (fresh_trial == 0)
+			read = &seqs[TESTING];
 	//	if (fresh_trial == 1)
 	//		read = &seqs[559859];
 	//	if (fresh_trial == 2)
 	//		read = &seqs[7299565];
+	}
 
 	t = ext_a_read(ht, all_tpls, read, counter->count);
 	if (t)
@@ -1735,7 +1738,8 @@ void kmer_threads(kmer_t_meta *params) {
 		//if (fresh_trial >= 2)
 		//if (kmer_ctg_id >= 1200)
 		//if (params->all_tpls->size() > 1000)
-		//	break;
+		if (TESTING)
+			break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n",
