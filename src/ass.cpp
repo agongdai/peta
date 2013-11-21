@@ -788,6 +788,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 					p->reads->len - 1);
 
 		if (t->id == -1) {
+			p_test_read();
 			p_query("QUERY", tail);
 			p_ctg_seq("TEMPLATE", t->ctg);
 			p_pool("CURRENT POOL", p, NULL);
@@ -795,7 +796,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
-		if (t->id == -6)
+		if (t->id == -1)
 			show_debug_msg(__func__,
 					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 					t->len, "ZACGTN"[max_c + 1]);
@@ -851,7 +852,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 		//	1. once for every 4bp
 		//	2. the reads in pool is less than 4
 		//	3. not consuming the pool
-		if (t->len % 1 == 0 || p->reads->len <= 4)
+		//if (t->len % 1 == 0 || p->reads->len <= 20)
 			next_pool(ht, p, t, tail, LESS_MISMATCH, ori);
 
 		if (t->len % 100 == 0)
@@ -1089,7 +1090,7 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 				show_debug_msg("FINDME", "READS ON IT\n");
 				g_ptr_array_sort(from->reads,
 						(GCompareFunc) cmp_reads_by_contig_locus);
-				p_tpl_reads(from);
+				//p_tpl_reads(from);
 			}
 			//i = 0;
 			//unfrozen_hang_reads();
@@ -1230,7 +1231,7 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 					show_debug_msg(__func__,
 							"Branch coverage: %.2f; main coverage: %.2f\n",
 							branch->cov, main_cov);
-					p_tpl_reads(t);
+					//p_tpl_reads(t);
 					if (branch->len > jun->locus && main_cov < LOW_PART_COV
 							&& branch->cov > main_cov) {
 						p_junction(jun);
@@ -1750,7 +1751,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[3020913];
+	TEST = &seqs[5357353];
 
 	// shrink_ht(ht);
 

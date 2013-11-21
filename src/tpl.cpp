@@ -197,8 +197,10 @@ void unfrozen_tried(tpl *t) {
 	for (i = 0; i < t->tried->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
 		if (r->status != USED) {
-			if (t->not_covered) reset_to_dead(r);
-			else reset_to_fresh(r);
+			if (t->not_covered)
+				reset_to_dead(r);
+			else
+				reset_to_fresh(r);
 		}
 
 	}
@@ -653,12 +655,14 @@ bwa_seq_t *cut_tpl_tail(tpl *t, int pos, const int tail_len, const int ori) {
 			tail = blank_seq(v_tail_len);
 			if (ori) {
 				memcpy(tail->seq, partial->seq, sizeof(ubyte_t) * partial->len);
-				memcpy(tail->seq + partial->len, tail->seq, sizeof(ubyte_t)
-						* (v_tail_len - partial->len));
+				memcpy(tail->seq + partial->len, tail->seq,
+						sizeof(ubyte_t) * (v_tail_len - partial->len));
 			} else {
-				memcpy(tail->seq, main_tail->seq + (main_tail->len
-						+ partial->len - v_tail_len), sizeof(ubyte_t)
-						* (v_tail_len - partial->len));
+				memcpy(
+						tail->seq,
+						main_tail->seq + (main_tail->len + partial->len
+								- v_tail_len),
+						sizeof(ubyte_t) * (v_tail_len - partial->len));
 				memcpy(tail->seq + (v_tail_len - partial->len), partial->seq,
 						sizeof(ubyte_t) * partial->len);
 			}
@@ -839,11 +843,11 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 				: t->len;
 		len = t->r_tail->len + borrow_len;
 		s = blank_seq(len);
-		memcpy(s->seq, t->ctg->seq + (t->len - borrow_len), borrow_len
-				* sizeof(ubyte_t));
+		memcpy(s->seq, t->ctg->seq + (t->len - borrow_len),
+				borrow_len * sizeof(ubyte_t));
 		s->len = borrow_len;
-		memcpy(s->seq + s->len, t->r_tail->seq, t->r_tail->len
-				* sizeof(ubyte_t));
+		memcpy(s->seq + s->len, t->r_tail->seq,
+				t->r_tail->len * sizeof(ubyte_t));
 		s->len += t->r_tail->len;
 
 		for (i = 0; i <= s->len - ht->o->read_len; i++) {
@@ -867,8 +871,8 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
  * Assumption: the reads on the template are sorted by contig locus.
  * Correct template bases.
  */
-void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len,
-		int start, int end) {
+void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len, int start,
+		int end) {
 	int *cs = NULL, max = 0, weight = 0;
 	GPtrArray *counters = NULL;
 	int c = 0, max_c = 0;
@@ -879,7 +883,9 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len,
 	start = max(0, start);
 	end = min(t->len, end);
 	counters = g_ptr_array_sized_new(t->len);
-	show_debug_msg(__func__, "Correcting template [%d, %d] at range [%d, %d] ...\n", t->id, t->len, start, end);
+	show_debug_msg(__func__,
+			"Correcting template [%d, %d] at range [%d, %d] ...\n", t->id,
+			t->len, start, end);
 	//p_ctg_seq("BEFORE", t->ctg);
 	//p_tpl_reads(t);
 
@@ -969,7 +975,8 @@ void truncate_tpl(tpl *t, int len, int ori) {
 	bwa_seq_t *r = NULL;
 	int i = 0;
 	if (ori) {
-		show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n", t->id, t->len, ori, len);
+		show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n",
+				t->id, t->len, ori, len);
 		for (i = 0; i < t->reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 			r->contig_locus -= len;
@@ -977,12 +984,14 @@ void truncate_tpl(tpl *t, int len, int ori) {
 			//reset_to_dead(r);
 			//g_ptr_array_remove_index_fast(t->reads, i--);
 		}
-		memmove(t->ctg->seq, t->ctg->seq + len, sizeof(ubyte_t) * (t->len - len));
+		memmove(t->ctg->seq, t->ctg->seq + len,
+				sizeof(ubyte_t) * (t->len - len));
 		t->len -= len;
 		t->ctg->len = t->len;
 		set_rev_com(t->ctg);
 	} else {
-		show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n", t->id, t->len, ori, len);
+		show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n",
+				t->id, t->len, ori, len);
 		//for (i = t->reads->len - 1; i >= 0; i--) {
 		//	r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		//	if (r->contig_locus + r->len <= t->len - len)
@@ -1035,7 +1044,8 @@ void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read,
 	bwa_seq_t *r = NULL;
 	index64 i = 0;
 
-	if (read->rev_com) switch_fr(read);
+	if (read->rev_com)
+		switch_fr(read);
 
 	hits = find_both_fr_full_reads(ht, read, hits, mismatches);
 	for (i = 0; i < hits->len; i++) {
@@ -1045,7 +1055,8 @@ void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read,
 			add2tpl(t, r, 0);
 		}
 	}
-	if (read->rev_com) switch_fr(read);
+	if (read->rev_com)
+		switch_fr(read);
 	//p_readarray(t->reads, 1);
 	g_ptr_array_free(hits, TRUE);
 }
@@ -1063,25 +1074,25 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	int is_picked = 0;
 	ubyte_t c = 0, read_c = 0;
 
-//		if (shift == 38) {
-//			show_debug_msg(__func__, "----\n");
-//			show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
-//					: "right");
-//			p_query(__func__, query);
-//			p_readarray(hits, 1);
-//		}
+	//		if (shift == 38) {
+	//			show_debug_msg(__func__, "----\n");
+	//			show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
+	//					: "right");
+	//			p_query(__func__, query);
+	//			p_readarray(hits, 1);
+	//		}
 
 	if (hits->len <= 0) {
 		return hits;
 	}
-//
-//	if (shift == 38) {
-//			show_debug_msg(__func__, "----\n");
-//			show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
-//					: "right");
-//			p_query(__func__, query);
-//			p_readarray(hits, 1);
-//	}
+	//
+	//	if (shift == 38) {
+	//			show_debug_msg(__func__, "----\n");
+	//			show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
+	//					: "right");
+	//			p_query(__func__, query);
+	//			p_readarray(hits, 1);
+	//	}
 
 	//if (shift == 587) {
 	//	p_query(__func__, query);
@@ -1204,7 +1215,8 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 	GPtrArray *fresh_reads = g_ptr_array_sized_new(hits->len);
 
 	tpl_seq = get_tail(t, ht->o->read_len, ori);
-	//p_ctg_seq(__func__, tpl_seq);
+	if (t->len == -1)
+		p_ctg_seq(__func__, tpl_seq);
 
 	// These reads are not duplicated
 	for (i = 0; i < hits->len; i++) {
@@ -1217,11 +1229,12 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 		// pos is the kmer position on the read
 		cursor = ori ? (r->pos - 1) : (r->pos + tail->len);
 
-		//if (t->len == 153 && t->id == 3) {
-		//	p_query(__func__, tail);
-		//p_query(__func__, r);
-		//show_debug_msg(__func__, "CURSOR: %d\n", cursor);
-		//}
+		if (t->len == -1) {
+			printf("\n");
+			p_query(__func__, tail);
+			p_query(__func__, r);
+			show_debug_msg(__func__, "CURSOR: %d\n", cursor);
+		}
 
 		if (ori) {
 			cursor = r->pos - shift;
@@ -1233,27 +1246,28 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 			ol = tpl_seq->len - locus;
 			cursor = ol;
 		}
-		//if (t->len == 68 && t->id == 163) {
-		//	p_query(__func__, r);
-		//	show_debug_msg(__func__, "LOCUS: %d; OL: %d; CURSOR: %d\n", locus, ol, cursor);
-		//}
+		if (t->len == -1) {
+			//	p_query(__func__, r);
+			show_debug_msg(__func__, "LOCUS: %d; OL: %d; CURSOR: %d\n", locus,
+					ol, cursor);
+		}
 		if (ol >= tail->len && locus >= 0 && locus < tpl_seq->len && (cursor
 				>= 0 && cursor <= r->len - 1)) {
 			//ol_seq = ori ? new_seq(tpl_seq, ol, 0)
 			//		: new_seq(tpl_seq, ol, locus);
 			if (ori) {
-				n_mis = seq_ol(r, tpl_seq, ol, mismatches);
+				n_mis = seq_ol(r, tpl_seq, ol, mismatches + 1);
 			} else {
-				n_mis = seq_ol(tpl_seq, r, ol, mismatches);
+				n_mis = seq_ol(tpl_seq, r, ol, mismatches + 1);
 			}
-			//if (t->len == 153 && t->id == 3) {
-			//p_query("CONTIG", tpl_seq);
-			//p_query("READ  ", r);
-			//p_ctg_seq("OVERLP", ol_seq);
-			//show_debug_msg(__func__, "CURSOR: %d\n", cursor);
-			//show_debug_msg(__func__, "Should have overlap: %d\n", ol);
-			//show_debug_msg(__func__, "N_MISMATCHES: %d\n --- \n", n_mis);
-			//	}
+			if (t->len == -1 && t->id == -1) {
+				p_query("CONTIG", tpl_seq);
+				p_query("READ  ", r);
+				p_ctg_seq("OVERLP", ol_seq);
+				show_debug_msg(__func__, "CURSOR: %d\n", cursor);
+				show_debug_msg(__func__, "Should have overlap: %d\n", ol);
+				show_debug_msg(__func__, "N_MISMATCHES: %d\n --- \n", n_mis);
+			}
 			// n_mis >= 0 means similar with n_mis mismatches; -1 means not similar
 			if (n_mis >= 0) {
 				//show_debug_msg(__func__, "Cursor: %d\n", cursor);
@@ -1289,9 +1303,9 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 	//show_debug_msg(__func__, "Reads with the tail: %d\n", fresh_reads->len);
 	g_ptr_array_free(hits, TRUE);
 	bwa_free_read_seq(1, tpl_seq);
-//	if (t->len == 153 && t->id == 3) {
-//		p_readarray(fresh_reads, 1);
-//	}
+	//	if (t->len == 153 && t->id == 3) {
+	//		p_readarray(fresh_reads, 1);
+	//	}
 	return fresh_reads;
 }
 
@@ -1446,8 +1460,8 @@ bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len) {
 	memcpy(s->seq + s->len, t->ctg->seq, t->len);
 	s->len += t->len;
 	if (t->r_tail) {
-		memcpy(s->seq + s->len, t->r_tail->seq, t->r_tail->len
-				* sizeof(ubyte_t));
+		memcpy(s->seq + s->len, t->r_tail->seq,
+				t->r_tail->len * sizeof(ubyte_t));
 		s->len += t->r_tail->len;
 	}
 	set_rev_com(s);

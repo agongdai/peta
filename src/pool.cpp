@@ -373,12 +373,14 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 	int limit = 0;
 
 	// Find all fresh reads and add to the pool
+	if (t->len == -1 && t->id == -1)
+		p_query(__func__, tail);
 	shift = ori ? 0 : ht->o->read_len - tail->len;
 	fresh_reads = align_tpl_tail(ht, t, tail, limit, shift, mismatches, FRESH,
 			ori);
 	for (i = 0; i < fresh_reads->len; i++) {
-		//if (t->len >= 615 && t->id == 13)
-		//	p_query(__func__, r);
+		if (t->len == -1 && t->id == -1)
+			p_query(__func__, r);
 		r = (bwa_seq_t*) g_ptr_array_index(fresh_reads, i);
 		//show_debug_msg(__func__, "Read %s cursor: %d\n", r->name, r->cursor);
 		add2pool(p, r);

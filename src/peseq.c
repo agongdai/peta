@@ -704,7 +704,7 @@ int same_bytes(const ubyte_t *s, const int k) {
 int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 		int *seq_1_start, int *seq_1_stop, int *seq_2_start, int *seq_2_stop,
 		int min_score) {
-	int score_m = 1, score_mis = 2, score_gap = 3;
+	int score_m = 1, score_mis = 1, score_gap = 2;
 	int *scores = NULL;
 	int columns = seq_1->len + 1, max_score = 0, rows = seq_2->len + 1;
 	int i = 0, j = 0, s = 0;
@@ -713,6 +713,8 @@ int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 	scores = (int*) calloc(rows * columns, sizeof(int));
 	*seq_1_stop = 0;
 	*seq_2_stop = 0;
+	//p_ctg_seq("SEQ_1", seq_1);
+	//p_ctg_seq("SEQ_2", seq_2);
 	for (i = 1; i < rows; i++) {
 		for (j = 1; j < columns; j++) {
 			up = scores[(i - 1) * columns + j] - score_gap;
@@ -736,21 +738,26 @@ int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			}
 		}
 	}
-	//	printf("\t\t");
-	//	for (i = 0; i < seq_1->len; i++) {
-	//		printf("%c\t", "ACGTN"[seq_1->seq[i]]);
-	//	}
-	//	printf("\n");
-	//	for (i = 0; i < rows; i++) {
-	//		if (i == 0)
-	//			printf("\t");
-	//		else
-	//			printf("%c\t", "ACGTN"[seq_2->seq[i - 1]]);
-	//		for (j = 0; j < columns; j++) {
-	//			printf("%d\t", scores[i * columns + j]);
-	//		}
-	//		printf("\n");
-	//	}
+	/**
+	 printf("\t\t");
+	 for (i = 0; i < seq_1->len; i++) {
+	 printf("%c\t", "ACGTN"[seq_1->seq[i]]);
+	 }
+	 printf("\n");
+	 for (i = 0; i < rows; i++) {
+	 if (i == 0)
+	 printf("\t");
+	 else
+	 printf("%c\t", "ACGTN"[seq_2->seq[i - 1]]);
+	 for (j = 0; j < columns; j++) {
+	 if (max_score == scores[i * columns + j])
+	 printf("[%d]\t", scores[i * columns + j]);
+	 else
+	 printf("%d\t", scores[i * columns + j]);
+	 }
+	 printf("\n");
+	 }
+	 **/
 	// Back trace to find the starting points
 	*seq_1_start = *seq_1_stop - 1;
 	*seq_2_start = 0;
@@ -758,14 +765,14 @@ int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 		s = scores[(i) * columns + *seq_1_start + 1];
 		up_left = scores[(i - 1) * columns + *seq_1_start];
 		left = scores[(i) * columns + *seq_1_start];
-		//		printf("%d\n", up_left);
-		//		printf("%d\t%d\n", left, s);
+		//printf("%d\n", up_left);
+		//printf("%d\t%d\n", left, s);
 		if (s == 1) {
 			*seq_2_start = i - 1;
 			break;
 		}
-		//		show_debug_msg(__func__, "seq_1: %c; seq_2: %c \n",
-		//				"ACGTN"[seq_1->seq[*seq_1_start]], "ACGTN"[seq_2->seq[i - 1]]);
+		//show_debug_msg(__func__, "seq_1: %c; seq_2: %c \n",
+		//		"ACGTN"[seq_1->seq[*seq_1_start]], "ACGTN"[seq_2->seq[i - 1]]);
 		if (seq_1->seq[*seq_1_start] == seq_2->seq[i - 1]) {
 			if (s == up_left + score_m)
 				*seq_1_start = *seq_1_start - 1;
@@ -773,11 +780,11 @@ int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			if (s == up_left - score_mis || s == left - score_gap)
 				*seq_1_start = *seq_1_start - 1;
 		}
-		//		printf("i: %d; seq_1_start: %d; seq_2_start: %d\n", i, *seq_1_start, i
-		//				- 1);
+		//printf("i: %d; seq_1_start: %d; seq_2_start: %d\n", i, *seq_1_start,
+		//		i - 1);
 	}
-	//	printf("seq_1: [%d, %d]; seq_2: [%d, %d] \n", *seq_1_start, *seq_1_stop,
-	//			*seq_2_start, *seq_2_stop);
+	//printf("seq_1: [%d, %d]; seq_2: [%d, %d] \n", *seq_1_start, *seq_1_stop,
+	//		*seq_2_start, *seq_2_stop);
 	free(scores);
 	return max_score;
 }
@@ -795,11 +802,11 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 	previous_row = (int*) calloc(columns + 1, sizeof(int));
 	current_row = (int*) calloc(columns + 1, sizeof(int));
 	/**
-	printf("\t\t");
-	for (i = 1; i < columns; i++) {
-		printf("%c\t", "ACGTN"[seq_1->seq[i - 1]]);
-	}
-	**/
+	 printf("\t\t");
+	 for (i = 1; i < columns; i++) {
+	 printf("%c\t", "ACGTN"[seq_1->seq[i - 1]]);
+	 }
+	 **/
 	for (i = 1; i < rows; i++) {
 		for (j = 1; j < columns; j++) {
 			up = previous_row[j] + score_gap; // not updated, so is the value from previous row
@@ -817,21 +824,21 @@ int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			max_score = current_row[j] > max_score ? current_row[j] : max_score;
 		}
 		/**
-		printf("\n");
-		printf("Row %c: \t", "ACGTN"[seq_2->seq[i - 1]]);
-		for (j = 0; j < columns; j++) {
-			if (current_row[j] == max_score) {
-				printf("[%d]\t", current_row[j]);
-			} else {
-				printf("%d\t", current_row[j]);
-			}
-		}
-		printf("\t\t");
-		printf("Max score: %d \n", max_score);
-		**/
+		 printf("\n");
+		 printf("Row %c: \t", "ACGTN"[seq_2->seq[i - 1]]);
+		 for (j = 0; j < columns; j++) {
+		 if (current_row[j] == max_score) {
+		 printf("[%d]\t", current_row[j]);
+		 } else {
+		 printf("%d\t", current_row[j]);
+		 }
+		 }
+		 printf("\t\t");
+		 printf("Max score: %d \n", max_score);
+		 **/
 		// If the minimal acceptable score is not reachable, stop and return.
-		if (max_score <= min_acceptable_score && (max_score + (rows - i) * score_mat) <= min_acceptable_score - 2
-				* score_mis) {
+		if (max_score <= min_acceptable_score && (max_score + (rows - i)
+				* score_mat) <= min_acceptable_score - 2 * score_mis) {
 			free(previous_row);
 			free(current_row);
 			return -1;
