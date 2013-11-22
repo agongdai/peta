@@ -1543,13 +1543,32 @@ void try_connect(hash_table *ht, tpl_hash *all_tpls, int to_con_left,
 	//	p_tpl_reads(t);
 }
 
+void iter_branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching) {
+	int changed = 1, pre_n_m_juncs = 0;
+	while (changed) {
+		if (to_branching) {
+			branching(ht, all_tpls, t, LESS_MISMATCH, 0);
+			if (t->m_juncs)
+				pre_n_m_juncs = t->m_juncs->len;
+			branching(ht, all_tpls, t, LESS_MISMATCH, 1);
+			// In case some junctions are removed because of no pairs in the first round
+			if (t->m_juncs && t->m_juncs->len > pre_n_m_juncs)
+				branching(ht, all_tpls, t, LESS_MISMATCH, 0);
+		}
+		changed = prune_tpl_tails(ht, all_tpls, t);
+		set_jun_reads(ht, t);
+		//strip_branches(ht, all_tpls, t);
+		//break;
+	}
+}
+
 /**
  * Validate a template;
  * Branch the template
  */
 void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 		int to_con_left, int to_con_right) {
-	int changed = 1, pre_n_m_juncs = 0;
+	int changed = 1, pre_n_m_juncs = 0, ori_len = 0;
 	int i = 0;
 	bwa_seq_t *r = NULL;
 	if (t->alive) {
@@ -1577,24 +1596,14 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 					"==== End of tpl %d with length: %d; reads: %d; Alive: %d ==== \n\n",
 					t->id, t->len, t->reads->len, t->alive);
 			correct_tpl_base(ht->seqs, t, ht->o->read_len, 0, t->len);
-			while (changed) {
-				if (to_branching) {
-					branching(ht, all_tpls, t, LESS_MISMATCH, 0);
-					if (t->m_juncs)
-						pre_n_m_juncs = t->m_juncs->len;
-					branching(ht, all_tpls, t, LESS_MISMATCH, 1);
-					// In case some junctions are removed because of no pairs in the first round
-					if (t->m_juncs && t->m_juncs->len > pre_n_m_juncs)
-						branching(ht, all_tpls, t, LESS_MISMATCH, 0);
-				}
-				changed = prune_tpl_tails(ht, all_tpls, t);
-				set_jun_reads(ht, t);
-				//strip_branches(ht, all_tpls, t);
-				//break;
-			}
-			if (t->cov < 20)
+			iter_branching(ht, all_tpls, t, to_branching);
+			if (t->cov < 20) {
+				ori_len = t->len;
 				tpl_jumping(ht, all_tpls, t);
-			else
+				if (t->len > ori_len && to_branching) {
+					iter_branching(ht, all_tpls, t, to_branching);
+				}
+			} else
 				show_debug_msg(__func__,
 						"Template [%d, %d] no branching, coverage %.2f \n",
 						t->id, t->len, t->cov);
