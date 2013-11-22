@@ -274,7 +274,7 @@ int merge_branch_to_main(hash_table *ht, tpl *branch) {
 			return 0;
 		}
 		if ((get_abs(left->locus - right->locus) <= IGNORE_DIFF && branch->len
-				<= IGNORE_DIFF + ht->o->k * 3)) {
+				<= IGNORE_DIFF * 1.5)) {
 			branch->alive = 0;
 			show_debug_msg(__func__,
 					"Ignored the template [%d, %d] because too short\n",
@@ -660,20 +660,22 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		loop_len = 0;
 		if (branch->b_juncs && branch->b_juncs->len == 1) {
 			exist_junc = (junction*) g_ptr_array_index(branch->b_juncs, 0);
+			//p_junction(exist_junc);
 			if (exist_junc->status == 0 && exist_junc->main_tpl == main_tpl
 					&& exist_junc->ori != exist_ori) {
 				if (exist_ori == 1 && con_pos < exist_junc->locus) {
 					loop_len = exist_junc->locus - con_pos;
-					loop_len = (branch->len - r->cursor + loop_len < 0) ? 0
-							: loop_len;
+					//show_debug_msg(__func__, "Loop len: %d; branch->len: %d; r->cursor: %d \n", loop_len, branch->len, r->cursor);
+					//loop_len = (branch->len - r->cursor + loop_len < 0) ? 0
+					//		: loop_len;
 				}
 				if (exist_ori == 0 && con_pos > exist_junc->locus) {
 					loop_len = con_pos - exist_junc->locus;
-					loop_len = (branch->len - (r->len - r->cursor - 1)
-							- loop_len) < 0 ? 0 : loop_len;
+					//loop_len = (branch->len - (r->len - r->cursor - 1)
+					//		- loop_len) < 0 ? 0 : loop_len;
 				}
 				// In case too long loop length
-				loop_len = loop_len > 8 ? loop_len : 0;
+				loop_len = loop_len <= 8 ? loop_len : 0;
 				con_pos = loop_len > 0 ? exist_junc->locus : con_pos;
 			}
 		}
@@ -1310,7 +1312,6 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				}
 			}
 			merge_branch_to_main(ht, branch);
-			val_branch_by_pairs(ht, t, branch);
 			show_debug_msg(__func__, "Branch [%d, %d] %s \n", branch->id,
 								branch->len, branch->alive ? "Alive" : "Dead");
 			try_destroy_tpl(ht, all_tpls, branch, ht->o->read_len);
@@ -1466,17 +1467,6 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 					<= branch_read->len)))
 				dead = 1;
 			show_debug_msg(__func__, "Dead: %d\n", dead);
-			//			if (dead) {
-			//				// If the branch template is long, put it wait for branching
-			//				if (branch->len >= MIN_TPL_LEN * 2) {
-			//					destory_tpl_junctions(branch);
-			//					ext_unit(ht, all_tpls, NULL, NULL, branch, NULL, 0,
-			//							ori ? 0 : 1);
-			//					dead = 0;
-			//					g_ptr_array_add(tpls_await_branching, branch);
-			//				}
-			//			}
-
 
 			if (!dead) {
 				g_ptr_array_add(wait_for_val, branch);
@@ -1509,8 +1499,12 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				rm_global_tpl(all_tpls, branch, FRESH);
 				g_ptr_array_remove_index_fast(wait_for_val, i);
 			}
-		} else
+		} else {
+			if (branch->b_juncs->len == 1) {
+				tpl_jumping(ht, all_tpls, branch);
+			}
 			g_ptr_array_remove_index_fast(wait_for_val, i);
+		}
 	}
 	for (i = 0; i < wait_for_val->len; i++) {
 		branch = (tpl*) g_ptr_array_index(wait_for_val, i);
@@ -1597,7 +1591,7 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 					t->id, t->len, t->reads->len, t->alive);
 			correct_tpl_base(ht->seqs, t, ht->o->read_len, 0, t->len);
 			iter_branching(ht, all_tpls, t, to_branching);
-			if (t->cov < 20) {
+			if (t->cov < HIHG_COV_THRE) {
 				ori_len = t->len;
 				tpl_jumping(ht, all_tpls, t);
 				if (t->len > ori_len && to_branching) {

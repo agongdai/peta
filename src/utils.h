@@ -63,7 +63,7 @@
 #define MIN_WEIGHT				2
 #define MAX_VS_IN_COMP          100
 #define LONG_TPL_LEN			300
-#define HIHG_COV_THRE		    50 	
+#define HIHG_COV_THRE		    20
 #define MAX_REGION_NO_PAIRS		250
 
 typedef uint64_t index64;

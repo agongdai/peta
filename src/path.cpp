@@ -509,7 +509,7 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 				 p_ctg_seq("PATH", p->ctg);
 				 p_ctg_seq("EXON", seq);
 				 p_readarray(reads, 1);
-				 **/
+				**/
 
 				n_reads = reads->len;
 				g_ptr_array_free(reads, TRUE);
@@ -1096,7 +1096,7 @@ GPtrArray *comp_paths(comp *c, hash_table *ht) {
 	find_tpl_paths(paths);
 	destory_levels(levels);
 	assign_path_attrs(paths, ht);
-	validate_short_exons(paths, ht);
+	//validate_short_exons(paths, ht);
 
 	if (paths->len > 2000) {
 		high_cov_paths(paths, 3);
