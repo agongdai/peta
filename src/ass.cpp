@@ -1500,7 +1500,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				g_ptr_array_remove_index_fast(wait_for_val, i);
 			}
 		} else {
-			if (branch->b_juncs->len == 1) {
+			if (branch->b_juncs->len == 1 && branch->cov < HIHG_COV_THRE) {
 				tpl_jumping(ht, all_tpls, branch);
 			}
 			g_ptr_array_remove_index_fast(wait_for_val, i);
