@@ -973,6 +973,65 @@ void reset_boundary_reads(tpl *t, const int ori) {
 }
 
 /**
+ * Assumption: the input reads are in format of Forward-Forward
+ * If the read should be at left side: -1
+ * 						   right side: 1
+ *                            unknown: 0
+ * @r: the read whose mate is on the existing template
+ */
+int should_at_which_side(bwa_seq_t *seqs, tpl *t, bwa_seq_t *r) {
+	bwa_seq_t *read = NULL, *mate = NULL, *m = NULL, *left = NULL, *right =
+			NULL;
+	int i = 0, side = 0;
+	m = get_mate(r, seqs);
+	if (m->contig_id != t->id)
+		return 0;
+	//p_tpl_reads(t);
+	for (i = 0; i < t->reads->len; i++) {
+		read = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		mate = get_mate(read, seqs);
+		if (read->rev_com == mate->rev_com && mate->contig_id
+				== read->contig_id && mate->contig_id == t->id) {
+			left = read->contig_locus < mate->contig_locus ? read : mate;
+			right = read->contig_locus < mate->contig_locus ? mate : read;
+\
+			//p_query("LEFT", left);
+			//p_query("RIGHT", right);
+			//p_query("JUMPED", r);
+			//p_query("MATE", m);
+			// Existing pair and the jumped pair are with same orientation
+			if (is_left_mate(left->name)) {
+				if (left->rev_com == m->rev_com) {
+					if (is_left_mate(m->name)) {
+						side = 1;
+					} else
+						side = -1;
+				} else {
+					if (is_left_mate(m->name))
+						side = -1;
+					else
+						side = 1;
+				}
+			} else {
+				if (left->rev_com == m->rev_com) {
+					if (is_left_mate(m->name)) {
+						side = -1;
+					} else
+						side = 1;
+				} else {
+					if (is_left_mate(m->name))
+						side = 1;
+					else
+						side = -1;
+				}
+			}
+			break;
+		}
+	}
+	return side;
+}
+
+/**
  * Remove a read from the pool and reset the the read status
  */
 void rm_from_tpl(tpl *t, int index) {

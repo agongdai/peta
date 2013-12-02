@@ -29,7 +29,7 @@
 
 using namespace std;
 
-int TESTING = 359054;
+int TESTING = 0;
 
 int kmer_ctg_id = 1;
 int ins_size = 0;
@@ -1082,7 +1082,7 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 		correct_tpl_base(ht->seqs, to, ht->o->read_len, 0, to->len);
 		show_debug_msg(__func__, "After correcting [%d, %d] \n", to->id,
 				to->len);
-		merged = merged_jumped(ht, from, to, MORE_MISMATCH);
+		merged = merged_jumped(ht, from, to, m, MORE_MISMATCH);
 		//p_test_read();
 		if (merged) {
 			show_debug_msg(__func__,

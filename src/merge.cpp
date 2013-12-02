@@ -183,10 +183,10 @@ int similar_to_merge(bwa_seq_t *from, bwa_seq_t *jumped, int unique_len) {
  * Try to merge two templates.
  * The 'jumped' template does not have any junctions on it
  */
-int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
+int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, bwa_seq_t *jumping_read, int mis) {
 	int rev_com = 0, n_mis = 0;
 	int from_s = 0, from_e = 0, jumped_s = 0, jumped_e = 0;
-	int score = 0, similar = 0, ori_len;
+	int score = 0, similar = 0, ori_len = 0, side = 0;
 	int max_ol = ht->o->read_len * 1.5;
 	bwa_seq_t *from = NULL, *jumped_seq = NULL, *r = NULL;
 	//	p_tpl_reads(t);
@@ -194,7 +194,10 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 	if (!paired_by_reads(ht->seqs, t, jumped, 2) && jumped->len > ht->o->read_len + 2)
 		return 0;
 
-	if (!t->r_tail) {
+	side = should_at_which_side(ht->seqs, t, jumping_read);
+	show_debug_msg(__func__, "Read %s at side %d \n", jumping_read->name, side);
+
+	if (!t->r_tail && (side == 1 || side == 0)) {
 		from = new_seq(t->ctg, min(max_ol, t->len), t->len - min(max_ol, t->len));
 		jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), 0);
 		score = smith_waterman_simple(from, jumped_seq, &from_s, &from_e,
@@ -230,7 +233,7 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, int mis) {
 		bwa_free_read_seq(1, jumped_seq);
 	}
 
-	if (!t->l_tail) {
+	if (!t->l_tail && (side == -1 || side == 0)) {
 		// From right template jump to left
 		from = new_seq(t->ctg, min(max_ol, t->len), 0);
 		jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol),
