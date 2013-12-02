@@ -655,14 +655,12 @@ bwa_seq_t *cut_tpl_tail(tpl *t, int pos, const int tail_len, const int ori) {
 			tail = blank_seq(v_tail_len);
 			if (ori) {
 				memcpy(tail->seq, partial->seq, sizeof(ubyte_t) * partial->len);
-				memcpy(tail->seq + partial->len, tail->seq,
-						sizeof(ubyte_t) * (v_tail_len - partial->len));
+				memcpy(tail->seq + partial->len, tail->seq, sizeof(ubyte_t)
+						* (v_tail_len - partial->len));
 			} else {
-				memcpy(
-						tail->seq,
-						main_tail->seq + (main_tail->len + partial->len
-								- v_tail_len),
-						sizeof(ubyte_t) * (v_tail_len - partial->len));
+				memcpy(tail->seq, main_tail->seq + (main_tail->len
+						+ partial->len - v_tail_len), sizeof(ubyte_t)
+						* (v_tail_len - partial->len));
 				memcpy(tail->seq + (v_tail_len - partial->len), partial->seq,
 						sizeof(ubyte_t) * partial->len);
 			}
@@ -843,11 +841,11 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 				: t->len;
 		len = t->r_tail->len + borrow_len;
 		s = blank_seq(len);
-		memcpy(s->seq, t->ctg->seq + (t->len - borrow_len),
-				borrow_len * sizeof(ubyte_t));
+		memcpy(s->seq, t->ctg->seq + (t->len - borrow_len), borrow_len
+				* sizeof(ubyte_t));
 		s->len = borrow_len;
-		memcpy(s->seq + s->len, t->r_tail->seq,
-				t->r_tail->len * sizeof(ubyte_t));
+		memcpy(s->seq + s->len, t->r_tail->seq, t->r_tail->len
+				* sizeof(ubyte_t));
 		s->len += t->r_tail->len;
 
 		for (i = 0; i <= s->len - ht->o->read_len; i++) {
@@ -916,7 +914,7 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len, int start,
 		//show_debug_msg(__func__, "Locus %d: [%d,%d,%d,%d,%d]\n", i, cs[0], cs[1], cs[2], cs[3], cs[4]);
 		max = -1;
 		max_c = -1;
-		for (j = 0; j < 5; j++) {
+		for (j = 0; j < 4; j++) {
 			if (cs[j] > 0 && cs[j] > max_c) {
 				max = j;
 				max_c = cs[j];
@@ -956,6 +954,24 @@ void clear_tpl_tails(tpl *t) {
 	}
 }
 
+void reset_boundary_reads(tpl *t, const int ori) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	if (ori) {
+		for (i = 0; i < t->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+			if (r->contig_locus > t->len - r->len)
+				reset_to_fresh(r);
+		}
+	} else {
+		for (i = 0; i < t->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+			if (r->contig_locus < 0)
+				reset_to_fresh(r);
+		}
+	}
+}
+
 /**
  * Remove a read from the pool and reset the the read status
  */
@@ -984,8 +1000,8 @@ void truncate_tpl(tpl *t, int len, int ori) {
 			//reset_to_dead(r);
 			//g_ptr_array_remove_index_fast(t->reads, i--);
 		}
-		memmove(t->ctg->seq, t->ctg->seq + len,
-				sizeof(ubyte_t) * (t->len - len));
+		memmove(t->ctg->seq, t->ctg->seq + len, sizeof(ubyte_t)
+				* (t->len - len));
 		t->len -= len;
 		t->ctg->len = t->len;
 		set_rev_com(t->ctg);
@@ -1460,8 +1476,8 @@ bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len) {
 	memcpy(s->seq + s->len, t->ctg->seq, t->len);
 	s->len += t->len;
 	if (t->r_tail) {
-		memcpy(s->seq + s->len, t->r_tail->seq,
-				t->r_tail->len * sizeof(ubyte_t));
+		memcpy(s->seq + s->len, t->r_tail->seq, t->r_tail->len
+				* sizeof(ubyte_t));
 		s->len += t->r_tail->len;
 	}
 	set_rev_com(s);

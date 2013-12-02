@@ -130,15 +130,13 @@ void p_path_reads(path *p) {
 	int i = 0, j = 0;
 	int read_len = 0;
 	if (!reads || reads->len == 0) {
-		show_debug_msg(__func__, "No reads on path [%d, %d] \n", p->id,
-				p->len);
+		show_debug_msg(__func__, "No reads on path [%d, %d] \n", p->id, p->len);
 		return;
 	}
 	r = (bwa_seq_t*) g_ptr_array_index(reads, 0);
 	read_len = r->len;
 	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_contig_locus);
-	printf("\n==== Here are the reads used on path [%d, %d] \n", p->id,
-				p->len);
+	printf("\n==== Here are the reads used on path [%d, %d] \n", p->id, p->len);
 	for (i = 0; i < reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
 		//if (r->pos == IMPOSSIBLE_NEGATIVE)
@@ -172,8 +170,8 @@ void p_path_reads(path *p) {
 		printf(" [cursor: %d]", r->cursor);
 		printf("\n");
 	}
-	printf("==== End of printing reads used on path [%d, %d] ==== \n",
-			p->id, p->len);
+	printf("==== End of printing reads used on path [%d, %d] ==== \n", p->id,
+			p->len);
 }
 
 void p_paths(GPtrArray *paths, char *fn) {
@@ -418,8 +416,8 @@ GPtrArray *combinatorial_paths(GPtrArray *levels) {
 		for (k = 0; k < paths->len; k++) {
 			p = (path*) g_ptr_array_index(paths, k);
 			new_p = NULL;
-			tail_v = (vertex*) g_ptr_array_index(p->vertexes,
-					p->vertexes->len - 1);
+			tail_v = (vertex*) g_ptr_array_index(p->vertexes, p->vertexes->len
+					- 1);
 			// For each vertex at current level
 			for (j = 0; j < level_vertexes->len; j++) {
 				v = (vertex*) g_ptr_array_index(level_vertexes, j);
@@ -509,7 +507,7 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
 				 p_ctg_seq("PATH", p->ctg);
 				 p_ctg_seq("EXON", seq);
 				 p_readarray(reads, 1);
-				**/
+				 **/
 
 				n_reads = reads->len;
 				g_ptr_array_free(reads, TRUE);
@@ -532,35 +530,55 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
  * The reads on the path must be ordered by contig_locus increasingly
  */
 int validate_pairs_on_path(hash_table *ht, path *p) {
-	int valid = 1;
+	int valid = 1, *n_breaking = NULL, left = 0, right = 0;
 	bwa_seq_t *r = NULL, *m = NULL;
-	int i = 0, no_pairs_len = 0, cursor = ht->o->read_len * 2;
-	if (p->len < MAX_REGION_NO_PAIRS + ht->o->read_len * 2)
+	vertex *v = NULL;
+	int i = 0, j = 0, no_pairs_len = 0, cursor = ht->o->read_len * 2;
+	if (p->len < MAX_REGION_NO_PAIRS + ht->o->read_len * 2 || p->is_paired)
 		return valid;
+	show_debug_msg(__func__, "Validating pairs on path [%d, %d] ...\n", p->id,
+			p->len);
+	n_breaking = (int*) calloc(p->vertexes->len - 1, sizeof(int));
 	for (i = 0; i < p->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
 		r->contig_id = p->id;
 	}
-	//p_path_reads(p);
-	for (i = 0; i < p->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
-		// Head/Tail regions are not counted.
-		if (r->contig_locus + ht->o->read_len < cursor || r->contig_locus
-				> p->len - 2 * r->len)
-			continue;
-		m = get_mate(r, ht->seqs);
-		if (r->contig_id == m->contig_id) {
-			cursor = r->contig_locus + r->len;
-			no_pairs_len = 0;
-		} else {
-			no_pairs_len = r->contig_locus - (cursor - r->len);
-		}
-		//p_query(__func__, r);
-		//p_query(__func__, m);
-		//show_debug_msg(__func__, "Cursor: %d; no_pairs_len: %d \n", cursor, no_pairs_len);
-		if (no_pairs_len >= MAX_REGION_NO_PAIRS)
-			return 0;
+	for (i = 0; i < p->vertexes->len - 1; i++) {
+		v = (vertex*) g_ptr_array_index(p->vertexes, i);
+		if (i == 0)
+			n_breaking[0] = v->len;
+		else
+			n_breaking[i] = n_breaking[i - 1] + v->len;
 	}
+	for (j = 0; j < p->vertexes->len - 1; j++) {
+		if (n_breaking[j] < 100 || n_breaking[j] > p->len - 100) {
+			valid = 1;
+			continue;
+		}
+		valid = 0;
+		show_debug_msg(__func__, "Breaking: %d\n", n_breaking[j]);
+		for (i = 0; i < p->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
+			m = get_mate(r, ht->seqs);
+			if (r->contig_id == p->id && m->contig_id == p->id) {
+				left = min(r->contig_locus, m->contig_locus) + r->len;
+				right = max(r->contig_locus, m->contig_locus);
+				if ((left < n_breaking[j] && right > n_breaking[j])) {
+					valid = 1;
+					p_query(__func__, r);
+					p_query(__func__, m);
+					break;
+				}
+			}
+		}
+		if (!valid)
+			break;
+	}
+	free(n_breaking);
+	if (!valid)
+		show_debug_msg(__func__,
+				"Path [%d, %d] has no pairs spanning breaking point.\n", p->id,
+				p->len);
 	return valid;
 }
 
@@ -873,9 +891,8 @@ void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 			//show_debug_msg(__func__, "sum_k_c_te[i]: %.2f\n", i, sum_k_c_te);
 
 			// Coverage of path i in this iteration
-			p_covs[i] = (0 - n_features + sqrt(
-					n_features * n_features + 4 * sum_k_te * sum_k_c_te)) / (2
-					* sum_k_te);
+			p_covs[i] = (0 - n_features + sqrt(n_features * n_features + 4
+					* sum_k_te * sum_k_c_te)) / (2 * sum_k_te);
 
 			//show_debug_msg(__func__, "p_covs[i]: %.2f\n", i, p_covs[i]);
 

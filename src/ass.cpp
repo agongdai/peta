@@ -29,7 +29,7 @@
 
 using namespace std;
 
-int TESTING = 0;
+int TESTING = 359054;
 
 int kmer_ctg_id = 1;
 int ins_size = 0;
@@ -71,6 +71,7 @@ tpl *blank_tpl(bwa_seq_t *start_read, int len, int ori) {
 		switch_fr(start_read);
 	t->start_read = start_read;
 	t->len = t->ctg->len;
+	t->ctg->rev_com = 0;
 	return t;
 }
 
@@ -287,11 +288,11 @@ int merge_branch_to_main(hash_table *ht, tpl *branch) {
 			show_debug_msg(__func__, "WARNING: locus not correct\n");
 			p_junction(left);
 		} else {
-			sub = new_seq(main_seq, right->locus - left->locus,
-					left->locus + l_len);
-			similar = similar_seqs(sub, branch->ctg,
-					branch->len * (1 - BRANCH_SIMILARITY) + 2, MAX_GAPS,
-					MATCH_SCORE, MISMATCH_SCORE, INDEL_SCORE);
+			sub = new_seq(main_seq, right->locus - left->locus, left->locus
+					+ l_len);
+			similar = similar_seqs(sub, branch->ctg, branch->len * (1
+					- BRANCH_SIMILARITY) + 2, MAX_GAPS, MATCH_SCORE,
+					MISMATCH_SCORE, INDEL_SCORE);
 			//p_ctg_seq("MAIN", sub);
 			//p_ctg_seq("BRANCH", branch->ctg);
 			//show_debug_msg(__func__, "Similar: %d\n", similar);
@@ -786,8 +787,8 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 		}
 
 		if (p->reads->len > 0)
-			last_read = (bwa_seq_t*) g_ptr_array_index(p->reads,
-					p->reads->len - 1);
+			last_read = (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len
+					- 1);
 
 		if (t->id == -1) {
 			p_test_read();
@@ -855,7 +856,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 		//	2. the reads in pool is less than 4
 		//	3. not consuming the pool
 		//if (t->len % 1 == 0 || p->reads->len <= 20)
-			next_pool(ht, p, t, tail, LESS_MISMATCH, ori);
+		next_pool(ht, p, t, tail, LESS_MISMATCH, ori);
 
 		if (t->len % 100 == 0)
 			show_debug_msg(__func__, "Ori %d, tpl %d, length %d \n", ori,
@@ -1240,8 +1241,8 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 						mv_reads_bt_tpls(branch, t, jun->locus, 1);
 						new_seq = (ubyte_t*) calloc(branch->len + t->len,
 								sizeof(ubyte_t));
-						memcpy(new_seq, branch->ctg->seq,
-								sizeof(ubyte_t) * branch->len);
+						memcpy(new_seq, branch->ctg->seq, sizeof(ubyte_t)
+								* branch->len);
 						memcpy(new_seq + branch->len, t->ctg->seq + jun->locus,
 								sizeof(ubyte_t) * (t->ctg->len - jun->locus));
 						added_len_to_left = branch->len - jun->locus;
@@ -1282,8 +1283,8 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 						mv_reads_bt_tpls(branch, t, t->len - jun->locus, 0);
 						new_seq = (ubyte_t*) calloc(branch->len + t->len,
 								sizeof(ubyte_t));
-						memcpy(new_seq, t->ctg->seq,
-								sizeof(ubyte_t) * jun->locus);
+						memcpy(new_seq, t->ctg->seq, sizeof(ubyte_t)
+								* jun->locus);
 						memcpy(new_seq + jun->locus, branch->ctg->seq,
 								branch->len);
 						free(t->ctg->seq);
@@ -1313,10 +1314,10 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 			}
 			merge_branch_to_main(ht, branch);
 			show_debug_msg(__func__, "Branch [%d, %d] %s \n", branch->id,
-								branch->len, branch->alive ? "Alive" : "Dead");
+					branch->len, branch->alive ? "Alive" : "Dead");
 			try_destroy_tpl(ht, all_tpls, branch, ht->o->read_len);
 			show_debug_msg(__func__, "Branch [%d, %d] %s \n", branch->id,
-								branch->len, branch->alive ? "Alive" : "Dead");
+					branch->len, branch->alive ? "Alive" : "Dead");
 			//p_tpl(t);
 			if (!branch->alive) {
 				rm_global_tpl(all_tpls, branch, FRESH);
@@ -1436,6 +1437,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			}
 
 			p_query("BRANCH_QUERY", branch_read);
+			//p_ctg_seq(__func__, t->ctg);
 			//show_debug_msg(__func__, "shift: %d; POS: %d; CURSOR: %d\n", shift,
 			//		pos, cursor);
 			//show_debug_msg(__func__, "Branching at %d \n", con_pos);
@@ -1480,6 +1482,12 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				rm_global_tpl(all_tpls, branch, read_status);
 			}
 			break;
+		}
+		for (j = 0; j < b_reads->len; j++) {
+			branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
+			// If FRESH, reset other attributes.
+			if (branch_read->status == FRESH)
+				reset_to_fresh(branch_read);
 		}
 		g_ptr_array_free(b_reads, TRUE);
 	}
@@ -1537,7 +1545,8 @@ void try_connect(hash_table *ht, tpl_hash *all_tpls, int to_con_left,
 	//	p_tpl_reads(t);
 }
 
-void iter_branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching) {
+void iter_branching(hash_table *ht, tpl_hash *all_tpls, tpl *t,
+		int to_branching) {
 	int changed = 1, pre_n_m_juncs = 0;
 	while (changed) {
 		if (to_branching) {
@@ -1707,8 +1716,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	if (TESTING) {
 		if (fresh_trial == 0)
 			read = &seqs[TESTING];
-			if (fresh_trial == 1)
-				read = &seqs[2904319];
+		if (fresh_trial == 1)
+			read = &seqs[2904319];
 		//	if (fresh_trial == 2)
 		//		read = &seqs[7299565];
 	}
@@ -2358,24 +2367,22 @@ void validate_junctions(char *junc_fn, char *pair_fa, char *pair_psl,
 							jun->branch_tpl->len - len);
 					main_part = new_seq(t->ctg, len, jun->locus - len);
 				} else {
-					len = min3(jun->branch_tpl->len, half_len,
-							t->len - jun->locus);
+					len = min3(jun->branch_tpl->len, half_len, t->len
+							- jun->locus);
 					branch_part = new_seq(jun->branch_tpl->ctg, len, 0);
 					main_part = new_seq(t->ctg, len, jun->locus);
 				}
 				printf("Junction_pairs: %d \n", count_pairs(ht->seqs, jun));
 				p_query("Branch_junc", branch_part);
 				p_query("Main_junc", main_part);
-				printf(
-						"Mismatches: %d\n",
-						seq_ol(branch_part, main_part, main_part->len,
-								main_part->len));
+				printf("Mismatches: %d\n", seq_ol(branch_part, main_part,
+						main_part->len, main_part->len));
 				//bwa_free_read_seq(1, branch_part);
 				bwa_free_read_seq(1, main_part);
 
 				if (jun->ori) {
-					len = min3(jun->branch_tpl->len, half_len,
-							t->len - jun->locus);
+					len = min3(jun->branch_tpl->len, half_len, t->len
+							- jun->locus);
 					main_part = new_seq(t->ctg, len, jun->locus);
 					junc_seq = blank_seq(main_part->len + branch_part->len);
 					memcpy(junc_seq->seq, branch_part->seq, branch_part->len);
@@ -2539,7 +2546,7 @@ int pe_kmer(int argc, char *argv[]) {
 	ext_by_kmers_core(argv[optind], argv[optind + 1]);
 
 	clock_gettime(CLOCK_MONOTONIC, &kmer_finish_time);
-	show_msg(__func__, "Done: %.2f sec\n",
-			(float) (kmer_finish_time.tv_sec - kmer_start_time.tv_sec));
+	show_msg(__func__, "Done: %.2f sec\n", (float) (kmer_finish_time.tv_sec
+			- kmer_start_time.tv_sec));
 	return 0;
 }

@@ -90,6 +90,7 @@ extern "C" {
 	void add2tpl(tpl *t, bwa_seq_t *r, const int locus);
 	GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch);
 	void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches);
+	void reset_boundary_reads(tpl *t, const int ori);
 	void clear_tpl_tails(tpl *t);
 	void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len, int start, int end);
 	GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,

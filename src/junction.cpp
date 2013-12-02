@@ -610,12 +610,14 @@ void destory_tpl_junctions(tpl *t) {
 	if (t->m_juncs) {
 		while (t->m_juncs->len > 0) {
 			jun = (junction*) g_ptr_array_index(t->m_juncs, 0);
+			reset_boundary_reads(t, jun->ori);
 			destroy_junction(jun);
 		}
 	}
 	if (t->b_juncs) {
 		while (t->b_juncs->len > 0) {
 			jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
+			reset_boundary_reads(t, jun->ori);
 			destroy_junction(jun);
 		}
 	}
