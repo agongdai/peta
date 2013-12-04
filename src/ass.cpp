@@ -240,7 +240,8 @@ int merge_branch_to_main(hash_table *ht, tpl *branch) {
 	bwa_seq_t *main_seq = NULL, *sub = NULL, *r = NULL;
 	// If right and left connections are too close, just ignore.
 	//p_tpl(branch);
-	if (!branch->alive || !branch->b_juncs || branch->b_juncs->len <= 0)
+	if (branch->len >= LONG_TPL_LEN || !branch->alive || !branch->b_juncs
+			|| branch->b_juncs->len <= 0)
 		return 0;
 	if (branch->b_juncs->len == 1) {
 		exist_junc = (junction*) g_ptr_array_index(branch->b_juncs, 0);
@@ -472,6 +473,8 @@ int val_branch_by_pairs(hash_table *ht, tpl *main_tpl, tpl *branch_tpl) {
 	g_ptr_array_free(near_tpls, TRUE);
 	if (!has_pairs) {
 		//branch_tpl->alive = 0;
+		show_debug_msg(__func__, "No pairs found on template [%d, %d] \n",
+				branch_tpl->id, branch_tpl->len);
 		return 0;
 	}
 	return 1;
@@ -790,7 +793,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 			last_read = (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len
 					- 1);
 
-		if (t->id == -1) {
+		if (t->id == -20) {
 			p_test_read();
 			p_query("QUERY", tail);
 			p_ctg_seq("TEMPLATE", t->ctg);
@@ -799,7 +802,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
-		if (t->id == -1)
+		if (t->id == -20)
 			show_debug_msg(__func__,
 					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 					t->len, "ZACGTN"[max_c + 1]);
@@ -1342,6 +1345,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	int con_pos = 0, n_junc_reads = 0;
 	int exist_ori = ori, dead = 0, to_connect = 1, connected = 1;
 	int *pre_pos = NULL, *pre_cursor = NULL, n_mis = 0;
+	int b_s = 0, b_e = 0, m_s = 0, m_e = 0, score = 0;
 	tpl *branch = NULL;
 	pool *p = NULL;
 	int least_ol_len = kmer_len;
@@ -1374,6 +1378,26 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		//p_query(__func__, tail);
 
 		b_reads = check_branch_tail(ht, t, tail, shift, mismatches, FRESH, ori);
+		for (j = b_reads->len - 1; j >= 0; j--) {
+			branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
+			if (t->len >= branch_read->pos + branch_read->len) {
+				part = new_seq(t->ctg, branch_read->len, branch_read->pos + i);
+				if (branch_read->rev_com)
+					switch_fr(branch_read);
+				score = smith_waterman_simple(part, branch_read, &m_s, &m_e,
+						&b_s, &b_e, ht->o->k);
+				//p_query("READ", branch_read);
+				//p_query("PART", part);
+				//show_debug_msg(__func__, "SCORE: %d \n", score);
+				if (branch_read->rev_com)
+					switch_fr(branch_read);
+				if (score >= ht->o->read_len - 2 * 4) {
+					g_ptr_array_remove_index_fast(b_reads, j);
+				}
+				bwa_free_read_seq(1, part);
+			}
+		}
+
 		if (b_reads->len < 2) {
 			for (j = 0; j < b_reads->len; j++) {
 				branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
@@ -1452,10 +1476,13 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			}
 
 			next_cursor = ori ? cursor - 1 : cursor + 1;
-			part = ori ? new_seq(branch_read, branch_read->len - next_cursor - 1,
-					next_cursor + 1) : new_seq(branch_read, next_cursor, 0);
+			part = ori ? new_seq(branch_read, branch_read->len - next_cursor
+					- 1, next_cursor + 1)
+					: new_seq(branch_read, next_cursor, 0);
 			for (x = 0; x < b_reads->len; x++) {
 				jun_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
+				if (jun_read->status != FRESH)
+					continue;
 				if (jun_read == branch_read) {
 					jun_read->cursor = next_cursor;
 					jun_read->pos = 0;
@@ -1489,7 +1516,8 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			p_ctg_seq("AFTER TRUNCATE", branch->ctg);
 
 			if (p->reads->len < 1) {
-				show_debug_msg(__func__, "Too few supporting reads: %d \n", p->reads->len);
+				show_debug_msg(__func__, "Too few supporting reads: %d \n",
+						p->reads->len);
 				destroy_pool(p);
 				rm_global_tpl(all_tpls, branch, read_status);
 				continue;
@@ -1527,10 +1555,14 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				refresh_tpl_reads(ht, branch, mismatches);
 				correct_tpl_base(ht->seqs, branch, ht->o->read_len, 0,
 						branch->len);
+				//p_tpl(branch);
 			} else {
+				reset_to_hang(branch_read);
 				mark_as_hang_tmp(branch);
 				branch->alive = 0;
 				rm_global_tpl(all_tpls, branch, read_status);
+				if (j < 2)
+					continue;
 			}
 			break;
 		}
@@ -1549,10 +1581,10 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	// There may not be enough spanning pairs during branching
 	// Two branches may validate each other
 	show_debug_msg(__func__, "Striping template [%d, %d] ... \n", t->id, t->len);
+	//p_tpl(t);
 	for (i = wait_for_val->len - 1; i >= 0; i--) {
 		branch = (tpl*) g_ptr_array_index(wait_for_val, i);
-		if (branch->b_juncs->len == 1 && ((t->cov * MIN_BRANCH_MAIN_COV)
-				> branch->cov || !val_branch_by_pairs(ht, t, branch))) {
+		if (branch->b_juncs->len == 1 && !val_branch_by_pairs(ht, t, branch)) {
 			// If the branch is long enough, even though cannot hook, keep it as a separate component
 			if (branch->len >= MIN_TPL_LEN * 2) {
 			} else {

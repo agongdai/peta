@@ -556,7 +556,7 @@ int validate_pairs_on_path(hash_table *ht, path *p) {
 			continue;
 		}
 		valid = 0;
-		show_debug_msg(__func__, "Breaking: %d\n", n_breaking[j]);
+		//show_debug_msg(__func__, "Breaking: %d\n", n_breaking[j]);
 		for (i = 0; i < p->reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
 			m = get_mate(r, ht->seqs);
@@ -565,8 +565,8 @@ int validate_pairs_on_path(hash_table *ht, path *p) {
 				right = max(r->contig_locus, m->contig_locus);
 				if ((left < n_breaking[j] && right > n_breaking[j])) {
 					valid = 1;
-					p_query(__func__, r);
-					p_query(__func__, m);
+					//p_query(__func__, r);
+					//p_query(__func__, m);
 					break;
 				}
 			}
