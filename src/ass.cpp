@@ -1452,10 +1452,16 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			}
 
 			next_cursor = ori ? cursor - 1 : cursor + 1;
-			part = ori ? new_seq(branch_read, branch_read->len - cursor - 1,
-					cursor + 1) : new_seq(branch_read, cursor, 0);
+			part = ori ? new_seq(branch_read, branch_read->len - next_cursor - 1,
+					next_cursor + 1) : new_seq(branch_read, next_cursor, 0);
 			for (x = 0; x < b_reads->len; x++) {
 				jun_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
+				if (jun_read == branch_read) {
+					jun_read->cursor = next_cursor;
+					jun_read->pos = 0;
+					add2pool(p, jun_read);
+					continue;
+				}
 				jun_read->cursor = next_cursor + (jun_read->pos - pos);
 				if (jun_read->cursor >= 0 && jun_read->cursor < jun_read->len) {
 					part_2 = ori ? new_seq(jun_read, jun_read->len
@@ -1474,19 +1480,20 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			}
 			bwa_free_read_seq(1, part);
 
-			//if (p->reads->len < 2) {
-			//	destroy_pool(p);
-			//	rm_global_tpl(all_tpls, branch, read_status);
-			//	continue;
-			//}
-
 			p_query("BRANCH_QUERY", branch_read);
 			//p_ctg_seq(__func__, t->ctg);
 			//show_debug_msg(__func__, "shift: %d; POS: %d; CURSOR: %d\n", shift,
 			//		pos, cursor);
 			//show_debug_msg(__func__, "Branching at %d \n", con_pos);
-			//p_pool(__func__, p, NULL);
+			p_pool("INIT", p, NULL);
 			p_ctg_seq("AFTER TRUNCATE", branch->ctg);
+
+			if (p->reads->len < 1) {
+				show_debug_msg(__func__, "Too few supporting reads: %d \n", p->reads->len);
+				destroy_pool(p);
+				rm_global_tpl(all_tpls, branch, read_status);
+				continue;
+			}
 
 			// Initialisation
 			if (branch_read->rev_com)
