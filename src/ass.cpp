@@ -1336,10 +1336,12 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		int ori) {
 	bwa_seq_t *tail = NULL, *branch_read = NULL, *jun_read = NULL, *query =
-			NULL;
-	int i = 0, j = 0, x = 0, shift = 0, cursor = 0, pos = 0, read_status = HANG;
+			NULL, *part = NULL, *part_2 = NULL;
+	int i = 0, j = 0, x = 0, shift = 0, cursor = 0, next_cursor = 0, pos = 0,
+			read_status = HANG;
 	int con_pos = 0, n_junc_reads = 0;
 	int exist_ori = ori, dead = 0, to_connect = 1, connected = 1;
+	int *pre_pos = NULL, *pre_cursor = NULL, n_mis = 0;
 	tpl *branch = NULL;
 	pool *p = NULL;
 	int least_ol_len = kmer_len;
@@ -1393,9 +1395,25 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		else
 			g_ptr_array_sort(b_reads, (GCompareFunc) cmp_reads_by_rev_cursor);
 
+		// The pos value would be changed by mark_init_reads_used
+		// Store a copy beforehand.
+		pre_pos = (int*) calloc(b_reads->len, sizeof(int));
+		pre_cursor = (int*) calloc(b_reads->len, sizeof(int));
+		for (x = 0; x < b_reads->len; x++) {
+			jun_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
+			pre_pos[x] = jun_read->pos;
+			pre_cursor[x] = jun_read->cursor;
+		}
+
 		for (j = 0; j < b_reads->len; j++) {
 			// For later truncate the branch template
 			branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
+
+			for (x = 0; x < b_reads->len; x++) {
+				jun_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
+				jun_read->pos = pre_pos[x];
+				jun_read->cursor = pre_cursor[x];
+			}
 
 			cursor = branch_read->cursor;
 			pos = branch_read->pos;
@@ -1418,16 +1436,6 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			jun = add_a_junction(t, branch, NULL, con_pos, exist_ori,
 					n_junc_reads);
 
-			p = new_pool();
-			for (x = 0; x < b_reads->len; x++) {
-				jun_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
-				jun_read->cursor = ori ? jun_read->cursor - 1
-						: jun_read->cursor + 1;
-				// !Important: pos in the pool means how many mismatches
-				jun_read->pos = 0;
-				add2pool(p, jun_read);
-			}
-
 			jun_read = get_tail(t, ht->o->read_len, ori);
 			mark_init_reads_used(ht, branch, jun_read, mismatches);
 			bwa_free_read_seq(1, jun_read);
@@ -1435,6 +1443,42 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				jun_read = (bwa_seq_t*) g_ptr_array_index(branch->reads, x);
 				jun_read->contig_locus = 0 - (jun_read->len - branch->len);
 			}
+
+			p = new_pool();
+			for (x = 0; x < b_reads->len; x++) {
+				jun_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
+				jun_read->pos = pre_pos[x];
+				jun_read->cursor = pre_cursor[x];
+			}
+
+			next_cursor = ori ? cursor - 1 : cursor + 1;
+			part = ori ? new_seq(branch_read, branch_read->len - cursor - 1,
+					cursor + 1) : new_seq(branch_read, cursor, 0);
+			for (x = 0; x < b_reads->len; x++) {
+				jun_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
+				jun_read->cursor = next_cursor + (jun_read->pos - pos);
+				if (jun_read->cursor >= 0 && jun_read->cursor < jun_read->len) {
+					part_2 = ori ? new_seq(jun_read, jun_read->len
+							- jun_read->cursor - 1, jun_read->cursor + 1)
+							: new_seq(jun_read, jun_read->cursor, 0);
+					n_mis = similar_at_one_end(part, part_2,
+							min(part->len, part_2->len), ori, N_MISMATCHES);
+					if (n_mis >= 0) {
+						jun_read->pos = n_mis;
+						add2pool(p, jun_read);
+					} else {
+						reset_to_fresh(jun_read);
+					}
+					bwa_free_read_seq(1, part_2);
+				}
+			}
+			bwa_free_read_seq(1, part);
+
+			//if (p->reads->len < 2) {
+			//	destroy_pool(p);
+			//	rm_global_tpl(all_tpls, branch, read_status);
+			//	continue;
+			//}
 
 			p_query("BRANCH_QUERY", branch_read);
 			//p_ctg_seq(__func__, t->ctg);
@@ -1489,6 +1533,8 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			if (branch_read->status == FRESH)
 				reset_to_fresh(branch_read);
 		}
+		free(pre_pos);
+		free(pre_cursor);
 		g_ptr_array_free(b_reads, TRUE);
 	}
 	unfrozen_hang_reads();

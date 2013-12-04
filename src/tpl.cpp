@@ -290,8 +290,7 @@ bwa_seq_t *get_tail(tpl *t, int len, const int ori) {
 				__func__,
 				"[WARNING] Tail of template [%d, %d] shows a wrong sequence.\n",
 				t->id, t->len);
-		tail = ori ? new_seq(t->start_read, len, 0) : new_seq(t->start_read,
-				len, t->start_read->len - len);
+		tail = new_seq(real_seq, real_seq->len, 0);
 		//p_tpl(t);
 	} else {
 		tail = ori ? new_seq(real_seq, len, 0) : new_seq(real_seq, len,

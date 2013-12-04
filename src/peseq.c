@@ -874,6 +874,49 @@ int similar_seqs(const bwa_seq_t *query, const bwa_seq_t *seq,
 }
 
 /**
+ * Check whether two sequences are similar at one end
+ * @ori: 0: check right end;
+ * 		 1: check left end;
+ * @ol: overlapping length
+ */
+int similar_at_one_end(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
+		const int ol, const int ori, const int n_mismatches) {
+	int n_mis = 0;
+	int i = 0;
+	if (seq_1->len < ol || seq_2->len < ol)
+		return NOT_FOUND;
+	if (seq_1->rev_com)
+		switch_fr(seq_1);
+	if (seq_2->rev_com)
+		switch_fr(seq_2);
+	if (ori == 0) {
+		for (i = 0; i < ol; i++) {
+			if (seq_1->seq[seq_1->len - i - 1]
+					!= seq_2->seq[seq_2->len - 1 - i])
+				n_mis++;
+			if (n_mis > n_mismatches) {
+				n_mis = NOT_FOUND;
+				break;
+			}
+		}
+	} else {
+		for (i = 0; i < ol; i++) {
+			if (seq_1->seq[i] != seq_2->seq[i])
+				n_mis++;
+			if (n_mis > n_mismatches) {
+				n_mis = NOT_FOUND;
+				break;
+			}
+		}
+	}
+	if (seq_1->rev_com)
+		switch_fr(seq_1);
+	if (seq_2->rev_com)
+		switch_fr(seq_2);
+	return n_mis;
+}
+
+/**
  * Shift is that position "starting of query on the read"
  * Offset is the position on the read, from which the k-mer is matched.
  *
