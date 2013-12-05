@@ -1248,13 +1248,16 @@ int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
 	for (i = 1; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		m = get_mate(r, ht->seqs);
-		if (r->contig_locus >= 0 && r->contig_locus + r->len <= t->len
-				&& m->status == USED) {
+		if (t->id == 19) {
+			p_query(__func__, r);
+			p_query(__func__, m);
+			printf("---\n");
+		}
+		if (m->status == USED) {
 			for (j = 0; j < tpls->len; j++) {
 				near = (tpl*) g_ptr_array_index(tpls, j);
 				if (m->contig_id == near->id && m->contig_id != t->id
-						&& m->contig_locus >= 0 && m->contig_locus + m->len
-						<= near->len) {
+						) {
 					n++;
 					p_query("READ", r);
 					p_query("MATE", m);

@@ -464,11 +464,12 @@ int val_branch_by_pairs(hash_table *ht, tpl *main_tpl, tpl *branch_tpl) {
 	GPtrArray *near_tpls = NULL;
 	near_tpls = nearby_tpls(branch_tpl, 0);
 	g_ptr_array_add(near_tpls, main_tpl);
-	//	int i = 0;
-	//	for (i = 0; i < near_tpls->len; i++) {
-	//		tpl *t = (tpl*) g_ptr_array_index(near_tpls, i);
-	//		p_tpl(t);
-	//	}
+		int i = 0;
+		for (i = 0; i < near_tpls->len; i++) {
+			tpl *t = (tpl*) g_ptr_array_index(near_tpls, i);
+			//p_tpl(t);
+			show_debug_msg(__func__, "Template [%d, %d] is included\n", t->id, t->len);
+		}
 	has_pairs = has_nearby_pairs(ht, near_tpls, branch_tpl, MIN_PAIRS);
 	g_ptr_array_free(near_tpls, TRUE);
 	if (!has_pairs) {
@@ -813,7 +814,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 			last_read = (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len
 					- 1);
 
-		if (t->id == -20) {
+		if (t->id == -1) {
 			p_test_read();
 			p_query("QUERY", tail);
 			p_ctg_seq("TEMPLATE", t->ctg);
@@ -822,7 +823,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
-		if (t->id == -20)
+		if (t->id == -1)
 			show_debug_msg(__func__,
 					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 					t->len, "ZACGTN"[max_c + 1]);
@@ -1179,6 +1180,9 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
 		if (!is_valid)
 			show_debug_msg(__func__,
 					"Template [%d, %d] is shorter than 100bp \n", t->id, t->len);
+	}
+	if (t->cov > HIHG_COV_THRE) {
+		is_valid = 1;
 	}
 	//p_tpl_reads(t);
 	//if (is_valid && t->cov <= MIN_BRANCH_COV)
@@ -1564,8 +1568,9 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 					to_connect, ori);
 			branch->cov = calc_tpl_cov(branch, 0, branch->len, ht->o->read_len);
 			dead = 0;
+			p_tpl(branch);
 			if (!branch->alive || (!connected && (branch->len
-					<= branch_read->len)))
+					<= branch_read->len) && branch->cov < HIHG_COV_THRE))
 				dead = 1;
 			show_debug_msg(__func__, "Dead: %d\n", dead);
 

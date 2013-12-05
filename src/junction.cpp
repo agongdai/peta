@@ -673,10 +673,10 @@ int has_nearby_junc(tpl *t, int locus) {
 	if (juncs) {
 		for (i = 0; i < juncs->len; i++) {
 			jun = (junction*) g_ptr_array_index(juncs, i);
-			if (jun->ori == 0 && locus - jun->locus <= 20 && locus - jun->locus
+			if (jun->ori == 0 && locus - jun->locus <= 40 && locus - jun->locus
 					>= 0)
 				return 1;
-			if (jun->ori == 1 && jun->locus - locus <= 20 && jun->locus - locus
+			if (jun->ori == 1 && jun->locus - locus <= 40 && jun->locus - locus
 					>= 0)
 				return 1;
 		}
