@@ -579,8 +579,8 @@ int validate_pairs_on_path(hash_table *ht, path *p) {
 	free(n_breaking);
 	if (!valid)
 		show_debug_msg(__func__,
-				"Path [%d, %d] has no pairs spanning breaking point %d.\n", p->id,
-				p->len, point);
+				"Path [%d, %d] has no pairs spanning breaking point %d.\n",
+				p->id, p->len, point);
 	return valid;
 }
 
@@ -1096,9 +1096,11 @@ void find_tpl_paths(GPtrArray *paths) {
  * Determine the paths of the component
  */
 GPtrArray *comp_paths(comp *c, hash_table *ht) {
+	printf("\n\n");
 	show_debug_msg(__func__, "Getting vertexes in component %d...\n", c->id);
 	GPtrArray *levels = get_vertex_levels(c);
 	uint32_t j = 0, i = 0;
+	int tpl_id = 0, n_from_paired = 0;
 	vertex *v = NULL;
 	GPtrArray *vertexes = NULL;
 	float *paths_prob = NULL;
@@ -1121,6 +1123,40 @@ GPtrArray *comp_paths(comp *c, hash_table *ht) {
 	if (paths->len > 2000) {
 		high_cov_paths(paths, 3);
 		return paths;
+	}
+
+	// A simple case, one template and two branches connected to it.
+	if (paths->len == 4) {
+		tpl_id = -1;
+		for (i = 0; i < paths->len; i++) {
+			p = (path*) g_ptr_array_index(paths, i);
+			if (p->is_paired) {
+				v = (vertex*) g_ptr_array_index(p->vertexes, 0);
+				tpl_id = v->from->id;
+				break;
+			}
+		}
+		if (tpl_id != -1) {
+			show_debug_msg(__func__, "Keep two paths hanging on TPL_ID: %d \n", tpl_id);
+			for (i = 0; i < paths->len; i++) {
+				p = (path*) g_ptr_array_index(paths, i);
+				if (p->is_paired)
+					continue;
+				vertexes = p->vertexes;
+				n_from_paired = 0;
+				for (j = 0; j < vertexes->len; j++) {
+					v = (vertex*) g_ptr_array_index(vertexes, j);
+					p_vertex(v);
+					if (v->from->id == tpl_id)
+						n_from_paired++;
+				}
+				if (n_from_paired == 1)
+					p->is_paired = 1;
+				else
+					p->status = 1;
+			}
+			return paths;
+		}
 	}
 
 	paths_prob = init_path_prob(paths, ht->o->read_len);
