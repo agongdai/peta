@@ -1,6 +1,13 @@
 #!/bin/bash
 
-query="paths"
+die () {
+    echo >&4 "$@"
+    exit 1
+}
+
+[ "$#" -eq 4 ] || die "4 arguments required, $# provided. run: sh eva.sh [aligner] [new/other] [branch/part/out/] [paired/peta/paths]"
+
+query="$4"
 root_dir="/home/carl/Projects/"
 eva_exe="$root_dir/peta_pair/scripts/eva.py"
 db_dir="/home/carl/Projects/peta/rnaseq/Spombe/genome/"
@@ -8,20 +15,13 @@ db="spombe.broad.tx.fasta.rev"
 #db="tx.630.oracle.fa"
 blastdb="$root_dir/ncbi-blast-2.2.26+/db/"
 similarity="99"
-query_dir="$root_dir/peta_pair/SRR097897_branch/"
+query_dir="$root_dir/peta_pair/SRR097897_$3/"
 #query_dir="$root_dir/peta_pair/spombe_630/"
 
 blastn_exe="blastn"
 blat_exe="$root_dir/blat/blat"
 occ="$root_dir/blat/11.ooc"
 bwa_exe="bwa"
-
-die () {
-    echo >&2 "$@"
-    exit 1
-}
-
-[ "$#" -eq 2 ] || die "2 arguments required, $# provided. run: sh eva.sh [aligner] [new/other]"
 
 if [ $1 = "blastn" ]; 
 	then

@@ -524,8 +524,6 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 	max_trial = con_reads->len > 4 ? 4 : con_reads->len;
 	for (i = 0; i < max_trial; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(con_reads, i);
-		if (branch->id == 1509)
-			show_debug_msg(__func__, "Branch alive: %d \n", branch->alive);
 
 		tpl_hash::iterator it = all_tpls->find(r->contig_id);
 		if (it == all_tpls->end()) {
@@ -535,6 +533,15 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		adj_ori = ori;
 		// The candidate template to connect
 		main_tpl = (tpl*) it->second;
+
+		if (branch->id == 75) {
+			p_tpl(branch);
+			p_tpl_reads(branch);
+			printf("*****\n");
+			p_tpl(main_tpl);
+			p_tpl_reads(main_tpl);
+			printf("*****\n");
+		}
 
 		too_far = 1;
 		near_tpls = nearby_tpls(main_tpl, 1);
@@ -705,11 +712,24 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		//p_ctg_seq("TRUNCATED", branch->ctg);
 		set_rev_com(branch->ctg);
 
+		if (exist_ori == 0) {
+			if (main_tpl->r_tail && con_pos > main_tpl->len - 10) {
+				branch->alive = 0;
+				break;
+			}
+		} else {
+			if (main_tpl->l_tail && con_pos < 10) {
+				branch->alive = 0;
+				break;
+			}
+		}
+
 		// Finally! Go to add the junction!
 		show_debug_msg(__func__,
 				"Connect existing [%d, %d] to [%d, %d] at %d with ori %d. \n",
 				branch->id, branch->len, main_tpl->id, main_tpl->len, con_pos,
 				exist_ori);
+
 		set_tail(branch, main_tpl, con_pos, ht->o->read_len - 1, exist_ori);
 		//p_ctg_seq("Right tail", branch->r_tail);
 		//p_ctg_seq("Left  tail", branch->l_tail);
@@ -1344,7 +1364,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			read_status = HANG;
 	int con_pos = 0, n_junc_reads = 0;
 	int exist_ori = ori, dead = 0, to_connect = 1, connected = 1;
-	int *pre_pos = NULL, *pre_cursor = NULL, n_mis = 0;
+	int *pre_pos = NULL, *pre_cursor = NULL, pre_len = 0, n_mis = 0;
 	int b_s = 0, b_e = 0, m_s = 0, m_e = 0, score = 0;
 	tpl *branch = NULL;
 	pool *p = NULL;
@@ -1848,7 +1868,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[5357353];
+	TEST = &seqs[143075];
 
 	// shrink_ht(ht);
 

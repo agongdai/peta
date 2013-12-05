@@ -1243,8 +1243,8 @@ int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
 	bwa_seq_t *r = NULL, *m = NULL;
 	int i = 0, j = 0;
 	tpl *near = NULL;
-	//show_debug_msg(__func__, "Checking pairs for template [%d, %d] \n", t->id,
-	//		t->len);
+	show_debug_msg(__func__, "Checking pairs for template [%d, %d] \n", t->id,
+			t->len);
 	for (i = 1; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		m = get_mate(r, ht->seqs);

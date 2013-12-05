@@ -530,7 +530,7 @@ void validate_short_exons(GPtrArray *paths, hash_table *ht) {
  * The reads on the path must be ordered by contig_locus increasingly
  */
 int validate_pairs_on_path(hash_table *ht, path *p) {
-	int valid = 1, *n_breaking = NULL, left = 0, right = 0;
+	int valid = 1, *n_breaking = NULL, left = 0, right = 0, point = 0;
 	bwa_seq_t *r = NULL, *m = NULL;
 	vertex *v = NULL;
 	int i = 0, j = 0, no_pairs_len = 0, cursor = ht->o->read_len * 2;
@@ -571,14 +571,16 @@ int validate_pairs_on_path(hash_table *ht, path *p) {
 				}
 			}
 		}
-		if (!valid)
+		if (!valid) {
+			point = n_breaking[j];
 			break;
+		}
 	}
 	free(n_breaking);
 	if (!valid)
 		show_debug_msg(__func__,
-				"Path [%d, %d] has no pairs spanning breaking point.\n", p->id,
-				p->len);
+				"Path [%d, %d] has no pairs spanning breaking point %d.\n", p->id,
+				p->len, point);
 	return valid;
 }
 
@@ -618,6 +620,7 @@ void assign_path_attrs(GPtrArray *paths, hash_table *ht) {
 			show_debug_msg(__func__,
 					"Pair information not consistent on path [%d, %d] \n",
 					p->id, p->len);
+			p_p(p);
 			destroy_path(p);
 			g_ptr_array_remove_index_fast(paths, i--);
 			continue;
