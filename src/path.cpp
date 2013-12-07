@@ -1152,10 +1152,7 @@ GPtrArray *comp_paths(comp *c, hash_table *ht) {
 				}
 				if (n_from_paired == 1)
 					p->is_paired = 1;
-				else
-					p->status = 1;
 			}
-			return paths;
 		}
 	}
 

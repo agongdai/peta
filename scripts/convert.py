@@ -156,7 +156,7 @@ def petaFasta2paired(fn_in, fn_out):
                         out.write(rev_comp(line) + '\n')
                     id += 1     
 
-petaFasta2paired('SRR097897.part.fa', 'SRR097897.part.shuffled.fa')
+petaFasta2paired('SRR097897.half.fa', '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.half.shuffled.fa')
 #psl2gene('/home/carl/Projects/peta/rnaseq/Spombe/genome/tx.rev.genome.psl')
 #psl2gene('/home/carl/Projects/peta_dev/scripts/spombe_630.genome.psl')
 #psl2gene('/home/carl/Projects/peta/rnaseq/Spombe/genome/tx.630.oracle.genome.psl')

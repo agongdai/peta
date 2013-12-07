@@ -230,16 +230,17 @@ def split2(args):
                 left_id = 0
                 right_id = 0
                 for line in fa:
+                    line = line.strip()
                     line_no += 1
                     if line_no % 4 == 1:
-                        l.write('>%d\n' % left_id)
+                        l.write('>%d/1\n' % left_id)
                     if line_no % 4 == 2:
-                        l.write(line)
+                        l.write(rev_comp(line) + '\n')
                         left_id += 1
                     if line_no % 4 == 3:
-                        r.write('>%d\n' % right_id)
+                        r.write('>%d/2\n' % right_id)
                     if line_no % 4 == 0:
-                        r.write(line)
+                        r.write(rev_comp(line) + '\n')
                         right_id += 1
     print 'Check left file %s' % left
     print 'Check right file %s' % right

@@ -568,6 +568,7 @@ float calc_tpl_cov(tpl *t, int start, int end, int read_len) {
 		return 0.0;
 	for (i = 0; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		//p_query(__func__, r);
 		if (r->contig_locus + r->len >= start) {
 			for (j = i; j < t->reads->len; j++) {
 				r = (bwa_seq_t*) g_ptr_array_index(t->reads, j);
@@ -1048,9 +1049,10 @@ void rm_from_tpl(tpl *t, int index) {
 void truncate_tpl(tpl *t, int len, int ori) {
 	bwa_seq_t *r = NULL;
 	int i = 0;
+	show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n",
+					t->id, t->len, ori, len);
+	p_ctg_seq("BEFORE", t->ctg);
 	if (ori) {
-		show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n",
-				t->id, t->len, ori, len);
 		for (i = 0; i < t->reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 			r->contig_locus -= len;
@@ -1064,8 +1066,6 @@ void truncate_tpl(tpl *t, int len, int ori) {
 		t->ctg->len = t->len;
 		set_rev_com(t->ctg);
 	} else {
-		show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n",
-				t->id, t->len, ori, len);
 		//for (i = t->reads->len - 1; i >= 0; i--) {
 		//	r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		//	if (r->contig_locus + r->len <= t->len - len)
@@ -1078,6 +1078,7 @@ void truncate_tpl(tpl *t, int len, int ori) {
 		t->ctg->len = t->len;
 		set_rev_com(t->ctg);
 	}
+	p_ctg_seq("AFTER", t->ctg);
 }
 
 /**

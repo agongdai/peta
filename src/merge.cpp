@@ -240,13 +240,13 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, bwa_seq_t *jumping_read, 
 				jumped->len - min(jumped->len, max_ol));
 		score = smith_waterman_simple(from, jumped_seq, &from_s, &from_e,
 				&jumped_s, &jumped_e, ht->o->k);
-		/**
+		///**
 		 p_ctg_seq("FROM", from);
 		 p_ctg_seq("JUMPED", jumped_seq);
 		 show_debug_msg(__func__, "Score: %d \n", score);
 		 show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
 		 show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
-		 **/
+		// **/
 		if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
 				&& score >= (jumped_e - jumped_s) * SM_SIMILARY && (jumped->len
 				- jumped_seq->len + jumped_s > from_s)) {
@@ -258,6 +258,7 @@ int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, bwa_seq_t *jumping_read, 
 			merge_tpl_to_right(jumped, t, 0, rev_com);
 			correct_tpl_base(ht->seqs, t, ht->o->read_len,
 					ori_len - ht->o->read_len, ori_len + ht->o->read_len);
+			p_ctg_seq("MERGED", t->ctg);
 			return 1;
 		}
 		bwa_free_read_seq(1, from);

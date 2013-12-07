@@ -739,7 +739,7 @@ int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 			}
 		}
 	}
-	/**
+	///**
 	 printf("\t\t");
 	 for (i = 0; i < seq_1->len; i++) {
 	 printf("%c\t", "ACGTN"[seq_1->seq[i]]);
@@ -758,7 +758,7 @@ int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 	 }
 	 printf("\n");
 	 }
-	 **/
+	// **/
 	// Back trace to find the starting points
 	*seq_1_start = *seq_1_stop - 1;
 	*seq_2_start = 0;
@@ -766,26 +766,30 @@ int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 		s = scores[(i) * columns + *seq_1_start + 1];
 		up_left = scores[(i - 1) * columns + *seq_1_start];
 		left = scores[(i) * columns + *seq_1_start];
-		//printf("%d\n", up_left);
-		//printf("%d\t%d\n", left, s);
+		printf("---\n%d\n", up_left);
+		printf("%d\t%d\n", left, s);
 		if (s == 1) {
 			*seq_2_start = i - 1;
 			break;
 		}
-		//show_debug_msg(__func__, "seq_1: %c; seq_2: %c \n",
-		//		"ACGTN"[seq_1->seq[*seq_1_start]], "ACGTN"[seq_2->seq[i - 1]]);
+		show_debug_msg(__func__, "seq_1: %c; seq_2: %c \n",
+				"ACGTN"[seq_1->seq[*seq_1_start]], "ACGTN"[seq_2->seq[i - 1]]);
 		if (seq_1->seq[*seq_1_start] == seq_2->seq[i - 1]) {
 			if (s == up_left + score_m)
 				*seq_1_start = *seq_1_start - 1;
 		} else {
-			if (s == up_left - score_mis || s == left - score_gap)
+			if (s == up_left - score_mis)
 				*seq_1_start = *seq_1_start - 1;
+			else if (s == left - score_gap) {
+				*seq_1_start = *seq_1_start - 1;
+				i++;
+			}
 		}
-		//printf("i: %d; seq_1_start: %d; seq_2_start: %d\n", i, *seq_1_start,
-		//		i - 1);
+		printf("i: %d; seq_1_start: %d; seq_2_start: %d\n", i, *seq_1_start,
+				i - 1);
 	}
-	//printf("seq_1: [%d, %d]; seq_2: [%d, %d] \n", *seq_1_start, *seq_1_stop,
-	//		*seq_2_start, *seq_2_stop);
+	printf("seq_1: [%d, %d]; seq_2: [%d, %d] \n", *seq_1_start, *seq_1_stop,
+			*seq_2_start, *seq_2_stop);
 	free(scores);
 	return max_score;
 }

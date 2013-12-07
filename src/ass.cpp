@@ -29,7 +29,7 @@
 
 using namespace std;
 
-int TESTING = 0;
+int TESTING = 230205;
 
 int kmer_ctg_id = 1;
 int ins_size = 0;
@@ -814,7 +814,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 			last_read = (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len
 					- 1);
 
-		if (t->id == -1) {
+		if (t->id == 1) {
 			p_test_read();
 			p_query("QUERY", tail);
 			p_ctg_seq("TEMPLATE", t->ctg);
@@ -823,7 +823,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 
 		max_c = get_next_char(ht, p, near_tpls, t, ori);
 
-		if (t->id == -1)
+		if (t->id == 1)
 			show_debug_msg(__func__,
 					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 					t->len, "ZACGTN"[max_c + 1]);
@@ -1043,8 +1043,8 @@ tpl *ext_a_read(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *read,
  */
 void do_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from, tpl *t,
 		bwa_seq_t *r) {
-	show_debug_msg(__func__, "Jumping to read %s as template %d ...\n",
-			r->name, t->id);
+	show_debug_msg(__func__, "Jumping from template [%d, %d] to read %s as template %d ...\n",
+			from->id, from->len, r->name, t->id);
 	ext_unit(ht, all_tpls, NULL, from, t, NULL, 0, 1);
 	// Maybe marked as not alive in last extension
 	if (!t->alive)
@@ -1064,7 +1064,7 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 	if (!from || !from->alive)
 		return;
 	//	g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
-	//p_tpl_reads(from);
+	p_tpl_reads(from);
 	for (i = 0; i < from->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
 		m = get_mate(r, ht->seqs);
@@ -1113,14 +1113,15 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 					"Jumped to read %s [%d, %d] as [%d, %d]...\n\n", m->name,
 					to->id, to->len, from->id, from->len);
 			unfrozen_tried(to);
+			g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+			//p_tpl_reads(from);
 			if (strcmp(m->name, "348955") == 0) {
 				show_debug_msg("FINDME", "READS ON IT\n");
 				g_ptr_array_sort(from->reads,
 						(GCompareFunc) cmp_reads_by_contig_locus);
-				//p_tpl_reads(from);
 			}
-			//i = 0;
-			//unfrozen_hang_reads();
+			i = 0;
+			unfrozen_hang_reads();
 		} else {
 			show_debug_msg(__func__, "Template [%d, %d] not merged. \n",
 					to->id, to->len);
@@ -1220,6 +1221,7 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 	show_debug_msg(__func__, "Pruning head/tails of template [%d, %d] ... \n",
 			t->id, t->len);
 	g_ptr_array_sort(branches, (GCompareFunc) cmp_junc_by_locus);
+	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 
 	//p_tpl(t);
 	//p_junctions(branches);
@@ -1877,8 +1879,10 @@ void kmer_threads(kmer_t_meta *params) {
 
 	// shrink_ht(ht);
 
-	show_msg(__func__, "Sorting %d initial reads ... \n", starting_reads->len);
-	g_ptr_array_sort(starting_reads, (GCompareFunc) cmp_kmers_by_count);
+	if (!TESTING) {
+		show_msg(__func__, "Sorting %d initial reads ... \n", starting_reads->len);
+		g_ptr_array_sort(starting_reads, (GCompareFunc) cmp_kmers_by_count);
+	}
 	show_msg(__func__, "Extending by reads ...\n");
 	show_msg(
 			__func__,
