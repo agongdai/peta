@@ -197,7 +197,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		return 0;
 
 	side = should_at_which_side(ht->seqs, from, jumping_read);
-	show_debug_msg(__func__, "Read %s at side %d \n", jumping_read->name, side);
+	show_debug_msg(__func__, "Read %s at side %d; %s \n", jumping_read->name, side, side == -1 ? "LEFT" : "RIGHT");
 
 	if (!from->r_tail && (side == 1 || side == 0)) {
 		from_seq = new_seq(from->ctg, min(max_ol, from->len), from->len
@@ -220,7 +220,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
 				&& score >= (jumped_e - jumped_s) * SM_SIMILARY
 				&& from_seq->len - from_e < jumped->len - jumped_e && (jumped_s
-				<= 4 || from_s <= 4)) {
+				<= 4 || from_e - from_s <= 4)) {
 			truncate_tpl(from, from_seq->len - from_e, 0);
 			//p_ctg_seq("JUMPED TO MERGED", jumped->ctg);
 			truncate_tpl(jumped, jumped_e, 1);

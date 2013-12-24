@@ -29,8 +29,8 @@
 
 using namespace std;
 
-int TESTING = 877810;
-int DETAIL_ID = 0;
+int TESTING = 124349;
+int DETAIL_ID = 1;
 
 int kmer_ctg_id = 1;
 int ins_size = 0;
@@ -1018,7 +1018,7 @@ tpl *ext_a_read(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *read,
 		add2tpl(t, read, 0);
 	// Right->left->right->left...until not extendable
 	// If it is connected to somewhere, simply stop
-	while (iter++ < 2 && t->len > pre_len && (!t->b_juncs || t->b_juncs->len
+	while (iter++ <= 2 && t->len > pre_len && (!t->b_juncs || t->b_juncs->len
 			== 0)) {
 		// Extend to the left first
 		after_unit = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
@@ -1026,12 +1026,11 @@ tpl *ext_a_read(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *read,
 		//p_ctg_seq(__func__, t->ctg);
 		if (after_unit == -1)
 			break;
-
+		pre_len = t->len;
 		after_unit = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
 		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 		if (after_unit == -1)
 			break;
-		pre_len = t->len;
 	}
 	// If the read cannot be even extend one base, reset the read to fresh
 	if (t->len == read->len) {

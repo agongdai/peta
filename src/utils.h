@@ -45,7 +45,7 @@
 #define MATE_MULTI				3000
 
 #define BRANCH_SIMILARITY		0.90
-#define SM_SIMILARY				0.80
+#define SM_SIMILARY				0.70
 #define BRANCHING_THRE			0.04
 #define MIN_BRANCH_COV			1.5
 #define LOW_PART_COV			4
