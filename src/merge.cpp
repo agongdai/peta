@@ -69,7 +69,7 @@ void merge_tpl_to_right(tpl *jumped, tpl *t, int ol, int rev_com) {
 	ubyte_t c = 0;
 	junction *jun = 0;
 	show_debug_msg(__func__, "Merging Right: [%d, %d] Vs. [%d, %d]; ol: %d\n",
-			t->id, t->len, jumped->id, jumped->len, ol);
+			jumped->id, jumped->len, t->id, t->len, ol);
 	if (!t || !jumped || ol >= t->len || ol >= jumped->len)
 		return;
 	if (t->l_tail) {
@@ -183,85 +183,92 @@ int similar_to_merge(bwa_seq_t *from, bwa_seq_t *jumped, int unique_len) {
  * Try to merge two templates.
  * The 'jumped' template does not have any junctions on it
  */
-int merged_jumped(hash_table *ht, tpl *t, tpl *jumped, bwa_seq_t *jumping_read, int mis) {
+int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
+		bwa_seq_t *jumping_read, int mis) {
 	int rev_com = 0, n_mis = 0;
 	int from_s = 0, from_e = 0, jumped_s = 0, jumped_e = 0;
 	int score = 0, similar = 0, ori_len = 0, side = 0;
 	int max_ol = ht->o->read_len * 1.5;
-	bwa_seq_t *from = NULL, *jumped_seq = NULL, *r = NULL;
+	bwa_seq_t *from_seq = NULL, *jumped_seq = NULL, *r = NULL;
 	//	p_tpl_reads(t);
 	//	p_tpl_reads(jumped);
-	if (!paired_by_reads(ht->seqs, t, jumped, 2) && jumped->len > ht->o->read_len + 2)
+	if (!paired_by_reads(ht->seqs, from, jumped, 1) && jumped->len
+			> ht->o->read_len + 2)
 		return 0;
 
-	side = should_at_which_side(ht->seqs, t, jumping_read);
+	side = should_at_which_side(ht->seqs, from, jumping_read);
 	show_debug_msg(__func__, "Read %s at side %d \n", jumping_read->name, side);
 
-	if (!t->r_tail && (side == 1 || side == 0)) {
-		from = new_seq(t->ctg, min(max_ol, t->len), t->len - min(max_ol, t->len));
+	if (!from->r_tail && (side == 1 || side == 0)) {
+		from_seq = new_seq(from->ctg, min(max_ol, from->len), from->len
+				- min(max_ol, from->len));
 		jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), 0);
-		score = smith_waterman_simple(from, jumped_seq, &from_s, &from_e,
+		score = smith_waterman_simple(from_seq, jumped_seq, &from_s, &from_e,
 				&jumped_s, &jumped_e, ht->o->k);
 
-		/**
-		p_ctg_seq("FROM", t->ctg);
-		p_ctg_seq("FROM_PART END", from);
+		///**
+		p_ctg_seq("FROM", from->ctg);
+		p_ctg_seq("FROM_PART END", from_seq);
 		p_ctg_seq("JUMPED", jumped->ctg);
 		p_ctg_seq("JUMPED_PART HEAD", jumped_seq);
 		show_debug_msg(__func__, "SCORE: %d \n", score);
 		show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
 		show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
 		//p_tpl_reads(jumped);
-		**/
+		//**/
 
 		if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
-				&& score >= (jumped_e - jumped_s) * SM_SIMILARY && from->len
-				- from_e < jumped->len - jumped_e) {
-			truncate_tpl(t, from->len - from_e, 0);
+				&& score >= (jumped_e - jumped_s) * SM_SIMILARY
+				&& from_seq->len - from_e < jumped->len - jumped_e && (jumped_s
+				<= 4 || from_s <= 4)) {
+			truncate_tpl(from, from_seq->len - from_e, 0);
 			//p_ctg_seq("JUMPED TO MERGED", jumped->ctg);
 			truncate_tpl(jumped, jumped_e, 1);
 			//p_ctg_seq("JUMPED TO MERGED", jumped->ctg);
-			bwa_free_read_seq(1, from);
+			bwa_free_read_seq(1, from_seq);
 			bwa_free_read_seq(1, jumped_seq);
-			ori_len = t->len;
-			merge_tpl_to_left(t, jumped, 0, rev_com);
-			correct_tpl_base(ht->seqs, t, ht->o->read_len,
-					ori_len - ht->o->read_len, ori_len + ht->o->read_len);
+			ori_len = from->len;
+			merge_tpl_to_left(from, jumped, 0, rev_com);
+			correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
+					- ht->o->read_len, ori_len + ht->o->read_len);
 			return 1;
 		}
-		bwa_free_read_seq(1, from);
+		bwa_free_read_seq(1, from_seq);
 		bwa_free_read_seq(1, jumped_seq);
 	}
 
-	if (!t->l_tail && (side == -1 || side == 0)) {
+	if (!from->l_tail && (side == -1 || side == 0)) {
 		// From right template jump to left
-		from = new_seq(t->ctg, min(max_ol, t->len), 0);
-		jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol),
-				jumped->len - min(jumped->len, max_ol));
-		score = smith_waterman_simple(from, jumped_seq, &from_s, &from_e,
+		from_seq = new_seq(from->ctg, min(max_ol, from->len), 0);
+		jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), jumped->len
+				- min(jumped->len, max_ol));
+		score = smith_waterman_simple(from_seq, jumped_seq, &from_s, &from_e,
 				&jumped_s, &jumped_e, ht->o->k);
 		///**
-		 p_ctg_seq("FROM", from);
-		 p_ctg_seq("JUMPED", jumped_seq);
-		 show_debug_msg(__func__, "Score: %d \n", score);
-		 show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
-		 show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
+		p_ctg_seq("FROM", from->ctg);
+		p_ctg_seq("FROM_PART END", from_seq);
+		p_ctg_seq("JUMPED", jumped->ctg);
+		p_ctg_seq("JUMPED_PART HEAD", jumped_seq);
+		show_debug_msg(__func__, "Score: %d \n", score);
+		show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
+		show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
 		// **/
 		if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
 				&& score >= (jumped_e - jumped_s) * SM_SIMILARY && (jumped->len
-				- jumped_seq->len + jumped_s > from_s)) {
-			truncate_tpl(t, from_s, 1);
+				- jumped_seq->len + jumped_s > from_s) && (jumped_seq->len
+				- jumped_e <= 4 || from_seq->len - from_e <= 4)) {
+			truncate_tpl(from, from_s, 1);
 			truncate_tpl(jumped, jumped_seq->len - jumped_s, 0);
-			bwa_free_read_seq(1, from);
+			bwa_free_read_seq(1, from_seq);
 			bwa_free_read_seq(1, jumped_seq);
 			ori_len = jumped->len;
-			merge_tpl_to_right(jumped, t, 0, rev_com);
-			correct_tpl_base(ht->seqs, t, ht->o->read_len,
-					ori_len - ht->o->read_len, ori_len + ht->o->read_len);
-			p_ctg_seq("MERGED", t->ctg);
+			merge_tpl_to_right(jumped, from, 0, rev_com);
+			correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
+					- ht->o->read_len, ori_len + ht->o->read_len);
+			//p_ctg_seq("MERGED", t->ctg);
 			return 1;
 		}
-		bwa_free_read_seq(1, from);
+		bwa_free_read_seq(1, from_seq);
 		bwa_free_read_seq(1, jumped_seq);
 	}
 	return 0;

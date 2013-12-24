@@ -98,6 +98,7 @@ extern "C" {
 			int shift, int mismatches, int8_t status, int ori);
 	GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int max, int shift,
 			int mismatches, int8_t status, int ori);
+	int binary_exist(GPtrArray *reads, bwa_seq_t *q);
 	int has_pairs_on_tpl(hash_table *ht, tpl *t, const int n_pairs);
 	int find_pairs(GPtrArray *reads_1, GPtrArray *reads_2, int t1_id, int t2_id,
 			int start_2, int end_2, const int min_n_pairs);

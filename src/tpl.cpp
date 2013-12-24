@@ -380,6 +380,20 @@ int binary_search_read(GPtrArray *reads, bwa_seq_t *q) {
 }
 
 /**
+ * Check whether a read exists in an array
+ */
+int binary_exist(GPtrArray *reads, bwa_seq_t *q) {
+	bwa_seq_t *r = NULL;
+	int index = binary_search_read(reads, q);
+	if (index < 0 || index >= reads->len)
+		return 0;
+	r = (bwa_seq_t*) g_ptr_array_index(reads, index);
+	if (r == q)
+		return 1;
+	return 0;
+}
+
+/**
  * Check whether there are at least n_pairs of paired reads on the template
  */
 int has_pairs_on_tpl(hash_table *ht, tpl *t, const int n_pairs) {
@@ -1044,7 +1058,7 @@ void rm_from_tpl(tpl *t, int index) {
 
 /**
  * Truncate the template by some length at left/right side;
- * The reads falling within this range will be marked as DEAD.
+ * The reads falling within this range will be marked as FRESH.
  */
 void truncate_tpl(tpl *t, int len, int ori) {
 	bwa_seq_t *r = NULL;
@@ -1056,9 +1070,11 @@ void truncate_tpl(tpl *t, int len, int ori) {
 		for (i = 0; i < t->reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 			r->contig_locus -= len;
-			//p_query("DEAD", r);
-			//reset_to_dead(r);
-			//g_ptr_array_remove_index_fast(t->reads, i--);
+			if (r->contig_locus < 0) {
+				p_query("RESET", r);
+				reset_to_dead(r);
+				g_ptr_array_remove_index_fast(t->reads, i--);
+			}
 		}
 		memmove(t->ctg->seq, t->ctg->seq + len, sizeof(ubyte_t)
 				* (t->len - len));
@@ -1066,14 +1082,14 @@ void truncate_tpl(tpl *t, int len, int ori) {
 		t->ctg->len = t->len;
 		set_rev_com(t->ctg);
 	} else {
-		//for (i = t->reads->len - 1; i >= 0; i--) {
-		//	r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
-		//	if (r->contig_locus + r->len <= t->len - len)
-		//		break;
-		//p_query("DEAD", r);
-		//reset_to_dead(r);
-		//g_ptr_array_remove_index_fast(t->reads, i);
-		//}
+		for (i = t->reads->len - 1; i >= 0; i--) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+			if (r->contig_locus + r->len > t->len - len) {
+				p_query("RESET", r);
+				reset_to_dead(r);
+				g_ptr_array_remove_index_fast(t->reads, i);
+			}
+		}
 		t->len -= len;
 		t->ctg->len = t->len;
 		set_rev_com(t->ctg);
