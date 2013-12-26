@@ -1047,21 +1047,46 @@ def analyze(args):
 	print ''
 	
 	no_enough_coverage = {}
+	counter = 0
 	for id in ids:
+		#id = 'SPCC1494.11c_T0'
 		cmd = 'grep %s %s' % (id, args.read2tx)
+		counter += 1
+		print '%d:\t%s ...' % (counter, cmd)
 		raw_lines = runInShell(cmd)
 		hit_lines = raw_lines.split('\n')
 		hits = read_psl_hits(hit_lines, 'ref')
-		base_coverage = pileup_coverage(hits)
+		tx_hits = hits[id]
+		tx_hits.sort(key=lambda x:x.rstart)
+		base_coverage = pileup_coverage(tx_hits)
+		h = tx_hits[0]
 		for i in range(len(base_coverage)):
 			b = base_coverage[i]
 			if b == 0:
 				no_enough_coverage[id] = 'Not covered: 0 at %d' % i
 				break
+				
+		cursor = 0
+		tx_hits.sort(key=lambda x:x.rstart)
+		if not id in no_enough_coverage:
+			for i in range(len(tx_hits) - 1):
+				h = tx_hits[i]
+				h_next = tx_hits[i + 1]
+				if cursor > 0 and cursor - h_next.rstart < 11:
+					no_enough_coverage[id] = 'Small overlapped region / Indels: [%d, %d)' % (h_next.rstart, h.rend)
+					break
+				else:
+					tmp = h_next.rstart + h_next.block_sizes[0]
+					if tmp > cursor: cursor = tmp
+				#print h
+				#print h_next
+				#print 'Cursor: %d' % cursor
+				#print '----'
+		#break
 	
 	print '------------ No coverage: %d ---------------' % (len(no_enough_coverage))
 	for id, des in no_enough_coverage.iteritems():
-		print '%s: \t%s' % (id, des)
+		print '%20s: \t%s' % (id, des)
 	ids = list(set(ids) - set(no_enough_coverage.keys()))
 
 	captured_in_paths = []

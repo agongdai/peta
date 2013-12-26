@@ -29,8 +29,8 @@
 
 using namespace std;
 
-int TESTING = 105064;
-int DETAIL_ID = 0;
+int TESTING = 0;
+int DETAIL_ID = -1;
 
 int kmer_ctg_id = 1;
 int ins_size = 0;
