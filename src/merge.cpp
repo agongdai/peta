@@ -189,6 +189,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 	int from_s = 0, from_e = 0, jumped_s = 0, jumped_e = 0;
 	int score = 0, similar = 0, ori_len = 0, side = 0;
 	int max_ol = ht->o->read_len * 1.5;
+	float from_cov = 0.0, jumped_cov = 0.0;
 	bwa_seq_t *from_seq = NULL, *jumped_seq = NULL, *r = NULL;
 	//	p_tpl_reads(t);
 	//	p_tpl_reads(jumped);
@@ -197,7 +198,8 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		return 0;
 
 	side = should_at_which_side(ht->seqs, from, jumping_read);
-	show_debug_msg(__func__, "Read %s at side %d; %s \n", jumping_read->name, side, side == -1 ? "LEFT" : "RIGHT");
+	show_debug_msg(__func__, "Read %s at side %d; %s \n", jumping_read->name,
+			side, side == -1 ? "LEFT" : "RIGHT");
 
 	if (!from->r_tail && (side == 1 || side == 0)) {
 		from_seq = new_seq(from->ctg, min(max_ol, from->len), from->len
@@ -221,14 +223,23 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 				&& score >= (jumped_e - jumped_s) * SM_SIMILARY
 				&& from_seq->len - from_e < jumped->len - jumped_e && (jumped_s
 				<= 4 || from_e - from_s <= 4)) {
-			truncate_tpl(from, from_seq->len - from_e, 0);
-			//p_ctg_seq("JUMPED TO MERGED", jumped->ctg);
-			truncate_tpl(jumped, jumped_e, 1);
-			//p_ctg_seq("JUMPED TO MERGED", jumped->ctg);
+			// For the overlapped region, pick the one with higher coverage
+			from_cov = calc_tpl_cov(from, from->len - from_seq->len + from_s,
+					from->len - from_seq->len + from_e, ht->o->read_len);
+			jumped_cov = calc_tpl_cov(jumped, jumped_s, jumped_e,
+					ht->o->read_len);
+			if (from_cov > jumped_cov) {
+				truncate_tpl(from, from_seq->len - from_e, 0);
+				truncate_tpl(jumped, jumped_e, 1);
+			} else {
+				truncate_tpl(from, from_seq->len - from_s, 0);
+				truncate_tpl(jumped, jumped_s, 1);
+			}
 			bwa_free_read_seq(1, from_seq);
 			bwa_free_read_seq(1, jumped_seq);
 			ori_len = from->len;
 			merge_tpl_to_left(from, jumped, 0, rev_com);
+			refresh_tpl_reads(ht, from, N_MISMATCHES);
 			correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
 					- ht->o->read_len, ori_len + ht->o->read_len);
 			return 1;
@@ -257,12 +268,22 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 				&& score >= (jumped_e - jumped_s) * SM_SIMILARY && (jumped->len
 				- jumped_seq->len + jumped_s > from_s) && (jumped_seq->len
 				- jumped_e <= 4 || from_seq->len - from_e <= 4)) {
-			truncate_tpl(from, from_s, 1);
-			truncate_tpl(jumped, jumped_seq->len - jumped_s, 0);
+			from_cov = calc_tpl_cov(from, from_s, from_e, ht->o->read_len);
+			jumped_cov = calc_tpl_cov(jumped, jumped->len - jumped_seq->len
+					+ jumped_s, jumped->len - jumped_seq->len + jumped_e,
+					ht->o->read_len);
+			if (from_cov > jumped_cov) {
+				truncate_tpl(from, from_s, 1);
+				truncate_tpl(jumped, jumped_seq->len - jumped_s, 0);
+			} else {
+				truncate_tpl(from, from_e, 1);
+				truncate_tpl(jumped, jumped_seq->len - jumped_e, 0);
+			}
 			bwa_free_read_seq(1, from_seq);
 			bwa_free_read_seq(1, jumped_seq);
 			ori_len = jumped->len;
 			merge_tpl_to_right(jumped, from, 0, rev_com);
+			refresh_tpl_reads(ht, from, N_MISMATCHES);
 			correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
 					- ht->o->read_len, ori_len + ht->o->read_len);
 			//p_ctg_seq("MERGED", t->ctg);

@@ -2,10 +2,15 @@ from __future__ import division
 import sys, os, pysam
 from argparse import ArgumentParser
 import collections
+from subprocess import Popen, PIPE
 
 bad_bases_thre = 10
 full_length_perc = 0.99
 near_full_length = 0.9
+
+def runInShell(cmd):
+    p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
+    return p.communicate()[0]
 
 class ResultSummary(object):
 	def __init__(self, contig_fn):
@@ -266,6 +271,20 @@ def cal_base_cover(annotated_tx, hits):
 					for i in range(start, end):
 						binary_covered[i] = 1
 		base_cover[tx_name] = binary_covered
+	return base_cover
+
+def pileup_coverage(hits):
+	if len(hits) <= 0: return []
+	h = hits[0]
+	tx_len = h.rlen
+	base_cover = [0 for _ in range(tx_len)]
+	hits.sort(key=lambda x:x.rstart)
+	for h in hits:
+		for i in range(h.n_blocks):
+			s = h.r_block_starts[i]
+			e = s + h.block_sizes[i]
+			for j in range(s, e):
+				base_cover[j] = base_cover[j] + 1
 	return base_cover
 
 def cal_accuracy(annotated_tx, hits):
@@ -1026,6 +1045,24 @@ def analyze(args):
 	for id in missing_singletons:
 		print id
 	print ''
+	
+	no_enough_coverage = {}
+	for id in ids:
+		cmd = 'grep %s %s' % (id, args.read2tx)
+		raw_lines = runInShell(cmd)
+		hit_lines = raw_lines.split('\n')
+		hits = read_psl_hits(hit_lines, 'ref')
+		base_coverage = pileup_coverage(hits)
+		for i in range(len(base_coverage)):
+			b = base_coverage[i]
+			if b == 0:
+				no_enough_coverage[id] = 'Not covered: 0 at %d' % i
+				break
+	
+	print '------------ No coverage: %d ---------------' % (len(no_enough_coverage))
+	for id, des in no_enough_coverage.iteritems():
+		print '%s: \t%s' % (id, des)
+	ids = list(set(ids) - set(no_enough_coverage.keys()))
 
 	captured_in_paths = []
 	for id in ids:

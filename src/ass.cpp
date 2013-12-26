@@ -29,8 +29,8 @@
 
 using namespace std;
 
-int TESTING = 124349;
-int DETAIL_ID = 1;
+int TESTING = 0;
+int DETAIL_ID = -1;
 
 int kmer_ctg_id = 1;
 int ins_size = 0;
@@ -1122,7 +1122,6 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 						"Jumped to read %s [%d, %d] as [%d, %d]...\n\n", m->name,
 						to->id, to->len, from->id, from->len);
 				unfrozen_tried(to);
-				refresh_tpl_reads(ht, from, N_MISMATCHES);
 				g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 				i = 0;
 				while (hanged->len > 0) {

@@ -898,8 +898,8 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len, int start,
 	show_debug_msg(__func__,
 			"Correcting template [%d, %d] at range [%d, %d] ...\n", t->id,
 			t->len, start, end);
-	//p_ctg_seq("BEFORE", t->ctg);
 	//p_tpl_reads(t);
+	//p_ctg_seq("BEFORE", t->ctg);
 
 	for (i = 0; i < t->len; i++) {
 		cs = (int*) calloc(5, sizeof(int));
@@ -1063,6 +1063,8 @@ void rm_from_tpl(tpl *t, int index) {
 void truncate_tpl(tpl *t, int len, int ori) {
 	bwa_seq_t *r = NULL;
 	int i = 0;
+	if (len <= 0)
+		return;
 	show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n",
 					t->id, t->len, ori, len);
 	p_ctg_seq("BEFORE", t->ctg);
@@ -1072,7 +1074,7 @@ void truncate_tpl(tpl *t, int len, int ori) {
 			r->contig_locus -= len;
 			if (r->contig_locus < 0) {
 				p_query("RESET", r);
-				reset_to_dead(r);
+				reset_to_fresh(r);
 				g_ptr_array_remove_index_fast(t->reads, i--);
 			}
 		}
@@ -1086,7 +1088,7 @@ void truncate_tpl(tpl *t, int len, int ori) {
 			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 			if (r->contig_locus + r->len > t->len - len) {
 				p_query("RESET", r);
-				reset_to_dead(r);
+				reset_to_fresh(r);
 				g_ptr_array_remove_index_fast(t->reads, i);
 			}
 		}
