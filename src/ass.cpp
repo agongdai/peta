@@ -29,8 +29,8 @@
 
 using namespace std;
 
-int TESTING = 0;
-int DETAIL_ID = -1;
+int TESTING = 105064;
+int DETAIL_ID = 0;
 
 int kmer_ctg_id = 1;
 int ins_size = 0;
@@ -1442,14 +1442,14 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		if (b_reads->len < 2) {
 			branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, 0);
 			mate = get_mate(branch_read, ht->seqs);
-			if (mate->contig_id == t->id) {
+			if (mate->status == USED && mate->contig_id == t->id) {
 
 			} else {
 				branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, 0);
 				reset_to_fresh(branch_read);
 				g_ptr_array_free(b_reads, TRUE);
+				continue;
 			}
-			continue;
 		}
 		if (b_reads->len > 0) {
 			printf("\n ---- \n");
