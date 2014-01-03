@@ -966,3 +966,34 @@ int is_tail_junction(junction *jun) {
 	}
 	return 0;
 }
+
+/**
+ * For branches on a template, count the reads at the junctions
+ */
+void set_jun_reads(hash_table *ht, tpl *t) {
+	GPtrArray *juncs = t->m_juncs;
+	junction *jun = NULL;
+	int i = 0, changed = 0;
+	tpl *branch = NULL;
+	ubyte_t *new_seq = NULL;
+	bwa_seq_t *jun_seq = NULL;
+	if (!juncs || !t->alive)
+		return;
+	g_ptr_array_sort(juncs, (GCompareFunc) cmp_junc_by_locus);
+	for (i = 0; i < juncs->len; i++) {
+		jun = (junction*) g_ptr_array_index(juncs, i);
+		if (jun->status != 0 || jun->weight > 0)
+			continue;
+		//p_junction(jun);
+		//p_tpl_reads(jun->main_tpl);
+		//p_tpl_reads(jun->branch_tpl);
+		//p_tpl(jun->main_tpl);
+		//p_tpl(jun->branch_tpl);
+		jun->weight = count_jun_reads(ht, jun);
+		//		if (jun->weight < MIN_JUNCTION_READS) {
+		//			destroy_junction(jun);
+		//			i--;
+		//		}
+		//		p_junction(jun);
+	}
+}

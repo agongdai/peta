@@ -21,29 +21,6 @@ typedef struct {
 	int to_try_connect;
 } kmer_t_meta;
 
-typedef struct {
-	int n_match;
-	int n_mismatch;
-	int n_rep;
-	int n_n;
-	int n_query_gap;
-	int n_query_gap_base;
-	int n_ref_gap;
-	int n_ref_gap_base;
-	char strand;
-	char *query;
-	int q_len;
-	int q_start;
-	int q_end;
-	char *ref;
-	int r_len;
-	int r_start;
-	int r_end;
-	int n_block;
-	int *block_size;
-	int *query_block_start;
-	int *ref_block_start;
-} blat_hit;
 
 #ifdef __cplusplus
 extern "C" {

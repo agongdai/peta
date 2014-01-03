@@ -75,6 +75,7 @@ extern "C" {
 	int is_tail_junction(junction *jun);
 	int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, GPtrArray *junc_reads,
 			hash_table *ht, const int con_pos, const int ins_size, const int ori);
+	void set_jun_reads(hash_table *ht, tpl *t);
 
 #ifdef __cplusplus
 }

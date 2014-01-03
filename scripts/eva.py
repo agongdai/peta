@@ -1045,18 +1045,27 @@ def analyze(args):
 	for id in missing_singletons:
 		print id
 	print ''
-	
-	no_enough_coverage = {}
+    
+	all_hits = {}
 	counter = 0
 	for id in ids:
-		#id = 'SPCC1494.11c_T0'
+		#if not id == 'SPBC8D2.01_T0':
+		#	continue
 		cmd = 'grep %s %s' % (id, args.read2tx)
 		counter += 1
 		print '%d:\t%s ...' % (counter, cmd)
 		raw_lines = runInShell(cmd)
 		hit_lines = raw_lines.split('\n')
-		hits = read_psl_hits(hit_lines, 'ref')
-		tx_hits = hits[id]
+		all_hits[id] = read_psl_hits(hit_lines, 'ref')[id]
+	
+	no_enough_coverage = {}
+	for id in ids:
+		#id = 'SPBC8D2.01_T0'
+		all_tx_hits = all_hits[id]
+		tx_hits = []
+		for h in all_tx_hits:
+			if h.n_match >= h.qlen - 2 or h.rstart == 0 or h.rend == h.rlen:
+				tx_hits.append(h)
 		tx_hits.sort(key=lambda x:x.rstart)
 		base_coverage = pileup_coverage(tx_hits)
 		h = tx_hits[0]
@@ -1277,6 +1286,76 @@ def analyze(args):
 	for id in ids:
 		print id
 
+def quality(args):
+    ids = {}
+    with open(args.id_file) as id_f:
+        for line in id_f:
+            line = line.strip()
+            if len(line) > 1:
+                ids[line] = 0
+    counter = 0
+    n_bad_hit = 0
+    n_good_hit = 0
+    n_not_full = 0
+    n_no_hit = 0
+    with open(args.start) as starts:
+        for line in starts:
+            line = line.strip()
+            fs = line.split(', ')
+            if len(fs) < 4:
+                continue
+            counter += 1
+            read_id = fs[3]
+            print '---------- Template %s, Read %s ------------' % (fs[2], read_id)
+            cmd = 'grep %s %s' % (read_id, args.read2tx)
+            hit_lines = runInShell(cmd).split('\n')
+            raw_hits = read_psl_hits(hit_lines, 'query')
+            if len(raw_hits) <= 0 or not read_id in raw_hits:
+                print 'No hits'
+                n_no_hit += 1
+                continue
+            #print raw_hits
+            hits = raw_hits[read_id]
+            for h in hits:
+                if h.n_match >= h.qlen - 2:
+                    print 'Good hit on %s' % h.rname
+                    n_good_hit += 1
+                else:
+                    if h.rstart == 0 and h.n_match >= h.qlen - h.qstart - 2:
+                        print 'Good hit on %s' % h.rname
+                        n_good_hit += 1
+                    elif h.rend == h.rlen and h.n_match >= h.qlen - h.qend - 2:
+                        print 'Good hit on %s' % h.rname
+                        n_good_hit += 1
+                    else:
+                        print 'Bad hit on %s' % h.rname
+                        n_bad_hit += 1
+                        print h
+                        if h.rname in ids.keys():
+                            print 'Not full-length'
+                            cmd = 'grep %s %s' % (h.rname, args.paired2tx)
+                            tmp = runInShell(cmd).split('\n')
+                            paired_raw_hits = read_psl_hits(tmp, 'ref')
+                            paired_hits = paired_raw_hits[h.rname]
+                            print paired_hits
+                            print h
+                            for p in paired_hits:
+                                if p.rend == h.rend:
+                                    print 'Misleading bad hit' 
+                                    cmd = 'zoom ctx -t %s -f spombe.broad.tx.fasta.rev ../SRR097897_half/paired.fa.psl' % h.rname
+                                    print cmd
+                                    cmd = 'zoom rtx -r SRR097897.half.fa -f spombe.broad.tx.fasta.rev -p SRR097897.half.fa.psl %s' % h.rname
+                                    print cmd
+                                    break
+                            if ids[h.rname] == 0:
+                                n_not_full += 1
+                                ids[h.rname] = 1
+    print 'Total: %d' % counter
+    print 'Good hits: %d' % n_good_hit
+    print 'No hits: %d' % n_no_hit
+    print 'Bad hit: %d' % n_bad_hit
+    print 'Not full-length: %d' % n_not_full
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -1328,6 +1407,13 @@ def main():
     parser_comps.add_argument('psl', help='component-to-ref PSL file')
     parser_comps.add_argument('id_file', help='file of id list to check')
     parser_comps.add_argument('csv', help='components.csv')
+    
+    parser_quality = subparsers.add_parser('qua', help='Check quality of starting reads when jumping')
+    parser_quality.set_defaults(func=quality)
+    parser_quality.add_argument('id_file', help='file of id list to check')
+    parser_quality.add_argument('read2tx', help='read-to-transcript psl')
+    parser_quality.add_argument('paired2tx', help='paired-to-transcript psl')
+    parser_quality.add_argument('start', help='file with starting reads id')
     
     parser_analyze = subparsers.add_parser('any', help='Analyse missing transcripts')
     parser_analyze.set_defaults(func=analyze)
