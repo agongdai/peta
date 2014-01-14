@@ -1355,6 +1355,37 @@ def quality(args):
     print 'No hits: %d' % n_no_hit
     print 'Bad hit: %d' % n_bad_hit
     print 'Not full-length: %d' % n_not_full
+    
+def steps(args):
+    tx = ''
+    hits = {}
+    with open(args.log, 'r') as log:
+        for line in log:
+            fs = line.split(':')
+            if len(fs) < 2:
+                hits[tx] += line
+            else:
+                tmps = fs[0].split(' ')
+                tx = tmps[-1]
+                if tx in hits:
+                    hits[tx] += line
+                else:
+                    hits[tx] = line
+    
+    full_then_partial = {}
+    for tx, lines in hits.iteritems():
+        #print '--------- Transcript %s ---------' % tx
+        #print lines
+        splited = lines.split('\n')
+        for l in splited:
+            if 'FULL' in l:
+                full_then_partial[tx] = lines
+                break
+    
+    print 'FULL BUT THEN PARTIAL: %d' % len(full_then_partial)
+    for tx, lines in full_then_partial.iteritems():
+        print '--------- Transcript %s ---------' % tx
+        print lines
 
 def main():
     parser = ArgumentParser()
@@ -1424,6 +1455,10 @@ def main():
     parser_analyze.add_argument('read2tx', help='read-to-transcript psl')
     parser_analyze.add_argument('paired2tx', help='paired-to-transcript psl')
     parser_analyze.add_argument('junctions', help='paired.junctions')
+    
+    parser_steps = subparsers.add_parser('step', help='Check steps for missing transcripts')
+    parser_steps.set_defaults(func=steps)
+    parser_steps.add_argument('log', help='log file containing test_steps')
     
     args = parser.parse_args()
     args.func(args)

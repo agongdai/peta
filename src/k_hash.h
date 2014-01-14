@@ -21,6 +21,15 @@ typedef uint64_t hash_value;
 typedef int16_t read_pos;
 
 typedef struct {
+	bwa_seq_t *starting_read;
+	bwa_seq_t *ref;
+	GPtrArray *hits;
+	int cursor;
+	int ori;
+	char *step;
+} testing_info;
+
+typedef struct {
 	int k;				// k value, 25 by default
 	int mode; 			// For sequences reading using BWA
 	int read_len;		// Read length

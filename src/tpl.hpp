@@ -46,6 +46,7 @@ typedef struct {
 	GPtrArray *reads;		// Reads on it. Used for paired validation
 	GPtrArray *tried;		// Reads that loaded to pool once, then removed, marked as TRIED
 	GPtrArray *vertexes;	// The template be broken into vertexes linearly
+	testing_info *tinfo;	// Information for testing
 } tpl;
 
 typedef struct {

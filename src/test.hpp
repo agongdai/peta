@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <glib.h>
+#include "k_hash.h"
+#include "pool.hpp"
 
 using namespace std;
 
@@ -44,6 +46,14 @@ void test_print_tag(char *msg);
 int test_check_missing(tpl *t, int suffix);
 int test_to_check(tpl *t, int suffix);
 void test_steps(tpl *t, int suffix, char *step);
+void test_upd_cursor(tpl *t, int ori);
+void test_pool_bad_read_dominates(bwa_seq_t *seqs, tpl *t, pool *p,
+		GPtrArray *near_tpls, ubyte_t ref_c, ubyte_t c);
+int test_check_next_char(tpl *t, ubyte_t c, int ori);
+void test_blat_starting_read(tpl *t, bwa_seq_t *r, int ori);
+blat_hit *test_blat_ctg(tpl *t);
+void test_cmp_hits(blat_hit *pre_h, blat_hit *next_h);
+ubyte_t test_get_next_ref_char(tpl *t, int ori);
 void test_init();
 GPtrArray *read_ids(char *ids_fn);
 GPtrArray *read_blat_hits(char *blat_psl);

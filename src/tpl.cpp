@@ -899,7 +899,7 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len, int start,
 			"Correcting template [%d, %d] at range [%d, %d] ...\n", t->id,
 			t->len, start, end);
 	//p_tpl_reads(t);
-	//p_ctg_seq("BEFORE", t->ctg);
+	p_ctg_seq("BEFORE", t->ctg);
 
 	for (i = 0; i < t->len; i++) {
 		cs = (int*) calloc(5, sizeof(int));
@@ -935,7 +935,8 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len, int start,
 			}
 		}
 		if (max_c > 0) {
-			//show_debug_msg(__func__, "Max: %c; Count: %d\n", "ACGTN"[max], max_c);
+			if (t->ctg->seq[i] != max)
+			show_debug_msg(__func__, "@%d Max: %c -> %c; Count: %d\n", i, "ACGTN"[t->ctg->seq[i]], "ACGTN"[max], max_c);
 			t->ctg->seq[i] = max;
 		}
 	}
@@ -946,7 +947,7 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len, int start,
 		free(cs);
 	}
 	g_ptr_array_free(counters, TRUE);
-	//p_ctg_seq("AFTER", t->ctg);
+	p_ctg_seq("AFTER", t->ctg);
 }
 
 void clear_tpl_tails(tpl *t) {
@@ -1446,11 +1447,11 @@ void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 			if (ori)
 				seq_reverse(contig->len, contig->seq, 0);
 			if (t->last_read)
-				sprintf(h, ">%d_%s length: %d start: %s\n", t->id,
-						t->last_read->name, contig->len, t->start_read->name);
+				sprintf(h, ">%d_%s\tlength: %d\tstart: %s\tstep: %s\n", t->id,
+						t->last_read->name, contig->len, t->start_read->name, t->tinfo->step);
 			else
-				sprintf(h, ">%d_0 length: %d start: %s\n", t->id, contig->len,
-						t->start_read->name);
+				sprintf(h, ">%d_0\tlength: %d\tstart: %s\tstep: %s\n", t->id, contig->len,
+						t->start_read->name, t->tinfo->step);
 			save_con(h, contig, ass_fa);
 		}
 	}

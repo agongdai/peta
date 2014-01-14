@@ -795,19 +795,24 @@ def intersect(args):
     print 'Check file %s.only: %d' % (args.list_2, n_2)
     print 'Check file %s.both: %d' % (args.list_1, n_both)
 
+def tx_kmer_duplicates(reads, tx, k):
+    fa = FastaFile(reads)
+    counter = {}
+    seq = fa.seqs[tx]
+    for i in range(len(seq) - k):
+        kmer = seq[i:i+k]
+        if not kmer in counter:
+            counter[kmer] = 0
+        counter[kmer] += 1
+    occs = []
+    for i in range(len(seq) - k):
+        kmer = seq[i:i+k] 
+        occs.append((counter[kmer]))
+    print occs
+    return occs
+
 def kmer_duplicates(args):
-    fa = FastaFile(args.fa)
-    for name, seq in fa.seqs.iteritems():
-        counter = {}
-        for i in range(len(seq) - args.k):
-            kmer = seq[i:i+args.k]
-            if not kmer in counter:
-                counter[kmer] = []
-            counter[kmer].append((name, i))
-        for kmer, count in counter.iteritems():
-            if len(count) > 1:
-                print kmer
-                print count
+    return tx_kmer_duplicates(args.fa, args.tx, args.k)
                 
 def concat(args):
     fa = FastaFile(args.fa)
@@ -904,6 +909,7 @@ def main():
     
     parset_dup = subparsers.add_parser('kmer', help='Check kmer frequencies')
     parset_dup.add_argument('fa', help='FASTA file')
+    parset_dup.add_argument('tx', help='transcript name')
     parset_dup.add_argument('k', type=int, help='kmer length')
     parset_dup.set_defaults(func=kmer_duplicates)    
 
