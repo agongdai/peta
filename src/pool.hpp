@@ -26,6 +26,7 @@ extern "C" {
 	pool *new_pool();
 	void destroy_pool(pool *p);
 	void p_pool(const char *header, const pool *r_pool, const int *next);
+	void p_pool_read_mates(char *header, bwa_seq_t *seqs, pool *p);
 
 	void add2pool(pool *p, bwa_seq_t *r);
 	void mark_pool_reads_tried(pool *p, tpl *t);

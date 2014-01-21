@@ -84,7 +84,7 @@ void p_pool_read(gpointer *data, gpointer *user_data) {
 			printf("%d->%c@%s\t[status: %d]\t[>>>>     %d]", p2->cursor, c,
 					p2->name, p->status, p->pos);
 		}
-		printf("\n");
+		printf("\t\n");
 		bwa_free_read_seq(1, p2);
 	}
 }
@@ -100,6 +100,20 @@ void p_pool(const char *header, const pool *p, const int *next) {
 		printf("[p_pool] %s %zd:\n", header, reads->len);
 	g_ptr_array_foreach(reads, (GFunc) p_pool_read, NULL);
 	printf("[p_pool]****************************** \n");
+}
+
+void p_pool_read_mates(char *header, bwa_seq_t *seqs, pool *p) {
+	printf("[%s]*********************************\n", header);
+	int i = 0;
+	bwa_seq_t *r = NULL, *m = NULL;
+	for (i = 0; i < p->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
+		m = get_mate(r, seqs);
+		p_query(header, r);
+		p_query(header, m);
+		printf("[%s]\n", header);
+	}
+	printf("[%s]*********************************\n", header);
 }
 
 /**

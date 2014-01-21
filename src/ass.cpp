@@ -30,8 +30,8 @@
 
 using namespace std;
 
-int TESTING = 0; //60004;// 2286629;// 253; //338847; //3422230;//464;
-int DETAIL_ID = -1;
+int TESTING = 433191;
+int DETAIL_ID = 0;
 
 int test_suffix = 0;
 int kmer_ctg_id = 1;
@@ -156,12 +156,12 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 	//	p_query(__func__, tail);
 	hits = align_query(ht, tail, USED, N_MISMATCHES);
 
-	//	if (branch->id == 4) {
-	//		p_tpl(branch);
-	//		show_debug_msg(__func__, "To the %s \n", ori ? "left" : "right");
-	//		p_query(__func__, tail);
-	//		p_readarray(hits, 1);
-	//	}
+		if (branch->id == 2) {
+			p_tpl(branch);
+			show_debug_msg(__func__, "To the %s \n", ori ? "left" : "right");
+			p_query(__func__, tail);
+			p_readarray(hits, 1);
+		}
 	// Check whether the branch and main are reverse complement or not
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
@@ -372,7 +372,7 @@ tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, char *step,
 }
 
 void p_test_read() {
-	p_query("TEST", TEST);
+	//p_query("TEST", TEST);
 	//	if (TEST->status == FRESH && TEST->pos != IMPOSSIBLE_NEGATIVE) {
 	//		show_debug_msg(__func__, "ID: %d \n", kmer_ctg_id);
 	//		exit(1);
@@ -846,6 +846,8 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 		if (ref_c != -1 && n_bad <= 2 && test_check_next_char(t, max_c, ori) == 0) {
 			test_pool_bad_read_dominates(ht->seqs, t, p,
 					 near_tpls,  ref_c,max_c);
+			p_pool("test_pool_bad_read_dominates", p, NULL);
+			p_pool_read_mates("test_pool_bad_read_dominates", ht->seqs, p);
 			n_bad++;
 		}
 
@@ -1750,7 +1752,7 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 	try_connect(ht, all_tpls, to_con_left, to_con_right, t);
 	// Reactive the TRIED reads to FRESH, for other starting reads
 	//show_debug_msg(__func__, "Finalizing template [%d, %d] \n", t->id, t->len);
-	//p_tpl(t);
+	//p_tpl_reads(t);
 	try_destroy_tpl(ht, all_tpls, t, ht->o->read_len);
 	//p_tpl(t);
 	if (t->alive) {

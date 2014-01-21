@@ -3,6 +3,7 @@ from zoom import *
 from merge import *
 from argparse import ArgumentParser
 import operator, random
+import math
 
 class Junction(object):
     def __init__(self, main_id, branch_id, main_len = 0, branch_len = 0, locus = 0, weight = 0, ori = 0):
@@ -654,10 +655,64 @@ def continuous_paired(args):
 #         break
     print '>100bp: %d' % n_100
     print '>200bp: %d' % n_200
+    
+def avg(l):
+    return float(sum(l)) / float(len(l))
+
+def ins_size(args):
+    ids = []
+    with open(args.ids) as f:
+        for line in f:
+            ids.append(line.strip())
+    sizes = []
+    categories = {}
+    for i in range(1000):
+        categories[i] = 0
+    categories[1000] = 0
+    c = 0
+    for id in ids:
+        c += 1
+        print >>sys.stderr, '%d -------------- %s -------------' % (c, id)
+        cmd = 'grep %s %s' % (id, args.read2ref)
+        print >>sys.stderr, cmd
+        hit_lines = runInShell(cmd).split("\n")
+        hits = read_psl_hits(hit_lines, 'ref')
+        if not id in hits:
+            continue
+        tx_hits = hits[id]
+        tx_hits.sort(key=lambda x:int(x.qname))
+        pre = None
+        n = 0
+        for h in tx_hits:
+            if pre:
+                if int(h.qname) % 2 == 1 and int(h.qname) - int(pre.qname) == 1:
+                    s = abs(h.rstart - pre.rstart)
+                    #print id, h.qname, pre.qname, 
+                    #print abs(h.rstart - pre.rstart)
+                    sizes.append(s)
+                    n += 2
+                    if s >= 1000:
+                        categories[1000] += 1
+                    else:
+                        categories[s] += 1
+            pre = h
+        print '%s\t%.2f' % (id, float(n) / float(len(tx_hits)))
+        #break
+    print categories
+    a = avg(sizes)
+    print >>sys.stderr, 'Average: %.2f' % a
+    variance = map(lambda x: (x - a)**2, sizes)
+    standard_deviation = math.sqrt(avg(variance))
+    print >>sys.stderr, 'Standard deviation: %.2f' % standard_deviation
 
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
+    
+    parser_ins = subparsers.add_parser('ins', help='Calculate insert size')
+    parser_ins.set_defaults(func=ins_size)
+    parser_ins.add_argument('ids', help='singleton id list')
+    parser_ins.add_argument('read2ref', help='read2ref PSL')
     
     parser_splice = subparsers.add_parser('splice', help='Split exons from PSL file')
     parser_splice.set_defaults(func=split_exons)

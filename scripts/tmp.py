@@ -68,6 +68,21 @@ def get_mates(args):
             print h
             if h.n_match >= h.qlen - 1:
                 print h
+                
+def get_bad_template_ids(args):
+    hits = read_blat_hits(args.psl, 'ref')
+    ids = []
+    with open(args.ids) as f:
+        for line in f:
+            line = line.strip()
+            if len(line) > 2:
+                ids.append(line)
+    for id in ids:
+        if id in hits:
+            tx_hits = hits[id]
+            if len(tx_hits) <= 2:
+                for h in tx_hits:
+                    print '%s\t%s\t%.2f' % (h.qname.split('_')[0], id, float(h.n_match) / float(h.rlen))
 
 def main():
     parser = ArgumentParser()
@@ -84,6 +99,11 @@ def main():
     parser_count = subparsers.add_parser('count', help='counting')
     parser_count.add_argument('fa', help='fasta')
     parser_count.set_defaults(func=count_small_seqs)
+    
+    parser_tpl = subparsers.add_parser('tpl', help='get bad templates of some ids')
+    parser_tpl.add_argument('ids', help='ids')
+    parser_tpl.add_argument('psl', help='psl file')
+    parser_tpl.set_defaults(func=get_bad_template_ids)
     
     parser_mate = subparsers.add_parser('mate', help='get mates in the psl file')
     parser_mate.add_argument('fa', help='fasta')

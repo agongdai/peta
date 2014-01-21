@@ -27,10 +27,13 @@ char *SPOMBE_TX =
 int TESTING_CASES = 0;
 int TESTING_BASES = 1;
 char *ID_LIST = "/home/carl/Projects/peta_pair/scripts/singleton.ids.both";
+char *BAD_TPL_LIST =
+		"/home/carl/Projects/peta_pair/SRR097897_half/bad_tpl_ids.txt";
 char *READ2REF = "/home/carl/Projects/peta_pair/scripts/SRR097897.half.fa.psl";
 uint64_t SPOMBE_N = 0;
 bwa_seq_t *SPOMBE_FA = load_reads(SPOMBE_TX, &SPOMBE_N);
 GPtrArray *MISSING_TXS = NULL;
+GPtrArray *MISSING_TPLS = NULL;
 
 void destroy_tinfo(testing_info *tinfo) {
 	if (tinfo->hits) {
@@ -47,10 +50,45 @@ void destroy_blat_hit(blat_hit *h) {
 	}
 }
 
+GPtrArray *read_bad_tpls(char *ids_fn) {
+	char buf[1000];
+	char *id = NULL;
+	char *attr[20];
+	MISSING_TPLS = g_ptr_array_sized_new(32);
+	FILE *f = xopen(ids_fn, "r");
+	char *tpl_id = 0;
+	bwa_seq_t *tx = NULL;
+	while (fgets(buf, sizeof(buf), f)) {
+		trim(buf);
+		tpl_id = strtok(buf, "\t");
+		g_ptr_array_add(MISSING_TPLS, strdup(tpl_id));
+	}
+	int i = 0;
+	char *tmp = NULL;
+	for (i = 0; i < MISSING_TPLS->len; i++) {
+		tmp = (char*) g_ptr_array_index(MISSING_TPLS, i);
+		//show_debug_msg(__func__, "%s \n", tmp);
+	}
+	fclose(f);
+	return MISSING_TPLS;
+}
+
+int is_target_tpl(tpl *t) {
+	int i = 0;
+	char *id = NULL;
+	for (i = 0; i < MISSING_TPLS->len; i++) {
+		id = (char*) g_ptr_array_index(MISSING_TPLS, i);
+		if (t->id == atoi(id))
+			return 1;
+	}
+	return 0;
+}
+
 void test_init() {
 	if (!TESTING_CASES && !TESTING_BASES)
 		return;
 	read_ids(ID_LIST);
+	read_bad_tpls(BAD_TPL_LIST);
 }
 
 char *get_test_fa(int id, int suffix) {
@@ -185,7 +223,7 @@ GPtrArray *read_blat_hits(char *blat_psl) {
 
 void test_print_blat_hit(blat_hit *h) {
 	int i = 0;
-	printf("[test_steps]\t");
+	printf("[test_print_blat_hit]\t");
 	printf("%d\t", h->n_match);
 	printf("%d\t", h->n_mismatch);
 	printf("%d\t", h->n_rep);
@@ -336,14 +374,13 @@ gint cmp_blat_hit_by_alen(gpointer a, gpointer b) {
 GPtrArray *test_blat_read(bwa_seq_t *r) {
 	if (!TESTING_BASES)
 		return NULL;
-	char *cmd = (char*) malloc(sizeof(char) * 10240);
+	char cmd[BUFSIZE];
 	FILE *fa = xopen("tmp.fa", "w");
-	char *h = (char*) malloc(BUFSIZE);
+	char h[BUFSIZE];
 	sprintf(h, ">%s\n", r->name);
 	save_con(h, r, fa);
 	fflush(fa);
 	fclose(fa);
-	free(h);
 	sprintf(cmd, "blat %s tmp.fa tmp.fa.psl > /dev/null", SPOMBE_TX);
 	//show_debug_msg(__func__, "BLAT: %s \n", cmd);
 	system(cmd);
@@ -356,18 +393,23 @@ GPtrArray *test_blat_read(bwa_seq_t *r) {
 		test_print_blat_hit(hit);
 	}
 	g_ptr_array_sort(hits, (GCompareFunc) cmp_blat_hit_by_alen);
-	free(cmd);
 	return hits;
 }
 
 void test_blat_starting_read(tpl *t, bwa_seq_t *r, int ori) {
 	if (!TESTING_BASES)
 		return;
+	if (!is_target_tpl(t))
+		return;
+	printf("[test_blat_starting_read]\n");
+	show_debug_msg(__func__, "---------- Investigating Template %d ---------- \n\n", t->id);
+	show_debug_msg(__func__, "Blating starting read %s of template %d from step %s ...\n",
+			r->name, t->id, t->tinfo->step);
 	GPtrArray *hits = test_blat_read(r);
 	int i = 0, rev = 0;
 	bwa_seq_t *tx = NULL;
 	blat_hit *hit = NULL;
-	if (hits->len > 0) {
+	if (hits && hits->len > 0) {
 		for (i = 0; i < hits->len; i++) {
 			hit = (blat_hit*) g_ptr_array_index(hits, i);
 			tx = is_target_tx(hit->ref);
@@ -380,7 +422,8 @@ void test_blat_starting_read(tpl *t, bwa_seq_t *r, int ori) {
 				tx->rev_com = rev == r->rev_com ? 0 : 1;
 				t->tinfo->cursor = ori ? hit->r_start - 1 : hit->r_end;
 				if (hit->n_match < hit->q_len - 2) {
-					show_debug_msg(__func__, "Template %d: BAD STARTING READ \n", t->id);
+					show_debug_msg(__func__,
+							"Template %d: BAD STARTING READ \n", t->id);
 				}
 				p_query(__func__, r);
 				p_query(__func__, tx);
@@ -389,29 +432,38 @@ void test_blat_starting_read(tpl *t, bwa_seq_t *r, int ori) {
 			}
 		}
 	}
+	if (!hits || !t->tinfo->ref) {
+		show_debug_msg(__func__,
+				"Template %d: starting read is not aligned. \n", t->id);
+	}
 }
 
 void test_upd_cursor(tpl *t, int ori) {
 	if (!TESTING_BASES)
 		return;
 	testing_info *tinfo = t->tinfo;
-	if (!tinfo || !tinfo->ref || !tinfo->starting_read)
+	if (!tinfo || !tinfo->ref || !tinfo->starting_read || t->reads->len <= 0)
 		return;
 	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 	bwa_seq_t *r = ori ? (bwa_seq_t*) g_ptr_array_index(t->reads, 0)
 			: (bwa_seq_t*) g_ptr_array_index(t->reads, t->reads->len - 1);
 	GPtrArray *hits = test_blat_read(r);
+	if (!hits)
+		return;
 	blat_hit *h = NULL;
-	int i = 0;
+	int i = 0, rev = 0;
 	for (i = 0; i < hits->len; i++) {
 		h = (blat_hit*) g_ptr_array_index(hits, i);
-		if (strcmp(h->ref, t->tinfo->ref->name) == 0) {
-			t->tinfo->cursor = ori ? h->r_start - 1 : h->r_end;
-			show_debug_msg(__func__, "Cursor updated to %d \n",
-					t->tinfo->cursor);
+		if (strcmp(h->ref, tinfo->ref->name) == 0) {
+			rev = h->strand == '-' ? 1 : 0;
+			tinfo->ref->rev_com = rev == r->rev_com ? 0 : 1;
+			tinfo->cursor = ori ? h->r_start - 1 : h->r_end;
+			show_debug_msg(__func__, "Template [%d, %d]: Cursor updated to %d \n",
+					t->id, t->len, tinfo->cursor);
 			break;
 		}
 	}
+	g_ptr_array_free(hits, TRUE);
 }
 
 blat_hit *test_blat_ctg(tpl *t) {
@@ -441,17 +493,20 @@ void test_cmp_hits(blat_hit *pre_h, blat_hit *next_h) {
 }
 
 void test_pool_bad_read_dominates(bwa_seq_t *seqs, tpl *t, pool *p,
-		GPtrArray *near_tpls, ubyte_t ref_c, ubyte_t c) {
+		GPtrArray *near_tpls, int ref_c, int c) {
 	if (!TESTING_BASES)
 		return;
 	testing_info *tinfo = t->tinfo;
 	if (!tinfo || !tinfo->ref || !tinfo->starting_read)
 		return;
+	show_debug_msg(__func__,
+			"Template [%d, %d]: Investigating current pool ... \n", t->id,
+			t->len);
 	bwa_seq_t *r = NULL, *m = NULL;
 	int i = 0, mate_supported = 0, j = 0;
 	tpl *near = NULL;
 	int n_ref = 0, n = 0, n_others = 0;
-	ubyte_t this_c = 0;
+	int this_c = 0;
 	for (i = 0; i < p->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
 		m = get_mate(r, seqs);
@@ -474,14 +529,20 @@ void test_pool_bad_read_dominates(bwa_seq_t *seqs, tpl *t, pool *p,
 		}
 	}
 	if (n >= n_ref && n > 0) {
-		show_debug_msg(__func__, "Template [%d, %d]: Paired-end bad quality reads dominated. \n", t->id, t->len);
-		show_debug_msg(__func__, "Ref: %d; Real: %d; Others: %d \n", n_ref, n, n_others);
+		show_debug_msg(
+				__func__,
+				"Template [%d, %d]: Paired-end bad quality reads dominated. \n",
+				t->id, t->len);
+		show_debug_msg(__func__, "Ref: %d; Real: %d; Others: %d \n", n_ref, n,
+				n_others);
 	} else {
-		show_debug_msg(__func__, "Template [%d, %d]: bad quality reads dominated. \n", t->id, t->len);
+		show_debug_msg(__func__,
+				"Template [%d, %d]: bad quality reads dominated. \n", t->id,
+				t->len);
 	}
 }
 
-int test_check_next_char(tpl *t, ubyte_t c, int ori) {
+int test_check_next_char(tpl *t, int c, int ori) {
 	if (!TESTING_BASES)
 		return -1;
 	testing_info *tinfo = t->tinfo;
@@ -496,12 +557,12 @@ int test_check_next_char(tpl *t, ubyte_t c, int ori) {
 			- tinfo->starting_read->len - 2 : tinfo->cursor;
 	if (pos < 0 || pos >= ref->len)
 		return -1;
-	ubyte_t ref_c = ref->rev_com ? ref->rseq[pos] : ref->seq[pos];
-	show_debug_msg(__func__, "Rev: %d; Base at %d: %c Vs. %c \n", ref->rev_com,
-			pos, "ACGTN"[ref_c], "ACGTN"[c]);
+	int ref_c = ref->rev_com ? ref->rseq[pos] : ref->seq[pos];
+	//show_debug_msg(__func__, "Template [%d, %d]: Rev: %d; Base at %d: %c Vs. %c \n",
+	//		t->id, t->len, ref->rev_com, pos, "ACGTN"[ref_c], "ZACGTN"[c + 1]);
 	if (c != ref_c) {
-		show_debug_msg(__func__, "Base incorrect at %d: %c Vs. %c \n", pos,
-				"ACGTN"[ref_c], "ZACGTN"[c + 1]);
+		show_debug_msg(__func__, "Template [%d, %d]: Base incorrect at %d/%d: %c Vs. %c \n",
+				t->id, t->len, pos, ref->len, "ACGTN"[ref_c], "ZACGTN"[c + 1]);
 		tinfo->cursor = ori ? tinfo->cursor - 1 : tinfo->cursor + 1;
 		return 0;
 	}
@@ -512,7 +573,7 @@ int test_check_next_char(tpl *t, ubyte_t c, int ori) {
 	return 1;
 }
 
-ubyte_t test_get_next_ref_char(tpl *t, int ori) {
+int test_get_next_ref_char(tpl *t, int ori) {
 	if (!TESTING_BASES)
 		return -1;
 	testing_info *tinfo = t->tinfo;
@@ -526,8 +587,8 @@ ubyte_t test_get_next_ref_char(tpl *t, int ori) {
 	int pos = ref->rev_com ? ref->len - tinfo->cursor
 			- tinfo->starting_read->len - 2 : tinfo->cursor;
 	if (pos < 0 || pos >= ref->len)
-			return -1;
-	ubyte_t ref_c = ref->rev_com ? ref->rseq[pos] : ref->seq[pos];
+		return -1;
+	int ref_c = ref->rev_com ? ref->rseq[pos] : ref->seq[pos];
 	return ref_c;
 }
 
