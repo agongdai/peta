@@ -145,8 +145,15 @@ int max3(int a, int b, int c) {
 	return a;
 }
 
+int in_range(int locus_1, int locus_2) {
+	int dis = abs(locus_2 - locus_1);
+	if (dis < INS_SIZE - SD_INS_SIZE * 2 || dis > INS_SIZE + SD_INS_SIZE * 2)
+		return 0;
+	return 1;
+}
+
 char *str_dup(const char * s) {
-  size_t len = 1+strlen(s);
-  char *p = malloc(len);
-  return p ? memcpy(p, s, len) : NULL;
+	size_t len = 1 + strlen(s);
+	char *p = malloc(len);
+	return p ? memcpy(p, s, len) : NULL;
 }

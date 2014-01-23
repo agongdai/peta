@@ -997,10 +997,10 @@ void reset_boundary_reads(tpl *t, const int ori) {
 int should_at_which_side(bwa_seq_t *seqs, tpl *t, bwa_seq_t *r) {
 	bwa_seq_t *read = NULL, *mate = NULL, *m = NULL, *left = NULL, *right =
 			NULL;
-	int i = 0, side = 0;
+	int i = 0, side = UNKNOWN_SIDE;
 	m = get_mate(r, seqs);
 	if (m->contig_id != t->id)
-		return 0;
+		return UNKNOWN_SIDE;
 	//p_tpl_reads(t);
 	for (i = 0; i < t->reads->len; i++) {
 		read = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
@@ -1009,7 +1009,7 @@ int should_at_which_side(bwa_seq_t *seqs, tpl *t, bwa_seq_t *r) {
 				== read->contig_id && mate->contig_id == t->id) {
 			left = read->contig_locus < mate->contig_locus ? read : mate;
 			right = read->contig_locus < mate->contig_locus ? mate : read;
-\
+
 			//p_query("LEFT", left);
 			//p_query("RIGHT", right);
 			//p_query("JUMPED", r);
@@ -1018,26 +1018,26 @@ int should_at_which_side(bwa_seq_t *seqs, tpl *t, bwa_seq_t *r) {
 			if (is_left_mate(left->name)) {
 				if (left->rev_com == m->rev_com) {
 					if (is_left_mate(m->name)) {
-						side = 1;
+						side = RIGHT_SIDE;
 					} else
-						side = -1;
+						side = LEFT_SIDE;
 				} else {
 					if (is_left_mate(m->name))
-						side = -1;
+						side = LEFT_SIDE;
 					else
-						side = 1;
+						side = RIGHT_SIDE;
 				}
 			} else {
 				if (left->rev_com == m->rev_com) {
 					if (is_left_mate(m->name)) {
-						side = -1;
+						side = LEFT_SIDE;
 					} else
-						side = 1;
+						side = RIGHT_SIDE;
 				} else {
 					if (is_left_mate(m->name))
-						side = 1;
+						side = RIGHT_SIDE;
 					else
-						side = -1;
+						side = LEFT_SIDE;
 				}
 			}
 			break;
@@ -1268,11 +1268,6 @@ int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
 	for (i = 1; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		m = get_mate(r, ht->seqs);
-		if (t->id == 19) {
-			p_query(__func__, r);
-			p_query(__func__, m);
-			printf("---\n");
-		}
 		if (m->status == USED) {
 			for (j = 0; j < tpls->len; j++) {
 				near = (tpl*) g_ptr_array_index(tpls, j);

@@ -705,14 +705,108 @@ def ins_size(args):
     standard_deviation = math.sqrt(avg(variance))
     print >>sys.stderr, 'Standard deviation: %.2f' % standard_deviation
 
+def oracle(args):
+    hits = read_blat_hits(args.read2ref, 'ref')
+    for tx, tx_hits in hits.iteritems():
+        tx_hits.sort(key=lambda x:x.rstart)
+
+def get_mate_id(name):
+    i = int(name)
+    if i % 2 == 0:
+        return str(i + 1)
+    else:
+        return str(i - 1)
+
+def mismatch(args):
+    fasta = FastaFile(args.ref)
+    all_tx_hits = read_psl_hits(args.read2ref, 'ref')
+    all_read_hits = read_psl_hits(args.read2ref, 'query')
+    n_bad_but_from_another = []
+    n_bad_with_mismatches = []
+    n_bad_pairs = 0
+    n_bad_singles = 0
+    n_bad_total = 0
+    n_bad_cross_ol = []
+    counter = 0
+    for tx, seq in fasta.seqs.iteritems():
+        counter += 1
+        if not tx in all_tx_hits: continue
+        tx_hits = all_tx_hits[tx]
+        print '%d hits' % len(tx_hits)
+        tx_hits.sort(key=lambda x:x.rstart, reverse=False)
+        pre = None
+        nex = None
+        for i in range(len(tx_hits)):
+            h = tx_hits[i]
+            if i > 0: pre = tx_hits[i - 1]
+            if h.n_match + 2 >= h.qlen: continue
+            if not h.n_match + h.n_mismatch == h.qlen: continue
+            r_hits = all_read_hits[h.qname]
+            r_hits.sort(key=lambda x:x.n_match)
+            first_h = r_hits[0]
+            if first_h.n_match + 2 >= h.qlen:
+                n_bad_but_from_another.append(h)
+            else:
+                left_ol = -1 
+                right_ol = -1
+                cross_ol = -1
+                mate_name = get_mate_id(h.qname)
+                
+                mate_pos = -1
+                if mate_name in all_read_hits:
+                    mate_hits = all_read_hits[mate_name]
+                    mate_hits.sort(key=lambda x:x.n_match, reverse=True)
+                    for mate_h in mate_hits:
+                        if mate_h.rname == h.rname:
+                            mate_pos = mate_h.rstart
+                            break
+                if pre:
+                    left_ol = pre.rend - h.rstart
+                if i < len(tx_hits) - 1:
+                    nex = tx_hits[i + 1]
+                    right_ol = h.rend - nex.rstart
+                if pre and nex:
+                    #print pre
+                    #print nex
+                    cross_ol = pre.rend - nex.rstart
+                if mate_pos == -1:
+                    n_bad_singles += 1
+                else:
+                    n_bad_pairs += 1
+                n_bad_with_mismatches.append((h, left_ol, right_ol, cross_ol))
+                n_bad_total += 1
+                if not left_ol == -1 and not right_ol == -1 and abs(cross_ol) <= 25:
+                    n_bad_cross_ol.append((tx, h.qname, h.n_mismatch, cross_ol))
+                print 'Read %s on %s \t %d mismatches: \t Left %d \t Right %d \t Cross %d \t Pair [%d, %d] %d' % (h.qname, h.rname, h.n_mismatch, left_ol, right_ol, cross_ol, h.rstart, mate_pos, h.rstart - mate_pos)
+        #break
+    print 'Reads that >2 mismatches, but on another transcript with <=2 mismatches: %d' % (len(n_bad_with_mismatches))
+    print 'Reads whose best alignment have >2 mismatches: %d' % (len(n_bad_with_mismatches))
+    print 'Bad paired reads: %d' % n_bad_pairs
+    print 'Bad single reads: %d' % n_bad_singles
+    print 'Bad cross overlap: %d' % len(n_bad_cross_ol)
+    for (tx, h.qname, h.n_mismatch, cross_ol) in n_bad_cross_ol:
+        print tx, h.qname, h.n_mismatch, cross_ol
+    #for (h, left_ol, right_ol, cross_ol) in n_bad_with_mismatches:
+    #    print 'Read %s on %s \t %d mismatches \t Left %d \t Right %d \t Cross %d' % (h.qname, h.rname, left_ol, right_ol, cross_ol)
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
+    
+    parser_mis = subparsers.add_parser('mismatch', help='Pick reads with many mismatches')
+    parser_mis.set_defaults(func=mismatch)
+    parser_mis.add_argument('ref', help='reference transcript')
+    parser_mis.add_argument('read2ref', help='read2ref PSL')
     
     parser_ins = subparsers.add_parser('ins', help='Calculate insert size')
     parser_ins.set_defaults(func=ins_size)
     parser_ins.add_argument('ids', help='singleton id list')
     parser_ins.add_argument('read2ref', help='read2ref PSL')
+    
+    parser_oracle = subparsers.add_parser('oracle', help='Get oracle set')
+    parser_oracle.set_defaults(func=oracle)
+    parser_oracle.add_argument('ref', help='Reference transcripts')
+    parser_oracle.add_argument('read2ref', help='read2ref PSL')
     
     parser_splice = subparsers.add_parser('splice', help='Split exons from PSL file')
     parser_splice.set_defaults(func=split_exons)

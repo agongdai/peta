@@ -59,6 +59,7 @@ GPtrArray *read_ids(char *ids_fn);
 GPtrArray *read_blat_hits(char *blat_psl);
 void test_print_blat_hit(blat_hit *h);
 void blat_ref(char *joint_fa, char *joint_psl);
+void test_tpl_pairs(bwa_seq_t *seqs, tpl *t);
 void validate_junctions(char *junc_fn, char *pair_fa, char *pair_psl,
 		char *hash_fn);
 void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,

@@ -7,6 +7,10 @@
 #include <inttypes.h>
 #include <glib.h>
 
+enum SIDE {
+	LEFT_SIDE, UNKNOWN_SIDE, RIGHT_SIDE
+};
+
 #define err_fatal_simple(msg) err_fatal_simple_core(__func__, msg)
 #define xopen(fn, mode) err_xopen_core(__func__, fn, mode)
 #define xreopen(fn, mode, fp) err_xreopen_core(__func__, fn, mode, fp)
@@ -20,6 +24,9 @@
 #ifndef kroundup32
 #define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
 #endif
+
+#define INS_SIZE				202
+#define SD_INS_SIZE				62
 
 #define ID64 					PRId64
 #define BUFSIZE 				1023
@@ -89,6 +96,7 @@ extern "C" {
 	char *str_dup(const char * s);
 	int min3(int a, int b, int c);
 	int max3(int a, int b, int c);
+	int in_range(int locus_1, int locus_2);
 
 #ifdef __cplusplus
 }

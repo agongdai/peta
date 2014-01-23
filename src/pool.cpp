@@ -205,7 +205,7 @@ int get_next_char(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 			for (j = 0; j < near_tpls->len; j++) {
 				main_tpl = (tpl*) g_ptr_array_index(near_tpls, j);
 				if (m->contig_id == main_tpl->id) {
-					weight *= multi;
+					weight += multi;
 					break;
 				}
 			}
@@ -383,7 +383,7 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 		int mismatches, const int ori) {
 	GPtrArray *fresh_reads = NULL;
 	index64 i = 0, shift = 0;
-	bwa_seq_t *r = NULL;
+	bwa_seq_t *r = NULL, *m = NULL;
 	int limit = 0;
 
 	// Find all fresh reads and add to the pool
@@ -396,8 +396,23 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 		if (t->len == -1 && t->id == -1)
 			p_query(__func__, r);
 		r = (bwa_seq_t*) g_ptr_array_index(fresh_reads, i);
-		//show_debug_msg(__func__, "Read %s cursor: %d\n", r->name, r->cursor);
-		add2pool(p, r);
+		m = get_mate(ht->seqs, r);
+		if (t->len == -1) {
+			p_query(__func__, r);
+			p_query(__func__, m);
+		}
+		//add2pool(p, r);
+		// Add single read
+		if (m->status == FRESH)
+			add2pool(p, r);
+		else {
+			// Add paired-end read
+			if (m->status == USED && in_range(m->contig_locus, t->len)) {
+				add2pool(p, r);
+			}
+		}
+		if (r->status != IN_POOL)
+			reset_to_fresh(r);
 	}
 	g_ptr_array_free(fresh_reads, TRUE);
 }
@@ -533,6 +548,9 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		// If the mate is used already
 		// If the orientation is not correct
 		if (m->status != FRESH || is_bad_query(m)) {
+			continue;
+		}
+		if (!in_range(r->contig_locus, t->len)) {
 			continue;
 		}
 		// Find the overlapping between mate and tail
@@ -672,6 +690,11 @@ void find_hashed_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		// Keep those reads whose mate is used by current template
 		if (r->contig_id != t->id
 				&& (!main_tpl || r->contig_id != main_tpl->id)) {
+			reset_to_fresh(m);
+			continue;
+		}
+
+		if (!in_range(r->contig_locus, t->len)) {
 			reset_to_fresh(m);
 			continue;
 		}

@@ -865,5 +865,18 @@ void blat_ref(char *joint_fa, char *joint_psl) {
 			}
 		}
 	}
+}
 
+void test_tpl_pairs(bwa_seq_t *seqs, tpl *t) {
+	return;
+	bwa_seq_t *m = NULL, *r = NULL;
+	int i = 0, n_pairs = 0;
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		m = get_mate(seqs, r);
+		if (m->status == USED && m->contig_id == t->id) {
+			n_pairs++;
+		}
+	}
+	show_debug_msg(__func__, "Pairs: %d*2/%d\n", n_pairs/2, t->reads->len);
 }

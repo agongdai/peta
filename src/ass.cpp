@@ -30,7 +30,7 @@
 
 using namespace std;
 
-int TESTING = 433191;
+int TESTING = 360484;
 int DETAIL_ID = 0;
 
 int test_suffix = 0;
@@ -668,7 +668,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 					//		- loop_len) < 0 ? 0 : loop_len;
 				}
 				// In case too long loop length
-				loop_len = loop_len <= 8 ? loop_len : 0;
+				loop_len = loop_len <= 30 ? loop_len : 0;
 				con_pos = loop_len > 0 ? exist_junc->locus : con_pos;
 			}
 		}
@@ -1057,6 +1057,7 @@ void do_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from, tpl *t,
 }
 
 void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
+	return;
 	int i = 0, merged = 0;
 	bwa_seq_t *r = NULL, *m = NULL;
 	tpl *to = NULL;
@@ -1663,33 +1664,18 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	// For cases where two transcripts are highly similar
 	// There may not be enough spanning pairs during branching
 	// Two branches may validate each other
-	show_debug_msg(__func__, "Striping template [%d, %d] ... \n", t->id, t->len);
+	show_debug_msg(__func__, "Validating branches of template [%d, %d] ... \n", t->id, t->len);
 	//p_tpl(t);
 	for (i = wait_for_val->len - 1; i >= 0; i--) {
 		branch = (tpl*) g_ptr_array_index(wait_for_val, i);
 		if (branch->b_juncs->len == 1 && !val_branch_by_pairs(ht, t, branch)) {
-			// If the branch is long enough, even though cannot hook, keep it as a separate component
-			if (branch->len >= MIN_TPL_LEN * 2) {
-			} else {
 				branch->alive = 0;
 				rm_global_tpl(all_tpls, branch, FRESH);
-				g_ptr_array_remove_index_fast(wait_for_val, i);
-			}
 		} else {
 			if (branch->b_juncs->len == 1 && branch->cov < HIHG_COV_THRE) {
 				tpl_jumping(ht, all_tpls, branch);
 			}
-			g_ptr_array_remove_index_fast(wait_for_val, i);
 		}
-	}
-	for (i = 0; i < wait_for_val->len; i++) {
-		branch = (tpl*) g_ptr_array_index(wait_for_val, i);
-		show_debug_msg(__func__, "Striping branch template [%d, %d] ... \n",
-				branch->id, branch->len);
-		destory_tpl_junctions(branch);
-		ext_unit(ht, all_tpls, NULL, NULL, branch, NULL, 0, ori ? 0 : 1);
-		// Don't call refresh_tpl_reads, because will be called in finalize_tpl
-		g_ptr_array_add(tpls_await_branching, branch);
 	}
 	g_ptr_array_free(wait_for_val, TRUE);
 	p_test_read();
@@ -1835,6 +1821,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		finalize_tpl(ht, all_tpls, t, 1, 0, 0);
 	}
 
+	test_tpl_pairs(ht->seqs, t);
+
 	return NULL;
 }
 
@@ -1861,7 +1849,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[2286628];
+	TEST = &seqs[2504535];
 
 	// shrink_ht(ht);
 

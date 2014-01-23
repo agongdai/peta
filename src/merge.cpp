@@ -199,9 +199,9 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 
 	side = should_at_which_side(ht->seqs, from, jumping_read);
 	show_debug_msg(__func__, "Read %s at side %d; %s \n", jumping_read->name,
-			side, side == -1 ? "LEFT" : "RIGHT");
+			side, side == 0 ? "LEFT" : "RIGHT");
 
-	if (!from->r_tail && (side == 1 || side == 0)) {
+	if (!from->r_tail && (side == RIGHT_SIDE || side == UNKNOWN_SIDE)) {
 		from_seq = new_seq(from->ctg, min(max_ol, from->len), from->len
 				- min(max_ol, from->len));
 		jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), 0);
@@ -248,7 +248,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		bwa_free_read_seq(1, jumped_seq);
 	}
 
-	if (!from->l_tail && (side == -1 || side == 0)) {
+	if (!from->l_tail && (side == UNKNOWN_SIDE || side == LEFT_SIDE)) {
 		// From right template jump to left
 		from_seq = new_seq(from->ctg, min(max_ol, from->len), 0);
 		jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), jumped->len
