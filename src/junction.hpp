@@ -76,6 +76,8 @@ extern "C" {
 	int vld_junc_by_mates(tpl *main_tpl, tpl *branch_tpl, GPtrArray *junc_reads,
 			hash_table *ht, const int con_pos, const int ins_size, const int ori);
 	void set_jun_reads(hash_table *ht, tpl *t);
+	void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,
+			GPtrArray *all_junctions);
 
 #ifdef __cplusplus
 }

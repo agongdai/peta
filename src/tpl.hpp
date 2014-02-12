@@ -87,6 +87,7 @@ extern "C" {
 	float calc_tpl_cov(tpl *t, int start, int end, int read_len);
 	int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
 			const int min_n_pairs);
+	void reverse_locus(tpl *t);
 	void upd_locus_on_tpl(tpl *t, int pre_t_len, int pre_n_reads);
 	void add2tpl(tpl *t, bwa_seq_t *r, const int locus);
 	GPtrArray *reads_on_seq(bwa_seq_t *seq, hash_table *ht, const int n_mismatch);

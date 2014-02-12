@@ -190,13 +190,15 @@ void reset_is_root(GPtrArray *tpls) {
 	}
 }
 
+/**
+ * Get all templates reachable by current template
+ */
 GPtrArray *nearby_tpls(tpl *t, int get_self) {
 	int i = 0;
 	tpl *near_t = NULL;
 	GPtrArray *near = g_ptr_array_sized_new(4);
 	near = get_nearby_tpls(t, near);
 	reset_is_root(near);
-	//p_junctions(t->m_juncs);
 	// Remove the template itself
 	for (i = 0; i < near->len; i++) {
 		near_t = (tpl*) g_ptr_array_index(near, i);
@@ -209,6 +211,11 @@ GPtrArray *nearby_tpls(tpl *t, int get_self) {
 		}
 	}
 	return near;
+}
+
+GPtrArray *paths_connect_tpls(tpl *t, int m_tpl_id) {
+	GPtrArray *paths = g_ptr_array_sized_new(1);
+	return paths;
 }
 
 /**
@@ -996,4 +1003,77 @@ void set_jun_reads(hash_table *ht, tpl *t) {
 		//		}
 		//		p_junction(jun);
 	}
+}
+
+void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,
+		GPtrArray *all_junctions) {
+	FILE *junc_fp = xopen(junc_fn, "r");
+	bwa_seq_t *seqs = NULL, *ctg = NULL;
+	uint64_t n_ctgs = 0, i = 0, id = 0;
+	seqs = load_reads(pair_fa, &n_ctgs);
+	tpl *t = NULL, *main_tpl = NULL, *branch = NULL;
+	tpl_hash tpls;
+	char buf[BUFSIZ];
+	char *attr[18], *idstr[18];
+	junction *jun = NULL;
+	for (i = 0; i < n_ctgs; i++) {
+		t = new_tpl();
+		ctg = &seqs[i];
+		t->id = atoi(ctg->name);
+		t->ctg = new_seq(ctg, ctg->len, 0);
+		id = t->id;
+
+		tpls[t->id] = t;
+		//show_debug_msg(__func__, "template %d \n", t->id);
+		t->len = t->ctg->len;
+		t->alive = 1;
+		g_ptr_array_add(all_tpls, t);
+	}
+
+	int line = 0;
+	while (fgets(buf, sizeof(buf), junc_fp)) {
+		line++;
+		if (line == 1)
+			continue;
+		i = 0;
+		attr[0] = strtok(buf, "\t");
+		while (attr[i] != NULL) { //ensure a pointer was found
+			//			printf("fields[%d] = %s\n", i, fields[i]);
+			attr[++i] = strtok(NULL, "\t"); //continue to tokenize the string
+		}
+		idstr[0] = strtok(attr[0], ", ");
+		idstr[1] = strtok(NULL, ", ");
+		i = 0;
+		while (idstr[0][++i] != '\0') {
+			idstr[0][i - 1] = idstr[0][i];
+		}
+		idstr[0][i - 1] = '\0';
+
+		idstr[2] = strtok(attr[1], ", ");
+		idstr[3] = strtok(NULL, ", ");
+		i = 0;
+		while (idstr[2][++i] != '\0') {
+			idstr[2][i - 1] = idstr[2][i];
+		}
+		idstr[2][i - 1] = '\0';
+		//printf("%d\n", atoi(idstr[0]));
+		//printf("%d\n", atoi(idstr[2]));
+
+		main_tpl = (tpl*) tpls[atoi(idstr[0])];
+		branch = (tpl*) tpls[atoi(idstr[2])];
+		jun
+				= new_junction(main_tpl, branch, 0, atoi(attr[2]),
+						atoi(attr[4]), 0);
+		//atoi(attr[3]));
+		//p_tpl(main_tpl);
+		//p_tpl(branch);
+		if (!main_tpl->m_juncs)
+			main_tpl->m_juncs = g_ptr_array_sized_new(4);
+		if (!branch->b_juncs)
+			branch->b_juncs = g_ptr_array_sized_new(4);
+		g_ptr_array_add(main_tpl->m_juncs, jun);
+		g_ptr_array_add(branch->b_juncs, jun);
+		g_ptr_array_add(all_junctions, jun);
+	}
+	bwa_free_read_seq(n_ctgs, seqs);
 }

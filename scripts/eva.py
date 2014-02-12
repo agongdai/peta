@@ -109,12 +109,16 @@ class FastaFile(object):
 		fa = open(self.filename, 'r')
 		name = ''
 		s = ''
+		counter = 0
 		for line in fa:
 			line = line.strip()
 			if '>' in line:
 				if not name == '' and not s == '':
+					counter += 1
 					self.seqs[name] = s
 					self.lengths.append(len(s))
+					if counter % 1000000 == 0:
+						print 'Reading...%d' % counter
 				line = line[1:]
 				fields = line.split()
 				name = fields[0]
@@ -630,6 +634,7 @@ def read_psl_hits(hit_lines, key):
 	qname = ''
 	reading_hits = False
 	line_no = 0
+	counter = 0
 	for line in hit_lines:
 		line = line.strip()
 		line_no += 1
@@ -649,6 +654,9 @@ def read_psl_hits(hit_lines, key):
 			if not reading_hits:
 				continue
 			hit = read_psl_line(line)
+			counter += 1
+			if counter % 1000000 == 0:
+				print 'Reading hits ... %d' % counter
 			if key == 'query':
 				if not hit.qname in hits:
 					hits[hit.qname] = []
@@ -664,6 +672,7 @@ def read_blat_hits(blat_fn, key='query'):
 	hit_lines = []
 	for line in blat:
 		hit_lines.append(line)
+	print 'Read %d lines.' % len(hit_lines)
 	hits = read_psl_hits(hit_lines, key)
 	blat.close()
 	return hits

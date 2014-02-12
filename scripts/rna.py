@@ -789,6 +789,48 @@ def mismatch(args):
     #for (h, left_ol, right_ol, cross_ol) in n_bad_with_mismatches:
     #    print 'Read %s on %s \t %d mismatches \t Left %d \t Right %d \t Cross %d' % (h.qname, h.rname, left_ol, right_ol, cross_ol)
 
+def qc(args):
+    with open(args.read2tx, 'r') as read2tx:
+        counter = 0
+        line_no = 0
+        lines = []
+        batch_no = 1
+        conc = []
+        for line in read2tx:
+            line_no += 1
+            if line_no <= 5: continue
+            counter += 1
+            lines.append(line.strip())
+            if counter > 100000 * batch_no:
+                line = lines[-1]
+                fs = line.split('\t')
+                if int(fs[9]) % 2 == 0: continue
+                last = lines[-2]
+                last_fs = last.split('\t')
+                if int(fs[9]) == int(last_fs[9]): continue
+                
+                print 'Hits processed... %d' % counter
+                read_hits = read_psl_hits(lines, 'query')
+                for r, hits in read_hits.iteritems():
+                    hits.sort(key=lambda x: x.n_match, reverse=True)
+                    mate_id = get_mate_id(r)
+                    if mate_id in read_hits:
+                        mate_hits = read_hits[mate_id]
+                        mate_hits.sort(key=lambda x: x.n_match, reverse=True)
+                        h = hits[0]
+                        m = mate_hits[0]
+                        if h.n_match + 2 >= h.qlen and m.n_match + 2 >= m.qlen and h.rname == m.rname:
+                            conc.append((r, mate_id))
+
+                batch_no += 1
+                lines = []
+        print 'Pairs: %d' % len(conc)
+        print conc[0]
+        print conc[1000]
+        print conc[10000]
+        print conc[100000]
+        print conc[1000000]
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -884,6 +926,12 @@ def main():
     parser_continuous.add_argument('ids', help='ids file')
     parser_continuous.add_argument('ref', help='transcript file')
     parser_continuous.add_argument('fa2tx', help='read-to-tx PSL')
+    
+    parser_qc = subparsers.add_parser('qc', help='Quality control')
+    parser_qc.set_defaults(func=qc)
+    parser_qc.add_argument('reads', help='reads FASTA')
+    parser_qc.add_argument('read2tx', help='reads-to-tx PSL')
+    parser_qc.add_argument('read2ref', help='reads-to-genome PSL')
 
     args = parser.parse_args()
     args.func(args)

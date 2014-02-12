@@ -165,11 +165,11 @@ void rm_from_pool(pool *p, int index) {
  * Count frequencies of next characters, get the most frequent one.
  * If -1: all of them are 0
  */
-int get_next_char(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
+int get_next_char(hash_table *ht, pool *p, tpl *t,
 		const int ori) {
 	readarray *reads = p->reads;
 	junction *jun = NULL;
-	float *c = NULL, weight = 0.0, max_c = 0.0, multi = MATE_MULTI;
+	float *c = NULL, weight = 0.0, max_c = 0.0, multi = INS_SIZE;
 	int i = 0, j = 0, next_char = -1;
 	bwa_seq_t *r = NULL, *m = NULL;
 	int pre_cursor = 0, this_c = 0, pre_c = 0, counted = 0, n_pairs = 0;
@@ -200,20 +200,10 @@ int get_next_char(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		weight = ori ? (r->len - r->cursor - 1) : r->cursor;
 		// Minus the mismatches with the template
 		weight -= r->pos * MISMATCH_WEIGHT;
-		// If its mate is nearby, triple the weight
-		if (t->len > 100 && m->status == USED) {
-			for (j = 0; j < near_tpls->len; j++) {
-				main_tpl = (tpl*) g_ptr_array_index(near_tpls, j);
-				if (m->contig_id == main_tpl->id) {
-					weight += multi;
-					break;
-				}
-			}
+		// If its mate is USED or IN_POOL, it is guaranteed to be nearby by next_pool().
+		if (m->status == IN_POOL || m->status == USED) {
+			weight += multi;
 		}
-		if (ori == 0 && r->len - r->cursor <= HEAD_TAIL_SHORT)
-			weight /= 2.0;
-		if (ori == 1 && r->cursor <= HEAD_TAIL_SHORT)
-			weight /= 2.0;
 		c[this_c] += weight;
 		counted++;
 		// At most count MAX_POOL_N_READS reads, in case the pool is large
@@ -377,9 +367,36 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 }
 
 /**
+ * Traverse the splicing graph, check whether the distance of a pair is within range.
+ */
+int is_good_pair(GPtrArray *near_tpls, tpl *t, bwa_seq_t *r, bwa_seq_t *m, int ori) {
+	// @TODO: if the mates overlap, treat as good now
+	if (m->status == IN_POOL)
+		return 1;
+	// If they are on the same template, check distance only
+	if (m->status == USED && in_range(m->contig_locus, t->len))
+		return 1;
+	int i = 0, is_near = 0;
+	tpl *near = NULL;
+	if (m->status == USED) {
+		for (i = 0; i < near_tpls->len; i++) {
+			near = (tpl*) g_ptr_array_index(near_tpls, i);
+			if (near->id == m->contig_id) {
+				is_near = 1;
+				break;
+			}
+		}
+	}
+	// If the mate is not near, not good pair
+	if (!is_near) return 0;
+	// @TODO: Check their distance on all possible paths
+	return 1;
+}
+
+/**
  * Align the tail to the RNA-seq reads, add fresh reads to current pool
  */
-void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
+void next_pool(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t, bwa_seq_t *tail,
 		int mismatches, const int ori) {
 	GPtrArray *fresh_reads = NULL;
 	index64 i = 0, shift = 0;
@@ -393,8 +410,6 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 	fresh_reads = align_tpl_tail(ht, t, tail, limit, shift, mismatches, FRESH,
 			ori);
 	for (i = 0; i < fresh_reads->len; i++) {
-		if (t->len == -1 && t->id == -1)
-			p_query(__func__, r);
 		r = (bwa_seq_t*) g_ptr_array_index(fresh_reads, i);
 		m = get_mate(ht->seqs, r);
 		if (t->len == -1) {
@@ -407,7 +422,7 @@ void next_pool(hash_table *ht, pool *p, tpl *t, bwa_seq_t *tail,
 			add2pool(p, r);
 		else {
 			// Add paired-end read
-			if (m->status == USED && in_range(m->contig_locus, t->len)) {
+			if (is_good_pair(near_tpls, t, r, m, ori)) {
 				add2pool(p, r);
 			}
 		}
@@ -450,48 +465,16 @@ void correct_init_tpl_base(pool *p, tpl *t, int ori) {
 					break;
 			}
 		}
-		//show_debug_msg(__func__, "BASES at %d \n", i);
 		for (j = 0; j < 4; j++) {
-			//show_debug_msg(__func__, "\t%d BASE %c: %d\n", i, "ACGTN"[j],
-			//		counter[j]);
 			if (counter[j] > max) {
 				max = counter[j];
 				max_c = j;
 			}
 		}
-		//show_debug_msg(__func__, "Max at %d: [%c, %d] \n", i, "ACGTN"[max_c],
-		//		max);
 		if (max <= 0)
 			continue;
 		t->ctg->seq[i] = max_c;
 		rev_c = 3 - max_c;
-		// If more than HIGH_N_READS (50) reads in pool, correct the reads as well
-		// This could be slow if too many reads in pool
-		/*
-		 if (n_counted >= HIGH_N_READS && n_counted < MAX_POOL_N_READS) {
-		 for (j = 0; j < p->reads->len; j++) {
-		 r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
-		 // Number of mismatches against the template is 0 now.
-		 r->pos = 0;
-		 pos = r->cursor - t->len + i;
-		 if (pos >= 0 && pos < r->len) {
-		 c = r->rev_com ? r->rseq[pos] : r->seq[pos];
-		 if (c != max_c) {
-		 //show_debug_msg(__func__,
-		 //		"Read %s at pos %d: %c => %c \n", r->name,
-		 //		pos, "ACGTN"[c], "ACGTN"[max_c]);
-		 if (r->rev_com) {
-		 r->rseq[pos] = max_c;
-		 r->seq[r->len - pos - 1] = rev_c;
-		 } else {
-		 r->seq[pos] = max_c;
-		 r->rseq[r->len - pos - 1] = rev_c;
-		 }
-		 }
-		 } // End of correction of a read
-		 } // End of reads loop
-		 } // End of correcting bases on reads
-		 */
 	} // End of template base correction
 	set_rev_com(t->ctg);
 	//p_ctg_seq("CORRECTED ", t->ctg);
@@ -521,8 +504,8 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		return;
 	}
 
+	// Find all FRESH mate reads
 	existing_reads = g_ptr_array_sized_new(t->reads->len);
-
 	for (i = 0; i < near_tpls->len; i++) {
 		near = (tpl*) g_ptr_array_index(near_tpls, i);
 		for (j = 0; j < near->reads->len; j++) {
@@ -541,34 +524,25 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 	for (i = 0; i < existing_reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(existing_reads, i);
 		m = get_mate(r, ht->seqs);
-
 		//p_query(__func__, r);
 		//p_query(__func__, m);
-
-		// If the mate is used already
-		// If the orientation is not correct
-		if (m->status != FRESH || is_bad_query(m)) {
+		// If the used read is on this template but not in range, not consider
+		if (r->contig_id == t->id && !in_range(r->contig_locus, t->len)) {
 			continue;
 		}
-		if (!in_range(r->contig_locus, t->len)) {
+		// like 'ATATATATAT' or 'AAAAAAAA'
+		if (is_bad_query(m))
 			continue;
-		}
 		// Find the overlapping between mate and tail
 		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1,
 				ht->o->read_len, ori, &rev_com, &n_mis);
-		if (strcmp(m->name, "-693935") == 0) {
-			p_query(__func__, r);
-			p_query(__func__, m);
-			p_query("MAIN_TPL", tail);
-			show_debug_msg(__func__, "OL: %d; rev_cov: %d\n", ol, rev_com);
-		}
 
 		if (r->rev_com == rev_com && ol >= ht->o->k - 1 && ol >= n_mis
 				* ht->o->k) {
 			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol,
 					ht->o->read_len - ol);
 			cursor = ori ? (m->len - ol - 1) : ol;
-			//p_query(__func__, part);
+			// Make sure the overlapped region has no 'N's
 			if (has_n(part, 1) || cursor < 0 || cursor >= m->len) {
 				bwa_free_read_seq(1, part);
 				continue;
@@ -580,8 +554,6 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 			m->pos = n_mis;
 			add2pool(p, m);
 		}
-		if (p->reads->len >= 15)
-			break;
 	}
 	bwa_free_read_seq(1, tail);
 	g_ptr_array_free(existing_reads, TRUE);
@@ -623,104 +595,13 @@ void keep_fewer_mis_reads(pool *p) {
 }
 
 /**
- * Keep those reads only with mates used on that template
- */
-void keep_paired_reads(hash_table *ht, pool *p, tpl *t) {
-	bwa_seq_t *r = NULL, *m = NULL;
-	int i = 0;
-	tpl *main_tpl = NULL;
-	junction *jun = NULL;
-	if (t->b_juncs && t->b_juncs->len > 0) {
-		jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
-		main_tpl = jun->main_tpl;
-	}
-	for (i = 0; i < p->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
-		m = get_mate(r, ht->seqs);
-		if (m->status == USED && (m->contig_id == t->id) || (main_tpl
-				&& main_tpl->id == m->contig_id)) {
-
-		} else {
-			rm_from_pool(p, i--);
-		}
-	}
-}
-
-/**
  * Find those reads with at least 11 * 2 overlap with the template,
  * 	by searching the hash table with LESS_MISMATCH
  */
-void find_hashed_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
+void find_ol_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		bwa_seq_t *tail, int mismatches, int ori) {
-	int tail_len = ht->o->k * 2, limit = 0;
-	int i = 0, ol = 0, rev_com = 0, n_mis = 0, shift = 0;
-	int added = 0;
-	bwa_seq_t *seqs = ht->seqs;
-	// Query tail and overlap tail are used in different length
-	bwa_seq_t *q_tail = NULL, *r = NULL, *m = NULL;
-	GPtrArray *mates = NULL;
-	junction *jun = NULL;
-	tpl *main_tpl = NULL;
-
-	if (t->len < 0)
-		return;
-	if (t->b_juncs && t->b_juncs->len > 0) {
-		jun = (junction*) g_ptr_array_index(t->b_juncs, 0);
-		main_tpl = jun->main_tpl;
-	}
-	//show_debug_msg(__func__, "Looking for shorter; ori %d...\n", ori);
-	// Query tail: shorter than a normal tail, just 22bp, query 2 kmers.
-	q_tail = ori ? new_seq(tail, tail_len, 0) : new_seq(tail, tail_len,
-			tail->len - tail_len);
-	// In case the tail is an biased seq like: TTTTCTTTTTT
-	if (is_biased_q(q_tail) || is_repetitive_q(q_tail) || has_n(q_tail, 1)) {
-		bwa_free_read_seq(1, q_tail);
-		return;
-	}
-
-	shift = ori ? 0 : ht->o->read_len - q_tail->len;
-	mates = align_tpl_tail(ht, t, q_tail, limit, shift, mismatches, FRESH, ori);
-	for (i = 0; i < mates->len; i++) {
-		m = (bwa_seq_t*) g_ptr_array_index(mates, i);
-		r = get_mate(m, seqs);
-		if (!r || r->status != USED || is_bad_query(m)) {
-			reset_to_fresh(m);
-			continue;
-		}
-		// Keep those reads whose mate is used by current template
-		if (r->contig_id != t->id
-				&& (!main_tpl || r->contig_id != main_tpl->id)) {
-			reset_to_fresh(m);
-			continue;
-		}
-
-		if (!in_range(r->contig_locus, t->len)) {
-			reset_to_fresh(m);
-			continue;
-		}
-		// Find the overlapping between mate and tail
-
-		ol = find_fr_ol_within_k(m, tail, mismatches, tail_len - 1, tail->len,
-				ori, &rev_com, &n_mis);
-
-		if (r->rev_com == rev_com && ol >= ht->o->k && ol >= n_mis * ht->o->k) {
-			m->rev_com = rev_com;
-			m->cursor = ori ? (m->len - ol - 1) : ol;
-			m->pos = n_mis;
-			//p_query(__func__, m);
-			add2pool(p, m);
-			added = 1;
-		} else {
-			reset_to_fresh(m);
-		}
-	}
-	g_ptr_array_free(mates, TRUE);
-	bwa_free_read_seq(1, q_tail);
-	// With even shorter overlap and less mismatches allow.
 	// Base by base overlapping.
-	if (!added) {
-		find_match_mates(ht, p, near_tpls, t, NULL, mismatches, ori);
-	}
+	find_match_mates(ht, p, near_tpls, t, NULL, mismatches, ori);
 	rm_bad_ol_reads(p, t, ori);
 	keep_fewer_mis_reads(p);
 }

@@ -703,6 +703,23 @@ void set_tail(tpl *branch, tpl *parent_eg, const int shift, const int tail_len,
 }
 
 /**
+ * Set the contig locus of reads to be template_length - real_locus
+ * When extending to left, the locus value is not determined until the extension stops
+ * So it is hard to determine whether the distance of a pair is within range if:
+ * 		1. Extend to left
+ * 		2. Extend to right
+ * 		3. Extend to left (!!!Problematic)
+ */
+void reverse_locus(tpl *t) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		r->contig_locus = t->len - r->contig_locus;
+	}
+}
+
+/**
  * Update the contig_locus value after left extension
  */
 void upd_locus_on_tpl(tpl *t, int pre_t_len, int pre_n_reads) {
