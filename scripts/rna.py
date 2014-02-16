@@ -790,30 +790,109 @@ def mismatch(args):
     #    print 'Read %s on %s \t %d mismatches \t Left %d \t Right %d \t Cross %d' % (h.qname, h.rname, left_ol, right_ol, cross_ol)
 
 def qc(args):
-    read2txLines = {}
-    read2refLines = {}
-    line_no = 0
-    # read_name => [hit_line 0, hit_line 1...]
-    with open(args.read2tx) as read2tx:
-        for line in read2tx:
-            line_no += 1
-            if line_no <= 5: continue
-            qname = line.split('\t')[9]
-            if not qname in read2txLines: read2txLines[qname] = []
-            read2txLines[qname].append(line.strip())
+    tx = FastaFile(args.tx)
+    print 'Building read-to-hit hash...'
+    readHitHash = [[] for _ in range(7481042)]
     line_no = 0
     with open(args.read2ref) as read2ref:
         for line in read2ref:
             line_no += 1
             if line_no <= 5: continue
-            qname = line.split('\t')[9]
-            if not qname in read2refLines: read2refLines[qname] = []
-            read2refLines[qname].append(line.strip())
-    tx = FastaFile(args.tx)
-    for tx_name, seq in tx.seqs.iteritems():
-        print '--------- %s ---------' % tx_name
+            fs = line.split('\t')
+            if len(fs) < 9: continue
+            readHitHash[int(fs[9])].append(line.strip())
+    idList = []
+    with open(args.ids) as ids:
+        for line in ids:
+            idList.append(line.strip())
+    print 'Reading transcript to genome hits...'
+    tx2refHits = read_blat_hits(args.tx2ref, 'query')
+    print 'Transcript\tLength\tHits\tReads\tPaired reads\tPaired reads >2 mismatches\tPaired reads >2 soft-clipped to introns\tMates not aligned\tAvg matches of not aligned\tMates at UTR\tMates far away'
+    for tx_name in idList:
+        out = tx_name
         cmd = 'grep %s %s' % (tx_name, args.read2tx)
         rawLines = runInShell(cmd)
+        lines = rawLines.split('\n')
+        if len(lines) < 2: continue
+        l = lines[0]
+        fs = l.split('\t')
+        out = '%s\t%s' % (out, fs[14])
+        out = '%s\t%d' % (out, len(lines) - 1)
+        tx_hits = read_psl_hits(lines, 'query')
+        out = '%s\t%d' % (out, len(tx_hits.keys()))
+        pairs = {}
+        pairs_but_bad_mis = {}
+        pairs_but_bad_mis_intron = {}
+        # If pairs are on the same transcripts, they are good
+        for qname, read_hits in tx_hits.iteritems():
+            mname = get_mate_id(qname)
+            if mname in tx_hits:
+                pairs[qname] = mname
+                read_hits.sort(key=lambda x:x.n_match, reverse=True)
+                h = read_hits[0]
+                if h.n_match < h.qlen - 2:
+                    pairs_but_bad_mis[qname] = h
+                    # If no soft clipping, skip
+                    if h.n_match + h.n_mismatch == h.qlen: continue
+                    
+                    ref_hits = tx2refHits[tx_name]
+                    ref_hits.sort(key=lambda x:x.n_match, reverse=True)
+                    h = ref_hits[0]
+                    lines = readHitHash[int(qname)]
+                    readRefHits = read_psl_hits(lines, 'ref')
+                    if h.rname in readRefHits:
+                        read_ref_hits = readRefHits[h.rname]
+                        for rh in read_ref_hits:
+                            if rh.rstart > h.rstart and rh.r_block_starts[rh.n_blocks - 1] + rh.block_sizes[rh.n_blocks - 1] < h.r_block_starts[h.n_blocks - 1] + h.block_sizes[h.n_blocks - 1]:
+                                if rh.n_match >= rh.qlen - 2:
+                                    pairs_but_bad_mis_intron[qname] = h
+        out = '%s\t%d' % (out, len(pairs))
+        out = '%s\t%d' % (out, len(pairs_but_bad_mis.keys()))
+        out = '%s\t%d' % (out, len(pairs_but_bad_mis_intron.keys()))
+        
+        # Those reads whose mates are not aligned to the same transcript
+        n_not_aligned = []
+        n_mate_at_utr = []
+        n_mate_far = []
+        not_aligned_matches = []
+        for qname, readHits in tx_hits.iteritems():
+            if qname in pairs: continue
+            mname = get_mate_id(qname)
+            lines = readHitHash[int(mname)]
+            if len(lines) == 0:
+                n_not_aligned.append(mname)
+                readHits.sort(key=lambda x: x.n_match, reverse=True)
+                h = readHits[0]
+                not_aligned_matches.append(h.n_match)
+            else:
+                ref_hits = tx2refHits[tx_name]
+                ref_hits.sort(key=lambda x:x.n_match, reverse=True)
+                h = ref_hits[0]
+                startTxOnRef = h.rstart - 1000
+                endTxOnRef = h.r_block_starts[h.n_blocks - 1] + h.block_sizes[h.n_blocks - 1] + 1000
+                read_hits = read_psl_hits(lines, 'ref')
+                if h.rname in read_hits:
+                    hits = read_hits[h.rname]
+                    atUtr = False
+                    for mh in hits:
+                        if mh.rstart >= startTxOnRef and mh.rstart <= endTxOnRef:
+                            n_mate_at_utr.append(mname)
+                            atUtr = True
+                            #print '%s at %s: %d~%d' % (tx_name, h.rname, h.rstart, h.r_block_starts[h.n_blocks - 1] + h.block_sizes[h.n_blocks - 1])
+                            #print '%s at %s: %d M%d -%d' % (mname, h.rname, mh.rstart, mh.n_match, mh.n_mismatch)
+                            break
+                    if not atUtr:
+                        n_mate_far.append(mname)
+                else:
+                    n_mate_far.append(mname)
+                
+        out = '%s\t%d' % (out, len(n_not_aligned))
+        avg_matches = 68
+        if len(not_aligned_matches) > 0: avg_matches = avg(not_aligned_matches)
+        out = '%s\t%.2f' % (out, avg_matches)
+        out = '%s\t%d' % (out, len(n_mate_at_utr))
+        out = '%s\t%d' % (out, len(n_mate_far))
+        print out
 
 def main():
     parser = ArgumentParser()
@@ -913,9 +992,11 @@ def main():
     
     parser_qc = subparsers.add_parser('qc', help='Quality control')
     parser_qc.set_defaults(func=qc)
-    parser_qc.add_argument('reads', help='reads FASTA')
+    parser_qc.add_argument('ids', help='ID list')
+    parser_qc.add_argument('tx', help='transcript FASTA')
     parser_qc.add_argument('read2tx', help='reads-to-tx PSL')
     parser_qc.add_argument('read2ref', help='reads-to-genome PSL')
+    parser_qc.add_argument('tx2ref', help='transcripts-to-genome PSL')
 
     args = parser.parse_args()
     args.func(args)
