@@ -29,7 +29,7 @@
 
 using namespace std;
 
-int TESTING = 0;
+int TESTING = 338878;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -1003,6 +1003,7 @@ tpl *ext_a_read(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *read,
 			== 0)) {
 		// Extend to the left first
 		after_unit = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
+		p_tpl_reads(t);
 		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 		//p_ctg_seq(__func__, t->ctg);
 		if (iter > 1 && after_unit == -1)

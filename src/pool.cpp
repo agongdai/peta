@@ -524,8 +524,6 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 	for (i = 0; i < existing_reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(existing_reads, i);
 		m = get_mate(r, ht->seqs);
-		//p_query(__func__, r);
-		//p_query(__func__, m);
 		// If the used read is on this template but not in range, not consider
 		if (r->contig_id == t->id && !in_range(r->contig_locus, t->len)) {
 			continue;
@@ -536,7 +534,10 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		// Find the overlapping between mate and tail
 		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1,
 				ht->o->read_len, ori, &rev_com, &n_mis);
-
+		p_query(__func__, r);
+		p_query(__func__, m);
+		p_query("TAIL", tail);
+		show_debug_msg(__func__, "OVERLAP: %d \n", ol);
 		if (r->rev_com == rev_com && ol >= ht->o->k - 1 && ol >= n_mis
 				* ht->o->k) {
 			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol,

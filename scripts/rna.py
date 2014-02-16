@@ -790,46 +790,30 @@ def mismatch(args):
     #    print 'Read %s on %s \t %d mismatches \t Left %d \t Right %d \t Cross %d' % (h.qname, h.rname, left_ol, right_ol, cross_ol)
 
 def qc(args):
-    with open(args.read2tx, 'r') as read2tx:
-        counter = 0
-        line_no = 0
-        lines = []
-        batch_no = 1
-        conc = []
+    read2txLines = {}
+    read2refLines = {}
+    line_no = 0
+    # read_name => [hit_line 0, hit_line 1...]
+    with open(args.read2tx) as read2tx:
         for line in read2tx:
             line_no += 1
             if line_no <= 5: continue
-            counter += 1
-            lines.append(line.strip())
-            if counter > 100000 * batch_no:
-                line = lines[-1]
-                fs = line.split('\t')
-                if int(fs[9]) % 2 == 0: continue
-                last = lines[-2]
-                last_fs = last.split('\t')
-                if int(fs[9]) == int(last_fs[9]): continue
-                
-                print 'Hits processed... %d' % counter
-                read_hits = read_psl_hits(lines, 'query')
-                for r, hits in read_hits.iteritems():
-                    hits.sort(key=lambda x: x.n_match, reverse=True)
-                    mate_id = get_mate_id(r)
-                    if mate_id in read_hits:
-                        mate_hits = read_hits[mate_id]
-                        mate_hits.sort(key=lambda x: x.n_match, reverse=True)
-                        h = hits[0]
-                        m = mate_hits[0]
-                        if h.n_match + 2 >= h.qlen and m.n_match + 2 >= m.qlen and h.rname == m.rname:
-                            conc.append((r, mate_id))
-
-                batch_no += 1
-                lines = []
-        print 'Pairs: %d' % len(conc)
-        print conc[0]
-        print conc[1000]
-        print conc[10000]
-        print conc[100000]
-        print conc[1000000]
+            qname = line.split('\t')[9]
+            if not qname in read2txLines: read2txLines[qname] = []
+            read2txLines[qname].append(line.strip())
+    line_no = 0
+    with open(args.read2ref) as read2ref:
+        for line in read2ref:
+            line_no += 1
+            if line_no <= 5: continue
+            qname = line.split('\t')[9]
+            if not qname in read2refLines: read2refLines[qname] = []
+            read2refLines[qname].append(line.strip())
+    tx = FastaFile(args.tx)
+    for tx_name, seq in tx.seqs.iteritems():
+        print '--------- %s ---------' % tx_name
+        cmd = 'grep %s %s' % (tx_name, args.read2tx)
+        rawLines = runInShell(cmd)
 
 def main():
     parser = ArgumentParser()
