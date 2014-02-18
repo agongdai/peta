@@ -1,5 +1,5 @@
 from __future__ import division
-import sys, os, pysam
+import sys, os
 from argparse import ArgumentParser
 import collections
 from subprocess import Popen, PIPE
@@ -162,18 +162,18 @@ class FastaFile(object):
 		print '\tN50 value: \t\t' + str(self.n50)
 		print '==================================================================='
 		
-	def cal_coverage(self, sam):
-		coverage_file = open(sam + '.cov', 'w')
-		sam_file = pysam.Samfile(sam, "rb")
-		sorted_rnames = sorted(self.seqs.iterkeys())
-		
-		coverage_file.write('Transcript\tLength\t# of reads\tCoverage\n')
-		for rname in sorted_rnames:
-			n_reads = 0
-			for a in sam_file.fetch(rname):
-				n_reads += 1
-			coverage_file.write('%s\t%d\t%d\t%.2f\n' % (rname, len(self.seqs[rname]), n_reads, n_reads / len(self.seqs[rname])))
-		coverage_file.close()
+# 	def cal_coverage(self, sam):
+# 		coverage_file = open(sam + '.cov', 'w')
+# 		sam_file = pysam.Samfile(sam, "rb")
+# 		sorted_rnames = sorted(self.seqs.iterkeys())
+# 		
+# 		coverage_file.write('Transcript\tLength\t# of reads\tCoverage\n')
+# 		for rname in sorted_rnames:
+# 			n_reads = 0
+# 			for a in sam_file.fetch(rname):
+# 				n_reads += 1
+# 			coverage_file.write('%s\t%d\t%d\t%.2f\n' % (rname, len(self.seqs[rname]), n_reads, n_reads / len(self.seqs[rname])))
+# 		coverage_file.close()
 
 ''' Trop a sequence line to multiple lines with equal length of line_len
 '''

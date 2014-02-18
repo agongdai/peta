@@ -286,6 +286,27 @@ def inspect(args):
             print '======== %s =======' % id
             for h in tx_hits:
                 print h
+                
+def peta_shuffle(args):
+    line_no = 0
+    id = 0
+    with open(args.fa) as fa:
+        with open(args.fa[:-3] + '.shuffled.fa', 'w') as out:
+            for line in fa:
+                if '>' in line:
+                    if line_no % 4 == 0:
+                        out.write('>%d/1\n' % id)
+                    else:
+                        out.write('>%d/2\n' % id)
+                        id += 1
+                else:
+                    line = line.strip()
+                    if line_no % 4 == 1:
+                        out.write(line + '\n')
+                    else:
+                        line = rev_comp(line)
+                        out.write(line + '\n')
+                line_no += 1
 
 def main():
     parser = ArgumentParser()
@@ -348,7 +369,11 @@ def main():
     
     parser_split2 = subparsers.add_parser('split', help='split the left and right mates')
     parser_split2.set_defaults(func=split2)
-    parser_split2.add_argument('fa', help='FASTA file')    
+    parser_split2.add_argument('fa', help='FASTA file')
+    
+    parser_ps = subparsers.add_parser('peta_shuffle', help='shuffle peta FASTA for IDBA-tran')
+    parser_ps.set_defaults(func=peta_shuffle)
+    parser_ps.add_argument('fa', help='FASTA file')    
     
     parser_2files = subparsers.add_parser('2files', help='Split shuffled FASTQ file into two')
     parser_2files.set_defaults(func=to_files)

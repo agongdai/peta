@@ -367,6 +367,17 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 }
 
 /**
+ * To check whether a mate read is in range
+ */
+int mate_is_in_range(int used_locus, int tpl_len, int read_len, int ori) {
+	if (ori) {
+		return in_range(used_locus - read_len, tpl_len);
+	} else {
+		return in_range(used_locus, tpl_len);
+	}
+}
+
+/**
  * Traverse the splicing graph, check whether the distance of a pair is within range.
  */
 int is_good_pair(GPtrArray *near_tpls, tpl *t, bwa_seq_t *r, bwa_seq_t *m, int ori) {
@@ -374,7 +385,7 @@ int is_good_pair(GPtrArray *near_tpls, tpl *t, bwa_seq_t *r, bwa_seq_t *m, int o
 	if (m->status == IN_POOL)
 		return 1;
 	// If they are on the same template, check distance only
-	if (m->status == USED && in_range(m->contig_locus, t->len))
+	if (m->status == USED && mate_is_in_range(m->contig_locus, t->len, m->len, ori))
 		return 1;
 	int i = 0, is_near = 0;
 	tpl *near = NULL;
@@ -524,8 +535,11 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 	for (i = 0; i < existing_reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(existing_reads, i);
 		m = get_mate(r, ht->seqs);
+		//p_query(__func__, r);
+		//p_query(__func__, m);
+		//p_query("TAIL", tail);
 		// If the used read is on this template but not in range, not consider
-		if (r->contig_id == t->id && !in_range(r->contig_locus, t->len)) {
+		if (r->contig_id == t->id && !mate_is_in_range(r->contig_locus, t->len, r->len, ori)) {
 			continue;
 		}
 		// like 'ATATATATAT' or 'AAAAAAAA'
@@ -534,10 +548,7 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		// Find the overlapping between mate and tail
 		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1,
 				ht->o->read_len, ori, &rev_com, &n_mis);
-		p_query(__func__, r);
-		p_query(__func__, m);
-		p_query("TAIL", tail);
-		show_debug_msg(__func__, "OVERLAP: %d \n", ol);
+		//show_debug_msg(__func__, "OVERLAP: %d \n", ol);
 		if (r->rev_com == rev_com && ol >= ht->o->k - 1 && ol >= n_mis
 				* ht->o->k) {
 			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol,

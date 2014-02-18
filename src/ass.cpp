@@ -29,7 +29,7 @@
 
 using namespace std;
 
-int TESTING = 338878;
+int TESTING = 0;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -369,7 +369,7 @@ tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, char *step,
 }
 
 void p_test_read() {
-	//p_query("TEST", TEST);
+	p_query("TEST", TEST);
 	//	if (TEST->status == FRESH && TEST->pos != IMPOSSIBLE_NEGATIVE) {
 	//		show_debug_msg(__func__, "ID: %d \n", kmer_ctg_id);
 	//		exit(1);
@@ -1003,7 +1003,7 @@ tpl *ext_a_read(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *read,
 			== 0)) {
 		// Extend to the left first
 		after_unit = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
-		p_tpl_reads(t);
+		//p_tpl_reads(t);
 		show_debug_msg(__func__, "tpl %d with length: %d \n", t->id, t->len);
 		//p_ctg_seq(__func__, t->ctg);
 		if (iter > 1 && after_unit == -1)
@@ -1792,7 +1792,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[2504535];
+	TEST = &seqs[2296606];
 
 	// shrink_ht(ht);
 
