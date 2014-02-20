@@ -811,7 +811,13 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 			//p_ctg_seq("TEMPLATE", t->ctg);
 			//show_debug_msg(__func__, "Looking for mates on [%d, %d] ...\n",
 			//		t->id, t->len);
-			//p_tpl_reads(t);
+			if (t->id == 108220) {
+				p_test_read();
+				TEST = &ht->seqs[2296606];
+				p_test_read();
+				TEST = &ht->seqs[2296607];
+				p_tpl_reads(t);
+			}
 			find_ol_mates(ht, p, near_tpls, t, tail, N_MISMATCHES, ori);
 			max_c = get_next_char(ht, p, t, ori);
 			if (max_c == -1) {
@@ -1754,6 +1760,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	t = ext_a_read(ht, all_tpls, read, counter->count);
 	if (t)
 		finalize_tpl(ht, all_tpls, t, 1, 0, 0);
+	ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
+	ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
 	while (tpls_await_branching->len > 0) {
 		t = (tpl*) g_ptr_array_index(tpls_await_branching,
 				tpls_await_branching->len - 1);
@@ -1764,6 +1772,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		g_ptr_array_remove_index_fast(tpls_await_branching,
 				tpls_await_branching->len - 1);
 		finalize_tpl(ht, all_tpls, t, 1, 0, 0);
+		ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
+		ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
 	}
 
 	return NULL;
@@ -1792,7 +1802,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[2296606];
+	TEST = &seqs[2296607];
 
 	// shrink_ht(ht);
 
@@ -2165,7 +2175,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 			all_tpls.size());
 	merge_together_tpls(&all_tpls);
 	iter_merge(ht, &all_tpls, &tpl_kmer_hash);
-	ext_after_merging(ht, &all_tpls);
+	//ext_after_merging(ht, &all_tpls);
 
 	//show_msg(__func__, "Removing junctions without pairs ...\n");
 	//rm_no_pair_junctions(ht, &all_tpls);
