@@ -422,8 +422,9 @@ void next_pool(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t, bwa_seq_t 
 			ori);
 	for (i = 0; i < fresh_reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(fresh_reads, i);
-		m = get_mate(ht->seqs, r);
-		if (t->len == -1) {
+		m = get_mate(r, ht->seqs);
+
+		if (t->id == 108220) {
 			p_query(__func__, r);
 			p_query(__func__, m);
 		}
@@ -439,6 +440,10 @@ void next_pool(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t, bwa_seq_t 
 		}
 		if (r->status != IN_POOL)
 			reset_to_fresh(r);
+		if (t->id == 108220) {
+			p_query(__func__, r);
+			p_query(__func__, m);
+		}
 	}
 	g_ptr_array_free(fresh_reads, TRUE);
 }

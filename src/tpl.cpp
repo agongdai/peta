@@ -228,7 +228,7 @@ void mv_unpaired_to_tried(bwa_seq_t *seqs, tpl *t, const int n_tpls) {
 	flag = (uint8_t*) calloc(n_tpls, sizeof(uint8_t));
 	for (i = 0; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
-		m = get_mate(seqs, r);
+		m = get_mate(r, seqs);
 		if (m->status == USED && m->contig_id != r->contig_id) {
 			if (flag[m->contig_id] == 0) {
 				g_ptr_array_add(t->tried, m);
@@ -1338,7 +1338,7 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 		// pos is the kmer position on the read
 		cursor = ori ? (r->pos - 1) : (r->pos + tail->len);
 
-		if (t->len == -1) {
+		if (t->id == 108220) {
 			printf("\n");
 			p_query(__func__, tail);
 			p_query(__func__, r);
@@ -1408,6 +1408,9 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 			r->pos = IMPOSSIBLE_NEGATIVE;
 			r->rev_com = 0;
 		}
+
+		if (t->id == 108220)
+			p_query(__func__, r);
 	}
 	//show_debug_msg(__func__, "Reads with the tail: %d\n", fresh_reads->len);
 	g_ptr_array_free(hits, TRUE);

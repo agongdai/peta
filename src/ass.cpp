@@ -30,7 +30,7 @@
 using namespace std;
 
 int TESTING = 0;
-int DETAIL_ID = -1;
+int DETAIL_ID = 108220;
 
 int test_suffix = 0;
 int kmer_ctg_id = 1;
@@ -1760,8 +1760,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	t = ext_a_read(ht, all_tpls, read, counter->count);
 	if (t)
 		finalize_tpl(ht, all_tpls, t, 1, 0, 0);
-	ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
-	ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
+	//ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
+	//ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
 	while (tpls_await_branching->len > 0) {
 		t = (tpl*) g_ptr_array_index(tpls_await_branching,
 				tpls_await_branching->len - 1);
@@ -1772,8 +1772,8 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 		g_ptr_array_remove_index_fast(tpls_await_branching,
 				tpls_await_branching->len - 1);
 		finalize_tpl(ht, all_tpls, t, 1, 0, 0);
-		ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
-		ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
+		//ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
+		//ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
 	}
 
 	return NULL;
@@ -2175,7 +2175,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 			all_tpls.size());
 	merge_together_tpls(&all_tpls);
 	iter_merge(ht, &all_tpls, &tpl_kmer_hash);
-	//ext_after_merging(ht, &all_tpls);
+	ext_after_merging(ht, &all_tpls);
 
 	//show_msg(__func__, "Removing junctions without pairs ...\n");
 	//rm_no_pair_junctions(ht, &all_tpls);
