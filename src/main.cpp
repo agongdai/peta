@@ -43,6 +43,8 @@ int main(int argc, char *argv[]) {
 		return usage();
 	else if (strcmp(argv[1], "ass") == 0)
 		return pe_kmer(argc - 1, argv + 1);
+	else if (strcmp(argv[1], "cluster") == 0)
+		return pe_cluster(argc - 1, argv + 1);
 //	else if (strcmp(argv[1], "oracle") == 0)
 //		return oracle_set(argc - 1, argv + 1);
 	else if (strcmp(argv[1], "k_hash") == 0)

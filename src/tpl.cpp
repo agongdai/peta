@@ -757,7 +757,7 @@ void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
 void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	bwa_seq_t *r = NULL, *seq = NULL, *window = NULL;
 	int left_len = 0, counted_len = 0, right_len = 0, n_mis = 0, rev_com = 0;
-	int i = 0, j = 0, not_covered_len = 0;
+	int i = 0, j = 0, not_covered_len = 0, ol = 0;
 	ubyte_t base_1 = 0, base_2 = 0;
 	GPtrArray *refresh = NULL, *hits = NULL;
 	if (!t || !t->alive || !t->reads || t->reads->len < 0 || t->len < 0)
@@ -797,12 +797,15 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 		for (j = 0; j < hits->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(hits, j);
 			r->pos = IMPOSSIBLE_NEGATIVE;
+			//p_query("ADDED", r);
 			// For reads partially on left tail, the locus is negative
 			if (r->status == FRESH || r->status == TRIED) {
 				//if (strcmp(r->name, "15398") == 0)
 				//p_query("ADDED", r);
 				//p_query("TEMPL", window);
-				if (seq_ol(r, window, r->len, mismatches) >= 0) {
+				ol = seq_ol(r, window, r->len, mismatches);
+				//show_debug_msg(__func__, "Overlap: %d \n", ol);
+				if (ol >= 0) {
 					//p_query("NEW", r);
 					add2tpl(t, r, i - left_len);
 				} else {

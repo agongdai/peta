@@ -77,13 +77,21 @@ def get_bad_template_ids(args):
             line = line.strip()
             if len(line) > 2:
                 ids.append(line)
+    tpls = []
     for id in ids:
         if id in hits:
-            tx_hits = hits[id]
-            if len(tx_hits) <= 2:
-                for h in tx_hits:
-                    print '%s\t%s\t%.2f' % (h.qname.split('_')[0], id, float(h.n_match) / float(h.rlen))
-
+            tx_hits = hits[id] 
+            for h in tx_hits:
+                tpls.append(h.qname)
+        else:
+            print '%s not obtained at all' % id
+    print '%d templates for %d missing transcripts' % (len(tpls), len(len(ids)))
+    
+    for t in tpls:
+        cmd = 'grep -w %s %s' % (t, args.paired)
+        line = runInShell(cmd).strip()
+        
+        
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')

@@ -188,7 +188,7 @@ int get_next_char(hash_table *ht, pool *p, tpl *t,
 		// If in the previous round, this read has a mismatch, then does not count it this time
 		if (pre_t_c > -1 && pre_cursor >= 0 && pre_cursor < r->len) {
 			pre_c = r->rev_com ? r->rseq[pre_cursor] : r->seq[pre_cursor];
-			if (pre_c != 4 && pre_c != pre_t_c)
+			if (pre_c != 4 && pre_c != pre_t_c && reads->len > 1)
 				continue;
 		}
 		this_c = r->rev_com ? r->rseq[r->cursor] : r->seq[r->cursor];
@@ -307,7 +307,7 @@ void rm_bad_ol_reads(pool *p, tpl *t, const int ori) {
 	bwa_seq_t *r = NULL;
 	ubyte_t pre_tpl_c = 0, pre_pre_tpl_c = 0, pre_read_c = 0, pre_pre_read_c =
 			0;
-	if (t->len < 2)
+	if (t->len < 2 || p->reads->len <= 2)
 		return;
 	pre_tpl_c = ori ? t->ctg->seq[0] : t->ctg->seq[t->len - 1];
 	pre_pre_tpl_c = ori ? t->ctg->seq[1] : t->ctg->seq[t->len - 2];
@@ -369,11 +369,12 @@ void init_pool(hash_table *ht, pool *p, tpl *t, int tail_len, int mismatches,
 /**
  * To check whether a mate read is in range
  */
-int mate_is_in_range(int used_locus, int tpl_len, int read_len, int ori) {
+int mate_is_in_range(int used_locus, int tpl_len, int read_len, int ol, int ori) {
 	if (ori) {
-		return in_range(used_locus - read_len, tpl_len);
+		//show_debug_msg(__func__, "tpl_len: %d; used_locus: %d; ol: %d; ori: %d\n", tpl_len, used_locus, ol, ori);
+		return in_range(tpl_len - used_locus, ol - read_len);
 	} else {
-		return in_range(used_locus, tpl_len);
+		return in_range(used_locus, tpl_len - ol);
 	}
 }
 
@@ -381,11 +382,11 @@ int mate_is_in_range(int used_locus, int tpl_len, int read_len, int ori) {
  * Traverse the splicing graph, check whether the distance of a pair is within range.
  */
 int is_good_pair(GPtrArray *near_tpls, tpl *t, bwa_seq_t *r, bwa_seq_t *m, int ori) {
-	// @TODO: if the mates overlap, treat as good now
+	// @TODO: if the mates overlap, treat as bad now
 	if (m->status == IN_POOL)
-		return 1;
+		return 0;
 	// If they are on the same template, check distance only
-	if (m->status == USED && mate_is_in_range(m->contig_locus, t->len, m->len, ori))
+	if (m->status == USED && mate_is_in_range(m->contig_locus, t->len, m->len, r->cursor, ori))
 		return 1;
 	int i = 0, is_near = 0;
 	tpl *near = NULL;
@@ -415,8 +416,8 @@ void next_pool(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t, bwa_seq_t 
 	int limit = 0;
 
 	// Find all fresh reads and add to the pool
-	if (t->len == -1 && t->id == -1)
-		p_query(__func__, tail);
+	//if (t->len == -1 && t->id == -1)
+	//	p_query(__func__, tail);
 	shift = ori ? 0 : ht->o->read_len - tail->len;
 	fresh_reads = align_tpl_tail(ht, t, tail, limit, shift, mismatches, FRESH,
 			ori);
@@ -424,10 +425,10 @@ void next_pool(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t, bwa_seq_t 
 		r = (bwa_seq_t*) g_ptr_array_index(fresh_reads, i);
 		m = get_mate(r, ht->seqs);
 
-		if (t->id == 108220) {
-			p_query(__func__, r);
-			p_query(__func__, m);
-		}
+		//if (t->id == -1) {
+		//	p_query(__func__, r);
+		//	p_query(__func__, m);
+		//}
 		//add2pool(p, r);
 		// Add single read
 		if (m->status == FRESH)
@@ -440,10 +441,10 @@ void next_pool(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t, bwa_seq_t 
 		}
 		if (r->status != IN_POOL)
 			reset_to_fresh(r);
-		if (t->id == 108220) {
-			p_query(__func__, r);
-			p_query(__func__, m);
-		}
+		//if (t->id == -1) {
+		//	p_query(__func__, r);
+		//	p_query(__func__, m);
+		//}
 	}
 	g_ptr_array_free(fresh_reads, TRUE);
 }
@@ -533,40 +534,43 @@ void find_match_mates(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t,
 		}
 	}
 
-	//p_tpl(t);
+	//p_tpl(t); 
 	//show_debug_msg(__func__, "ORI: %d \n", ori);
 	//p_query(__func__, tail);
 
 	for (i = 0; i < existing_reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(existing_reads, i);
 		m = get_mate(r, ht->seqs);
-		if (t->id == 108220) {
-			p_query(__func__, r);
-			p_query(__func__, m);
-			p_query("TAIL", tail);
-		}
-		// If the used read is on this template but not in range, not consider
-		if (r->contig_id == t->id && !mate_is_in_range(r->contig_locus, t->len, r->len, ori)) {
-			continue;
-		}
+		//if (t->id == -1) {
+		//	p_query(__func__, r);
+		//	p_query(__func__, m);
+		//	p_query("TAIL", tail);
+		//}
 		// like 'ATATATATAT' or 'AAAAAAAA'
 		if (is_bad_query(m))
 			continue;
 		// Find the overlapping between mate and tail
 		ol = find_fr_ol_within_k(m, tail, mismatches, ht->o->k - 1,
 				ht->o->read_len, ori, &rev_com, &n_mis);
-		if (t->id == 108220)
-		show_debug_msg(__func__, "OVERLAP: %d \n", ol);
+		//if (t->id == -1)
+		//show_debug_msg(__func__, "OVERLAP: %d \n", ol);
 		if (r->rev_com == rev_com && ol >= ht->o->k - 1 && ol >= n_mis
 				* ht->o->k) {
+			//show_debug_msg(__func__, "N_MISMATCH: %d \n", n_mis);
+			// If the used read is on this template but not in range, not consider
+			if (r->contig_id == t->id && !mate_is_in_range(r->contig_locus, t->len, r->len, ol, ori))
+				continue;
+			//show_debug_msg(__func__, "Pair in range \n");
 			part = ori ? new_seq(tail, ol, 0) : new_seq(tail, ol,
 					ht->o->read_len - ol);
 			cursor = ori ? (m->len - ol - 1) : ol;
+			//show_debug_msg(__func__, "Cursor: %d \n", cursor);
 			// Make sure the overlapped region has no 'N's
 			if (has_n(part, 1) || cursor < 0 || cursor >= m->len) {
 				bwa_free_read_seq(1, part);
 				continue;
 			}
+			//p_query("PART", part);
 			bwa_free_read_seq(1, part);
 
 			m->rev_com = rev_com;

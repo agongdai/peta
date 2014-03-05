@@ -30,7 +30,7 @@
 using namespace std;
 
 int TESTING = 0;
-int DETAIL_ID = 108220;
+int DETAIL_ID = -1;
 
 int test_suffix = 0;
 int kmer_ctg_id = 1;
@@ -155,7 +155,7 @@ GPtrArray *find_connected_reads(hash_table *ht, tpl_hash *all_tpls,
 	//	p_query(__func__, tail);
 	hits = align_query(ht, tail, USED, N_MISMATCHES);
 
-	if (branch->id == 2) {
+	if (branch->id == -2) {
 		p_tpl(branch);
 		show_debug_msg(__func__, "To the %s \n", ori ? "left" : "right");
 		p_query(__func__, tail);
@@ -513,14 +513,14 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		// The candidate template to connect
 		main_tpl = (tpl*) it->second;
 
-		if (branch->id == 75) {
-			p_tpl(branch);
-			p_tpl_reads(branch);
-			printf("*****\n");
-			p_tpl(main_tpl);
-			p_tpl_reads(main_tpl);
-			printf("*****\n");
-		}
+		//if (branch->id == 75) {
+		//	p_tpl(branch);
+		//	p_tpl_reads(branch);
+		//	printf("*****\n");
+		//	p_tpl(main_tpl);
+		//	p_tpl_reads(main_tpl);
+		//	printf("*****\n");
+		//}
 
 		too_far = 1;
 		near_tpls = nearby_tpls(main_tpl, 1);
@@ -743,7 +743,7 @@ int connect_by_full_reads(hash_table *ht, tpl_hash *all_tpls, tpl *branch,
 		}
 	}
 	g_ptr_array_free(con_reads, TRUE);
-	if (branch->id == 1509)
+	if (branch->id == -1)
 		p_tpl(branch);
 	return connected;
 }
@@ -811,14 +811,10 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 			//p_ctg_seq("TEMPLATE", t->ctg);
 			//show_debug_msg(__func__, "Looking for mates on [%d, %d] ...\n",
 			//		t->id, t->len);
-			if (t->id == 108220) {
-				p_test_read();
-				TEST = &ht->seqs[2296606];
-				p_test_read();
-				TEST = &ht->seqs[2296607];
-				p_tpl_reads(t);
-			}
+			//p_test_read();
+			//p_tpl_reads(t);
 			find_ol_mates(ht, p, near_tpls, t, tail, N_MISMATCHES, ori);
+			//p_pool("MATE_POOL", p, NULL);
 			max_c = get_next_char(ht, p, t, ori);
 			if (max_c == -1) {
 				if (adj_tail) {
@@ -1802,7 +1798,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[2296607];
+	TEST = &seqs[4799260];
 
 	// shrink_ht(ht);
 
@@ -2125,12 +2121,14 @@ void save_read_status(hash_table *ht) {
 	bwa_seq_t *r = NULL;
 	int i = 0;
 	char buf[BUFSIZE];
-	FILE *f = xopen("../scripts/reads.status", "w");
+	char *fn = get_output_file("reads.status", kmer_out);
+	FILE *f = xopen(fn, "w");
 	for (i = 0; i < ht->n_seqs; i++) {
 		r = &ht->seqs[i];
 		sprintf(buf, "%s\t%d\t%d\n", r->name, r->status, r->contig_id);
 		fputs(buf, f);
 	}
+	free(fn);
 	fclose(f);
 }
 
@@ -2213,6 +2211,146 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 	hash_table *ht = load_k_hash(hash_fn);
 	filter_junctions(all_junctions, all_tpls, ht);
 	process_graph(all_tpls, all_junctions, ht, kmer_out);
+}
+
+int pe_cluster(int argc, char *argv[]) {
+	if (!g_thread_supported())
+			g_thread_init(NULL);
+	kmer_id_mutex = g_mutex_new();
+	hang_reads = g_ptr_array_sized_new(1024);
+	tpls_await_branching = g_ptr_array_sized_new(32);
+
+	int c = 0;
+	while ((c = getopt(argc, argv, "k:m:s:o:t:")) >= 0) {
+		switch (c) {
+		case 'k':
+			kmer_len = atoi(optarg);
+			break;
+		case 'o':
+			kmer_out = optarg;
+			break;
+		case 'm':
+			ins_size = atoi(optarg);
+			break;
+		case 's':
+			sd_ins_size = atoi(optarg);
+			break;
+		case 't':
+			kmer_n_threads = atoi(optarg);
+			break;
+		}
+	}
+
+	int cluster_id = atoi(argv[optind + 3]);
+	show_msg(__func__, "Cluster %d ... \n", cluster_id);
+
+	// Read the cluster definition
+	char buf[10000];
+	char *attr[32];
+	int start_index = 0, end_index = 0;
+	FILE *defination = xopen(argv[optind + 1], "r");
+	while (fgets(buf, sizeof(buf), defination)) {
+		attr[0] = strtok(buf, "\t");
+		attr[1] = strtok(NULL, "\t");
+		if (atoi(attr[0]) == cluster_id) {
+			end_index = atoi(attr[1]);
+			break;
+		}
+		start_index = atoi(attr[1]);
+	}
+	show_msg(__func__, "Cluster reads are: [%d, %d). \n", start_index, end_index);
+	fclose(defination);
+
+	if (start_index > end_index) {
+		err_fatal(__func__, "Cluster %d not found! \n", cluster_id);
+	}
+
+	// Pick raw reads and hash
+	FILE *cluster_fa = xopen("tmp.fa", "w");
+	FILE *all_fa = xopen(argv[optind], "r");
+	int line_no = 0, id = 0;
+	while (fgets(buf, sizeof(buf), all_fa)) {
+		if (line_no / 2 >= start_index && line_no / 2 < end_index) {
+			if (line_no % 2 == 0) {
+				fprintf(cluster_fa, ">%d cluster=%d\n", id++, cluster_id);
+			} else {
+				fprintf(cluster_fa, buf);
+			}
+			if (line_no % 1000000 == 0) {
+				show_msg(__func__, "Looping to line %d...\n", line_no);
+			}
+		}
+		if (line_no / 2 >= end_index) break;
+		line_no++;
+	}
+	show_msg(__func__, "Saved %d reads to tmp.fa \n", id);
+	fclose(all_fa);
+	fclose(cluster_fa);
+
+	char cmd[1000];
+	sprintf(cmd, "./peta k_hash -k 11 -l 100 -i 2 -b 19 -s 4 tmp.fa");
+	system(cmd);
+
+	// Read template FASTA
+	uint64_t n_seqs = 0;
+	bwa_seq_t *seqs = load_reads(argv[optind + 2], &n_seqs);
+	bwa_seq_t *r = NULL;
+	int i = 0;
+	char *name = (char*) calloc(sizeof(char), 1024);
+	for (i = 0; i < n_seqs; i++) {
+		r = &seqs[i];
+		attr[0] = strtok(r->name, "_");
+		if (atoi(attr[0]) == cluster_id)
+			break;
+	}
+	if (atoi(attr[0]) != cluster_id)
+		err_fatal(__func__, "Cluster %d template not found! \n", cluster_id);
+	show_msg(__func__, "--------------------------\n");
+	show_msg(__func__, "Template %s \n", attr[0]);
+	p_ctg_seq(__func__, r);
+
+	// Load hash table
+	tpl_hash all_tpls;
+	hash_table *ht = load_k_hash("tmp.fa");
+	tpl *t = add_global_tpl(&all_tpls, r, "TEMPLATE", r->len, 0);
+	p_tpl(t);
+	bwa_free_read_seq(1, t->ctg);
+	t->ctg = new_seq(r, r->len, 0);
+	t->len = t->ctg->len;
+	refresh_tpl_reads(ht, t, N_MISMATCHES);
+	p_tpl_reads(t);
+
+	// Assemble the cluster
+	int to_con_right = ext_unit(ht, &all_tpls, NULL, NULL, t, NULL, 0, 1);
+	int to_con_left = ext_unit(ht, &all_tpls, NULL, NULL, t, NULL, 0, 0);
+	finalize_tpl(ht, &all_tpls, t, 1, 0, 0);
+
+	p_tpl_reads(t);
+
+	char *fn = get_output_file("paired.fa", kmer_out);
+	FILE *contigs = xopen(fn, "w");
+	GPtrArray *read_tpls = hash_to_array(&all_tpls);
+	all_tpls.clear();
+
+	save_tpls(read_tpls, contigs, 0, 0, 0);
+	save_read_status(ht);
+	fflush(contigs);
+	fclose(contigs);
+	free(fn);
+
+	GPtrArray *branching_events = g_ptr_array_sized_new(BUFSIZ);
+	get_junction_arr(read_tpls, branching_events);
+	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junc_by_id);
+	fn = get_output_file("paired.junctions", kmer_out);
+	store_features(fn, branching_events, read_tpls);
+	free(fn);
+
+	show_msg(__func__, "Reloading the hash table ... \n");
+	reload_table(ht, "tmp.fa");
+	process_graph(read_tpls, branching_events, ht, kmer_out);
+	destroy_ht(ht);
+
+	show_msg(__func__, "Cluster %d done \n", cluster_id);
 }
 
 int pe_kmer(int argc, char *argv[]) {

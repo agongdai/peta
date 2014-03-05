@@ -1396,6 +1396,84 @@ def steps(args):
         print '--------- Transcript %s ---------' % tx
         print lines
 
+def get_mate_id(name):
+    i = int(name)
+    if i % 2 == 0:
+        return str(i + 1)
+    else:
+        return str(i - 1)
+
+def contig(args):
+    ids = []
+    with open(args.id_file) as f:
+        for line in f:
+            ids.append(line.strip())
+    
+    n_not_ol = []
+    n_left_mate = []
+    n_right_mate = []
+    n_high_coverage = []
+    counter = 0
+    for tx in ids:
+        if not tx or tx == '': continue
+        counter += 1
+        print '%d: ---------- %s ----------' % (counter, tx)
+        cmd = 'grep %s %s' % (tx, args.reads2tx)
+        rawLines = runInShell(cmd)
+        lines = rawLines.split('\n')
+        hits = read_psl_hits(lines, 'ref')
+        tx_hits = hits[tx]
+        tx_hits.sort(key = lambda x: x.rstart)
+        if len(tx_hits) <= 0: continue
+        
+        bases = 0.0
+        tx_len = 0.0
+        hits_dict = {}
+        for h in tx_hits:
+            bases += h.alen
+            tx_len = h.rlen
+        print 'Length: \t%d' % tx_len
+        coverage = bases / float(tx_len)
+        print 'Coverage: \t%.2f' % (coverage)
+        
+        filtered = []
+        for h in tx_hits:
+            if h.alen < h.qlen - 2 or (h.n_mismatch + h.n_ref_gap_bases + h.n_query_gap_bases) > 2: continue
+            hits_dict[h.qname] = h
+            filtered.append(h)
+        
+        ol = True    
+        for i in range(len(filtered) - 1):
+            h = filtered[i]
+            next = filtered[i + 1]
+            if h.rend - next.rstart < 25: 
+                print '@%d - Overlap is not long enough: %d' % (h.rstart, h.rend - next.rstart)
+                print h
+                print next
+                ol = False
+                if not tx in n_left_mate:
+                    mate = get_mate_id(next.qname)
+                    if mate in hits_dict and hits_dict[mate].rstart < next.rstart:
+                        pass
+                    else: n_left_mate.append(tx)
+                if not tx in n_right_mate:
+                    mate = get_mate_id(h.qname)
+                    if mate in hits_dict and hits_dict[mate].rstart > h.rstart:
+                        pass
+                    else: n_right_mate.append(tx)
+        if not ol:
+            n_not_ol.append(tx)
+        else:
+            if coverage >= 100:
+                n_high_coverage.append(tx)
+                
+        print ''
+    
+    print 'With regions not overlapped long enough: %d' % (len(n_not_ol))
+    print '\tPairs not working from left to right: %d' % (len(n_left_mate))
+    print '\tPairs not working from right to left: %d' % (len(n_right_mate))
+    print 'Overlapped but high coverage: %d' % (len(n_high_coverage))
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -1468,6 +1546,11 @@ def main():
     parser_steps = subparsers.add_parser('step', help='Check steps for missing transcripts')
     parser_steps.set_defaults(func=steps)
     parser_steps.add_argument('log', help='log file containing test_steps')
+    
+    parser_contig = subparsers.add_parser('contig', help='Check whether missing transcripts are caused by small overlap')
+    parser_contig.set_defaults(func=contig)
+    parser_contig.add_argument('id_file', help='file of id list to check')
+    parser_contig.add_argument('reads2tx', help='reads to transcripts')
     
     args = parser.parse_args()
     args.func(args)
