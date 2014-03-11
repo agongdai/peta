@@ -25,8 +25,8 @@ enum SIDE {
 #define kroundup32(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, ++(x))
 #endif
 
-#define INS_SIZE				202
-#define SD_INS_SIZE				62
+#define INS_SIZE				305
+#define SD_INS_SIZE				90
 
 #define ID64 					PRId64
 #define BUFSIZE 				1023
@@ -59,13 +59,13 @@ enum SIDE {
 #define MIN_BRANCH_MAIN_COV		0.05
 
 #define IMPOSSIBLE_NEGATIVE		-999999999
-#define N_MISMATCHES			2
+#define N_MISMATCHES			8
 #define N_BAD_TAIL_SHIFT		2
 #define MORE_MISMATCH			4
 #define LESS_MISMATCH			1
 #define MIN_GAPPED_PAIRS		4
 #define MAX_GAPS				4
-#define MIN_PAIRS				2
+#define MIN_PAIRS				1
 #define MIN_JUNCTION_READS	    2
 #define MIN_WEIGHT				2
 #define MAX_VS_IN_COMP          100

@@ -905,6 +905,7 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
  */
 void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len, int start,
 		int end) {
+	return;
 	int *cs = NULL, max = 0, weight = 0;
 	GPtrArray *counters = NULL;
 	int c = 0, max_c = 0;

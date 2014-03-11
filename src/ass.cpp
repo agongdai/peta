@@ -29,7 +29,7 @@
 
 using namespace std;
 
-int TESTING = 0;
+int TESTING = -1;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -45,6 +45,7 @@ char *kmer_out = NULL;
 GPtrArray *hang_reads = NULL, *tpls_await_branching = NULL;
 
 bwa_seq_t *TEST = NULL;
+bwa_seq_t *CLUSTER_START_READ = NULL;
 
 GMutex *kmer_id_mutex;
 struct timespec kmer_start_time, kmer_finish_time;
@@ -71,7 +72,7 @@ tpl *blank_tpl(bwa_seq_t *start_read, int len, int ori, char *step) {
 	}
 	if (start_read->rev_com)
 		switch_fr(start_read);
-	t->start_read = start_read;
+	t->start_read = CLUSTER_START_READ; //start_read;
 	t->len = t->ctg->len;
 	t->ctg->rev_com = 0;
 	t->tinfo = (testing_info*) malloc(sizeof(testing_info));
@@ -1818,81 +1819,81 @@ void kmer_threads(kmer_t_meta *params) {
 		if (i % 100000 == 0) {
 			show_msg(__func__, "%d templates are obtained. \n",
 					params->all_tpls->size());
-			show_msg(__func__, "Extending %" ID64 "-th read ... \n", i);
-		}
-		counter = (kmer_counter*) g_ptr_array_index(starting_reads, i);
-		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
-		kmer_ext_thread(counter, params);
-		free(counter);
-		//if (fresh_trial >= 2)
-		//if (kmer_ctg_id >= 1200)
-		//if (params->all_tpls->size() > 1000)
-		if (TESTING && fresh_trial >= 1)
-			break;
+show_msg		(__func__, "Extending %" ID64 "-th read ... \n", i);
 	}
-	g_ptr_array_free(starting_reads, TRUE);
-	show_msg(__func__, "%d templates are obtained. \n",
-			params->all_tpls->size());
+	counter = (kmer_counter*) g_ptr_array_index(starting_reads, i);
+	//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
+	kmer_ext_thread(counter, params);
+	free(counter);
+	//if (fresh_trial >= 2)
+	//if (kmer_ctg_id >= 1200)
+	//if (params->all_tpls->size() > 1000)
+	if (TESTING && fresh_trial >= 1)
+	break;
+}
+g_ptr_array_free(starting_reads, TRUE);
+show_msg(__func__, "%d templates are obtained. \n",
+		params->all_tpls->size());
 
-	//	show_debug_msg(__func__, "Remaining reads: \n");
-	//	for (i = 0; i < ht->n_seqs; i++) {
-	//		r = &ht->seqs[i];
-	//		if (r->status != USED && r->status != DEAD)
-	//			p_query(__func__, r);
-	//	}
+//	show_debug_msg(__func__, "Remaining reads: \n");
+//	for (i = 0; i < ht->n_seqs; i++) {
+//		r = &ht->seqs[i];
+//		if (r->status != USED && r->status != DEAD)
+//			p_query(__func__, r);
+//	}
 
-	/**
-	 show_msg(__func__,
-	 "----------- Stage 2: branching the %d templates -----------\n",
-	 params->all_tpls->size());
-	 stage = 2;
-	 //branching_long(ht, params->all_tpls);
-	 show_msg(__func__, "%d templates are obtained. \n",
-	 params->all_tpls->size());
+/**
+ show_msg(__func__,
+ "----------- Stage 2: branching the %d templates -----------\n",
+ params->all_tpls->size());
+ stage = 2;
+ //branching_long(ht, params->all_tpls);
+ show_msg(__func__, "%d templates are obtained. \n",
+ params->all_tpls->size());
 
-	 show_msg(__func__,
-	 "----------- Stage 3: remaining fragmented reads -----------\n");
-	 stage = 3;
-	 show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
+ show_msg(__func__,
+ "----------- Stage 3: remaining fragmented reads -----------\n");
+ stage = 3;
+ show_msg(__func__, "Counting 11-mers of remaining reads ...\n");
 
-	 low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
-	 // Reset not USED/DEAD reads to FRESH
-	 for (i = 0; i < ht->n_seqs; i++) {
-	 r = &seqs[i];
-	 //show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
-	 if (r->status != USED && r->status != DEAD) {
-	 reset_to_fresh(r);
-	 counter = (kmer_counter*) malloc(sizeof(kmer_counter));
-	 counter->kmer = i;
-	 counter->count = 0;
-	 g_ptr_array_add(low_reads, counter);
-	 }
-	 }
+ low_reads = g_ptr_array_sized_new(ht->n_seqs / 10);
+ // Reset not USED/DEAD reads to FRESH
+ for (i = 0; i < ht->n_seqs; i++) {
+ r = &seqs[i];
+ //show_debug_msg(__func__, "Query %s: %d\n", r->name, ht->n_kmers[i]);
+ if (r->status != USED && r->status != DEAD) {
+ reset_to_fresh(r);
+ counter = (kmer_counter*) malloc(sizeof(kmer_counter));
+ counter->kmer = i;
+ counter->count = 0;
+ g_ptr_array_add(low_reads, counter);
+ }
+ }
 
-	 sort_by_kmers(ht, low_reads);
-	 //show_msg(__func__, "Shrinking the hash table ... \n");
-	 //shrink_ht(ht);
-	 show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
-	 params->to_try_connect = 1;
-	 for (i = 0; i < low_reads->len / 10; i++) {
-	 counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
-	 // If the read does not even share any 11-mer with others, ignore
-	 if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
-	 continue;
-	 }
-	 if (i % 100000 == 0)
-	 show_msg(__func__, "Extending %" ID64 "-th low read ... \n", i);
-	 kmer_ext_thread(counter, params);
-	 //g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
-	 }
-	 for (i = 0; i < low_reads->len; i++) {
-	 counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
-	 free(counter);
-	 }
-	 g_ptr_array_free(low_reads, TRUE);
-	 **/
+ sort_by_kmers(ht, low_reads);
+ //show_msg(__func__, "Shrinking the hash table ... \n");
+ //shrink_ht(ht);
+ show_msg(__func__, "Extending the remaining %d reads ...\n", low_reads->len);
+ params->to_try_connect = 1;
+ for (i = 0; i < low_reads->len / 10; i++) {
+ counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
+ // If the read does not even share any 11-mer with others, ignore
+ if (counter->count <= (ht->o->read_len - ht->o->k) * 2) {
+ continue;
+ }
+ if (i % 100000 == 0)
+ show_msg(__func__, "Extending %" ID64 "-th low read ... \n", i);
+ kmer_ext_thread(counter, params);
+ //g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
+ }
+ for (i = 0; i < low_reads->len; i++) {
+ counter = (kmer_counter*) g_ptr_array_index(low_reads, i);
+ free(counter);
+ }
+ g_ptr_array_free(low_reads, TRUE);
+ **/
 
-	g_thread_pool_free(thread_pool, 0, 1);
+g_thread_pool_free(thread_pool, 0, 1);
 }
 
 void test_kmer_ext(kmer_t_meta *params) {
@@ -2213,9 +2214,73 @@ void process_only(char *junc_fn, char *pair_fa, char *hash_fn) {
 	process_graph(all_tpls, all_junctions, ht, kmer_out);
 }
 
+void cluster_set_start_reads(GPtrArray *junctions) {
+	junction *j = NULL;
+	int i = 0;
+	for (i = 0; i < junctions->len; i++) {
+		j = (junction*) g_ptr_array_index(junctions, i);
+		j->branch_tpl->start_read = j->main_tpl->start_read;
+	}
+	for (i = 0; i < junctions->len; i++) {
+		j = (junction*) g_ptr_array_index(junctions, i);
+		j->branch_tpl->start_read = j->main_tpl->start_read;
+	}
+	for (i = 0; i < junctions->len; i++) {
+		j = (junction*) g_ptr_array_index(junctions, i);
+		j->branch_tpl->start_read = j->main_tpl->start_read;
+	}
+	for (i = 0; i < junctions->len; i++) {
+		j = (junction*) g_ptr_array_index(junctions, i);
+		j->branch_tpl->start_read = j->main_tpl->start_read;
+	}
+	for (i = 0; i < junctions->len; i++) {
+		j = (junction*) g_ptr_array_index(junctions, i);
+		j->branch_tpl->start_read = j->main_tpl->start_read;
+	}
+}
+
+void cluster_ass(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *r1,
+		bwa_seq_t *r2, int *starts, int *ends, int index, int cluster_id) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < ht->n_seqs; i++) {
+		r = &ht->seqs[i];
+		if (r->status != USED) {
+			r->status = HANG;
+			if (i >= starts[index] && i < ends[index]) {
+				r->status = FRESH;
+			}
+		}
+	}
+
+	CLUSTER_START_READ = r1;
+	tpl *t = add_global_tpl(all_tpls, r, "TEMPLATE", r1->len, 0);
+	bwa_free_read_seq(1, t->ctg);
+	t->ctg = new_seq(r1, r1->len, 0);
+	t->len = t->ctg->len;
+	t->start_read = r1;
+	p_tpl(t);
+	refresh_tpl_reads(ht, t, N_MISMATCHES);
+
+	// Assemble the cluster
+	int to_con_left = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
+	finalize_tpl(ht, all_tpls, t, 1, 0, 0);
+
+	CLUSTER_START_READ = r2;
+	t = add_global_tpl(all_tpls, r2, "TEMPLATE", r->len, 0);
+	bwa_free_read_seq(1, t->ctg);
+	t->ctg = new_seq(r2, r2->len, 0);
+	t->len = t->ctg->len;
+	t->start_read = r2;
+	p_tpl(t);
+	refresh_tpl_reads(ht, t, N_MISMATCHES);
+	int to_con_right = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
+	finalize_tpl(ht, all_tpls, t, 1, 0, 0);
+}
+
 int pe_cluster(int argc, char *argv[]) {
 	if (!g_thread_supported())
-			g_thread_init(NULL);
+		g_thread_init( NULL);
 	kmer_id_mutex = g_mutex_new();
 	hang_reads = g_ptr_array_sized_new(1024);
 	tpls_await_branching = g_ptr_array_sized_new(32);
@@ -2241,12 +2306,20 @@ int pe_cluster(int argc, char *argv[]) {
 		}
 	}
 
-	int cluster_id = atoi(argv[optind + 3]);
-	show_msg(__func__, "Cluster %d ... \n", cluster_id);
+	// Read template FASTA
+	uint64_t n_clusters = 0;
+	bwa_seq_t *clusters = load_reads(argv[optind + 2], &n_clusters);
+	bwa_seq_t *r = &clusters[0];
 
 	// Read the cluster definition
-	char buf[10000];
+	char buf[1000];
 	char *attr[32];
+	int *starts = (int*) calloc(n_clusters / 2, sizeof(int));
+	int *ends = (int*) calloc(n_clusters / 2, sizeof(int));
+	int *ids = (int*) calloc(n_clusters / 2, sizeof(int));
+
+	attr[0] = strtok(r->name, "_");
+	int cluster_index = 0, cluster_id = atoi(attr[0]);
 	int start_index = 0, end_index = 0;
 	FILE *defination = xopen(argv[optind + 1], "r");
 	while (fgets(buf, sizeof(buf), defination)) {
@@ -2254,34 +2327,45 @@ int pe_cluster(int argc, char *argv[]) {
 		attr[1] = strtok(NULL, "\t");
 		if (atoi(attr[0]) == cluster_id) {
 			end_index = atoi(attr[1]);
-			break;
+			show_debug_msg(__func__, "Cluster %d reads are: [%d, %d). \n",
+					cluster_id, start_index, end_index, cluster_index);
+			ids[cluster_index] = cluster_id;
+			starts[cluster_index] = start_index;
+			ends[cluster_index++] = end_index;
+			if (cluster_index >= n_clusters / 2)
+				break;
+			r = &clusters[2 * cluster_index];
+			attr[0] = strtok(r->name, "_");
+			cluster_id = atoi(attr[0]);
 		}
 		start_index = atoi(attr[1]);
 	}
-	show_msg(__func__, "Cluster reads are: [%d, %d). \n", start_index, end_index);
 	fclose(defination);
-
-	if (start_index > end_index) {
-		err_fatal(__func__, "Cluster %d not found! \n", cluster_id);
-	}
 
 	// Pick raw reads and hash
 	FILE *cluster_fa = xopen("tmp.fa", "w");
 	FILE *all_fa = xopen(argv[optind], "r");
-	int line_no = 0, id = 0;
+	int s = starts[0], e = ends[0], line_no = 0, id = 0, index = 0;
 	while (fgets(buf, sizeof(buf), all_fa)) {
-		if (line_no / 2 >= start_index && line_no / 2 < end_index) {
+		if (line_no >= s && line_no < e) {
 			if (line_no % 2 == 0) {
-				fprintf(cluster_fa, ">%d cluster=%d\n", id++, cluster_id);
+				fprintf(cluster_fa, ">%d cluster=%d\n", id++, ids[index]);
 			} else {
 				fprintf(cluster_fa, buf);
 			}
 			if (line_no % 1000000 == 0) {
 				show_msg(__func__, "Looping to line %d...\n", line_no);
 			}
+			if (index >= n_clusters / 2)
+				break;
 		}
-		if (line_no / 2 >= end_index) break;
+		if (line_no >= end_index)
+			break;
 		line_no++;
+		if (line_no == e) {
+			s = starts[++index];
+			e = ends[index];
+		}
 	}
 	show_msg(__func__, "Saved %d reads to tmp.fa \n", id);
 	fclose(all_fa);
@@ -2291,41 +2375,32 @@ int pe_cluster(int argc, char *argv[]) {
 	sprintf(cmd, "./peta k_hash -k 11 -l 100 -i 2 -b 19 -s 4 tmp.fa");
 	system(cmd);
 
-	// Read template FASTA
-	uint64_t n_seqs = 0;
-	bwa_seq_t *seqs = load_reads(argv[optind + 2], &n_seqs);
-	bwa_seq_t *r = NULL;
-	int i = 0;
-	char *name = (char*) calloc(sizeof(char), 1024);
-	for (i = 0; i < n_seqs; i++) {
-		r = &seqs[i];
-		attr[0] = strtok(r->name, "_");
-		if (atoi(attr[0]) == cluster_id)
-			break;
-	}
-	if (atoi(attr[0]) != cluster_id)
-		err_fatal(__func__, "Cluster %d template not found! \n", cluster_id);
-	show_msg(__func__, "--------------------------\n");
-	show_msg(__func__, "Template %s \n", attr[0]);
-	p_ctg_seq(__func__, r);
-
 	// Load hash table
 	tpl_hash all_tpls;
 	hash_table *ht = load_k_hash("tmp.fa");
-	tpl *t = add_global_tpl(&all_tpls, r, "TEMPLATE", r->len, 0);
-	p_tpl(t);
-	bwa_free_read_seq(1, t->ctg);
-	t->ctg = new_seq(r, r->len, 0);
-	t->len = t->ctg->len;
-	refresh_tpl_reads(ht, t, N_MISMATCHES);
-	p_tpl_reads(t);
 
-	// Assemble the cluster
-	int to_con_right = ext_unit(ht, &all_tpls, NULL, NULL, t, NULL, 0, 1);
-	int to_con_left = ext_unit(ht, &all_tpls, NULL, NULL, t, NULL, 0, 0);
-	finalize_tpl(ht, &all_tpls, t, 1, 0, 0);
+	// Do the assembly
+	bwa_seq_t *r1 = NULL, *r2 = NULL;
+	int i = 0;
+	for (i = 0; i < n_clusters / 2; i++) {
+		r1 = &clusters[2 * i];
+		r2 = &clusters[2 * i + 1];
+		cluster_ass(ht, &all_tpls, r1, r2, starts, ends, i, ids[i]);
+		show_msg(__func__, "Cluster %d done \n", ids[i]);
+	}
 
-	p_tpl_reads(t);
+	for (i = 0; i < n_clusters; i++) {
+		r1 = &clusters[i];
+		if (r1->status != USED)
+			r1->status = FRESH;
+	}
+
+	// Merging
+	kmer_hash tpl_kmer_hash;
+	show_msg(__func__, "Merging %d templates by pairs and overlapping ...\n",
+			all_tpls.size());
+	merge_together_tpls(&all_tpls);
+	iter_merge(ht, &all_tpls, &tpl_kmer_hash);
 
 	char *fn = get_output_file("paired.fa", kmer_out);
 	FILE *contigs = xopen(fn, "w");
@@ -2338,8 +2413,10 @@ int pe_cluster(int argc, char *argv[]) {
 	fclose(contigs);
 	free(fn);
 
+	// Build graph and run EM
 	GPtrArray *branching_events = g_ptr_array_sized_new(BUFSIZ);
 	get_junction_arr(read_tpls, branching_events);
+	cluster_set_start_reads(branching_events);
 	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junc_by_id);
 	fn = get_output_file("paired.junctions", kmer_out);
 	store_features(fn, branching_events, read_tpls);
@@ -2350,7 +2427,6 @@ int pe_cluster(int argc, char *argv[]) {
 	process_graph(read_tpls, branching_events, ht, kmer_out);
 	destroy_ht(ht);
 
-	show_msg(__func__, "Cluster %d done \n", cluster_id);
 }
 
 int pe_kmer(int argc, char *argv[]) {
@@ -2385,7 +2461,7 @@ int pe_kmer(int argc, char *argv[]) {
 		return 1;
 	}
 	if (!g_thread_supported())
-		g_thread_init(NULL);
+		g_thread_init( NULL);
 	kmer_id_mutex = g_mutex_new();
 
 	ext_by_kmers_core(argv[optind], argv[optind + 1]);

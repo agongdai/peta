@@ -28,5 +28,6 @@ typedef struct {
 } path;
 
 void determine_paths(splice_graph *g, hash_table *ht, char *save_dir);
+void save_cluster_paths(GPtrArray *paths, char *fn, const int to_save_all);
 
 #endif /* GRAPH_HPP_ */

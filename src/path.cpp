@@ -240,6 +240,54 @@ void save_paths(GPtrArray *paths, char *fn, const int to_save_all) {
 	fclose(p_fp);
 }
 
+int cluster_count_pairs(GPtrArray *reads) {
+	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_name);
+	int i = 0, n_pairs = 0;
+	bwa_seq_t *r = NULL, *n = NULL;
+	if (reads->len <= 1)
+		return 0;
+	for (i = 0; i < reads->len - 1; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		n = (bwa_seq_t*) g_ptr_array_index(reads, i + 1);
+		if (is_mates(r->name, n->name)) {
+			n_pairs++;
+		}
+	}
+	return n_pairs;
+}
+
+void cluster_save_paths(GPtrArray *paths, char *fn, const int to_save_all) {
+	uint32_t i = 0;
+	path *p = NULL;
+	char entry[BUFSIZ];
+	FILE *p_fp = xopen(fn, "w");
+	char *attr[32];
+	if (paths->len <= 0)
+		return;
+	vertex *v = NULL;
+	int cluster_id = -1;
+	for (i = 0; i < paths->len; i++) {
+		p = (path*) g_ptr_array_index(paths, i);
+		// If we are not saving all paths and the status is not 0, skip
+		if (!to_save_all) {
+			if (p->len < 100)
+				continue;
+			if (p->is_paired) {
+			} else {
+				if (p->status != 0)
+					continue;
+			}
+		}
+		v = (vertex*) g_ptr_array_index(p->vertexes, 0);
+		cluster_id = atoi(strtok(v->from->start_read->name, "_"));
+
+		sprintf(entry, ">%d.%d.%d.%d\n", cluster_id, p->id, p->reads->len,
+				cluster_count_pairs(p->reads));
+		save_con(entry, p->ctg, p_fp);
+	}
+	fclose(p_fp);
+}
+
 /**
  * We expect that the exon length is shorter than read_len - SHORT_BRANCH_SHIFT
  */
@@ -416,8 +464,8 @@ GPtrArray *combinatorial_paths(GPtrArray *levels) {
 		for (k = 0; k < paths->len; k++) {
 			p = (path*) g_ptr_array_index(paths, k);
 			new_p = NULL;
-			tail_v = (vertex*) g_ptr_array_index(p->vertexes, p->vertexes->len
-					- 1);
+			tail_v = (vertex*) g_ptr_array_index(p->vertexes,
+					p->vertexes->len - 1);
 			// For each vertex at current level
 			for (j = 0; j < level_vertexes->len; j++) {
 				v = (vertex*) g_ptr_array_index(level_vertexes, j);
@@ -894,8 +942,9 @@ void diffsplice_em(comp *c, GPtrArray *paths, const float read_len,
 			//show_debug_msg(__func__, "sum_k_c_te[i]: %.2f\n", i, sum_k_c_te);
 
 			// Coverage of path i in this iteration
-			p_covs[i] = (0 - n_features + sqrt(n_features * n_features + 4
-					* sum_k_te * sum_k_c_te)) / (2 * sum_k_te);
+			p_covs[i] = (0 - n_features + sqrt(
+					n_features * n_features + 4 * sum_k_te * sum_k_c_te)) / (2
+					* sum_k_te);
 
 			//show_debug_msg(__func__, "p_covs[i]: %.2f\n", i, p_covs[i]);
 
@@ -1137,7 +1186,8 @@ GPtrArray *comp_paths(comp *c, hash_table *ht) {
 			}
 		}
 		if (tpl_id != -1) {
-			show_debug_msg(__func__, "Keep two paths hanging on TPL_ID: %d \n", tpl_id);
+			show_debug_msg(__func__, "Keep two paths hanging on TPL_ID: %d \n",
+					tpl_id);
 			for (i = 0; i < paths->len; i++) {
 				p = (path*) g_ptr_array_index(paths, i);
 				if (p->is_paired)
@@ -1158,12 +1208,42 @@ GPtrArray *comp_paths(comp *c, hash_table *ht) {
 
 	paths_prob = init_path_prob(paths, ht->o->read_len);
 	diffsplice_em(c, paths, ht->o->read_len, paths_prob);
+	int n_valid = 0;
 	for (i = 0; i < paths->len; i++) {
 		p = (path*) g_ptr_array_index(paths, i);
 		p_p(p);
 		// If the probability of the paths is small, mark it as not alive.
 		if (paths_prob[i] <= 0.02 && paths_prob[i] * paths->len < 0.5)
 			p->status = 1;
+		else
+			n_valid++;
+	}
+	if (n_valid >= 3) {
+		GPtrArray *top = g_ptr_array_sized_new(3);
+		float *probs = (float*) calloc(3, sizeof(float));
+		int j = 0;
+		float first = 0.0, second = 0.0, third = 0.0;
+		// Pick the top-3 probability
+		for (i = 0; i < paths->len; i++) {
+			if (paths_prob[i] >= first)
+				first = paths_prob[i];
+		}
+		for (i = 0; i < paths->len; i++) {
+			if (paths_prob[i] >= second && paths_prob[i] != first)
+				second = paths_prob[i];
+		}
+		for (i = 0; i < paths->len; i++) {
+			if (paths_prob[i] >= third && paths_prob[i] != second && paths_prob[i] != first)
+				third = paths_prob[i];
+		}
+		for (i = 0; i < paths->len; i++) {
+			p = (path*) g_ptr_array_index(paths, i);
+			if (paths_prob[i] >= third)
+				g_ptr_array_add(top, p);
+		}
+		free(probs);
+		free(paths_prob);
+		return top;
 	}
 	free(paths_prob);
 	return paths;
@@ -1202,6 +1282,51 @@ GPtrArray *paths_from_tpl(comp *c) {
 	return paths;
 }
 
+void cluster_save_read_usage(GPtrArray *all_paths, char *save_dir) {
+	char *fn = get_output_file("reads.usage", save_dir);
+	FILE *f = xopen(fn, "w");
+
+	show_msg(__func__, "Saving cluster reads usage...\n");
+	path *p = NULL;
+	int i = 0;
+	int j = 0;
+	int cluster_id = -1;
+	bwa_seq_t *r = NULL;
+	if (all_paths->len <= 0)
+		return;
+	vertex *v = NULL;
+	for (i = 0; i < all_paths->len; i++) {
+		p = (path*) g_ptr_array_index(all_paths, i);
+
+		if (p->len < 100)
+			continue;
+		if (p->is_paired) {
+		} else {
+			if (p->status != 0)
+				continue;
+		}
+
+		if (!p->reads) {
+			show_msg(__func__, "No reads on path %d \n", p->id);
+			continue;
+		}
+
+		v = (vertex*) g_ptr_array_index(p->vertexes, 0);
+		cluster_id = atoi(strtok(v->from->start_read->name, "_"));
+
+		fprintf(f, "%d.%d.%d.%d\t", cluster_id, p->id, p->reads->len,
+				cluster_count_pairs(p->reads));
+		for (j = 0; j < p->reads->len; j++) {
+			r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
+			fprintf(f, "%s,", r->name);
+		}
+		fprintf(f, "\n");
+	}
+
+	fclose(f);
+	show_msg(__func__, "Saving cluster reads usage...\n");
+}
+
 void determine_paths(splice_graph *g, hash_table *ht, char *save_dir) {
 	comp *c = NULL;
 	uint32_t i = 0;
@@ -1211,7 +1336,7 @@ void determine_paths(splice_graph *g, hash_table *ht, char *save_dir) {
 			g->vertexes->len / 10);
 	for (i = 0; i < g->components->len; i++) {
 		c = (comp*) g_ptr_array_index(g->components, i);
-		p_comp(c, save_dir);
+		// p_comp(c, save_dir);
 		if (c->vertexes->len >= MAX_VS_IN_COMP)
 			paths = paths_from_tpl(c);
 		else
@@ -1219,11 +1344,13 @@ void determine_paths(splice_graph *g, hash_table *ht, char *save_dir) {
 		append_paths(all_paths, paths);
 	}
 	fn = get_output_file("paths.fa", save_dir);
-	save_paths(all_paths, fn, 1);
+	cluster_save_paths(all_paths, fn, 1);
 	free(fn);
 	fn = get_output_file("peta.fa", save_dir);
-	save_paths(all_paths, fn, 0);
+	cluster_save_paths(all_paths, fn, 0);
 	free(fn);
+
+	cluster_save_read_usage(all_paths, save_dir);
 
 	fn = get_output_file("paths.dot", save_dir);
 	p_paths(all_paths, fn);
