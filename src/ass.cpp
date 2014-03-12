@@ -29,7 +29,7 @@
 
 using namespace std;
 
-int TESTING = -1;
+int TESTING = 0;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -370,7 +370,7 @@ tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, char *step,
 }
 
 void p_test_read() {
-	p_query("TEST", TEST);
+	//p_query("TEST", TEST);
 	//	if (TEST->status == FRESH && TEST->pos != IMPOSSIBLE_NEGATIVE) {
 	//		show_debug_msg(__func__, "ID: %d \n", kmer_ctg_id);
 	//		exit(1);
@@ -1230,9 +1230,9 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 		for (i = 0; i < branches->len; i++) {
 			jun = (junction*) g_ptr_array_index(branches, i);
 			branch = jun->branch_tpl;
-			printf("\n");
-			show_debug_msg(__func__, "Branch [%d, %d] %s \n", branch->id,
-					branch->len, branch->alive ? "Alive" : "Dead");
+			//printf("\n");
+			//show_debug_msg(__func__, "Branch [%d, %d] %s \n", branch->id,
+			//		branch->len, branch->alive ? "Alive" : "Dead");
 			if (jun->status != 0 || branch == t)
 				continue;
 			if (!branch->alive) {
@@ -1340,11 +1340,11 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 				}
 			}
 			merge_branch_to_main(ht, branch);
-			show_debug_msg(__func__, "Branch [%d, %d] %s \n", branch->id,
-					branch->len, branch->alive ? "Alive" : "Dead");
+			//show_debug_msg(__func__, "Branch [%d, %d] %s \n", branch->id,
+			//		branch->len, branch->alive ? "Alive" : "Dead");
 			try_destroy_tpl(ht, all_tpls, branch, ht->o->read_len);
-			show_debug_msg(__func__, "Branch [%d, %d] %s \n", branch->id,
-					branch->len, branch->alive ? "Alive" : "Dead");
+			//show_debug_msg(__func__, "Branch [%d, %d] %s \n", branch->id,
+			//		branch->len, branch->alive ? "Alive" : "Dead");
 			//p_tpl(t);
 			if (!branch->alive) {
 				rm_global_tpl(all_tpls, branch, FRESH);
@@ -1440,14 +1440,14 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				continue;
 			}
 		}
-		if (b_reads->len > 0) {
-			printf("\n ---- \n");
-			show_debug_msg(__func__, "Template [%d, %d] at %d with reads %d\n",
-					t->id, t->len, shift, b_reads->len);
-			p_query(__func__, tail);
+		//if (b_reads->len > 0) {
+		//	printf("\n ---- \n");
+		//	show_debug_msg(__func__, "Template [%d, %d] at %d with reads %d\n",
+		//			t->id, t->len, shift, b_reads->len);
+		//	p_query(__func__, tail);
 			//p_ctg_seq(__func__, t->ctg);
 			//p_readarray(b_reads, 1);
-		}
+		//}
 		if (ori)
 			g_ptr_array_sort(b_reads, (GCompareFunc) cmp_reads_by_cursor);
 		else
@@ -1579,11 +1579,16 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 					to_connect, ori);
 			branch->cov = calc_tpl_cov(branch, 0, branch->len, ht->o->read_len);
 			dead = 0;
-			//p_tpl(branch);
+			p_tpl(branch);
 			if (!branch->alive || (!connected && (branch->len
 					<= branch_read->len) && branch->cov < HIHG_COV_THRE))
 				dead = 1;
 			show_debug_msg(__func__, "Dead: %d\n", dead);
+
+			if (!dead) {
+				refresh_tpl_reads(ht, branch, mismatches);
+				if (!branch->alive) dead = 1;
+			}
 
 			if (!dead) {
 				g_ptr_array_add(wait_for_val, branch);
@@ -1591,7 +1596,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				refresh_tpl_reads(ht, branch, mismatches);
 				correct_tpl_base(ht->seqs, branch, ht->o->read_len, 0,
 						branch->len);
-				//p_tpl(branch);
+				p_tpl(branch);
 			} else {
 				reset_to_hang(branch_read);
 				mark_as_hang_tmp(branch);
@@ -1707,7 +1712,7 @@ void finalize_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int to_branching,
 					t->id, t->len, t->reads->len, t->alive);
 			correct_tpl_base(ht->seqs, t, ht->o->read_len, 0, t->len);
 			iter_branching(ht, all_tpls, t, to_branching);
-			p_tpl(t);
+			//p_tpl(t);
 			if (t->cov < HIHG_COV_THRE) {
 				ori_len = t->len;
 				tpl_jumping(ht, all_tpls, t);
@@ -2240,25 +2245,38 @@ void cluster_set_start_reads(GPtrArray *junctions) {
 }
 
 void cluster_ass(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *r1,
-		bwa_seq_t *r2, int *starts, int *ends, int index, int cluster_id) {
+		bwa_seq_t *r2, int *cluster_ids_delimiter, int index, int cluster_id) {
 	int i = 0;
 	bwa_seq_t *r = NULL;
+	pool *p = NULL;
+	show_debug_msg(__func__, "Reads range: %d~%d \n", cluster_ids_delimiter[index - 1], cluster_ids_delimiter[index]);
 	for (i = 0; i < ht->n_seqs; i++) {
 		r = &ht->seqs[i];
 		if (r->status != USED) {
 			r->status = HANG;
-			if (i >= starts[index] && i < ends[index]) {
+			if (i >= cluster_ids_delimiter[index] && i < cluster_ids_delimiter[index + 1]) {
 				r->status = FRESH;
 			}
 		}
 	}
 
 	CLUSTER_START_READ = r1;
-	tpl *t = add_global_tpl(all_tpls, r, "TEMPLATE", r1->len, 0);
+	tpl *t = add_global_tpl(all_tpls, r1, "TEMPLATE", r1->len, 0);
 	bwa_free_read_seq(1, t->ctg);
 	t->ctg = new_seq(r1, r1->len, 0);
 	t->len = t->ctg->len;
 	t->start_read = r1;
+	p = new_pool();
+	init_pool(ht, p, t, kmer_len, N_MISMATCHES, 0);
+	p_pool(__func__, p, NULL);
+	if (p->reads->len > 0) {
+		g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_cursor);
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads,
+				p->reads->len - 1);
+		truncate_tpl(t, t->len - r->cursor, 1);
+	}
+	destroy_pool(p);
+
 	p_tpl(t);
 	refresh_tpl_reads(ht, t, N_MISMATCHES);
 
@@ -2266,12 +2284,25 @@ void cluster_ass(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *r1,
 	int to_con_left = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
 	finalize_tpl(ht, all_tpls, t, 1, 0, 0);
 
+//	return;
+
 	CLUSTER_START_READ = r2;
-	t = add_global_tpl(all_tpls, r2, "TEMPLATE", r->len, 0);
+	t = add_global_tpl(all_tpls, r2, "TEMPLATE", r2->len, 0);
 	bwa_free_read_seq(1, t->ctg);
 	t->ctg = new_seq(r2, r2->len, 0);
 	t->len = t->ctg->len;
 	t->start_read = r2;
+
+	p = new_pool();
+	init_pool(ht, p, t, kmer_len, N_MISMATCHES, 1);
+	p_pool(__func__, p, NULL);
+	if (p->reads->len > 0) {
+		g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_cursor);
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads,0);
+		truncate_tpl(t, t->len - (r->len - r->cursor), 0);
+	}
+	destroy_pool(p);
+
 	p_tpl(t);
 	refresh_tpl_reads(ht, t, N_MISMATCHES);
 	int to_con_right = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
@@ -2322,13 +2353,14 @@ int pe_cluster(int argc, char *argv[]) {
 	int cluster_index = 0, cluster_id = atoi(attr[0]);
 	int start_index = 0, end_index = 0;
 	FILE *defination = xopen(argv[optind + 1], "r");
+	show_msg(__func__, "Reading template reads range... \n");
 	while (fgets(buf, sizeof(buf), defination)) {
 		attr[0] = strtok(buf, "\t");
 		attr[1] = strtok(NULL, "\t");
 		if (atoi(attr[0]) == cluster_id) {
 			end_index = atoi(attr[1]);
-			show_debug_msg(__func__, "Cluster %d reads are: [%d, %d). \n",
-					cluster_id, start_index, end_index, cluster_index);
+			//show_debug_msg(__func__, "Cluster %d reads are: [%d, %d). \n",
+			//		cluster_id, start_index, end_index, cluster_index);
 			ids[cluster_index] = cluster_id;
 			starts[cluster_index] = start_index;
 			ends[cluster_index++] = end_index;
@@ -2345,6 +2377,7 @@ int pe_cluster(int argc, char *argv[]) {
 	// Pick raw reads and hash
 	FILE *cluster_fa = xopen("tmp.fa", "w");
 	FILE *all_fa = xopen(argv[optind], "r");
+	int *cluster_ids_delimiter = (int*) calloc(n_clusters / 2 + 1, sizeof(int));
 	int s = starts[0], e = ends[0], line_no = 0, id = 0, index = 0;
 	while (fgets(buf, sizeof(buf), all_fa)) {
 		if (line_no >= s && line_no < e) {
@@ -2365,6 +2398,7 @@ int pe_cluster(int argc, char *argv[]) {
 		if (line_no == e) {
 			s = starts[++index];
 			e = ends[index];
+			cluster_ids_delimiter[index] = id;
 		}
 	}
 	show_msg(__func__, "Saved %d reads to tmp.fa \n", id);
@@ -2385,9 +2419,13 @@ int pe_cluster(int argc, char *argv[]) {
 	for (i = 0; i < n_clusters / 2; i++) {
 		r1 = &clusters[2 * i];
 		r2 = &clusters[2 * i + 1];
-		cluster_ass(ht, &all_tpls, r1, r2, starts, ends, i, ids[i]);
-		show_msg(__func__, "Cluster %d done \n", ids[i]);
+		cluster_ass(ht, &all_tpls, r1, r2, cluster_ids_delimiter, i, ids[i]);
+		if (i % 100 == 0)
+		show_msg(__func__, "%d/%d: Cluster %d done \n", i, n_clusters/2, ids[i]);
 	}
+
+	free(starts);
+	free(ends);
 
 	for (i = 0; i < n_clusters; i++) {
 		r1 = &clusters[i];

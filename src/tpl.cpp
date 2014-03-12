@@ -648,6 +648,8 @@ bwa_seq_t *cut_tpl_tail(tpl *t, int pos, const int tail_len, const int ori) {
 	if (t->len < pos)
 		pos = t->len;
 	//return new_seq(t->ctg, t->len, 0);
+	//p_tpl(t);
+	//show_debug_msg(__func__, "POS: %d; TailLen: %d\n", pos, tail_len);
 	if (ori) {
 		partial = new_seq(t->ctg, t->len - pos, pos);
 		main_tail = t->r_tail;

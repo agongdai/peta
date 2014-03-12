@@ -1324,7 +1324,6 @@ void cluster_save_read_usage(GPtrArray *all_paths, char *save_dir) {
 	}
 
 	fclose(f);
-	show_msg(__func__, "Saving cluster reads usage...\n");
 }
 
 void determine_paths(splice_graph *g, hash_table *ht, char *save_dir) {
