@@ -1180,6 +1180,14 @@ void mark_init_reads_used(hash_table *ht, tpl *t, bwa_seq_t *read,
 
 /**
  * Align tail-length query to find reads for branching
+ *
+ * At a position, align the 25bp portion to find FRESH reads overlapped with it
+ * These reads should be partially overlapped with the template.
+ *
+ * For example, ori 0:
+ * Template: ========----------===========
+ * Align ---------- and find a read **----------**********
+ * Then the read should overlap with the template for the portion **----------
  */
 GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 		int shift, int mismatches, int8_t status, int ori) {
@@ -1189,36 +1197,14 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	int ol_len = 0, n_mis = 0, start = 0;
 	int i = 0, j = 0;
 	int is_picked = 0;
-	ubyte_t c = 0, read_c = 0;
-
-	//		if (shift == 38) {
-	//			show_debug_msg(__func__, "----\n");
-	//			show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
-	//					: "right");
-	//			p_query(__func__, query);
-	//			p_readarray(hits, 1);
-	//		}
+	ubyte_t read_c = 0;
 
 	if (hits->len <= 0) {
 		return hits;
 	}
-	//
-	//	if (shift == 38) {
-	//			show_debug_msg(__func__, "----\n");
-	//			show_debug_msg(__func__, "Shift: %d to %s \n", shift, ori ? "left"
-	//					: "right");
-	//			p_query(__func__, query);
-	//			p_readarray(hits, 1);
-	//	}
-
-	//if (shift == 587) {
-	//	p_query(__func__, query);
-	//	p_readarray(hits, 1);
-	//}
 	tpl_seq = blank_seq(ht->o->read_len);
 	picked = g_ptr_array_sized_new(hits->len);
 	for (i = 0; i < hits->len; i++) {
-		is_picked = 0;
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
 		if (has_n(r, 1)) {
 			reset_to_fresh(r);
@@ -1230,26 +1216,28 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 		//if (ol_len < query->len - 2)
 		//	continue;
 		//show_debug_msg(__func__, "Start: %d; ol: %d\n", start, ol_len);
+		is_picked = 0;
 		if (start >= 0 && start + ol_len <= t->len && ol_len >= query->len) {
-			//tpl_seq = new_seq(t->ctg, ol_len, start);
 			copy_partial(t->ctg, tpl_seq, start, ol_len);
 			//if (shift == 1076) {
 			//p_query("TEMPLATE SEQ", tpl_seq);
 			//p_query("HIT", r);
 			//}
+			// Make sure that the mapped portion has acceptable mismatches
 			if (ori)
 				n_mis = seq_ol(r, tpl_seq, ol_len, mismatches);
 			else
 				n_mis = seq_ol(tpl_seq, r, ol_len, mismatches);
 			//if (shift == 1076)
 			//show_debug_msg(__func__, "n_mis: %d \n", n_mis);
+
+			// Determine the cursor position
 			if (n_mis >= 0) {
 				if (ori) {
-					// To find the cursor
 					for (j = r->pos - 1; j >= N_BAD_TAIL_SHIFT; j--) {
-						c = t->ctg->seq[shift - (r->pos - j)];
 						read_c = r->rev_com ? r->rseq[j] : r->seq[j];
-						if (c != read_c) {
+						if ((shift - (r->pos - j)) < 0
+								|| t->ctg->seq[shift - (r->pos - j)] != read_c) {
 							r->cursor = j;
 							g_ptr_array_add(picked, r);
 							is_picked = 1;
@@ -1258,9 +1246,8 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 					}
 				} else {
 					for (j = ol_len; j < r->len - N_BAD_TAIL_SHIFT; j++) {
-						c = t->ctg->seq[start + j];
 						read_c = r->rev_com ? r->rseq[j] : r->seq[j];
-						if (c != read_c) {
+						if ((start + j) >= t->len || t->ctg->seq[start + j] != read_c) {
 							r->cursor = j;
 							g_ptr_array_add(picked, r);
 							is_picked = 1;
@@ -1276,6 +1263,10 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	}
 	bwa_free_read_seq(1, tpl_seq);
 	g_ptr_array_free(hits, TRUE);
+	if (ori)
+		g_ptr_array_sort(picked, (GCompareFunc) cmp_reads_by_cursor);
+	else
+		g_ptr_array_sort(picked, (GCompareFunc) cmp_reads_by_rev_cursor);
 	return picked;
 }
 

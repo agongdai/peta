@@ -29,8 +29,8 @@
 
 using namespace std;
 
-int TESTING = 0;
-int DETAIL_ID = -1;
+int TESTING = 4312566;
+int DETAIL_ID = 1;
 
 int test_suffix = 0;
 int kmer_ctg_id = 1;
@@ -72,7 +72,7 @@ tpl *blank_tpl(bwa_seq_t *start_read, int len, int ori, char *step) {
 	}
 	if (start_read->rev_com)
 		switch_fr(start_read);
-	t->start_read = CLUSTER_START_READ; //start_read;
+	t->start_read = start_read;//CLUSTER_START_READ;
 	t->len = t->ctg->len;
 	t->ctg->rev_com = 0;
 	t->tinfo = (testing_info*) malloc(sizeof(testing_info));
@@ -370,7 +370,7 @@ tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, char *step,
 }
 
 void p_test_read() {
-	//p_query("TEST", TEST);
+	p_query("TEST", TEST);
 	//	if (TEST->status == FRESH && TEST->pos != IMPOSSIBLE_NEGATIVE) {
 	//		show_debug_msg(__func__, "ID: %d \n", kmer_ctg_id);
 	//		exit(1);
@@ -1392,36 +1392,14 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			if (ori)
 				ext_que(tail, t->ctg->seq[t->len - i - least_ol_len], 1);
 			else
-				ext_que(tail, t->ctg->seq[i - 1 + least_ol_len], 0);
+				ext_que(tail, t->ctg->seq[i + least_ol_len - 1], 0);
 		}
 
 		shift = ori ? t->len - least_ol_len - i : i;
-
 		//show_debug_msg(__func__, "Template [%d, %d] at %d (i: %d) \n", t->id,
 		//					t->len, shift, i);
 		//p_query(__func__, tail);
-
 		b_reads = check_branch_tail(ht, t, tail, shift, mismatches, FRESH, ori);
-		//p_readarray(b_reads, 1);
-		for (j = b_reads->len - 1; j >= 0; j--) {
-			branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
-			if (t->len >= branch_read->pos + branch_read->len) {
-				part = new_seq(t->ctg, branch_read->len, branch_read->pos + i);
-				if (branch_read->rev_com)
-					switch_fr(branch_read);
-				score = smith_waterman_simple(part, branch_read, &m_s, &m_e,
-						&b_s, &b_e, ht->o->k);
-				//p_query("READ", branch_read);
-				//p_query("PART", part);
-				//show_debug_msg(__func__, "SCORE: %d \n", score);
-				if (branch_read->rev_com)
-					switch_fr(branch_read);
-				if (score >= ht->o->read_len - 2 * 4) {
-					g_ptr_array_remove_index_fast(b_reads, j);
-				}
-				bwa_free_read_seq(1, part);
-			}
-		}
 
 		if (b_reads->len == 0) {
 			g_ptr_array_free(b_reads, TRUE);
@@ -1440,18 +1418,6 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				continue;
 			}
 		}
-		//if (b_reads->len > 0) {
-		//	printf("\n ---- \n");
-		//	show_debug_msg(__func__, "Template [%d, %d] at %d with reads %d\n",
-		//			t->id, t->len, shift, b_reads->len);
-		//	p_query(__func__, tail);
-			//p_ctg_seq(__func__, t->ctg);
-			//p_readarray(b_reads, 1);
-		//}
-		if (ori)
-			g_ptr_array_sort(b_reads, (GCompareFunc) cmp_reads_by_cursor);
-		else
-			g_ptr_array_sort(b_reads, (GCompareFunc) cmp_reads_by_rev_cursor);
 
 		// The pos value would be changed by mark_init_reads_used
 		// Store a copy beforehand.
@@ -1587,7 +1553,8 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 
 			if (!dead) {
 				refresh_tpl_reads(ht, branch, mismatches);
-				if (!branch->alive) dead = 1;
+				if (!branch->alive)
+					dead = 1;
 			}
 
 			if (!dead) {
@@ -1804,7 +1771,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[4799260];
+	TEST = &seqs[4735263];
 
 	// shrink_ht(ht);
 
@@ -2249,12 +2216,14 @@ void cluster_ass(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *r1,
 	int i = 0;
 	bwa_seq_t *r = NULL;
 	pool *p = NULL;
-	show_debug_msg(__func__, "Reads range: %d~%d \n", cluster_ids_delimiter[index - 1], cluster_ids_delimiter[index]);
+	show_debug_msg(__func__, "Reads range: %d~%d \n",
+			cluster_ids_delimiter[index - 1], cluster_ids_delimiter[index]);
 	for (i = 0; i < ht->n_seqs; i++) {
 		r = &ht->seqs[i];
 		if (r->status != USED) {
 			r->status = HANG;
-			if (i >= cluster_ids_delimiter[index] && i < cluster_ids_delimiter[index + 1]) {
+			if (i >= cluster_ids_delimiter[index] && i
+					< cluster_ids_delimiter[index + 1]) {
 				r->status = FRESH;
 			}
 		}
@@ -2271,8 +2240,7 @@ void cluster_ass(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *r1,
 	p_pool(__func__, p, NULL);
 	if (p->reads->len > 0) {
 		g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_cursor);
-		r = (bwa_seq_t*) g_ptr_array_index(p->reads,
-				p->reads->len - 1);
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len - 1);
 		truncate_tpl(t, t->len - r->cursor, 1);
 	}
 	destroy_pool(p);
@@ -2284,7 +2252,7 @@ void cluster_ass(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *r1,
 	int to_con_left = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
 	finalize_tpl(ht, all_tpls, t, 1, 0, 0);
 
-//	return;
+	//	return;
 
 	CLUSTER_START_READ = r2;
 	t = add_global_tpl(all_tpls, r2, "TEMPLATE", r2->len, 0);
@@ -2298,7 +2266,7 @@ void cluster_ass(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *r1,
 	p_pool(__func__, p, NULL);
 	if (p->reads->len > 0) {
 		g_ptr_array_sort(p->reads, (GCompareFunc) cmp_reads_by_cursor);
-		r = (bwa_seq_t*) g_ptr_array_index(p->reads,0);
+		r = (bwa_seq_t*) g_ptr_array_index(p->reads, 0);
 		truncate_tpl(t, t->len - (r->len - r->cursor), 0);
 	}
 	destroy_pool(p);
@@ -2421,7 +2389,8 @@ int pe_cluster(int argc, char *argv[]) {
 		r2 = &clusters[2 * i + 1];
 		cluster_ass(ht, &all_tpls, r1, r2, cluster_ids_delimiter, i, ids[i]);
 		if (i % 100 == 0)
-		show_msg(__func__, "%d/%d: Cluster %d done \n", i, n_clusters/2, ids[i]);
+			show_msg(__func__, "%d/%d: Cluster %d done \n", i, n_clusters / 2,
+					ids[i]);
 	}
 
 	free(starts);

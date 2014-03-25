@@ -459,7 +459,7 @@ void ext_con(bwa_seq_t *contig, const ubyte_t c, const int ori) {
 
 void ext_que(bwa_seq_t *q, const ubyte_t c, const int ori) {
 	ubyte_t comp_c = (c >= 4) ? c : 3 - c;
-	if (!ori) { // Left mate of the PET
+	if (!ori) {
 		memmove(q->seq, &q->seq[1], q->len - 1);
 		q->seq[q->len - 1] = c;
 		memmove(&q->rseq[1], q->rseq, q->len - 1);
@@ -552,7 +552,7 @@ void reset_read(bwa_seq_t *r) {
 	r->pos = IMPOSSIBLE_NEGATIVE;
 	r->cursor = -1;
 	r->contig_id = -1;
-	r->contig_locus = -1;
+	r->contig_locus = 0;
 	r->rev_com = 0;
 }
 

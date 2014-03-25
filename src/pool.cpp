@@ -425,13 +425,13 @@ void next_pool(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t, bwa_seq_t 
 		r = (bwa_seq_t*) g_ptr_array_index(fresh_reads, i);
 		m = get_mate(r, ht->seqs);
 
-		//if (t->id == -1) {
-		//	p_query(__func__, r);
-		//	p_query(__func__, m);
-		//}
+		if (t->id == 1) {
+			p_query(__func__, r);
+			p_query(__func__, m);
+		}
 		//add2pool(p, r);
 		// Add single read
-		if (m->status == FRESH)
+		if (m->status == FRESH || m->status == TRIED)
 			add2pool(p, r);
 		else {
 			// Add paired-end read

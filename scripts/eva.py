@@ -1448,8 +1448,8 @@ def contig(args):
             next = filtered[i + 1]
             if h.rend - next.rstart < 25: 
                 print '@%d - Overlap is not long enough: %d' % (h.rstart, h.rend - next.rstart)
-                print h
-                print next
+                #print h
+                #print next
                 ol = False
                 if not tx in n_left_mate:
                     mate = get_mate_id(next.qname)
@@ -1464,8 +1464,11 @@ def contig(args):
         if not ol:
             n_not_ol.append(tx)
         else:
+            print 'Somehow what is wrong: %s' % tx
             if coverage >= 100:
                 n_high_coverage.append(tx)
+            else:
+                print 'Coverage is fine: %s' % tx
                 
         print ''
     

@@ -1218,33 +1218,33 @@ GPtrArray *comp_paths(comp *c, hash_table *ht) {
 		else
 			n_valid++;
 	}
-	if (n_valid >= 3) {
-		GPtrArray *top = g_ptr_array_sized_new(3);
-		float *probs = (float*) calloc(3, sizeof(float));
-		int j = 0;
-		float first = 0.0, second = 0.0, third = 0.0;
-		// Pick the top-3 probability
-		for (i = 0; i < paths->len; i++) {
-			if (paths_prob[i] >= first)
-				first = paths_prob[i];
-		}
-		for (i = 0; i < paths->len; i++) {
-			if (paths_prob[i] >= second && paths_prob[i] != first)
-				second = paths_prob[i];
-		}
-		for (i = 0; i < paths->len; i++) {
-			if (paths_prob[i] >= third && paths_prob[i] != second && paths_prob[i] != first)
-				third = paths_prob[i];
-		}
-		for (i = 0; i < paths->len; i++) {
-			p = (path*) g_ptr_array_index(paths, i);
-			if (paths_prob[i] >= third)
-				g_ptr_array_add(top, p);
-		}
-		free(probs);
-		free(paths_prob);
-		return top;
-	}
+//	if (n_valid >= 3) {
+//		GPtrArray *top = g_ptr_array_sized_new(3);
+//		float *probs = (float*) calloc(3, sizeof(float));
+//		int j = 0;
+//		float first = 0.0, second = 0.0, third = 0.0;
+//		// Pick the top-3 probability
+//		for (i = 0; i < paths->len; i++) {
+//			if (paths_prob[i] >= first)
+//				first = paths_prob[i];
+//		}
+//		for (i = 0; i < paths->len; i++) {
+//			if (paths_prob[i] >= second && paths_prob[i] != first)
+//				second = paths_prob[i];
+//		}
+//		for (i = 0; i < paths->len; i++) {
+//			if (paths_prob[i] >= third && paths_prob[i] != second && paths_prob[i] != first)
+//				third = paths_prob[i];
+//		}
+//		for (i = 0; i < paths->len; i++) {
+//			p = (path*) g_ptr_array_index(paths, i);
+//			if (paths_prob[i] >= third)
+//				g_ptr_array_add(top, p);
+//		}
+//		free(probs);
+//		free(paths_prob);
+//		return top;
+//	}
 	free(paths_prob);
 	return paths;
 }
@@ -1318,7 +1318,7 @@ void cluster_save_read_usage(GPtrArray *all_paths, char *save_dir) {
 				cluster_count_pairs(p->reads));
 		for (j = 0; j < p->reads->len; j++) {
 			r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
-			fprintf(f, "%s,", r->name);
+			fprintf(f, "%s@%d,", r->name, r->contig_locus);
 		}
 		fprintf(f, "\n");
 	}
@@ -1343,13 +1343,15 @@ void determine_paths(splice_graph *g, hash_table *ht, char *save_dir) {
 		append_paths(all_paths, paths);
 	}
 	fn = get_output_file("paths.fa", save_dir);
-	cluster_save_paths(all_paths, fn, 1);
+	//cluster_save_paths(all_paths, fn, 1);
+	save_paths(all_paths, fn, 1);
 	free(fn);
 	fn = get_output_file("peta.fa", save_dir);
-	cluster_save_paths(all_paths, fn, 0);
+	//cluster_save_paths(all_paths, fn, 0);
+	save_paths(all_paths, fn, 0);
 	free(fn);
 
-	cluster_save_read_usage(all_paths, save_dir);
+	//cluster_save_read_usage(all_paths, save_dir);
 
 	fn = get_output_file("paths.dot", save_dir);
 	p_paths(all_paths, fn);
