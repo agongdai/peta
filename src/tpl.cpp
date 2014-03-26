@@ -629,18 +629,22 @@ int vld_tpl_mates(tpl *t1, tpl *t2, int start_2, int end_2,
 }
 
 /**
- * Get virtual tail of an tpl.
- * This is used when a branch tpl is connected to the locus of '^'.
- * When another third-layer branch tpl is connected to this branch tpl,
- * 	its own length may be not long enough, then it cuts some length from the main template.
- * If the length of the branch tpl is long enough, the virtual tail is not used.
+ * Determine the tail of a branch template.
  *
- * tpl: 	==============================
- * shift: 	                    ^
- * ori: 	1 (to the left), using the right virtual tail
- * tail_len:	                --------------
- * Return:                      ==========++++
- * '++++' is the partial virtual tail of current tpl
+ * This is used when a branch template is connected to the locus of '^'.
+ * When another third-layer branch template is connected to this branch template,
+ * 	its own length may be not long enough, then it cuts some length from the main template.
+ * If the length of the branch template is long enough, the virtual tail is not used.
+ *
+ * Notation: '==': normal sequence; '--': tail
+ * tpl: 	---==============================
+ * pos: 	                   ^
+ * ori: 	0 (to the right), using the left virtual tail
+ * partial: ---================
+ * If v_tail_len <= partial length, return:
+ *                  ===========
+ * Otherwise, try to return:
+ *          ---================
  */
 bwa_seq_t *cut_tpl_tail(tpl *t, int pos, const int tail_len, const int ori) {
 	bwa_seq_t *tail = NULL, *partial = NULL, *main_tail = NULL;
@@ -671,7 +675,7 @@ bwa_seq_t *cut_tpl_tail(tpl *t, int pos, const int tail_len, const int ori) {
 			tail = blank_seq(v_tail_len);
 			if (ori) {
 				memcpy(tail->seq, partial->seq, sizeof(ubyte_t) * partial->len);
-				memcpy(tail->seq + partial->len, tail->seq, sizeof(ubyte_t)
+				memcpy(tail->seq + partial->len, main_tail->seq, sizeof(ubyte_t)
 						* (v_tail_len - partial->len));
 			} else {
 				memcpy(tail->seq, main_tail->seq + (main_tail->len
@@ -689,17 +693,22 @@ bwa_seq_t *cut_tpl_tail(tpl *t, int pos, const int tail_len, const int ori) {
 	return tail;
 }
 
-void set_tail(tpl *branch, tpl *parent_eg, const int shift, const int tail_len,
+/**
+ * Set the left/right tail of the branch template
+ * The tail starts position 'shift' of the main template with length 'tail_len',
+ * The length of the tail is by default read_len - 1.
+ */
+void set_tail(tpl *branch, tpl *main_tpl, const int shift, const int tail_len,
 		const int ori) {
 	bwa_seq_t *tmp = NULL;
 	// The right/left tail would be used in cut_tpl_tail function,
 	//	but will be replaced later. So save to tmp first, free the old one later.
 	if (ori) {
-		tmp = branch->r_tail;
-		branch->r_tail = cut_tpl_tail(parent_eg, shift, tail_len, ori);
-	} else {
 		tmp = branch->l_tail;
-		branch->l_tail = cut_tpl_tail(parent_eg, shift, tail_len, ori);
+		branch->l_tail = cut_tpl_tail(main_tpl, shift, tail_len, ori);
+	} else {
+		tmp = branch->r_tail;
+		branch->r_tail = cut_tpl_tail(main_tpl, shift, tail_len, ori);
 	}
 	bwa_free_read_seq(1, tmp);
 }
@@ -1231,7 +1240,8 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 			//if (shift == 1076)
 			//show_debug_msg(__func__, "n_mis: %d \n", n_mis);
 
-			// Determine the cursor position
+			// Determine the cursor position, if the cursor is
+			//	at head/tail (N_BAD_TAIL_SHIFT bp), not pick it
 			if (n_mis >= 0) {
 				if (ori) {
 					for (j = r->pos - 1; j >= N_BAD_TAIL_SHIFT; j--) {

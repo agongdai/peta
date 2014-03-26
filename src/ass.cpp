@@ -1367,7 +1367,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	int i = 0, j = 0, x = 0, shift = 0, cursor = 0, next_cursor = 0, pos = 0,
 			read_status = HANG;
 	int con_pos = 0, n_junc_reads = 0;
-	int exist_ori = ori, dead = 0, to_connect = 1, connected = 1;
+	int dead = 0, to_connect = 1, connected = 1;
 	int *pre_pos = NULL, *pre_cursor = NULL, pre_len = 0, n_mis = 0;
 	int b_s = 0, b_e = 0, m_s = 0, m_e = 0, score = 0;
 	tpl *branch = NULL;
@@ -1405,17 +1405,13 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			g_ptr_array_free(b_reads, TRUE);
 			continue;
 		}
-
-		if (b_reads->len < 2) {
-			branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, 0);
+		// If the only one branching read, its mate must be used by the same template
+		for (j = 0; j < b_reads->len; j++) {
+			branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
 			mate = get_mate(branch_read, ht->seqs);
 			if (mate->status == USED && mate->contig_id == t->id) {
-
 			} else {
-				branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, 0);
 				reset_to_fresh(branch_read);
-				g_ptr_array_free(b_reads, TRUE);
-				continue;
 			}
 		}
 
@@ -1442,8 +1438,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			cursor = branch_read->cursor;
 			pos = branch_read->pos;
 
-			// Add the branching junction first;
-			// Later may add connection junction
+			// con_pos: the locus to connect the two templates
 			con_pos = ori ? shift - (pos - cursor - 1) : cursor - pos + shift;
 			// In case the junctions create some small loop
 			if (has_nearby_junc(t, con_pos)) {
@@ -1456,8 +1451,8 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			branch->ctg->seq[0] = branch->ctg->seq[cursor];
 			branch->ctg->len = branch->len;
 			branch->ctg->rseq[0] = 3 - branch->ctg->seq[0];
-			set_tail(branch, t, con_pos, ht->o->read_len - 1, exist_ori);
-			jun = add_a_junction(t, branch, NULL, con_pos, exist_ori,
+			set_tail(branch, t, con_pos, ht->o->read_len - 1, ori);
+			jun = add_a_junction(t, branch, NULL, con_pos, ori,
 					n_junc_reads);
 
 			jun_read = get_tail(t, ht->o->read_len, ori);
@@ -1560,7 +1555,6 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			if (!dead) {
 				g_ptr_array_add(wait_for_val, branch);
 				unfrozen_tried(branch);
-				refresh_tpl_reads(ht, branch, mismatches);
 				correct_tpl_base(ht->seqs, branch, ht->o->read_len, 0,
 						branch->len);
 				p_tpl(branch);
