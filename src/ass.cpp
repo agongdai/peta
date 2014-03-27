@@ -54,6 +54,7 @@ struct timespec kmer_start_time, kmer_finish_time;
  * Initialize a template
  */
 tpl *blank_tpl(bwa_seq_t *start_read, int len, int ori, char *step) {
+	if (kmer_ctg_id > 68200) exit(1);
 	tpl *t = new_tpl();
 	g_mutex_lock(kmer_id_mutex);
 	t->id = kmer_ctg_id++;
@@ -1510,10 +1511,15 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				}
 			}
 		}
+
+		if (!dead) {
+			if (branch->b_juncs->len == 1 && !val_branch_by_pairs(ht, t, branch)) dead = 1;
+		}
+
 		// Either case validates the branch:
 		//	1. One pair at the junction
 		//	2. MIN_PAIRS pairs spanning
-		if (dead && branch->b_juncs->len == 1 && !val_branch_by_pairs(ht, t, branch)) {
+		if (dead) {
 			branch->alive = 0;
 			rm_global_tpl(all_tpls, branch, FRESH);
 		} else {
@@ -1691,7 +1697,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[4735263];
+	TEST = &seqs[630743];
 
 	// shrink_ht(ht);
 
