@@ -518,8 +518,7 @@ bwa_seq_t *new_seq(const bwa_seq_t *query, const int ol, const int shift) {
 }
 
 void copy_partial(bwa_seq_t *s, bwa_seq_t *copied, int start, int len) {
-	if (start + len > s->len)
-		return;
+	if (start + len > s->len) return;
 	memcpy(copied->seq, s->seq + start, sizeof(char) * len);
 	memcpy(copied->rseq, s->rseq + (s->len - start - len), sizeof(char) * len);
 	copied->len = len;

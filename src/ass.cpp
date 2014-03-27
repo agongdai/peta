@@ -29,8 +29,8 @@
 
 using namespace std;
 
-int TESTING = 4312566;
-int DETAIL_ID = 1;
+int TESTING = 0;
+int DETAIL_ID = -1;
 
 int test_suffix = 0;
 int kmer_ctg_id = 1;
@@ -370,6 +370,7 @@ tpl *add_global_tpl(tpl_hash *all_tpls, bwa_seq_t *branch_read, char *step,
 }
 
 void p_test_read() {
+	if (TESTING)
 	p_query("TEST", TEST);
 	//	if (TEST->status == FRESH && TEST->pos != IMPOSSIBLE_NEGATIVE) {
 	//		show_debug_msg(__func__, "ID: %d \n", kmer_ctg_id);
@@ -1362,18 +1363,16 @@ int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
  */
 void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 		int ori) {
-	bwa_seq_t *tail = NULL, *branch_read = NULL, *jun_read = NULL, *query =
-			NULL, *part = NULL, *part_2 = NULL, *mate = NULL;
-	int i = 0, j = 0, x = 0, shift = 0, cursor = 0, next_cursor = 0, pos = 0,
+	bwa_seq_t *tail = NULL, *branch_read = NULL, *jun_read = NULL,
+			*start_read = NULL, *mate = NULL;
+	int i = 0, j = 0, x = 0, shift = 0, cursor = 0, pos = 0,
 			read_status = HANG;
 	int con_pos = 0, n_junc_reads = 0;
-	int dead = 0, to_connect = 1, connected = 1;
-	int *pre_pos = NULL, *pre_cursor = NULL, pre_len = 0, n_mis = 0;
+	int dead = 0, to_connect = 1, connected = 1, n_mis = 0;
 	int b_s = 0, b_e = 0, m_s = 0, m_e = 0, score = 0;
-	tpl *branch = NULL;
-	pool *p = NULL;
+	tpl *branch = NULL, *branch_tpl = NULL;
 	int least_ol_len = kmer_len;
-	GPtrArray *b_reads = NULL, *wait_for_val = NULL;
+	GPtrArray *b_reads = NULL, *copy_b_reads = NULL, *wait_for_val = NULL;
 	junction *jun = NULL;
 
 	if (!t || !t->alive || !t->ctg || t->len <= least_ol_len)
@@ -1389,158 +1388,65 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	p_test_read();
 	for (i = 0; i <= t->len - least_ol_len; i++) {
 		if (i > 0) {
-			if (ori)
-				ext_que(tail, t->ctg->seq[t->len - i - least_ol_len], 1);
-			else
-				ext_que(tail, t->ctg->seq[i + least_ol_len - 1], 0);
+			if (ori) ext_que(tail, t->ctg->seq[t->len - i - least_ol_len], 1);
+			else ext_que(tail, t->ctg->seq[i + least_ol_len - 1], 0);
 		}
 
 		shift = ori ? t->len - least_ol_len - i : i;
-		//show_debug_msg(__func__, "Template [%d, %d] at %d (i: %d) \n", t->id,
-		//					t->len, shift, i);
+		//show_debug_msg(__func__, "Template [%d, %d] at %d (i: %d) \n", t->id, t->len, shift, i);
 		//p_query(__func__, tail);
 		b_reads = check_branch_tail(ht, t, tail, shift, mismatches, FRESH, ori);
-
 		if (b_reads->len == 0) {
 			g_ptr_array_free(b_reads, TRUE);
 			continue;
 		}
-		// If the only one branching read, its mate must be used by the same template
-		for (j = 0; j < b_reads->len; j++) {
-			branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
-			mate = get_mate(branch_read, ht->seqs);
-			if (mate->status == USED && mate->contig_id == t->id) {
-			} else {
-				reset_to_fresh(branch_read);
-			}
-		}
+		//p_readarray(b_reads, 1);
 
-		// The pos value would be changed by mark_init_reads_used
-		// Store a copy beforehand.
-		pre_pos = (int*) calloc(b_reads->len, sizeof(int));
-		pre_cursor = (int*) calloc(b_reads->len, sizeof(int));
+		// The original reads would be used for extension, so the pos and cursor
+		// 	values would be changed. Copy them to copy_b_reads.
+		copy_b_reads = g_ptr_array_sized_new(b_reads->len);
 		for (x = 0; x < b_reads->len; x++) {
-			jun_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
-			pre_pos[x] = jun_read->pos;
-			pre_cursor[x] = jun_read->cursor;
+			branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
+			jun_read = new_seq(branch_read, branch_read->len, 0);
+			reset_to_fresh(branch_read);
+			g_ptr_array_add(copy_b_reads, jun_read);
 		}
 
 		for (j = 0; j < b_reads->len; j++) {
 			// For later truncate the branch template
 			branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
-
-			for (x = 0; x < b_reads->len; x++) {
-				jun_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
-				jun_read->pos = pre_pos[x];
-				jun_read->cursor = pre_cursor[x];
-			}
-
-			cursor = branch_read->cursor;
-			pos = branch_read->pos;
+			jun_read = (bwa_seq_t*) g_ptr_array_index(copy_b_reads, j);
+			cursor = jun_read->cursor;
+			pos = jun_read->pos;
 
 			// con_pos: the locus to connect the two templates
 			con_pos = ori ? shift - (pos - cursor - 1) : cursor - pos + shift;
 			// In case the junctions create some small loop
-			if (has_nearby_junc(t, con_pos)) {
-				break;
-			}
-			// Create a new template
-			branch = add_global_tpl(all_tpls, branch_read, "BRANCHING",
-					branch_read->len, ori);
-			branch->len = 1;
-			branch->ctg->seq[0] = branch->ctg->seq[cursor];
-			branch->ctg->len = branch->len;
+			if (has_nearby_junc(t, con_pos)) break;
+
+			// Create a branch template with length 1bp
+			branch = add_global_tpl(all_tpls, branch_read, "BRANCHING", 1, ori);
+			branch->ctg->seq[0] = jun_read->rev_com ? branch_read->rseq[cursor] : branch_read->seq[cursor];
 			branch->ctg->rseq[0] = 3 - branch->ctg->seq[0];
 			set_tail(branch, t, con_pos, ht->o->read_len - 1, ori);
-			jun = add_a_junction(t, branch, NULL, con_pos, ori,
-					n_junc_reads);
+			jun = add_a_junction(t, branch, NULL, con_pos, ori, n_junc_reads);
 
-			jun_read = get_tail(t, ht->o->read_len, ori);
-			mark_init_reads_used(ht, branch, jun_read, mismatches);
-			bwa_free_read_seq(1, jun_read);
-			for (x = 0; x < branch->reads->len; x++) {
-				jun_read = (bwa_seq_t*) g_ptr_array_index(branch->reads, x);
-				jun_read->contig_locus = 0 - (jun_read->len - branch->len);
-			}
-
-			p = new_pool();
-			for (x = 0; x < b_reads->len; x++) {
-				jun_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
-				jun_read->pos = pre_pos[x];
-				jun_read->cursor = pre_cursor[x];
-			}
-
-			next_cursor = ori ? cursor - 1 : cursor + 1;
-			part = ori ? new_seq(branch_read,
-					branch_read->len - next_cursor - 1, next_cursor + 1)
-					: new_seq(branch_read, next_cursor, 0);
-			for (x = 0; x < b_reads->len; x++) {
-				jun_read = (bwa_seq_t*) g_ptr_array_index(b_reads, x);
-				if (jun_read->status != FRESH)
-					continue;
-				if (jun_read == branch_read) {
-					jun_read->cursor = next_cursor;
-					jun_read->pos = 0;
-					add2pool(p, jun_read);
-					continue;
-				}
-				jun_read->cursor = next_cursor + (jun_read->pos - pos);
-				if (jun_read->cursor >= 0 && jun_read->cursor < jun_read->len) {
-					part_2 = ori ? new_seq(jun_read,
-							jun_read->len - jun_read->cursor - 1,
-							jun_read->cursor + 1) : new_seq(jun_read,
-							jun_read->cursor, 0);
-					n_mis = similar_at_one_end(part, part_2,
-							min(part->len, part_2->len), ori, N_MISMATCHES);
-					if (n_mis >= 0) {
-						jun_read->pos = n_mis;
-						add2pool(p, jun_read);
-					} else {
-						reset_to_fresh(jun_read);
-					}
-					bwa_free_read_seq(1, part_2);
-				}
-			}
-			bwa_free_read_seq(1, part);
-
-			p_query("BRANCH_QUERY", branch_read);
-			//p_ctg_seq(__func__, t->ctg);
-			//show_debug_msg(__func__, "shift: %d; POS: %d; CURSOR: %d\n", shift,
-			//		pos, cursor);
-			//show_debug_msg(__func__, "Branching at %d \n", con_pos);
-			p_pool("INIT", p, NULL);
-			p_ctg_seq("AFTER TRUNCATE", branch->ctg);
-
-			if (p->reads->len < 1) {
-				show_debug_msg(__func__, "Too few supporting reads: %d \n",
-						p->reads->len);
-				destroy_pool(p);
-				rm_global_tpl(all_tpls, branch, read_status);
-				continue;
-			}
-
-			// Initialisation
-			if (branch_read->rev_com)
-				switch_fr(branch_read);
-			query = ori ? new_seq(branch_read, kmer_len, cursor) : new_seq(
-					branch_read, kmer_len, cursor + 1 - kmer_len);
-			query->rev_com = 0;
-			if (branch_read->rev_com)
-				switch_fr(branch_read);
+			// Mark the reads similar to the starting reads as USED
+			start_read = get_tail(t, ht->o->read_len, ori);
+			mark_init_reads_used(ht, branch, start_read, mismatches);
+			bwa_free_read_seq(1, start_read);
 
 			// Perform extension
 			printf("\n");
-			show_debug_msg(
-					__func__,
+			show_debug_msg(__func__,
 					"===== Branching template [%d, %d] to %s at %d; Locus %d, Started %d ===== \n",
-					t->id, t->len, ori ? "left" : "right", shift, con_pos,
-					branch->id);
+					t->id, t->len, ori ? "left" : "right", shift, con_pos, branch->id);
+			p_query("BRANCH_QUERY", branch_read);
+			p_ctg_seq("BRANCH", branch->ctg);
 
-			connected = ext_unit(ht, all_tpls, p, NULL, branch, query,
-					to_connect, ori);
+			connected = ext_unit(ht, all_tpls, NULL, NULL, branch, NULL, to_connect, ori);
 			branch->cov = calc_tpl_cov(branch, 0, branch->len, ht->o->read_len);
 			dead = 0;
-			p_tpl(branch);
 			if (!branch->alive || (!connected && (branch->len
 					<= branch_read->len) && branch->cov < HIHG_COV_THRE))
 				dead = 1;
@@ -1548,8 +1454,7 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 
 			if (!dead) {
 				refresh_tpl_reads(ht, branch, mismatches);
-				if (!branch->alive)
-					dead = 1;
+				if (!branch->alive) dead = 1;
 			}
 
 			if (!dead) {
@@ -1563,19 +1468,14 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 				mark_as_hang_tmp(branch);
 				branch->alive = 0;
 				rm_global_tpl(all_tpls, branch, read_status);
-				if (j < 2)
-					continue;
 			}
 			break;
 		}
-		for (j = 0; j < b_reads->len; j++) {
-			branch_read = (bwa_seq_t*) g_ptr_array_index(b_reads, j);
-			// If FRESH, reset other attributes.
-			if (branch_read->status == FRESH)
-				reset_to_fresh(branch_read);
+		for (j = 0; j < copy_b_reads->len; j++) {
+			jun_read = (bwa_seq_t*) g_ptr_array_index(copy_b_reads, j);
+			bwa_free_read_seq(1, jun_read);
 		}
-		free(pre_pos);
-		free(pre_cursor);
+		g_ptr_array_free(copy_b_reads, TRUE);
 		g_ptr_array_free(b_reads, TRUE);
 	}
 	unfrozen_hang_reads();
@@ -1587,7 +1487,33 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 	//p_tpl(t);
 	for (i = wait_for_val->len - 1; i >= 0; i--) {
 		branch = (tpl*) g_ptr_array_index(wait_for_val, i);
-		if (branch->b_juncs->len == 1 && !val_branch_by_pairs(ht, t, branch)) {
+		dead = 1;
+		// For the reads at the junctions, must be at least one pair
+		for (j = 0; j < branch->reads->len; j++) {
+			branch_read = (bwa_seq_t*) g_ptr_array_index(branch->reads, j);
+			// Check the junction reads only
+			if (branch_read->contig_locus < 0
+					|| branch_read->contig_locus > branch->len - branch_read->len) {
+				mate = get_mate(branch_read, ht->seqs);
+				if (mate->status == USED) {
+					// If the mate is on the main template or branch template, it is valid
+					if (mate->contig_id == t->id || mate->contig_id == branch->id) {
+						dead = 0; break;
+					} else { // In case it is a complicated component
+						for (x = 0; x < wait_for_val->len; x++) {
+							branch_tpl = (tpl*) g_ptr_array_index(wait_for_val, x);
+							if (mate->contig_id == branch_tpl->id) {
+								dead = 0; break;
+							}
+						}
+					}
+				}
+			}
+		}
+		// Either case validates the branch:
+		//	1. One pair at the junction
+		//	2. MIN_PAIRS pairs spanning
+		if (dead && branch->b_juncs->len == 1 && !val_branch_by_pairs(ht, t, branch)) {
 			branch->alive = 0;
 			rm_global_tpl(all_tpls, branch, FRESH);
 		} else {

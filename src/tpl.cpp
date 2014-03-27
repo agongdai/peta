@@ -281,14 +281,12 @@ bwa_seq_t *get_tail(tpl *t, int len, const int ori) {
 	// Must be something wrong!
 	if (!t || t->len < 0 || len < 0)
 		return NULL;
+	//p_tpl(t);
 	real_seq = get_tpl_ctg_wt(t, &l_len, &r_len, &t_len);
-	if (t->start_read->rev_com)
-		switch_fr(t->start_read);
+	if (t->start_read->rev_com) switch_fr(t->start_read);
 	//p_query(__func__, real_seq);
 	if (real_seq->len < len) {
-		show_debug_msg(
-				__func__,
-				"[WARNING] Tail of template [%d, %d] shows a wrong sequence.\n",
+		show_debug_msg(__func__, "[WARNING] Tail of template [%d, %d] shows a wrong sequence.\n",
 				t->id, t->len);
 		tail = new_seq(real_seq, real_seq->len, 0);
 		//p_tpl(t);
@@ -296,8 +294,7 @@ bwa_seq_t *get_tail(tpl *t, int len, const int ori) {
 		tail = ori ? new_seq(real_seq, len, 0) : new_seq(real_seq, len,
 				real_seq->len - len);
 	}
-	if (t->start_read->rev_com)
-		switch_fr(t->start_read);
+	if (t->start_read->rev_com) switch_fr(t->start_read);
 	//p_query(__func__, tail);
 	bwa_free_read_seq(1, real_seq);
 	return tail;
@@ -704,11 +701,11 @@ void set_tail(tpl *branch, tpl *main_tpl, const int shift, const int tail_len,
 	// The right/left tail would be used in cut_tpl_tail function,
 	//	but will be replaced later. So save to tmp first, free the old one later.
 	if (ori) {
-		tmp = branch->l_tail;
-		branch->l_tail = cut_tpl_tail(main_tpl, shift, tail_len, ori);
-	} else {
 		tmp = branch->r_tail;
 		branch->r_tail = cut_tpl_tail(main_tpl, shift, tail_len, ori);
+	} else {
+		tmp = branch->l_tail;
+		branch->l_tail = cut_tpl_tail(main_tpl, shift, tail_len, ori);
 	}
 	bwa_free_read_seq(1, tmp);
 }
@@ -1204,9 +1201,9 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	GPtrArray *hits = align_query(ht, query, status, mismatches);
 	GPtrArray *picked = NULL;
 	int ol_len = 0, n_mis = 0, start = 0;
-	int i = 0, j = 0;
+	int i = 0, j = 0, x = 0;
 	int is_picked = 0;
-	ubyte_t read_c = 0;
+	ubyte_t read_c = 0, ref_c = 0;
 
 	if (hits->len <= 0) {
 		return hits;
@@ -1216,8 +1213,7 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	for (i = 0; i < hits->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(hits, i);
 		if (has_n(r, 1)) {
-			reset_to_fresh(r);
-			continue;
+			reset_to_fresh(r); continue;
 		}
 
 		ol_len = ori ? r->len - r->pos : query->len + r->pos;
@@ -1225,18 +1221,17 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 		//if (ol_len < query->len - 2)
 		//	continue;
 		//show_debug_msg(__func__, "Start: %d; ol: %d\n", start, ol_len);
+
+		// Make sure that the mapped portion has acceptable mismatches
 		is_picked = 0;
-		if (start >= 0 && start + ol_len <= t->len && ol_len >= query->len) {
+		if (start >= 0 && start + ol_len <= t->len) {
 			copy_partial(t->ctg, tpl_seq, start, ol_len);
 			//if (shift == 1076) {
 			//p_query("TEMPLATE SEQ", tpl_seq);
 			//p_query("HIT", r);
 			//}
-			// Make sure that the mapped portion has acceptable mismatches
-			if (ori)
-				n_mis = seq_ol(r, tpl_seq, ol_len, mismatches);
-			else
-				n_mis = seq_ol(tpl_seq, r, ol_len, mismatches);
+			if (ori) n_mis = seq_ol(r, tpl_seq, ol_len, mismatches);
+			else n_mis = seq_ol(tpl_seq, r, ol_len, mismatches);
 			//if (shift == 1076)
 			//show_debug_msg(__func__, "n_mis: %d \n", n_mis);
 
@@ -1273,10 +1268,8 @@ GPtrArray *check_branch_tail(hash_table *ht, tpl *t, bwa_seq_t *query,
 	}
 	bwa_free_read_seq(1, tpl_seq);
 	g_ptr_array_free(hits, TRUE);
-	if (ori)
-		g_ptr_array_sort(picked, (GCompareFunc) cmp_reads_by_cursor);
-	else
-		g_ptr_array_sort(picked, (GCompareFunc) cmp_reads_by_rev_cursor);
+	if (ori) g_ptr_array_sort(picked, (GCompareFunc) cmp_reads_by_cursor);
+	else g_ptr_array_sort(picked, (GCompareFunc) cmp_reads_by_rev_cursor);
 	return picked;
 }
 
