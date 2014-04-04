@@ -913,7 +913,6 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
  */
 void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len, int start,
 		int end) {
-	return;
 	int *cs = NULL, max = 0, weight = 0;
 	GPtrArray *counters = NULL;
 	int c = 0, max_c = 0;
@@ -928,7 +927,7 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len, int start,
 			"Correcting template [%d, %d] at range [%d, %d] ...\n", t->id,
 			t->len, start, end);
 	//p_tpl_reads(t);
-	p_ctg_seq("BEFORE", t->ctg);
+	//p_ctg_seq("BEFORE", t->ctg);
 
 	for (i = 0; i < t->len; i++) {
 		cs = (int*) calloc(5, sizeof(int));
@@ -976,7 +975,7 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len, int start,
 		free(cs);
 	}
 	g_ptr_array_free(counters, TRUE);
-	p_ctg_seq("AFTER", t->ctg);
+	//p_ctg_seq("AFTER", t->ctg);
 }
 
 void clear_tpl_tails(tpl *t) {
@@ -1046,9 +1045,9 @@ int should_at_which_side(bwa_seq_t *seqs, tpl *t, bwa_seq_t *r) {
 			// Existing pair and the jumped pair are with same orientation
 			if (is_left_mate(left->name)) {
 				if (left->rev_com == m->rev_com) {
-					if (is_left_mate(m->name)) {
+					if (is_left_mate(m->name))
 						side = RIGHT_SIDE;
-					} else
+					else
 						side = LEFT_SIDE;
 				} else {
 					if (is_left_mate(m->name))
@@ -1058,9 +1057,9 @@ int should_at_which_side(bwa_seq_t *seqs, tpl *t, bwa_seq_t *r) {
 				}
 			} else {
 				if (left->rev_com == m->rev_com) {
-					if (is_left_mate(m->name)) {
+					if (is_left_mate(m->name))
 						side = LEFT_SIDE;
-					} else
+					else
 						side = RIGHT_SIDE;
 				} else {
 					if (is_left_mate(m->name))
@@ -1365,9 +1364,9 @@ GPtrArray *align_tpl_tail(hash_table *ht, tpl *t, bwa_seq_t *tail, int limit,
 			//ol_seq = ori ? new_seq(tpl_seq, ol, 0)
 			//		: new_seq(tpl_seq, ol, locus);
 			if (ori) {
-				n_mis = seq_ol(r, tpl_seq, ol, mismatches + 1);
+				n_mis = seq_ol(r, tpl_seq, ol, mismatches);
 			} else {
-				n_mis = seq_ol(tpl_seq, r, ol, mismatches + 1);
+				n_mis = seq_ol(tpl_seq, r, ol, mismatches);
 			}
 			if (t->len == -1 && t->id == -1) {
 				p_query("CONTIG", tpl_seq);

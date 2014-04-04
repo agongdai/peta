@@ -380,29 +380,27 @@ int mate_is_in_range(int used_locus, int tpl_len, int read_len, int ol, int ori)
 
 /**
  * Traverse the splicing graph, check whether the distance of a pair is within range.
+ * The read 'r' is the FRESH one;
+ * If its mate is already used and used by current template, good
+ * If its mate is FRESH or IN_POOL, good
+ * If its mate is used by another template, but actually the mate should be
+ * 		already used by the current template before, bad
  */
-int is_good_pair(GPtrArray *near_tpls, tpl *t, bwa_seq_t *r, bwa_seq_t *m, int ori) {
+int is_good_pair(bwa_seq_t *seqs, tpl *t, bwa_seq_t *r, bwa_seq_t *m, int ori) {
 	// @TODO: if the mates overlap, treat as bad now
-	if (m->status == IN_POOL)
-		return 0;
-	// If they are on the same template, check distance only
-	if (m->status == USED && mate_is_in_range(m->contig_locus, t->len, m->len, r->cursor, ori))
+	if (m->status == IN_POOL || m->status == FRESH)
 		return 1;
-	int i = 0, is_near = 0;
-	tpl *near = NULL;
-	if (m->status == USED) {
-		for (i = 0; i < near_tpls->len; i++) {
-			near = (tpl*) g_ptr_array_index(near_tpls, i);
-			if (near->id == m->contig_id) {
-				is_near = 1;
-				break;
-			}
-		}
+	// If they are on the same template, check distance only
+	if (m->status == USED && m->contig_id == t->id) {
+		if (mate_is_in_range(m->contig_locus, t->len, m->len, r->cursor, ori)) return 1;
+		else return 0;
 	}
-	// If the mate is not near, not good pair
-	if (!is_near) return 0;
-	// @TODO: Check their distance on all possible paths
-	return 1;
+	int side = UNKNOWN_SIDE, is_good = 0;
+	side = should_at_which_side(seqs, t, m);
+	if (side == UNKNOWN_SIDE) is_good = 1;
+	if (!ori && side == LEFT_SIDE) is_good = 1;
+	if (ori && side == RIGHT_SIDE) is_good = 1;
+	return is_good;
 }
 
 /**
@@ -419,8 +417,7 @@ void next_pool(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t, bwa_seq_t 
 	//if (t->len == -1 && t->id == -1)
 	//	p_query(__func__, tail);
 	shift = ori ? 0 : ht->o->read_len - tail->len;
-	fresh_reads = align_tpl_tail(ht, t, tail, limit, shift, mismatches, FRESH,
-			ori);
+	fresh_reads = align_tpl_tail(ht, t, tail, limit, shift, mismatches, FRESH, ori);
 	for (i = 0; i < fresh_reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(fresh_reads, i);
 		m = get_mate(r, ht->seqs);
@@ -435,7 +432,7 @@ void next_pool(hash_table *ht, pool *p, GPtrArray *near_tpls, tpl *t, bwa_seq_t 
 			add2pool(p, r);
 		else {
 			// Add paired-end read
-			if (is_good_pair(near_tpls, t, r, m, ori)) {
+			if (is_good_pair(ht->seqs, t, r, m, ori)) {
 				add2pool(p, r);
 			}
 		}

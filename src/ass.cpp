@@ -29,7 +29,7 @@
 
 using namespace std;
 
-int TESTING = 0;
+int TESTING = 252144; // 65788; A path is not invalid
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -54,7 +54,6 @@ struct timespec kmer_start_time, kmer_finish_time;
  * Initialize a template
  */
 tpl *blank_tpl(bwa_seq_t *start_read, int len, int ori, char *step) {
-	if (kmer_ctg_id > 68200) exit(1);
 	tpl *t = new_tpl();
 	g_mutex_lock(kmer_id_mutex);
 	t->id = kmer_ctg_id++;
@@ -809,8 +808,8 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 					"Ori: %d, Template [%d, %d], Next char: %c \n", ori, t->id,
 					t->len, "ZACGTN"[max_c + 1]);
 
-		// If cannot extend, try to add mates into the pool
-		if (max_c == -1) {
+		// If cannot extend or the reads in the pool is too few, try to add mates into the pool
+		if (max_c == -1 || p->reads->len <= 2) {
 			//p_ctg_seq("TEMPLATE", t->ctg);
 			//show_debug_msg(__func__, "Looking for mates on [%d, %d] ...\n",
 			//		t->id, t->len);
@@ -1697,7 +1696,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[630743];
+	TEST = &seqs[3165389];
 
 	// shrink_ht(ht);
 
