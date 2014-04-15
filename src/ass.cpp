@@ -29,7 +29,7 @@
 
 using namespace std;
 
-int TESTING = 252144; // 65788; A path is not invalid
+int TESTING = 0;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -809,7 +809,7 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 					t->len, "ZACGTN"[max_c + 1]);
 
 		// If cannot extend or the reads in the pool is too few, try to add mates into the pool
-		if (max_c == -1 || p->reads->len <= 2) {
+		if (max_c == -1) {
 			//p_ctg_seq("TEMPLATE", t->ctg);
 			//show_debug_msg(__func__, "Looking for mates on [%d, %d] ...\n",
 			//		t->id, t->len);

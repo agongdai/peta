@@ -7,6 +7,7 @@ from subprocess import Popen, PIPE
 bad_bases_thre = 10
 full_length_perc = 0.99
 near_full_length = 0.9
+bp_line_length = 50
 
 def runInShell(cmd):
     p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
@@ -100,9 +101,9 @@ class FastaFile(object):
 				for c in seq:
 					out.write(c)
 					l += 1
-					if l % 100 == 0:
+					if l % bp_line_length == 0:
 						out.write('\n')
-				if not l % 100 == 0:
+				if not l % bp_line_length == 0:
 					out.write('\n')
 
 	def read_seqs(self):
@@ -672,7 +673,6 @@ def read_blat_hits(blat_fn, key='query'):
 	hit_lines = []
 	for line in blat:
 		hit_lines.append(line)
-	print 'Read %d lines.' % len(hit_lines)
 	hits = read_psl_hits(hit_lines, key)
 	blat.close()
 	return hits

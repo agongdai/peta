@@ -313,57 +313,29 @@ bwa_seq_t *get_breaking_seq(path *p, int breaking_index, int read_len) {
 	int *points = p->junction_points;
 	int n_points = p->edges->len;
 	int half_max = read_len - SHORT_BRANCH_SHIFT;
-	int start = points[breaking_index] - half_max, end = points[breaking_index]
-			+ half_max;
+	int start = points[breaking_index] - half_max, end = points[breaking_index] + half_max;
 	int shared_start = 0, shared_end = 0, shared_size;
 	int tuned_end = 0, tuned_start = 0, next_end = 0, pre_start = 0;
 	// Make sure not to double count any read between adjacent junctions
 	//	p_p(p);
 	//	show_debug_msg(__func__, "Breaking index: %d; \n", breaking_index);
 	//	show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
-	if (n_points > breaking_index + 1) {
-		next_end = points[breaking_index + 1];
-		if (next_end < end)
-			end = points[breaking_index] + (next_end - points[breaking_index])
-					/ 2;
-		// Size of shared region of current junction and next junction (if any)
-		//		shared_size = end - (points[breaking_index + 1] - half_max);
-		//		if (shared_size >= read_len) {
-		//			shared_start = points[breaking_index + 1] - half_max;
-		//			shared_end = shared_start + shared_size;
-		//			tuned_end = ((shared_end - (read_len - 1)) + shared_start) / 2
-		//					+ (read_len - 1);
-		//			end = tuned_end < end ? tuned_end : end;
-		//			///**
-		//			 show_debug_msg(__func__, "Shared: [%d -> %d]\n", shared_start,
-		//			 shared_end);
-		//			 show_debug_msg(__func__, "Tuned end at breaking index %d: %d \n",
-		//			 breaking_index, end);
-		//			// **/
-		//		}
-	}
-	if (breaking_index > 0) {
-		pre_start = points[breaking_index - 1];
-		if (pre_start > start)
-			start = points[breaking_index] - (points[breaking_index]
-					- pre_start) / 2;
-		//		shared_size = points[breaking_index - 1] + half_max - start;
-		//		if (shared_size >= read_len) {
-		//			shared_start = start;
-		//			shared_end = shared_start + shared_size;
-		//			tuned_start = ((shared_end - (read_len - 1)) + shared_start) / 2;
-		//			start = tuned_start > start ? tuned_start : start;
-		//			///**
-		//			 show_debug_msg(__func__, "Shared: [%d -> %d]\n", shared_start,
-		//			 shared_end);
-		//			 show_debug_msg(__func__, "Tuned start at breaking index %d: %d \n",
-		//			 breaking_index, start);
-		//			// **/
-		//		}
-	}
+//	if (n_points > breaking_index + 1) {
+//		next_end = points[breaking_index + 1];
+//		if (next_end < end)
+//			end = points[breaking_index] + (next_end - points[breaking_index])
+//					/ 2;
+//	}
+//	if (breaking_index > 0) {
+//		pre_start = points[breaking_index - 1];
+//		show_debug_msg(__func__, "PreStart: %d \n", pre_start);
+//		if (pre_start > start)
+//			start = points[breaking_index] - (points[breaking_index]
+//					- pre_start) / 2;
+//	}
 	start = (start < 0) ? 0 : start;
 	end = (end >= seq->len) ? seq->len : end;
-	//	show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
+	//show_debug_msg(__func__, "Start: %d; End: %d\n", start, end);
 	return new_seq(seq, end - start, start);
 }
 
@@ -584,8 +556,7 @@ int validate_pairs_on_path(hash_table *ht, path *p) {
 	int i = 0, j = 0, no_pairs_len = 0, cursor = ht->o->read_len * 2;
 	if (p->len < MAX_REGION_NO_PAIRS + ht->o->read_len * 2 || p->is_paired)
 		return valid;
-	show_debug_msg(__func__, "Validating pairs on path [%d, %d] ...\n", p->id,
-			p->len);
+	show_debug_msg(__func__, "Validating pairs on path [%d, %d] ...\n", p->id, p->len);
 	n_breaking = (int*) calloc(p->vertexes->len - 1, sizeof(int));
 	for (i = 0; i < p->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(p->reads, i);
@@ -664,6 +635,7 @@ void assign_path_attrs(GPtrArray *paths, hash_table *ht) {
 		p->len = len;
 		// The coverage, given all reads are from this path
 		p->reads = reads_on_seq(p->ctg, ht, N_MISMATCHES);
+		//p_path_reads(p);
 		if (!validate_pairs_on_path(ht, p)) {
 			show_debug_msg(__func__,
 					"Pair information not consistent on path [%d, %d] \n",
@@ -715,7 +687,7 @@ void assign_path_attrs(GPtrArray *paths, hash_table *ht) {
 			 p_ctg_seq(__func__, seq);
 			 p_readarray(reads, 1);
 			 show_debug_msg(__func__, "=== %d reads. END === \n\n", reads->len);
-			 **/
+			**/
 
 			p->weights[2 * j + 1] = (float) reads->len;
 			//show_debug_msg(__func__, "Weight of edge %d: %.2f\n", e->id,

@@ -25,7 +25,7 @@ def psl2bed12(psl, out):
                     o.write('%d,' % s)
                 o.write('\t')
                 for s in h.r_block_starts:
-                    o.write('%d,' % s)
+                    o.write('%d,' % (s - h.rstart))
                 o.write('\t')
                 o.write('\n')
     print 'Check BED12 file %s' % out
@@ -156,7 +156,7 @@ def petaFasta2paired(fn_in, fn_out):
                         out.write(rev_comp(line) + '\n')
                     id += 1     
 
-petaFasta2paired('SRR097897.half.fa', '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.half.shuffled.fa')
+#petaFasta2paired('SRR097897.half.fa', '/home/carl/Projects/peta/rnaseq/Spombe/SRR097897/SRR097897.half.shuffled.fa')
 #psl2gene('/home/carl/Projects/peta/rnaseq/Spombe/genome/tx.rev.genome.psl')
 #psl2gene('/home/carl/Projects/peta_dev/scripts/spombe_630.genome.psl')
 #psl2gene('/home/carl/Projects/peta/rnaseq/Spombe/genome/tx.630.oracle.genome.psl')
@@ -164,4 +164,4 @@ petaFasta2paired('SRR097897.half.fa', '/home/carl/Projects/peta/rnaseq/Spombe/SR
 #psl2gene('/home/ariyaratnep/shaojiang/peta_copies/peta_dev/SRX011545_out/idba-60.hg19.psl', 'hg19')
 #bed2gene('/home/ariyaratnep/shaojiang/peta/rnaseq/hg19/ensembl.genes.bed')
 #count_not_align('/home/carl/Projects/peta/rnaseq/Spombe/630.tx.rev.psl')
-#psl2bed12('spombe.tx.uni.psl', 'spombe.tx.uni.bed')
+psl2bed12('/mnt/PGSPool/shaojiang/peta/rnaseq/Spombe/schizosaccharomyces_pombe_972h-_2_transcripts.fasta.psl', '/mnt/PGSPool/shaojiang/peta/rnaseq/Spombe/schizosaccharomyces_pombe_972h-_2_transcripts.fasta.psl.bed')

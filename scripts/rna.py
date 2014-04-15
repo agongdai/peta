@@ -894,6 +894,22 @@ def qc(args):
         out = '%s\t%d' % (out, len(n_mate_far))
         print out
 
+def resave(args):
+    fasta = FastaFile(args.fa)
+    fasta.save_to_disk(args.fa + '.50')
+    print 'Check file %s.50' % (args.fa)
+    
+def gene(args):
+    fasta = FastaFile(args.tx)
+    genes = {}
+    for tx, seq in fasta.seqs.iteritems():
+        ids = tx.split('_')
+        if ids[0] in genes: genes[ids[0]].append(tx)
+        else: genes[ids[0]] = [tx]
+        
+    for gene, transcripts in genes.iteritems():
+        print '%s\t%d' % (gene, len(transcripts))
+
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(help='sub command help')
@@ -997,7 +1013,15 @@ def main():
     parser_qc.add_argument('read2tx', help='reads-to-tx PSL')
     parser_qc.add_argument('read2ref', help='reads-to-genome PSL')
     parser_qc.add_argument('tx2ref', help='transcripts-to-genome PSL')
-
+    
+    parser_resave = subparsers.add_parser('resave', help='With different base pair length')
+    parser_resave.set_defaults(func=resave)
+    parser_resave.add_argument('fa', help='fa file')
+    
+    parser_gene = subparsers.add_parser('gene', help='Inspect gene-transcript multiplicity')
+    parser_gene.set_defaults(func=gene)
+    parser_gene.add_argument('tx', help='transcript fasta file')
+    
     args = parser.parse_args()
     args.func(args)
                 

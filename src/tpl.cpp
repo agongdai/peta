@@ -1283,12 +1283,13 @@ int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs) {
 			t->len);
 	for (i = 1; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		if (r->contig_locus < 0 || r->contig_locus > t->len - r->len) continue;
 		m = get_mate(r, ht->seqs);
 		if (m->status == USED) {
 			for (j = 0; j < tpls->len; j++) {
 				near = (tpl*) g_ptr_array_index(tpls, j);
-				if (m->contig_id == near->id && m->contig_id != t->id
-						) {
+				if (m->contig_id == near->id && m->contig_id != t->id ) {
+					if (m->contig_locus < 0 || m->contig_locus > near->len - m->len) break;
 					n++;
 					p_query("READ", r);
 					p_query("MATE", m);
