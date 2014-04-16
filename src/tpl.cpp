@@ -1579,3 +1579,23 @@ bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len) {
 	set_rev_com(s);
 	return s;
 }
+
+/**
+ * Get the reads supporting the region on the template.
+ * The caller need to free the memory of the return array
+ */
+GPtrArray *get_supporting_reads(tpl *t, int start, int end) {
+	GPtrArray *reads = g_ptr_array_sized_new(4);
+	int i = 0, rstart = 0, rend = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		rend = min(t->len, r->contig_locus + r->len);
+		rstart = max(0, r->contig_locus);
+		if (start >= rstart && start < rend)
+			g_ptr_array_add(reads, r);
+		else if (end >= rend && end < rend)
+			g_ptr_array_add(reads, r);
+	}
+	return reads;
+}

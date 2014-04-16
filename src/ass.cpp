@@ -1046,7 +1046,6 @@ void do_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from, tpl *t,
 }
 
 void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
-	return;
 	int i = 0, merged = 0;
 	bwa_seq_t *r = NULL, *m = NULL;
 	tpl *to = NULL;
@@ -1068,8 +1067,8 @@ void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
 		//p_query(__func__, r);
 		//p_query(__func__, m);
 		// If the read is in the middle of the template, must do not jump from its mate
-		if (m->status != FRESH || (r->contig_locus > ins_size + 150
-				&& r->contig_locus < from->len - ins_size - 150))
+		if (m->status != FRESH || (r->contig_locus > ins_size + 2 * sd_ins_size
+				&& r->contig_locus < from->len - ins_size - 2 * sd_ins_size))
 			continue;
 		if (binary_exist(hanged, m))
 			continue;
@@ -2070,8 +2069,8 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	show_msg(__func__, "Merging %d templates by pairs and overlapping ...\n",
 			all_tpls.size());
 	merge_together_tpls(&all_tpls);
-	iter_merge(ht, &all_tpls, &tpl_kmer_hash);
-	ext_after_merging(ht, &all_tpls);
+	//iter_merge(ht, &all_tpls, &tpl_kmer_hash);
+	//ext_after_merging(ht, &all_tpls);
 
 	//show_msg(__func__, "Removing junctions without pairs ...\n");
 	//rm_no_pair_junctions(ht, &all_tpls);

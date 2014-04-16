@@ -180,12 +180,31 @@ int similar_to_merge(bwa_seq_t *from, bwa_seq_t *jumped, int unique_len) {
 }
 
 /**
+ * Before merging, check whether there are pairs at the head/tail area.
+ */
+int paired_at_head_tail(bwa_seq_t *seqs, tpl *left, tpl *right) {
+	int range = INS_SIZE - 2 * SD_INS_SIZE;
+	GPtrArray *tail_reads = get_supporting_reads(left, left->len - range, left->len);
+	int n = 0, i = 0, total = 0;
+	bwa_seq_t *m = NULL, *r = NULL;
+	for (i = 0; i < tail_reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(tail_reads, i);
+		m = get_mate(r, seqs);
+		if (m->status == USED && m->contig_id == right->id && m->contig_locus < range)
+			n++;
+	}
+	g_ptr_array_free(tail_reads, TRUE);
+	if (n >= 1)
+		return 1;
+}
+
+/**
  * Try to merge two templates.
  * The 'jumped' template does not have any junctions on it
  */
 int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		bwa_seq_t *jumping_read, int mis) {
-	int rev_com = 0, n_mis = 0;
+	int rev_com = 0, n_mis = 0, in_paired = 0;
 	int from_s = 0, from_e = 0, jumped_s = 0, jumped_e = 0;
 	int score = 0, similar = 0, ori_len = 0, side = 0;
 	int max_ol = ht->o->read_len * 1.5;
@@ -207,7 +226,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), 0);
 		score = smith_waterman_simple(from_seq, jumped_seq, &from_s, &from_e,
 				&jumped_s, &jumped_e, ht->o->k);
-
+		in_paired = paired_at_head_tail(ht->seqs, from, jumped);
 		///**
 		p_ctg_seq("FROM", from->ctg);
 		p_ctg_seq("FROM_PART END", from_seq);
@@ -219,10 +238,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		//p_tpl_reads(jumped);
 		//**/
 
-		if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
-				&& score >= (jumped_e - jumped_s) * SM_SIMILARY
-				&& from_seq->len - from_e < jumped->len - jumped_e && (jumped_s
-				<= 4 || from_e - from_s <= 4)) {
+		if (score >= ht->o->k - 1 && in_paired) {
 			// For the overlapped region, pick the one with higher coverage
 			from_cov = calc_tpl_cov(from, from->len - from_seq->len + from_s,
 					from->len - from_seq->len + from_e, ht->o->read_len);
@@ -255,6 +271,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 				- min(jumped->len, max_ol));
 		score = smith_waterman_simple(from_seq, jumped_seq, &from_s, &from_e,
 				&jumped_s, &jumped_e, ht->o->k);
+		in_paired = paired_at_head_tail(ht->seqs, jumped, from);
 		///**
 		p_ctg_seq("FROM", from->ctg);
 		p_ctg_seq("FROM_PART END", from_seq);
@@ -264,10 +281,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
 		show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
 		// **/
-		if (score >= ht->o->k - 1 && score >= (from_e - from_s) * SM_SIMILARY
-				&& score >= (jumped_e - jumped_s) * SM_SIMILARY && (jumped->len
-				- jumped_seq->len + jumped_s > from_s) && (jumped_seq->len
-				- jumped_e <= 4 || from_seq->len - from_e <= 4)) {
+		if (score >= ht->o->k - 1 && in_paired) {
 			from_cov = calc_tpl_cov(from, from_s, from_e, ht->o->read_len);
 			jumped_cov = calc_tpl_cov(jumped, jumped->len - jumped_seq->len
 					+ jumped_s, jumped->len - jumped_seq->len + jumped_e,

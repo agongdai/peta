@@ -712,7 +712,7 @@ int same_bytes(const ubyte_t *s, const int k) {
 int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 		int *seq_1_start, int *seq_1_stop, int *seq_2_start, int *seq_2_stop,
 		int min_score) {
-	int score_m = 1, score_mis = 1, score_gap = 2;
+	int score_m = 1, score_mis = 1, score_gap = 4;
 	int *scores = NULL;
 	int columns = seq_1->len + 1, max_score = 0, rows = seq_2->len + 1;
 	int i = 0, j = 0, s = 0;

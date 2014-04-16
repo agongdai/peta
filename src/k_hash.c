@@ -446,8 +446,7 @@ hash_table *load_k_hash(char *fa_fn) {
 	if (!fread(opt, sizeof(hash_opt), 1, fp)) {
 		err_fatal(__func__, "Unable to read from the hash file %s! \n", hash_fn);
 	}
-	show_msg(
-			__func__,
+	show_msg(__func__,
 			"Hashing options: k=%d, read_len=%d, n_k_mers=%" ID64 ", n_pos=%" ID64 " ...\n",
 			opt->k, opt->read_len, opt->n_k_mers, opt->n_pos);
 	ht->k_mers_occ_acc = (hash_key*) calloc(opt->n_k_mers, sizeof(hash_key));
@@ -457,8 +456,7 @@ hash_table *load_k_hash(char *fa_fn) {
 	fread(ht->pos, sizeof(hash_value), opt->n_pos, fp);
 	fread(ht->n_kmers, sizeof(uint32_t), n_seqs, fp);
 	fclose(fp);
-	show_msg(
-			__func__,
+	show_msg(__func__,
 			"Hash table loaded, k-mer records: %" ID64 ", positions: %" ID64 " %.2f sec\n",
 			opt->n_k_mers, opt->n_pos, (float) (clock() - t) / CLOCKS_PER_SEC);
 	free(hash_fn);
