@@ -204,7 +204,7 @@ int paired_at_head_tail(bwa_seq_t *seqs, tpl *left, tpl *right) {
  */
 int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		bwa_seq_t *jumping_read, int mis) {
-	int rev_com = 0, n_mis = 0, in_paired = 0;
+	int rev_com = 0, n_mis = 0, in_paired = 0, spanning = 0;
 	int from_s = 0, from_e = 0, jumped_s = 0, jumped_e = 0;
 	int score = 0, similar = 0, ori_len = 0, side = 0;
 	int max_ol = ht->o->read_len * 1.5;
@@ -227,7 +227,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		score = smith_waterman_simple(from_seq, jumped_seq, &from_s, &from_e,
 				&jumped_s, &jumped_e, ht->o->k);
 		in_paired = paired_at_head_tail(ht->seqs, from, jumped);
-		///**
+		/**
 		p_ctg_seq("FROM", from->ctg);
 		p_ctg_seq("FROM_PART END", from_seq);
 		p_ctg_seq("JUMPED", jumped->ctg);
@@ -239,26 +239,29 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		//**/
 
 		if (score >= ht->o->k - 1 && in_paired) {
-			// For the overlapped region, pick the one with higher coverage
-			from_cov = calc_tpl_cov(from, from->len - from_seq->len + from_s,
-					from->len - from_seq->len + from_e, ht->o->read_len);
-			jumped_cov = calc_tpl_cov(jumped, jumped_s, jumped_e,
-					ht->o->read_len);
-			if (from_cov > jumped_cov) {
-				truncate_tpl(from, from_seq->len - from_e, 0);
-				truncate_tpl(jumped, jumped_e, 1);
-			} else {
-				truncate_tpl(from, from_seq->len - from_s, 0);
-				truncate_tpl(jumped, jumped_s, 1);
+			spanning = pairs_spanning_locus(ht->seqs, from, from_e);
+			if (spanning < 2) {
+				// For the overlapped region, pick the one with higher coverage
+				from_cov = calc_tpl_cov(from, from->len - from_seq->len + from_s,
+						from->len - from_seq->len + from_e, ht->o->read_len);
+				jumped_cov = calc_tpl_cov(jumped, jumped_s, jumped_e,
+						ht->o->read_len);
+				if (from_cov > jumped_cov) {
+					truncate_tpl(from, from_seq->len - from_e, 0);
+					truncate_tpl(jumped, jumped_e, 1);
+				} else {
+					truncate_tpl(from, from_seq->len - from_s, 0);
+					truncate_tpl(jumped, jumped_s, 1);
+				}
+				bwa_free_read_seq(1, from_seq);
+				bwa_free_read_seq(1, jumped_seq);
+				ori_len = from->len;
+				merge_tpl_to_left(from, jumped, 0, rev_com);
+				refresh_tpl_reads(ht, from, N_MISMATCHES);
+				correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
+						- ht->o->read_len, ori_len + ht->o->read_len);
+				return 1;
 			}
-			bwa_free_read_seq(1, from_seq);
-			bwa_free_read_seq(1, jumped_seq);
-			ori_len = from->len;
-			merge_tpl_to_left(from, jumped, 0, rev_com);
-			refresh_tpl_reads(ht, from, N_MISMATCHES);
-			correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
-					- ht->o->read_len, ori_len + ht->o->read_len);
-			return 1;
 		}
 		bwa_free_read_seq(1, from_seq);
 		bwa_free_read_seq(1, jumped_seq);
@@ -272,7 +275,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		score = smith_waterman_simple(from_seq, jumped_seq, &from_s, &from_e,
 				&jumped_s, &jumped_e, ht->o->k);
 		in_paired = paired_at_head_tail(ht->seqs, jumped, from);
-		///**
+		/**
 		p_ctg_seq("FROM", from->ctg);
 		p_ctg_seq("FROM_PART END", from_seq);
 		p_ctg_seq("JUMPED", jumped->ctg);
@@ -282,26 +285,30 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
 		// **/
 		if (score >= ht->o->k - 1 && in_paired) {
-			from_cov = calc_tpl_cov(from, from_s, from_e, ht->o->read_len);
-			jumped_cov = calc_tpl_cov(jumped, jumped->len - jumped_seq->len
-					+ jumped_s, jumped->len - jumped_seq->len + jumped_e,
-					ht->o->read_len);
-			if (from_cov > jumped_cov) {
-				truncate_tpl(from, from_s, 1);
-				truncate_tpl(jumped, jumped_seq->len - jumped_s, 0);
-			} else {
-				truncate_tpl(from, from_e, 1);
-				truncate_tpl(jumped, jumped_seq->len - jumped_e, 0);
+			spanning = pairs_spanning_locus(ht->seqs, from, from_s);
+			if (spanning < 2) {
+				from_cov = calc_tpl_cov(from, from_s, from_e, ht->o->read_len);
+				jumped_cov = calc_tpl_cov(jumped, jumped->len - jumped_seq->len
+						+ jumped_s, jumped->len - jumped_seq->len + jumped_e,
+						ht->o->read_len);
+				if (from_cov > jumped_cov) {
+					truncate_tpl(from, from_s, 1);
+					truncate_tpl(jumped, jumped_seq->len - jumped_s, 0);
+				} else {
+					truncate_tpl(from, from_e, 1);
+					truncate_tpl(jumped, jumped_seq->len - jumped_e, 0);
+				}
+				bwa_free_read_seq(1, from_seq);
+				bwa_free_read_seq(1, jumped_seq);
+				ori_len = jumped->len;
+				merge_tpl_to_right(jumped, from, 0, rev_com);
+				refresh_tpl_reads(ht, from, N_MISMATCHES);
+				correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
+						- ht->o->read_len, ori_len + ht->o->read_len);
+				//p_ctg_seq("MERGED", t->ctg);
+				return 1;
 			}
-			bwa_free_read_seq(1, from_seq);
-			bwa_free_read_seq(1, jumped_seq);
-			ori_len = jumped->len;
-			merge_tpl_to_right(jumped, from, 0, rev_com);
-			refresh_tpl_reads(ht, from, N_MISMATCHES);
-			correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
-					- ht->o->read_len, ori_len + ht->o->read_len);
-			//p_ctg_seq("MERGED", t->ctg);
-			return 1;
+
 		}
 		bwa_free_read_seq(1, from_seq);
 		bwa_free_read_seq(1, jumped_seq);

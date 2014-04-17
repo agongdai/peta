@@ -78,6 +78,7 @@ extern "C" {
 	void set_jun_reads(hash_table *ht, tpl *t);
 	void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,
 			GPtrArray *all_junctions);
+	void mark_unpaired_reads(bwa_seq_t *seqs, tpl *t);
 
 #ifdef __cplusplus
 }

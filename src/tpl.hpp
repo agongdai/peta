@@ -118,6 +118,7 @@ extern "C" {
 	bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len);
 	void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches);
 	GPtrArray *get_supporting_reads(tpl *t, int start, int end);
+	int pairs_spanning_locus(bwa_seq_t *seqs, tpl *t, int locus);
 
 #ifdef __cplusplus
 }

@@ -1077,3 +1077,34 @@ void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,
 	}
 	bwa_free_read_seq(n_ctgs, seqs);
 }
+
+void mark_unpaired_reads(bwa_seq_t *seqs, tpl *t) {
+	GPtrArray *near_tpls = nearby_tpls(t, 1);
+	int i = 0, j = 0, x = 0, n_pairs = 0, n_total = 0;
+	tpl *near = NULL, *check = NULL;
+	bwa_seq_t *r = NULL, *m = NULL;
+	for (i = 0; i < near_tpls->len; i++) {
+		near = (tpl*) g_ptr_array_index(near_tpls, i);
+		for (j = 0; j < near->reads->len; j++) {
+			n_total++;
+			r = (bwa_seq_t*) g_ptr_array_index(near->reads, j);
+			m = get_mate(r, seqs);
+			if (m->status == USED) {
+				if (m->contig_id == near->id) n_pairs++;
+				else {
+					for (x = 0; x < near_tpls->len; x++) {
+						check = (tpl*) g_ptr_array_index(near_tpls, x);
+						if (m->contig_id == check->id)
+							n_pairs++;
+					}
+				}
+			}
+			//p_query(__func__, r);
+			//p_query(__func__, m);
+			//show_debug_msg(__func__, "Pairs: %d \n", n_pairs);
+		}
+	}
+	show_debug_msg(__func__, "Pairs on template [%d, %d]: %d * 2/ %d\n", t->id, t->len, n_pairs/2, n_total);
+	g_ptr_array_free(near_tpls, TRUE);
+}
+

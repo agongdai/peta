@@ -2069,8 +2069,8 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	show_msg(__func__, "Merging %d templates by pairs and overlapping ...\n",
 			all_tpls.size());
 	merge_together_tpls(&all_tpls);
-	//iter_merge(ht, &all_tpls, &tpl_kmer_hash);
-	//ext_after_merging(ht, &all_tpls);
+	iter_merge(ht, &all_tpls, &tpl_kmer_hash);
+	ext_after_merging(ht, &all_tpls);
 
 	//show_msg(__func__, "Removing junctions without pairs ...\n");
 	//rm_no_pair_junctions(ht, &all_tpls);

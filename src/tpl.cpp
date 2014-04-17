@@ -1091,7 +1091,7 @@ void rm_from_tpl(tpl *t, int index) {
  */
 void truncate_tpl(tpl *t, int len, int ori) {
 	bwa_seq_t *r = NULL;
-	int i = 0;
+	int i = 0, n = 0;
 	if (len <= 0)
 		return;
 	show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n",
@@ -1103,7 +1103,7 @@ void truncate_tpl(tpl *t, int len, int ori) {
 			r->contig_locus -= len;
 			if (r->contig_locus < 0) {
 				p_query("RESET", r);
-				reset_to_fresh(r);
+				reset_to_hang(r);
 				g_ptr_array_remove_index_fast(t->reads, i--);
 			}
 		}
@@ -1117,7 +1117,7 @@ void truncate_tpl(tpl *t, int len, int ori) {
 			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 			if (r->contig_locus + r->len > t->len - len) {
 				p_query("RESET", r);
-				reset_to_fresh(r);
+				reset_to_hang(r);
 				g_ptr_array_remove_index_fast(t->reads, i);
 			}
 		}
@@ -1598,4 +1598,20 @@ GPtrArray *get_supporting_reads(tpl *t, int start, int end) {
 			g_ptr_array_add(reads, r);
 	}
 	return reads;
+}
+
+int pairs_spanning_locus(bwa_seq_t *seqs, tpl *t, int locus) {
+	bwa_seq_t *r = NULL, *m = NULL;
+	int i = 0, n_pairs = 0;
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		m = get_mate(r, seqs);
+		if (m->status == USED && m->contig_id == t->id) {
+			if ((r->contig_locus >= locus && m->contig_locus) ||
+				(r->contig_locus + r->len <= locus && m->contig_locus + m->len <= locus))
+				continue;
+			n_pairs++;
+		}
+	}
+	return n_pairs;
 }
