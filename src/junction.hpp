@@ -50,6 +50,7 @@ extern "C" {
 			GPtrArray *all_tpls);
 	gint cmp_junc_by_id(gpointer a, gpointer b);
 	void rm_junc_w_dead_tpls(GPtrArray *junctions, tpl *t);
+	void remove_dead_junctions(GPtrArray *junctions);
 	int has_nearby_junc(tpl *t, int locus);
 	void mark_tpl_dead(tpl *t);
 	void destory_tpl_junctions(tpl *t);
@@ -79,6 +80,7 @@ extern "C" {
 	void read_juncs_from_file(char *junc_fn, char *pair_fa, GPtrArray *all_tpls,
 			GPtrArray *all_junctions);
 	void mark_unpaired_reads(bwa_seq_t *seqs, tpl *t);
+	int is_short_hanging_branch(tpl *branch);
 
 #ifdef __cplusplus
 }

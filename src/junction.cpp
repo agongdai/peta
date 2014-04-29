@@ -71,7 +71,8 @@ void destroy_junction(junction *j) {
 
 		show_debug_msg(__func__, "Destroying junction ... \n");
 		p_junction(j);
-		/** p_junctions(main_tpl->m_juncs);
+		/**
+		 p_junctions(main_tpl->m_juncs);
 		 p_junctions(main_tpl->b_juncs);
 		 p_junctions(branch_tpl->m_juncs);
 		 p_junctions(branch_tpl->b_juncs);
@@ -91,7 +92,7 @@ void destroy_junction(junction *j) {
 			for (i = main_tpl->m_juncs->len - 1; i >= 0; i--) {
 				jun = (junction*) g_ptr_array_index(main_tpl->m_juncs, i);
 				if (jun == j) {
-					g_ptr_array_remove_index_fast(main_tpl->m_juncs, i--);
+					g_ptr_array_remove_index_fast(main_tpl->m_juncs, i++);
 					break;
 				}
 			}
@@ -100,7 +101,7 @@ void destroy_junction(junction *j) {
 			for (i = branch_tpl->b_juncs->len - 1; i >= 0; i--) {
 				jun = (junction*) g_ptr_array_index(branch_tpl->b_juncs, i);
 				if (jun == j) {
-					g_ptr_array_remove_index_fast(branch_tpl->b_juncs, i--);
+					g_ptr_array_remove_index_fast(branch_tpl->b_juncs, i++);
 					break;
 				}
 			}
@@ -256,14 +257,13 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 	int i = 0, j = 0;
 
 	left_len = (left->len > max_len / 2) ? (max_len / 2) : left->len;
-	memcpy(junc_seq->seq, left->seq + (left->len - left_len), sizeof(ubyte_t)
-			* left_len);
+	memcpy(junc_seq->seq, left->seq + (left->len - left_len), sizeof(ubyte_t) * left_len);
 	right_len = (right->len) > (max_len / 2) ? (max_len / 2) : (right->len);
 	memcpy(junc_seq->seq + left_len, right->seq, sizeof(ubyte_t) * right_len);
 	junc_seq->len = left_len + right_len;
 	set_rev_com(junc_seq);
-	//	p_query("Left  seq", left);
-	//	p_query("Right seq", right);
+	//p_query("Left  seq", left);
+	//p_query("Right seq", right);
 	//p_query("Junction seq", junc_seq);
 
 	if (junc_seq->len >= ht->o->read_len) {
@@ -278,21 +278,6 @@ GPtrArray *find_junc_reads(hash_table *ht, bwa_seq_t *left, bwa_seq_t *right,
 			hits = find_both_fr_full_reads(ht, window, hits, LESS_MISMATCH);
 			while (hits->len > 0) {
 				r = (bwa_seq_t*) g_ptr_array_index(hits, 0);
-
-				//				if (reads->len % 15 == 0) {
-				//					for (j = 0; j < junc_seq->len; j++) {
-				//						printf("%c", "ACGTN"[junc_seq->seq[j]]);
-				//					}
-				//					printf("\n");
-				//				}
-				//				for (j = 0; j < i; j++) {
-				//					printf(" ");
-				//				}
-				//				for (j = 0; j < r->len; j++) {
-				//					printf("%c", r->rev_com ? "ACGTN"[r->rseq[j]] : "ACGTN"[r->seq[j]]);
-				//				}
-				//				printf("\t%c%s\n", r->rev_com ? '-' : '+', r->name);
-
 				g_ptr_array_add(reads, r);
 				g_ptr_array_remove_index_fast(hits, 0);
 			}
@@ -321,46 +306,49 @@ int count_jun_reads(hash_table *ht, junction *jun) {
 	if (!jun || jun->status != 0)
 		return 0;
 	show_debug_msg(__func__, "Setting junction reads ...\n");
+	p_junction(jun);
 	main_tpl = jun->main_tpl;
 	branch = jun->branch_tpl;
 	branch_seq = get_tpl_ctg_wt(branch, &b_l_len, &b_r_len, &b_t_len);
 	main_seq = get_tpl_ctg_wt(main_tpl, &m_l_len, &m_r_len, &m_t_len);
-	//p_junction(jun);
-	//p_tpl(main_tpl);
 	//p_tpl(branch);
+	//p_ctg_seq("Branch", branch_seq);
+	//p_tpl(main_tpl);
+	//p_ctg_seq("Main", main_seq);
 	left = jun->ori ? new_seq(branch_seq, branch_seq->len - b_r_len, 0)
 			: new_seq(main_seq, jun->locus + m_l_len, 0);
 	right = jun->ori ? new_seq(main_seq, main_seq->len - jun->locus - m_l_len,
 			jun->locus + m_l_len) : new_seq(branch_seq, branch->len + b_r_len,
 			b_l_len);
-	//p_ctg_seq("Main", main_tpl->ctg);
-	//p_ctg_seq("Bran", branch->ctg);
+	//p_ctg_seq("Left", left);
+	//p_ctg_seq("Right", right);
 	j_reads = find_junc_reads(ht, left, right, (ht->o->read_len
 			- JUNCTION_BOUNDARY_BASE) * 2, &n_reads);
 	// The junction reads can only exist on the branch template
 	//	for (i = 0; i < j_reads->len; i++) {
 	//		read = (bwa_seq_t*) g_ptr_array_index(j_reads, i);
+	//		p_query(__func__, read);
 	//		if (read->contig_id != jun->branch_tpl->id || read->status != USED) {
 	//			g_ptr_array_remove_index_fast(j_reads, i--);
 	//		}
 	//	}
 	n_reads = j_reads->len;
 
-	int n_pairs_main = 0, n_pairs_branch = 0;
-	for (i = 0; i < j_reads->len; i++) {
-		read = (bwa_seq_t*) g_ptr_array_index(j_reads, i);
-		mate = get_mate(read, ht->seqs);
-		if (mate->contig_id == main_tpl->id) {
-			n_pairs_main++;
-			//p_query("READ", read);
-			//p_query("MATE", mate);
-		}
-		if (mate->contig_id == branch->id) {
-			n_pairs_branch++;
-			//p_query("READ", read);
-			//p_query("MATE", mate);
-		}
-	}
+//	int n_pairs_main = 0, n_pairs_branch = 0;
+//	for (i = 0; i < j_reads->len; i++) {
+//		read = (bwa_seq_t*) g_ptr_array_index(j_reads, i);
+//		mate = get_mate(read, ht->seqs);
+//		if (mate->contig_id == main_tpl->id) {
+//			n_pairs_main++;
+//			//p_query("READ", read);
+//			//p_query("MATE", mate);
+//		}
+//		if (mate->contig_id == branch->id) {
+//			n_pairs_branch++;
+//			//p_query("READ", read);
+//			//p_query("MATE", mate);
+//		}
+//	}
 	//p_junction(jun);
 	//printf("Main_Pairs: %d\n", n_pairs_main);
 	//printf("Branch_Pairs: %d\n", n_pairs_branch);
@@ -583,7 +571,7 @@ void remove_dead_junctions(GPtrArray *junctions) {
 	uint32_t i = 0;
 	for (i = 0; i < junctions->len; i++) {
 		j = (junction*) g_ptr_array_index(junctions, i);
-		p_junction(j);
+		//p_junction(j);
 		//p_tpl(j->main_tpl);
 		//p_tpl(j->branch_tpl);
 		if (j->status != 0) {
@@ -1108,3 +1096,75 @@ void mark_unpaired_reads(bwa_seq_t *seqs, tpl *t) {
 	g_ptr_array_free(near_tpls, TRUE);
 }
 
+
+/**
+ * Truncate the template by some length at left/right side;
+ * The reads falling within this range will be marked as FRESH.
+ */
+void truncate_tpl(tpl *t, int len, int ori) {
+	bwa_seq_t *r = NULL;
+	junction *jun = NULL;
+	int i = 0, n = 0;
+	if (len <= 0)
+		return;
+	show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n",
+					t->id, t->len, ori, len);
+	p_ctg_seq("BEFORE", t->ctg);
+	if (ori) {
+		for (i = 0; i < t->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+			r->contig_locus -= len;
+			if (r->contig_locus < 0) {
+				p_query("RESET", r);
+				reset_to_hang(r);
+				g_ptr_array_remove_index_fast(t->reads, i--);
+			}
+		}
+		memmove(t->ctg->seq, t->ctg->seq + len, sizeof(ubyte_t)
+				* (t->len - len));
+		t->len -= len;
+		t->ctg->len = t->len;
+		set_rev_com(t->ctg);
+		if (t->m_juncs) {
+			for (i = 0; i < t->m_juncs->len; i++) {
+				jun = (junction*) g_ptr_array_index(t->m_juncs, i);
+				jun->locus -= len;
+			}
+		}
+	} else {
+		for (i = t->reads->len - 1; i >= 0; i--) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+			if (r->contig_locus + r->len > t->len - len) {
+				p_query("RESET", r);
+				reset_to_hang(r);
+				g_ptr_array_remove_index_fast(t->reads, i);
+			}
+		}
+		t->len -= len;
+		t->ctg->len = t->len;
+		set_rev_com(t->ctg);
+	}
+	p_ctg_seq("AFTER", t->ctg);
+}
+
+/**
+ * If the branch can be eliminated.
+ */
+int is_short_hanging_branch(tpl *branch) {
+	junction *jun = NULL, *left_jun = NULL, *right_jun = NULL;
+	int i = 0, dist = 0;
+	if (!branch || branch->len > 10) return 0;
+	if (branch->b_juncs && branch->b_juncs->len == 2) {
+		for (i = 0; i < branch->b_juncs->len; i++) {
+			jun = (junction*) g_ptr_array_index(branch->b_juncs, i);
+			if (jun->ori == 0) left_jun = jun;
+			if (jun->ori == 1) right_jun = jun;
+		}
+		if (left_jun && right_jun && left_jun->main_tpl == right_jun->main_tpl) {
+			dist = right_jun->locus - left_jun->locus;
+			if (dist < 0 || abs(dist - branch->len) <= 10)
+				return 1;
+		}
+	}
+	return 0;
+}

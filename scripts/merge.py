@@ -235,7 +235,7 @@ def split2(args):
                     if line_no % 4 == 1:
                         l.write('>%d/1\n' % left_id)
                     if line_no % 4 == 2:
-                        l.write(rev_comp(line) + '\n')
+                        l.write(line + '\n')
                         left_id += 1
                     if line_no % 4 == 3:
                         r.write('>%d/2\n' % right_id)

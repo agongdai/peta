@@ -1298,6 +1298,64 @@ void cluster_save_read_usage(GPtrArray *all_paths, char *save_dir) {
 	fclose(f);
 }
 
+int count_pairs(GPtrArray *reads) {
+    g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_name);
+    int i = 0, n_pairs = 0;
+    bwa_seq_t *r = NULL, *n = NULL;
+    if (reads->len <= 1)
+        return 0;
+    for (i = 0; i < reads->len - 1; i++) {
+        r = (bwa_seq_t*) g_ptr_array_index(reads, i);
+        n = (bwa_seq_t*) g_ptr_array_index(reads, i + 1);
+        if (is_mates(r->name, n->name)) {
+            n_pairs++;
+        }
+    }
+    return n_pairs;
+}
+
+void save_read_usage_on_paths(GPtrArray *all_paths, char *save_dir) {
+    char *fn = get_output_file("reads.usage", save_dir);
+    FILE *f = xopen(fn, "w");
+
+    show_msg(__func__, "Saving reads usage on paths ...\n");
+    path *p = NULL;
+    int i = 0;
+    int j = 0;
+    int cluster_id = -1;
+    bwa_seq_t *r = NULL;
+    if (all_paths->len <= 0)
+        return;
+    vertex *v = NULL;
+    for (i = 0; i < all_paths->len; i++) {
+        p = (path*) g_ptr_array_index(all_paths, i);
+
+        if (p->len < 100)
+            continue;
+        if (p->is_paired) {
+        } else {
+            if (p->status != 0)
+                continue;
+        }
+
+        if (!p->reads) {
+            show_msg(__func__, "No reads on path %d \n", p->id);
+            continue;
+        }
+
+        v = (vertex*) g_ptr_array_index(p->vertexes, 0);
+
+        fprintf(f, "%d.%d.%d\t", p->id, p->reads->len, count_pairs(p->reads));
+        for (j = 0; j < p->reads->len; j++) {
+            r = (bwa_seq_t*) g_ptr_array_index(p->reads, j);
+            fprintf(f, "%s@%d,", r->name, r->contig_locus);
+        }
+        fprintf(f, "\n");
+    }
+
+    fclose(f);
+}
+
 void determine_paths(splice_graph *g, hash_table *ht, char *save_dir) {
 	comp *c = NULL;
 	uint32_t i = 0;
@@ -1321,6 +1379,7 @@ void determine_paths(splice_graph *g, hash_table *ht, char *save_dir) {
 	fn = get_output_file("peta.fa", save_dir);
 	//cluster_save_paths(all_paths, fn, 0);
 	save_paths(all_paths, fn, 0);
+	save_read_usage_on_paths(all_paths, save_dir);
 	free(fn);
 
 	//cluster_save_read_usage(all_paths, save_dir);

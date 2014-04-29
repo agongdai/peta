@@ -799,7 +799,6 @@ void re_hash(const char *fa_fn) {
 	fwrite(ht->pos, sizeof(hash_value), ht->o->n_pos, fp);
 
 	fprintf(stderr, "[re_hash] Saving kmer counts on reads ... \n");
-	// In first round, just store all zero values
 	fwrite(ht->n_kmers, sizeof(uint32_t), ht->n_seqs, fp);
 	fclose(fp);
 }

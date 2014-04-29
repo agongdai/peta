@@ -29,7 +29,7 @@
 
 using namespace std;
 
-int TESTING = 0;
+int TESTING = 0; //278052;// 3003291;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -42,7 +42,7 @@ int stage = 1;
 int fresh_trial = 0;
 uint32_t n_used_reads = 0;
 char *kmer_out = NULL;
-GPtrArray *hang_reads = NULL, *tpls_await_branching = NULL;
+GPtrArray *hang_reads = NULL;
 
 bwa_seq_t *TEST = NULL;
 bwa_seq_t *CLUSTER_START_READ = NULL;
@@ -98,7 +98,7 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 			//p_junctions(t->b_juncs);
 			g_ptr_array_add(tpls, t);
 		} else {
-			//destory_tpl_junctions(t);
+			destory_tpl_junctions(t);
 			destroy_tpl(t, TRIED);
 		}
 	}
@@ -1046,96 +1046,79 @@ void do_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from, tpl *t,
 }
 
 void tpl_jumping(hash_table *ht, tpl_hash *all_tpls, tpl *from) {
-	int i = 0, merged = 0;
+	int i = 0, jumped_and_merged = 1;
 	bwa_seq_t *r = NULL, *m = NULL;
 	tpl *to = NULL;
 	pool *p = NULL;
 	GPtrArray *hanged = NULL;
-	if (!from || !from->alive)
-		return;
+	if (!from || !from->alive) return;
 	//	g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 	//p_tpl_reads(from);
-	show_debug_msg(__func__, "Started jumping from template [%d, %d] \n",
-			from->id, from->len);
+	show_debug_msg(__func__, "Started jumping from template [%d, %d] \n", from->id, from->len);
 	//p_tpl_reads(from);
 	p_test_read();
 	hanged = g_ptr_array_sized_new(4);
-	for (i = 0; i < from->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
-		m = get_mate(r, ht->seqs);
-		//show_debug_msg(__func__, "i = %d\n", i);
-		//p_query(__func__, r);
-		//p_query(__func__, m);
-		// If the read is in the middle of the template, must do not jump from its mate
-		if (m->status != FRESH || (r->contig_locus > ins_size + 2 * sd_ins_size
-				&& r->contig_locus < from->len - ins_size - 2 * sd_ins_size))
-			continue;
-		if (binary_exist(hanged, m))
-			continue;
-		//p_query(__func__, r);
-		//p_query(__func__, m);
-		//continue;
-		p_test_read();
-		to = please_jump(ht, all_tpls, from, m);
-		//if (to->id > 250)
-		//	exit(1);
-		if (!to)
-			continue;
-		mark_init_reads_used(ht, to, m, N_MISMATCHES);
-		do_jumping(ht, all_tpls, from, to, m);
-		//p_tpl_reads(to);
-		//refresh_tpl_reads(ht, to, N_MISMATCHES);
-		if (!to->alive) {
-			concat_arrays(hanged, to->reads);
-			g_ptr_array_sort(hanged, (GCompareFunc) cmp_reads_by_name);
-			rm_global_tpl(all_tpls, to, FRESH);
-			continue;
-		}
+	while(jumped_and_merged) {
+		jumped_and_merged = 0;
+		for (i = 0; i < from->reads->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(from->reads, i);
+			m = get_mate(r, ht->seqs);
+			//p_query(__func__, r);
+			//p_query(__func__, m);
+			// If the read is in the middle of the template, must do not jump to its mate
+			if (m->status != FRESH || (r->contig_locus > ins_size + 2 * sd_ins_size
+					&& r->contig_locus < from->len - ins_size - 2 * sd_ins_size))
+				continue;
+			if (binary_exist(hanged, m)) continue;
+			//p_query(__func__, r);
+			//p_query(__func__, m);
+			//continue;
+			p_test_read();
+			to = please_jump(ht, all_tpls, from, m);
+			if (!to) continue;
+			mark_init_reads_used(ht, to, m, N_MISMATCHES);
+			do_jumping(ht, all_tpls, from, to, m);
+			if (to->alive) {
+				refresh_tpl_reads(ht, to, N_MISMATCHES);
+				correct_tpl_base(ht->seqs, to, ht->o->read_len, 0, to->len);
+			}
+			if (!to->alive) {
+				concat_arrays(hanged, to->reads);
+				g_ptr_array_sort(hanged, (GCompareFunc) cmp_reads_by_name);
+				rm_global_tpl(all_tpls, to, FRESH);
+				continue;
+			}
 
-		refresh_tpl_reads(ht, to, N_MISMATCHES);
-		if (!to->alive) {
-			concat_arrays(hanged, to->reads);
-			g_ptr_array_sort(hanged, (GCompareFunc) cmp_reads_by_name);
-			rm_global_tpl(all_tpls, to, FRESH);
-			continue;
-		}
-		correct_tpl_base(ht->seqs, to, ht->o->read_len, 0, to->len);
-		if (to->len >= 100) {
-			merged = merged_jumped(ht, from, to, m, MORE_MISMATCH);
-			//p_test_read();
-			if (merged) {
+			jumped_and_merged = merged_jumped(ht, from, to, m, MORE_MISMATCH);
+			if (jumped_and_merged) {
 				show_debug_msg(__func__,
 						"Jumped to read %s [%d, %d] as [%d, %d]...\n\n",
 						m->name, to->id, to->len, from->id, from->len);
 				printf("JUMPED, %d, %d, %s\n", from->id, to->id, m->name);
 				unfrozen_tried(to);
-				g_ptr_array_sort(from->reads,
-						(GCompareFunc) cmp_reads_by_contig_locus);
+				g_ptr_array_sort(from->reads, (GCompareFunc) cmp_reads_by_contig_locus);
 				i = 0;
 				while (hanged->len > 0) {
-					r = (bwa_seq_t*) g_ptr_array_index(hanged, 0);
+					r = (bwa_seq_t*) g_ptr_array_index(hanged, hanged->len - 1);
 					reset_to_fresh(r);
-					g_ptr_array_remove_index_fast(hanged, 0);
+					g_ptr_array_remove_index_fast(hanged, hanged->len - 1);
 				}
 			} else {
-				show_debug_msg(__func__, "Template [%d, %d] not merged. \n",
-						to->id, to->len);
+				show_debug_msg(__func__, "Template [%d, %d] not merged. \n", to->id, to->len);
+				to->alive = 0;
+				concat_arrays(hanged, to->reads);
+				g_ptr_array_sort(hanged, (GCompareFunc) cmp_reads_by_name);
+				rm_global_tpl(all_tpls, to, FRESH);
 			}
 		}
-		// If it is alive, long but not merged; put it wait for branching
-		if (to->alive && to->len >= LONG_TPL_LEN) {
-			printf("JUMPED, %d, %d, %s\n", from->id, to->id, m->name);
-			unfrozen_tried(to);
-			g_ptr_array_add(tpls_await_branching, to);
-		} else {
-			to->alive = 0;
-			concat_arrays(hanged, to->reads);
-			g_ptr_array_sort(hanged, (GCompareFunc) cmp_reads_by_name);
-			rm_global_tpl(all_tpls, to, FRESH);
-		}
-		show_debug_msg(__func__, "--- End of jumping %s\n\n", m->name);
+	}
+	while (hanged->len > 0) {
+		r = (bwa_seq_t*) g_ptr_array_index(hanged, hanged->len - 1);
+		reset_to_fresh(r);
+		g_ptr_array_remove_index_fast(hanged, hanged->len - 1);
 	}
 	g_ptr_array_free(hanged, TRUE);
+	show_debug_msg(__func__, "--- End of jumping %s\n\n", m->name);
 }
 
 /**
@@ -1206,6 +1189,7 @@ int try_destroy_tpl(hash_table *ht, tpl_hash *all_tpls, tpl *t, int read_len) {
  * For those branches at the head/tail, choose the longer branch
  */
 int prune_tpl_tails(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
+	return 0;
 	GPtrArray *branches = t->m_juncs;
 	junction *jun = NULL, *jun2 = NULL;
 	int i = 0, j = 0, changed = 0, pruned_right = 0;
@@ -1510,6 +1494,8 @@ void branching(hash_table *ht, tpl_hash *all_tpls, tpl *t, int mismatches,
 			}
 		}
 
+		if (is_short_hanging_branch(branch)) dead = 1;
+
 		if (!dead) {
 			if (branch->b_juncs->len == 1 && !val_branch_by_pairs(ht, t, branch)) dead = 1;
 		}
@@ -1653,22 +1639,6 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	t = ext_a_read(ht, all_tpls, read, counter->count);
 	if (t)
 		finalize_tpl(ht, all_tpls, t, 1, 0, 0);
-	//ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
-	//ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
-	while (tpls_await_branching->len > 0) {
-		t = (tpl*) g_ptr_array_index(tpls_await_branching,
-				tpls_await_branching->len - 1);
-		show_debug_msg(__func__, "Await branching template [%d, %d] ... \n",
-				t->id, t->len);
-		to_con_right = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
-		to_con_left = ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
-		g_ptr_array_remove_index_fast(tpls_await_branching,
-				tpls_await_branching->len - 1);
-		finalize_tpl(ht, all_tpls, t, 1, 0, 0);
-		//ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 1);
-		//ext_unit(ht, all_tpls, NULL, NULL, t, NULL, 0, 0);
-	}
-
 	return NULL;
 }
 
@@ -1695,7 +1665,7 @@ void kmer_threads(kmer_t_meta *params) {
 		}
 	}
 
-	TEST = &seqs[3165389];
+	TEST = &seqs[4663319];
 
 	// shrink_ht(ht);
 
@@ -1919,9 +1889,10 @@ void iter_merge(hash_table *ht, tpl_hash *all_tpls, kmer_hash *tpl_kmer_hash) {
  */
 void merge_together_tpls(tpl_hash *all_tpls) {
 	tpl *t = NULL;
-	junction *jun = NULL;
-	int i = 0;
+	junction *jun = NULL, *branch = NULL;
+	int i = 0, isvalid = 0;
 	GPtrArray *tpls = g_ptr_array_sized_new(all_tpls->size());
+	GPtrArray *dead_junctions = g_ptr_array_sized_new(4);
 	show_debug_msg(__func__, "Merging together templates ...\n");
 	for (tpl_hash::iterator m = all_tpls->begin(); m != all_tpls->end(); ++m) {
 		t = (tpl*) m->second;
@@ -1931,17 +1902,24 @@ void merge_together_tpls(tpl_hash *all_tpls) {
 			jun = (junction*) g_ptr_array_index(t->m_juncs, i);
 			if (jun->status != 0)
 				continue;
+			isvalid = 1;
 			if (jun->locus <= 2 && jun->ori == 1) {
-				destroy_junction(jun);
 				merge_tpls(jun->branch_tpl, t, jun->locus, 0);
+				isvalid = 0;
 			} else {
 				if (jun->locus >= t->len - 2 && jun->ori == 0) {
-					destroy_junction(jun);
 					merge_tpls(t, jun->branch_tpl, t->len - jun->locus, 0);
+					isvalid = 0;
 				}
+			}
+			if (!isvalid) {
+				jun->status = 1;
+				g_ptr_array_add(dead_junctions, jun);
 			}
 		}
 	}
+	remove_dead_junctions(dead_junctions);
+	g_ptr_array_free(dead_junctions, TRUE);
 }
 
 /**
@@ -2037,7 +2015,6 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	hash_table *ht = NULL;
 	char *fn = NULL, *lib_fn_copy = NULL;
 	hang_reads = g_ptr_array_sized_new(1024);
-	tpls_await_branching = g_ptr_array_sized_new(32);
 	kmer_hash tpl_kmer_hash;
 
 	show_msg(__func__, "Library: %s \n", lib_file);
@@ -2065,7 +2042,6 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	//			all_tpls.size());
 	//build_tpl_hash(tpl_kmer_hash, &all_tpls, ht->o->k, ht->o->read_len);
 
-	g_ptr_array_free(tpls_await_branching, TRUE);
 	show_msg(__func__, "Merging %d templates by pairs and overlapping ...\n",
 			all_tpls.size());
 	merge_together_tpls(&all_tpls);
@@ -2206,7 +2182,6 @@ int pe_cluster(int argc, char *argv[]) {
 		g_thread_init( NULL);
 	kmer_id_mutex = g_mutex_new();
 	hang_reads = g_ptr_array_sized_new(1024);
-	tpls_await_branching = g_ptr_array_sized_new(32);
 
 	int c = 0;
 	while ((c = getopt(argc, argv, "k:m:s:o:t:")) >= 0) {

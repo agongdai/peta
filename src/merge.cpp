@@ -194,8 +194,7 @@ int paired_at_head_tail(bwa_seq_t *seqs, tpl *left, tpl *right) {
 			n++;
 	}
 	g_ptr_array_free(tail_reads, TRUE);
-	if (n >= 1)
-		return 1;
+	return n;
 }
 
 /**
@@ -206,10 +205,11 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		bwa_seq_t *jumping_read, int mis) {
 	int rev_com = 0, n_mis = 0, in_paired = 0, spanning = 0;
 	int from_s = 0, from_e = 0, jumped_s = 0, jumped_e = 0;
-	int score = 0, similar = 0, ori_len = 0, side = 0;
+	int score = 0, similar = 0, ori_len = 0, side = 0, i = 0;
 	int max_ol = ht->o->read_len * 1.5;
 	float from_cov = 0.0, jumped_cov = 0.0;
 	bwa_seq_t *from_seq = NULL, *jumped_seq = NULL, *r = NULL;
+	junction *jun = NULL;
 	//	p_tpl_reads(t);
 	//	p_tpl_reads(jumped);
 	if (!paired_by_reads(ht->seqs, from, jumped, 1) && jumped->len
@@ -237,9 +237,10 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
 		//p_tpl_reads(jumped);
 		//**/
-
-		if (score >= ht->o->k - 1 && in_paired) {
-			spanning = pairs_spanning_locus(ht->seqs, from, from_e);
+ // && (jumped->len - jumped_e) > (from_seq->len - from_e)
+		if (score >= ht->o->k - 1 && in_paired >= MIN_PAIRS) {
+			spanning = pairs_spanning_locus(ht->seqs, from, from_e + (from->len - from_seq->len));
+			//show_debug_msg(__func__, "Spanning pairs: %d \n", spanning);
 			if (spanning < 2) {
 				// For the overlapped region, pick the one with higher coverage
 				from_cov = calc_tpl_cov(from, from->len - from_seq->len + from_s,
@@ -275,7 +276,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		score = smith_waterman_simple(from_seq, jumped_seq, &from_s, &from_e,
 				&jumped_s, &jumped_e, ht->o->k);
 		in_paired = paired_at_head_tail(ht->seqs, jumped, from);
-		/**
+		///**
 		p_ctg_seq("FROM", from->ctg);
 		p_ctg_seq("FROM_PART END", from_seq);
 		p_ctg_seq("JUMPED", jumped->ctg);
@@ -284,7 +285,8 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 		show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
 		show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
 		// **/
-		if (score >= ht->o->k - 1 && in_paired) {
+		// && from_s < jumped->len - (jumped_seq->len - jumped_s)
+		if (score >= ht->o->k - 1 && in_paired >= MIN_PAIRS) {
 			spanning = pairs_spanning_locus(ht->seqs, from, from_s);
 			if (spanning < 2) {
 				from_cov = calc_tpl_cov(from, from_s, from_e, ht->o->read_len);
@@ -417,6 +419,8 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 				g_ptr_array_add(left->b_juncs, jun);
 			}
 		}
+		g_ptr_array_free(right->b_juncs, TRUE);
+		right->b_juncs = NULL;
 	}
 	if (right->m_juncs) {
 		for (i = 0; i < right->m_juncs->len; i++) {
@@ -430,6 +434,8 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 				g_ptr_array_add(left->m_juncs, jun);
 			}
 		}
+		g_ptr_array_free(right->m_juncs, TRUE);
+		right->m_juncs = NULL;
 	}
 
 	//p_tpl(left);

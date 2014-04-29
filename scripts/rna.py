@@ -909,6 +909,31 @@ def gene(args):
         
     for gene, transcripts in genes.iteritems():
         print '%s\t%d' % (gene, len(transcripts))
+        
+def extend(args):
+    fasta = FastaFile(args.tx)
+    genome = FastaFile(args.ref)
+    tx_hits = read_blat_hits(args.psl, 'query')
+    extended = FastaFile()
+    for tx, hits in tx_hits.iteritems():
+        hits.sort(key=lambda x: x.alen, reverse=True)
+        if len(hits) <= 0: 
+            print '%s not aligned to reference genome' % tx
+            continue
+        h = hits[0]
+        seq = fasta.seqs[tx]
+        if h.strand == '-': seq = rev_comp(seq)
+        chr_seq = genome.seqs[h.rname]
+        s = h.rstart - 1000
+        if s < 0: s = 0
+        ext_seq = chr_seq[s:h.rstart]
+        for i in range(h.n_blocks):
+            ext_seq += chr_seq[h.r_block_starts[i]:(h.r_block_starts[i] + h.block_sizes[i])]
+        e = h.rend + 1000
+        if e > len(chr_seq): e = len(chr_seq)
+        ext_seq += chr_seq[h.rend:e]
+        extended.seqs[tx] = ext_seq.upper()
+    extended.save_to_disk(args.tx + '.extended')
 
 def main():
     parser = ArgumentParser()
@@ -1021,6 +1046,12 @@ def main():
     parser_gene = subparsers.add_parser('gene', help='Inspect gene-transcript multiplicity')
     parser_gene.set_defaults(func=gene)
     parser_gene.add_argument('tx', help='transcript fasta file')
+    
+    parser_exd = subparsers.add_parser('extend', help='Add 1000bp to left/right side of a transcript from genome')
+    parser_exd.set_defaults(func=extend)
+    parser_exd.add_argument('tx', help='transcript FASTA file')
+    parser_exd.add_argument('ref', help='genome FASTA file')
+    parser_exd.add_argument('psl', help='transcript-to-genome PSL file')
     
     args = parser.parse_args()
     args.func(args)
