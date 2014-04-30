@@ -21,15 +21,6 @@ typedef uint64_t hash_value;
 typedef int16_t read_pos;
 
 typedef struct {
-	bwa_seq_t *starting_read;
-	bwa_seq_t *ref;
-	GPtrArray *hits;
-	int cursor;
-	int ori;
-	char *step;
-} testing_info;
-
-typedef struct {
 	int k;				// k value, 25 by default
 	int mode; 			// For sequences reading using BWA
 	int read_len;		// Read length
@@ -73,6 +64,7 @@ extern "C" {
 			const int mismatches);
 	GPtrArray *align_query(hash_table *ht, bwa_seq_t *query,
 			int8_t status, int mismatches);
+	void hash_a_tpl(uint32_t *hash, const ubyte_t *seq, const int len, const int k, const int tpl_id);
 
 #ifdef __cplusplus
 }

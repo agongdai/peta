@@ -35,7 +35,7 @@ typedef struct {
 	int id; 				// template id
 	int32_t len;			// Length
 	int8_t alive;			// Whether alive
-	int8_t not_covered;		// Whether some region not covered by any reads.
+	float pair_pc;			// Number of paired-end reads / all reads, on the template
 	int8_t is_root;			// Whether it's a root node in the graph
 	int8_t ori;				// Orientation
 	float cov;				// Coverage
@@ -46,7 +46,7 @@ typedef struct {
 	GPtrArray *reads;		// Reads on it. Used for paired validation
 	GPtrArray *tried;		// Reads that loaded to pool once, then removed, marked as TRIED
 	GPtrArray *vertexes;	// The template be broken into vertexes linearly
-	testing_info *tinfo;	// Information for testing
+	char *step;				// Information for testing
 } tpl;
 
 typedef struct {
@@ -119,6 +119,7 @@ extern "C" {
 	void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches);
 	GPtrArray *get_supporting_reads(tpl *t, int start, int end);
 	int pairs_spanning_locus(bwa_seq_t *seqs, tpl *t, int locus);
+	int count_pairs_on_tpl(tpl *t);
 
 #ifdef __cplusplus
 }

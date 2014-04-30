@@ -32,7 +32,7 @@ void p_tpl(tpl *t) {
 	}
 	show_debug_msg(__func__, "---- Template %d alive: %d; root %d ----\n",
 			t->id, t->alive, t->is_root);
-	show_debug_msg(__func__, "\t Length: %d \n", t->len);
+	show_debug_msg(__func__, "\t Length: %d; Pairs: %.2f \n", t->len, t->pair_pc);
 	if (t->reads)
 		show_debug_msg(__func__, "\t Reads: %d\n", t->reads->len);
 	show_debug_msg(__func__, "\t Coverage: %.2f\n", t->cov);
@@ -121,7 +121,7 @@ tpl *new_tpl() {
 	t->len = 0;
 	t->id = 0;
 	t->alive = 1;
-	t->not_covered = 0;
+	t->pair_pc = 0.0;
 	t->is_root = 0;
 	t->ori = 0;
 	t->start_read = NULL;
@@ -194,18 +194,16 @@ void reset_unpaired_reads(bwa_seq_t *seqs, tpl *t) {
 void unfrozen_tried(tpl *t) {
 	index64 i = 0;
 	bwa_seq_t *r = NULL;
-	for (i = 0; i < t->tried->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
-		if (r->status != USED) {
-			if (t->not_covered)
-				reset_to_dead(r);
-			else
+	if (t->tried) {
+		for (i = 0; i < t->tried->len; i++) {
+			r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
+			if (r->status != USED) {
 				reset_to_fresh(r);
+			}
 		}
-
+		while (t->tried->len > 0)
+			g_ptr_array_remove_index_fast(t->tried, 0);
 	}
-	while (t->tried->len > 0)
-		g_ptr_array_remove_index_fast(t->tried, 0);
 }
 
 /**
@@ -1421,10 +1419,10 @@ void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 				seq_reverse(contig->len, contig->seq, 0);
 			if (t->last_read)
 				sprintf(h, ">%d_%s\tlength: %d\tstart: %s\tstep: %s\n", t->id,
-						t->last_read->name, contig->len, t->start_read->name, t->tinfo->step);
+						t->last_read->name, contig->len, t->start_read->name, t->step);
 			else
 				sprintf(h, ">%d_0\tlength: %d\tstart: %s\tstep: %s\n", t->id, contig->len,
-						t->start_read->name, t->tinfo->step);
+						t->start_read->name, t->step);
 			save_con(h, contig, ass_fa);
 		}
 	}
@@ -1436,14 +1434,10 @@ void destroy_tpl(tpl *t, int status) {
 	bwa_seq_t *r = NULL;
 	if (t) {
 		show_debug_msg(__func__, "Freeing tpl [%d, %d] \n", t->id, t->len);
-		if (t->ctg)
-			bwa_free_read_seq(1, t->ctg);
-		if (t->r_tail)
-			bwa_free_read_seq(1, t->r_tail);
-		if (t->l_tail)
-			bwa_free_read_seq(1, t->l_tail);
-		if (t->vertexes)
-			g_ptr_array_free(t->vertexes, TRUE);
+		if (t->ctg) bwa_free_read_seq(1, t->ctg);
+		if (t->r_tail) bwa_free_read_seq(1, t->r_tail);
+		if (t->l_tail) bwa_free_read_seq(1, t->l_tail);
+		if (t->vertexes) g_ptr_array_free(t->vertexes, TRUE);
 		if (t->reads) {
 			for (i = 0; i < t->reads->len; i++) {
 				r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
@@ -1468,11 +1462,9 @@ void destroy_tpl(tpl *t, int status) {
 			g_ptr_array_free(t->tried, TRUE);
 		}
 
-		if (t->m_juncs)
-			g_ptr_array_free(t->m_juncs, TRUE);
-		if (t->b_juncs)
-			g_ptr_array_free(t->b_juncs, TRUE);
-
+		if (t->m_juncs) g_ptr_array_free(t->m_juncs, TRUE);
+		if (t->b_juncs) g_ptr_array_free(t->b_juncs, TRUE);
+		if (t->step) free(t->step);
 		free(t);
 	}
 }
@@ -1572,4 +1564,19 @@ int pairs_spanning_locus(bwa_seq_t *seqs, tpl *t, int locus) {
 		}
 	}
 	return n_pairs;
+}
+
+int count_pairs_on_tpl(tpl *t) {
+	int n = 0, i = 0;
+	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
+	bwa_seq_t *r = NULL, *pre = NULL;
+	if (t->reads->len < 2) return 0;
+	pre = (bwa_seq_t*) g_ptr_array_index(t->reads, 0);
+	for (i = 1; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		if (is_a_pair(pre, r)) n++;
+		pre = r;
+	}
+	show_debug_msg(__func__, "Template [%d, %d]: %d / %d \n", t->id, t->len, n, t->reads->len);
+	return n;
 }

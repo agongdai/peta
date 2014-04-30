@@ -1379,10 +1379,8 @@ void determine_paths(splice_graph *g, hash_table *ht, char *save_dir) {
 	fn = get_output_file("peta.fa", save_dir);
 	//cluster_save_paths(all_paths, fn, 0);
 	save_paths(all_paths, fn, 0);
-	save_read_usage_on_paths(all_paths, save_dir);
+	//save_read_usage_on_paths(all_paths, save_dir);
 	free(fn);
-
-	//cluster_save_read_usage(all_paths, save_dir);
 
 	fn = get_output_file("paths.dot", save_dir);
 	p_paths(all_paths, fn);

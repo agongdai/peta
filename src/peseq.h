@@ -36,6 +36,7 @@ bwa_seq_t *merge_seq_to_left(bwa_seq_t *s2, bwa_seq_t *s1, const int gap);
 int is_left_mate(const char *seq_id);
 int is_right_mate(const char *seq_id);
 int is_mates(const char *left, const char *right);
+int is_a_pair(bwa_seq_t *one, bwa_seq_t *two);
 char *get_mate_name(const char *seq_id);
 index64 get_mate_index(const index64 seq_id);
 bwa_seq_t *get_mate(const bwa_seq_t *s, bwa_seq_t *seqs);

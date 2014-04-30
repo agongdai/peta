@@ -1,51 +1,54 @@
-python /home/carl/Projects//peta_pair/scripts/eva.py blat -t /home/carl/Projects//peta/rnaseq/hg19/ensembl.genes.fa.oracle -c /home/carl/Projects//peta_pair/SRR027876_out/idba.fa -p /home/carl/Projects//peta_pair/SRR027876_out/idba.fa.psl -o /home/carl/Projects//peta_pair/SRR027876_out/ -s 0.99
+/home/hoiqz/shaojiang/blat/blat -fine /home/hoiqz/shaojiang/peta//scripts/Homo_sapiens.GRCh37.75.cdna.all.fa /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa -ooc=/home/hoiqz/shaojiang/blat/11.ooc /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa.psl
+Loaded 287163541 letters in 180253 sequences
+Searched 6672844 bases in 8071 sequences
+/home/hoiqz/shaojiang/_py/bin/python /home/hoiqz/shaojiang/peta//scripts/eva.py blat -t /home/hoiqz/shaojiang/peta//scripts/Homo_sapiens.GRCh37.75.cdna.all.fa -c /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa -p /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa.psl -o /home/hoiqz/shaojiang/peta//SRR027876_out/ -s 0.99
 ===================================================================
-Summary of /home/carl/Projects//peta/rnaseq/hg19/ensembl.genes.fa.oracle
-	Total base: 		23645406
-	# of transcripts: 	20067
-	Longest length: 	14797
-	Shortest length: 	45
-	Average length: 	1178.32
-	N50 value: 		1661
+Summary of /home/hoiqz/shaojiang/peta//scripts/Homo_sapiens.GRCh37.75.cdna.all.fa
+	Total base: 		287163541
+	# of transcripts: 	180253
+	Longest length: 	109224
+	Shortest length: 	3
+	Average length: 	1593.11
+	N50 value: 		2589
 ===================================================================
 ===================================================================
-Summary of /home/carl/Projects//peta_pair/SRR027876_out/idba.fa
-	Total base: 		6674271
-	# of transcripts: 	8077
+Summary of /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa
+	Total base: 		6672844
+	# of transcripts: 	8071
 	Longest length: 	8885
 	Shortest length: 	300
-	Average length: 	826.33
-	N50 value: 		1051
+	Average length: 	826.77
+	N50 value: 		1054
 ===================================================================
 ===================================================================
-Evaluation result of /home/carl/Projects//peta_pair/SRR027876_out/idba.fa
+Evaluation result of /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa
 [similarity threshold: 0.99]
 [full length threshold: 0.99]
 [n_mismatches + n_indels < 10]
-	Assembled base:               6674271
-	Bases aligned:                16434874
-	# of contigs:                 8077
-	# of Full length:             481
-	# of Ctgs not aligned:        2216
-	Bases not aligned:            1294135
-	# of Ctgs not reached:        5373
-	Bases not reached:            4748496
-	Optimal N50:                  1661
-	Raw N50:                      1051
-	Aligned N50:                  805
-	Accuracy:                     99.78%
-	Completeness 80%:             35.61%
-	Contiguity 80%:               14.93%
-	# of chimaeras:               784
-	Chimerism:                    9.71%
+	Assembled base:               6672844
+	Bases aligned:                43441919
+	# of contigs:                 8071
+	# of Full length:             506
+	# of Ctgs not aligned:        118
+	Bases not aligned:            71939
+	# of Ctgs not reached:        133600
+	Bases not reached:            212310332
+	Optimal N50:                  2589
+	Raw N50:                      1054
+	Aligned N50:                  697
+	Accuracy:                     99.31%
+	Completeness 80%:             7.79%
+	Contiguity 80%:               3.05%
+	# of chimaeras:               2283
+	Chimerism:                    28.29%
 	Variant resolution:           0.00%
 ===================================================================
-Check /home/carl/Projects//peta_pair/SRR027876_out/idba.fa.full
-Check /home/carl/Projects//peta_pair/SRR027876_out/idba.fa_full_length.txt
-Check /home/carl/Projects//peta_pair/SRR027876_out/idba.fa_one_on_one.txt
-Check /home/carl/Projects//peta_pair/SRR027876_out/idba.fa_near_full_length.txt
-Check /home/carl/Projects//peta_pair/SRR027876_out/idba.fa_covered_70.txt
-Check /home/carl/Projects//peta_pair/SRR027876_out/idba.fa_one_covered.txt
-Check /home/carl/Projects//peta_pair/SRR027876_out/idba.fa_not_aligned.txt
-Check /home/carl/Projects//peta_pair/SRR027876_out/idba.fa_partial.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa.full
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa_full_length.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa_one_on_one.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa_near_full_length.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa_covered_70.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa_one_covered.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa_not_aligned.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/idba.fa_partial.txt
 Done

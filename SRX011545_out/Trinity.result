@@ -1,43 +1,47 @@
+/home/hoiqz/shaojiang/blat/blat -fine /home/hoiqz/shaojiang/peta//scripts/Homo_sapiens.GRCh37.75.cdna.all.fa /home/hoiqz/shaojiang/peta//SRX011545_out/Trinity.fa -ooc=/home/hoiqz/shaojiang/blat/11.ooc /home/hoiqz/shaojiang/peta//SRX011545_out/Trinity.fa.psl
+Loaded 287163541 letters in 180253 sequences
+Searched 24324232 bases in 34083 sequences
+/home/hoiqz/shaojiang/_py/bin/python /home/hoiqz/shaojiang/peta//scripts/eva.py blat -t /home/hoiqz/shaojiang/peta//scripts/Homo_sapiens.GRCh37.75.cdna.all.fa -c /home/hoiqz/shaojiang/peta//SRX011545_out/Trinity.fa -p /home/hoiqz/shaojiang/peta//SRX011545_out/Trinity.fa.psl -o /home/hoiqz/shaojiang/peta//SRX011545_out/ -s 0.99
 ===================================================================
 Summary of /home/hoiqz/shaojiang/peta//scripts/Homo_sapiens.GRCh37.75.cdna.all.fa
-        Total base:             287163541
-        # of transcripts:       180253
-        Longest length:         109224
-        Shortest length:        3
-        Average length:         1593.11
-        N50 value:              2589
+	Total base: 		287163541
+	# of transcripts: 	180253
+	Longest length: 	109224
+	Shortest length: 	3
+	Average length: 	1593.11
+	N50 value: 		2589
 ===================================================================
 ===================================================================
 Summary of /home/hoiqz/shaojiang/peta//SRX011545_out/Trinity.fa
-        Total base:             24324232
-        # of transcripts:       34083
-        Longest length:         9679
-        Shortest length:        201
-        Average length:         713.68
-        N50 value:              1194
+	Total base: 		24324232
+	# of transcripts: 	34083
+	Longest length: 	9679
+	Shortest length: 	201
+	Average length: 	713.68
+	N50 value: 		1194
 ===================================================================
-^@===================================================================
+===================================================================
 Evaluation result of /home/hoiqz/shaojiang/peta//SRX011545_out/Trinity.fa
 [similarity threshold: 0.99]
 [full length threshold: 0.99]
 [n_mismatches + n_indels < 10]
-        Assembled base:               24324232
-        Bases aligned:                124804023
-        # of contigs:                 34083
-        # of Full length:             1861
-        # of Ctgs not aligned:        2753
-        Bases not aligned:            976622
-        # of Ctgs not reached:        85915
-        Bases not reached:            131827710
-        Optimal N50:                  2589
-        Raw N50:                      1194
-        Aligned N50:                  920
-        Accuracy:                     99.53%
-        Completeness 80%:             21.17%
-        Contiguity 80%:               7.37%
-        # of chimaeras:               6220
-        Chimerism:                    18.25%
-        Variant resolution:           0.00%
+	Assembled base:               24324232
+	Bases aligned:                124804023
+	# of contigs:                 34083
+	# of Full length:             1861
+	# of Ctgs not aligned:        2753
+	Bases not aligned:            976622
+	# of Ctgs not reached:        85915
+	Bases not reached:            131827710
+	Optimal N50:                  2589
+	Raw N50:                      1194
+	Aligned N50:                  920
+	Accuracy:                     99.53%
+	Completeness 80%:             21.17%
+	Contiguity 80%:               7.37%
+	# of chimaeras:               6220
+	Chimerism:                    18.25%
+	Variant resolution:           0.00%
 ===================================================================
 Check /home/hoiqz/shaojiang/peta//SRX011545_out/Trinity.fa.full
 Check /home/hoiqz/shaojiang/peta//SRX011545_out/Trinity.fa_full_length.txt
@@ -47,4 +51,4 @@ Check /home/hoiqz/shaojiang/peta//SRX011545_out/Trinity.fa_covered_70.txt
 Check /home/hoiqz/shaojiang/peta//SRX011545_out/Trinity.fa_one_covered.txt
 Check /home/hoiqz/shaojiang/peta//SRX011545_out/Trinity.fa_not_aligned.txt
 Check /home/hoiqz/shaojiang/peta//SRX011545_out/Trinity.fa_partial.txt
-=======================================
+Done

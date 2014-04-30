@@ -178,6 +178,23 @@ hash_value get_hash_value(const index64 seq_id, const int pos_start) {
 	return value;
 }
 
+
+/**
+ * Hash all k-mers on a template
+ * Assumption: the memory hold by *hash must be at least 4^k * sizeof(uint32_t)
+ */
+void hash_a_tpl(uint32_t *hash, const ubyte_t *seq, const int len, const int k, const int tpl_id) {
+	uint32_t i = 0;
+	hash_key key = 0ULL;
+	hash_value value = 0ULL;
+	if (len < k || !hash || tpl_id < 0 || !seq || k <= 0) return;
+	for (i = 0; i <= len - k; i++) {
+		key = get_hash_key(seq[i], i, 1, k);
+		value = get_hash_value(tpl_id, i);
+		hash[key] = value;
+	}
+}
+
 void read_hash_value(index64 *seq_id, int *pos_start, hash_value value) {
 	*seq_id = value >> N_POS_BITS;
 	*seq_id = *seq_id & HASH_VALUE_HIGHER;

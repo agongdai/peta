@@ -282,16 +282,22 @@ int is_right_mate(const char *seq_id) {
 	return id % 2;
 }
 
+int is_a_pair(bwa_seq_t *one, bwa_seq_t *two) {
+	int one_i = atoi(one->name);
+	int two_i = atoi(two->name);
+	if (abs(one_i - two_i) == 1) {
+		if (min(one_i, two_i) % 2 == 0) return 1;
+	}
+	return 0;
+}
+
 int is_mates(const char *left, const char *right) {
 	char *mate;
 	int good = 0;
-	if (!left || !right)
-		return 0;
+	if (!left || !right) return 0;
 	mate = get_mate_name(left);
-	if (strcmp(right, mate) == 0)
-		good = 1;
-	else
-		good = 0;
+	if (strcmp(right, mate) == 0) good = 1;
+	else good = 0;
 	free(mate);
 	return good;
 }

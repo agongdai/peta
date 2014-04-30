@@ -1,49 +1,54 @@
-python /home/ariyaratnep/shaojiang//peta_copies/peta_dev/scripts/eva.py blat -t /home/ariyaratnep/shaojiang//peta/rnaseq/hg19/ensembl.genes.fa -c /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa -p /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa.psl -o /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/ -s 0.99
+/home/hoiqz/shaojiang/blat/blat -fine /home/hoiqz/shaojiang/peta//scripts/Homo_sapiens.GRCh37.75.cdna.all.fa /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa -ooc=/home/hoiqz/shaojiang/blat/11.ooc /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa.psl
+Loaded 287163541 letters in 180253 sequences
+Searched 5498502 bases in 11702 sequences
+/home/hoiqz/shaojiang/_py/bin/python /home/hoiqz/shaojiang/peta//scripts/eva.py blat -t /home/hoiqz/shaojiang/peta//scripts/Homo_sapiens.GRCh37.75.cdna.all.fa -c /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa -p /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa.psl -o /home/hoiqz/shaojiang/peta//SRR027876_out/ -s 0.99
 ===================================================================
-Summary of /home/ariyaratnep/shaojiang//peta/rnaseq/hg19/ensembl.genes.fa
-        Total base:             297082231
-        # of transcripts:       192628
-        Longest length:         109224
-        Shortest length:        3
-        Average length:         1542.26
-        N50 value:              2503
-===================================================================
-===================================================================
-Summary of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa
-        Total base:             9066679
-        # of transcripts:       42897
-        Longest length:         7051
-        Shortest length:        101
-        Average length:         211.36
-        N50 value:              222
+Summary of /home/hoiqz/shaojiang/peta//scripts/Homo_sapiens.GRCh37.75.cdna.all.fa
+	Total base: 		287163541
+	# of transcripts: 	180253
+	Longest length: 	109224
+	Shortest length: 	3
+	Average length: 	1593.11
+	N50 value: 		2589
 ===================================================================
 ===================================================================
-Evaluation result of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa
+Summary of /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa
+	Total base: 		5498502
+	# of transcripts: 	11702
+	Longest length: 	8185
+	Shortest length: 	201
+	Average length: 	469.88
+	N50 value: 		535
+===================================================================
+===================================================================
+Evaluation result of /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa
 [similarity threshold: 0.99]
 [full length threshold: 0.99]
 [n_mismatches + n_indels < 10]
-        Assembled base:               9066679
-        Bases aligned:                50133918
-        # of contigs:                 42897
-        # of Full length:             297
-        # of Ctgs not aligned:        1319
-        Bases not aligned:            210521
-        # of Ctgs not reached:        117871
-        Bases not reached:            172748912
-        Optimal N50:                  2503
-        Raw N50:                      222
-        Aligned N50:                  384
-        Accuracy:                     18.20%
-        Completeness 80%:             8.00%
-        Contiguity 80%:               1.61%
-        # of chimaeras:               1776
-        Chimerism:                    4.14%
-        Variant resolution:           0.00%
+	Assembled base:               5498502
+	Bases aligned:                35123832
+	# of contigs:                 11702
+	# of Full length:             337
+	# of Ctgs not aligned:        194
+	Bases not aligned:            78747
+	# of Ctgs not reached:        134519
+	Bases not reached:            212764860
+	Optimal N50:                  2589
+	Raw N50:                      535
+	Aligned N50:                  498
+	Accuracy:                     99.17%
+	Completeness 80%:             6.11%
+	Contiguity 80%:               1.95%
+	# of chimaeras:               1815
+	Chimerism:                    15.51%
+	Variant resolution:           0.00%
 ===================================================================
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_full_length.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_one_on_one.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_near_full_length.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_covered_70.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_one_covered.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_not_aligned.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/SRR027876_out/Trinity.fa_partial.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa.full
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa_full_length.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa_one_on_one.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa_near_full_length.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa_covered_70.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa_one_covered.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa_not_aligned.txt
+Check /home/hoiqz/shaojiang/peta//SRR027876_out/Trinity.fa_partial.txt
+Done
