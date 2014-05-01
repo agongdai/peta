@@ -36,7 +36,7 @@ typedef struct {
 	int32_t len;			// Length
 	int8_t alive;			// Whether alive
 	float pair_pc;			// Number of paired-end reads / all reads, on the template
-	int8_t is_root;			// Whether it's a root node in the graph
+	int8_t visited;			// A flag indicating whether temporarily visited
 	int8_t ori;				// Orientation
 	float cov;				// Coverage
 	uint64_t tid;			// Thread id
@@ -55,11 +55,19 @@ typedef struct {
 	int ori;
 } eg_gap;
 
+typedef struct {
+	tpl *t;
+	int locus;
+	int from;
+	int size;
+} anchor;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 	gint cmp_tpl_by_id(gpointer a, gpointer b);
+	gint cmp_tpl_by_rev_pair_pc(gpointer a, gpointer b);
 	int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs);
 	GPtrArray *rm_dup_reads_on_tpl(GPtrArray *reads);
 	void switch_tpl_fr(tpl *t);
@@ -112,14 +120,16 @@ extern "C" {
 	void reset_reads_status(GPtrArray *reads, int status);
 	void add2tried(tpl *t, bwa_seq_t *r);
 	void rm_from_tpl(tpl *t, int index);
-	void truncate_tpl(tpl *t, int len, int ori);
 	void rm_from_tried(tpl *t, const int rm_id);
 	void unhold_reads_array(GPtrArray *reads);
 	bwa_seq_t *get_tpl_ctg_wt(tpl *t, int *l_len, int *r_len, int *t_len);
-	void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches);
+	void refresh_tpl_reads(hash_table *ht, tpl *t, int start, int end, int mismatches);
 	GPtrArray *get_supporting_reads(tpl *t, int start, int end);
 	int pairs_spanning_locus(bwa_seq_t *seqs, tpl *t, int locus);
+	int read_on_tpl(tpl *t, bwa_seq_t *r);
 	int count_pairs_on_tpl(tpl *t);
+	void destory_tpl_ht(hash_table *ht);
+	hash_table *hash_tpls(GPtrArray *tpls, int k, int interleaving);
 
 #ifdef __cplusplus
 }

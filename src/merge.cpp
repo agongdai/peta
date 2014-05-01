@@ -258,7 +258,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 				bwa_free_read_seq(1, jumped_seq);
 				ori_len = from->len;
 				merge_tpl_to_left(from, jumped, 0, rev_com);
-				refresh_tpl_reads(ht, from, N_MISMATCHES);
+				refresh_tpl_reads(ht, from, 0, from->len, N_MISMATCHES);
 				correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
 						- ht->o->read_len, ori_len + ht->o->read_len);
 				return 1;
@@ -304,7 +304,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 				bwa_free_read_seq(1, jumped_seq);
 				ori_len = jumped->len;
 				merge_tpl_to_right(jumped, from, 0, rev_com);
-				refresh_tpl_reads(ht, from, N_MISMATCHES);
+				refresh_tpl_reads(ht, from, 0, from->len, N_MISMATCHES);
 				correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
 						- ht->o->read_len, ori_len + ht->o->read_len);
 				//p_ctg_seq("MERGED", t->ctg);
@@ -443,3 +443,94 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 	return 1;
 }
 
+/**
+ * Try to connect the template 'b' to template 't' at locus 't_locus'.
+ */
+int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_locus) {
+	if (!b->alive || b->l_tail) return 0;
+	int i = 0, con_pos = t_locus, cut_pos = b_locus;
+	float n_not_paired = 0.0, n_spanning = 0.0;
+	int t_part_len = 0, dist = 0, ori_len = 0;
+	//show_debug_msg(__func__, "Left template [%d, %d] @ %d \n", t->id, t->len, t_locus);
+	//show_debug_msg(__func__, "Right template [%d, %d] @ %d \n", b->id, b->len, b_locus);
+	if (t_locus < t->len - 4 * ht->o->k || b_locus > 2 * ht->o->k) return 0;
+	if (has_junction_at_locus(t, con_pos, 0)) return 0;
+	for (i = 0; i < min(t->len - t_locus, b->len - b_locus); i++) {
+		if (t->ctg->seq[i + t_locus] != b->ctg->seq[i + b_locus]) break;
+		con_pos++; cut_pos++;
+	}
+	bwa_seq_t *r = NULL, *m = NULL;
+	// Count pairs spanning the two templates
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		m = get_mate(r, ht->seqs);
+		if (read_on_tpl(t, m)) continue;
+		t_part_len = con_pos - r->contig_locus;
+		if (t_part_len <= 0 || t_part_len > INS_SIZE + 2 * SD_INS_SIZE) continue;
+		if (m->status != USED || m->contig_id != t->id) n_not_paired++;
+		if (read_on_tpl(b, m)) {
+			dist = (con_pos - r->contig_locus) + (m->contig_locus - cut_pos);
+			if (good_insert_size(dist)) n_spanning++;
+		}
+	}
+	show_debug_msg(__func__, "Left template [%d, %d] @ %d \n", t->id, t->len, t_locus);
+	show_debug_msg(__func__, "Right template [%d, %d] @ %d \n", b->id, b->len, b_locus);
+	show_debug_msg(__func__, "Spanning reads: %.2f/%.2f.\n", n_spanning, n_not_paired);
+	if (n_spanning > 0 && n_spanning * 2.0 > n_not_paired) {
+		if (b_locus < ht->o->k && (t->len - con_pos) < 2 * ht->o->k) {
+			p_tpl(t);
+			show_debug_msg(__func__, "Merging: left [%d, %d] @ %d; right [%d, %d] %d. \n",
+				t->id, t->len, con_pos, b->id, b->len, cut_pos);
+			truncate_tpl(t, t->len - con_pos, 0);
+			truncate_tpl(b, cut_pos, 1);
+			ori_len = t->len;
+			merge_tpl_to_left(t, b, 0, 0);
+			refresh_tpl_reads(ht, t, ori_len - ht->o->read_len, ori_len + ht->o->read_len, N_MISMATCHES);
+			correct_tpl_base(ht->seqs, t, ht->o->read_len, ori_len
+					- ht->o->read_len, ori_len + ht->o->read_len);
+			p_tpl(t);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int connect_deletion(hash_table *ht, GPtrArray *anchors, tpl *t) {
+	if (!anchors || !t || !t->alive) return 0;
+	tpl *del = NULL;
+	int i = 0, j = 0, x = 0;
+	anchor *a1 = NULL, *a2 = NULL;
+	bwa_seq_t *r = NULL, *m = NULL;
+	for (i = 0; i < anchors->len; i++) {
+		a1 = (anchor*) g_ptr_array_index(anchors, i);
+		del = a1->t;
+		if (!del->alive) continue;
+		if (has_any_junction(del)) continue;
+		if (del->len >= ht->o->read_len * 4) continue;
+		for (j = 0; j < anchors->len; j++) {
+			a2 = (anchor*) g_ptr_array_index(anchors, j);
+			if (!a2->t->alive) continue;
+			if (del == a2->t && a2->from > a1->from + a1->size) {
+				p_tpl(t);
+				p_tpl(del);
+				for (j = 0; j < del->reads->len; j++) {
+					r = (bwa_seq_t*) g_ptr_array_index(del->reads, j);
+					if (r->contig_locus < a2->locus && r->contig_locus + r->len > a2->locus) {
+						m = get_mate(r, ht->seqs);
+						if (read_on_tpl(t, m)) {
+							show_debug_msg(__func__, "Here is an deletion \n");
+							p_tpl(t);
+							p_tpl(del);
+							show_debug_msg(__func__, "Left: %d; right: %d; deletion @ %d \n ",
+									a1->from + ht->o->k, a2->from, a1->locus + ht->o->k);
+							erase_tpl_at_locus(t, del, ht->o->read_len, a1->locus + ht->o->k,
+									a1->from + ht->o->k, a2->from);
+							return 1;
+						}
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}

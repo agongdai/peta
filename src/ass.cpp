@@ -26,10 +26,11 @@
 #include "pool.hpp"
 #include "merge.hpp"
 #include "hash.hpp"
+#include "psl.h"
 
 using namespace std;
 
-int TESTING = 0;
+int TESTING = 80598; //651444; //1306907;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -94,8 +95,8 @@ GPtrArray *hash_to_array(tpl_hash *all_tpls) {
 	show_msg(__func__, "Putting hashed templates to array ... \n");
 	for (tpl_hash::iterator m = all_tpls->begin(); m != all_tpls->end(); ++m) {
 		t = (tpl*) m->second;
-		p_tpl(t);
-		if (t->alive && t->pair_pc >= 0.9) {
+		//p_tpl(t);
+		if (t->alive) {
 			//show_debug_msg(__func__, "LAST READ [%d, %d] \n", t->id, t->len);
 			//p_query("LAST READ", t->last_read);
 			//p_tpl_reads(t);
@@ -374,8 +375,7 @@ int ext_unit(hash_table *ht, tpl_hash *all_tpls, pool *init_p, tpl *from,
  * Extend a read to a template;
  * No branching and validation
  */
-tpl *ext_a_read(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *read,
-		index64 count) {
+tpl *ext_a_read(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *read, index64 count) {
 	tpl *t = NULL;
 	int iter = 0, after_unit = -1, pre_len = 0;
 	if (is_biased_q(read) || has_n(read, 1) || is_repetitive_q(read) || read->status != FRESH) {
@@ -408,6 +408,107 @@ tpl *ext_a_read(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *read,
 	return t;
 }
 
+GPtrArray *tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tpl_ht, tpl *t, int s, int e) {
+	tpl *sharing = NULL;
+	hash_key key = 0ULL;
+	hash_value value = 0ULL;
+	index64 tpl_id = 0;
+	int i = 0, j = 0, locus = 0, start = 0, end = 0;
+	bwa_seq_t *kmer = NULL;
+	GPtrArray *anchors = g_ptr_array_sized_new(4);
+	anchor *a = NULL;
+	show_debug_msg(__func__, "Templates sharing 11-mer with template [%d, %d] \n", t->id, t->len);
+	for (i = max(0, s); i <= min(t->len, e) - tpl_ht->o->k; i++) {
+		key = get_hash_key(t->ctg->seq, i, tpl_ht->o->interleaving, tpl_ht->o->k);
+		start = tpl_ht->k_mers_occ_acc[key];
+		end = (key >= tpl_ht->o->n_k_mers) ? tpl_ht->k_mers_occ_acc[tpl_ht->o->n_k_mers - 1]
+				: tpl_ht->k_mers_occ_acc[key + 1];
+		if (end - start > 1) {
+			kmer = get_key_seq(key, tpl_ht->o->k);
+			p_query("KMER", kmer);
+			bwa_free_read_seq(1, kmer);
+			for (j = start; j < end; j++) {
+				value = tpl_ht->pos[j];
+				read_hash_value(&tpl_id, &locus, value);
+				if (tpl_id == t->id) continue;
+				show_debug_msg(__func__, "At %d: template %d at %d \n", i, tpl_id, locus);
+				tpl_hash::iterator it = all_tpls->find(tpl_id);
+				if (it == all_tpls->end()) continue;
+				sharing = (tpl*) it->second;
+				if (sharing->alive) {
+					a = (anchor*) malloc(sizeof(anchor));
+					a->t = sharing;
+					a->locus = locus;
+					a->size = tpl_ht->o->k;
+					a->from = i;
+					g_ptr_array_add(anchors, a);
+				}
+			}
+		}
+	}
+	return anchors;
+}
+
+int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
+	int connected = 0, n_merged = 1, i = 0, j = 0, iter = 1;
+	tpl *t = NULL, *b = NULL;
+	anchor *a = NULL;
+	hash_table *ht = params->ht;
+	GPtrArray *anchors = NULL;
+	hash_table *tpl_ht = NULL;
+	while(iter < 8 && n_merged) {
+		n_merged = 0;
+		tpl_ht = hash_tpls(tpls, ht->o->k, 1);
+		//p_hash_table(tpl_ht);
+		show_msg(__func__, "Connecting %d templates, iteration %d ... \n", tpls->len, iter++);
+		for (i = 0; i < tpls->len; i++) {
+			t = (tpl*) g_ptr_array_index(tpls, i);
+			//p_tpl(t);
+			if (!t->alive || t->pair_pc >= 1.0) continue;
+			connected = 0;
+			anchors = tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, t, t->len - ht->o->k * 4, t->len);
+			for (j = 0; j < anchors->len; j++) {
+				a = (anchor*) g_ptr_array_index(anchors, j);
+				if (a->t->alive && !a->t->visited) {
+					connected = connect_at_locus_right(ht, t, a->t, a->from, a->locus);
+					if (connected)  {
+						t->visited = 1;
+						n_merged++; break;
+					}
+				}
+				free(a);
+			}
+			g_ptr_array_free(anchors, TRUE);
+
+			if (!connected) {
+				anchors = tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, t, 0, t->len);
+				for (j = 0; j < anchors->len; j++) {
+					a = (anchor*) g_ptr_array_index(anchors, j);
+					if (a->t->alive && !a->t->visited) {
+						connect_deletion(ht, anchors, t);
+					}
+					free(a);
+				}
+				g_ptr_array_free(anchors, TRUE);
+				anchors = NULL;
+			}
+		}
+		for (i = 0; i < tpls->len; i++) {
+			t = (tpl*) g_ptr_array_index(tpls, i);
+			t->visited = 0;
+		}
+		show_msg(__func__, "%d templates are merged. \n", n_merged);
+		destory_tpl_ht(tpl_ht);
+	}
+	for (i = 0; i < tpls->len; i++) {
+		t = (tpl*) g_ptr_array_index(tpls, i);
+		if (!t->alive) {
+			rm_global_tpl(params->all_tpls, t, FRESH);
+			g_ptr_array_remove_index_fast(tpls, i--);
+		}
+	}
+	return connected;
+}
 /**
  * Extend a kmer
  */
@@ -416,7 +517,6 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	kmer_counter *counter = NULL;
 	bwa_seq_t *read = NULL;
 	tpl *t = NULL;
-	int n_pairs = 0;
 
 	kmer_t_meta *params = (kmer_t_meta*) thread_params;
 	tpl_hash *all_tpls = params->all_tpls;
@@ -428,15 +528,14 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 
 	if (counter->count < 1)  return NULL;
 	if (TESTING && fresh_trial == 0) read = &ht->seqs[TESTING];
+	if (TESTING && fresh_trial == 1) read = &ht->seqs[856387];
 
 	t = ext_a_read(ht, all_tpls, read, counter->count);
 	if (t) {
 		if (t->alive) {
 			unfrozen_tried(t);
-			refresh_tpl_reads(ht, t, N_MISMATCHES);
+			refresh_tpl_reads(ht, t, 0, t->len, N_MISMATCHES);
 			correct_tpl_base(ht->seqs, t, ht->o->read_len, 0, t->len);
-			n_pairs = count_pairs_on_tpl(t);
-			t->pair_pc = (((float) n_pairs) * 2.0) / ((float) t->reads->len);
 		} else rm_global_tpl(all_tpls, t, TRIED);
 	}
 	return NULL;
@@ -448,8 +547,10 @@ void kmer_threads(kmer_t_meta *params) {
 	hash_table *ht = params->ht;
 	bwa_seq_t *r = NULL, *seqs = ht->seqs;
 	kmer_counter *counter = NULL;
-	GPtrArray *starting_reads = g_ptr_array_sized_new(ht->n_seqs), *low_reads =
-			NULL;
+	GPtrArray *starting_reads = g_ptr_array_sized_new(ht->n_seqs);
+	GPtrArray *tpls_by_pair_pc = NULL;
+	tpl_hash *all_tpls = params->all_tpls;
+	tpl *t = NULL;
 
 	show_msg(__func__, "Getting read frequencies ... \n");
 	for (i = 0; i < ht->n_seqs; i++) {
@@ -470,17 +571,12 @@ void kmer_threads(kmer_t_meta *params) {
 	// shrink_ht(ht);
 
 	if (!TESTING) {
-		show_msg(__func__, "Sorting %d initial reads ... \n",
-				starting_reads->len);
+		show_msg(__func__, "Sorting %d initial reads ... \n", starting_reads->len);
 		g_ptr_array_sort(starting_reads, (GCompareFunc) cmp_kmers_by_count);
 	}
-	show_msg(__func__, "Extending by reads ...\n");
-	show_msg(
-			__func__,
-			"----------- Stage 1: templates longer than insert size with pairs ----------\n");
+	show_msg( __func__, "----------- Stage 1: templates without branching ----------\n");
 	params->to_try_connect = 1;
-	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, (gpointer) params,
-			1, TRUE, NULL);
+	thread_pool = g_thread_pool_new((GFunc) kmer_ext_thread, (gpointer) params, 1, TRUE, NULL);
 	for (i = 0; i < starting_reads->len; i++) {
 		if (i % 100000 == 0) {
 			show_msg(__func__, "%d templates are obtained. \n", params->all_tpls->size());
@@ -490,10 +586,28 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		if (TESTING && fresh_trial >= 1) break;
+		if (TESTING && fresh_trial >= 2) break;
+		//if (i >= 200000) break;
+		//if (all_tpls->size() >= 2) break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
 	show_msg(__func__, "%d templates are obtained. \n", params->all_tpls->size());
+
+	show_msg( __func__, "----------- Stage 2: connect existing templates ----------\n");
+	tpls_by_pair_pc = hash_to_array(all_tpls);
+	g_ptr_array_sort(tpls_by_pair_pc, (GCompareFunc) cmp_tpl_by_rev_pair_pc);
+	for (i = 0; i < tpls_by_pair_pc->len; i++) {
+		t = (tpl*) g_ptr_array_index(tpls_by_pair_pc, i);
+		t->visited = 0;
+		if (!t->alive) {
+			t->alive = 0;
+			rm_global_tpl(all_tpls, t, FRESH);
+			g_ptr_array_remove_index_fast(tpls_by_pair_pc, i--);
+		}
+	}
+	reset_seqs(ht->seqs, ht->n_seqs);
+	connect_paired_tpls(params, tpls_by_pair_pc);
+	g_ptr_array_free(tpls_by_pair_pc, TRUE);
 
 	g_thread_pool_free(thread_pool, 0, 1);
 }
@@ -513,7 +627,7 @@ void save_read_status(hash_table *ht) {
 	fclose(f);
 }
 
-void ext_by_kmers_core(char *lib_file, const char *solid_file) {
+void ext_by_kmers_core(char *lib_file) {
 	FILE *contigs = NULL;
 	kmer_t_meta *params = (kmer_t_meta*) calloc(1, sizeof(kmer_t_meta));
 	tpl_hash all_tpls;
@@ -543,6 +657,7 @@ void ext_by_kmers_core(char *lib_file, const char *solid_file) {
 	fn = get_output_file("paired.fa", kmer_out);
 	contigs = xopen(fn, "w");
 	read_tpls = hash_to_array(&all_tpls);
+	g_ptr_array_sort(read_tpls, (GCompareFunc) cmp_tpl_by_rev_pair_pc);
 	all_tpls.clear();
 
 	save_tpls(read_tpls, contigs, 0, 0, 0);
@@ -591,7 +706,7 @@ int pe_kmer(int argc, char *argv[]) {
 			break;
 		}
 	}
-	if (optind + 1 > argc) {
+	if (optind > argc) {
 		show_msg(__func__, "Parameters error! \n");
 		return 1;
 	}
@@ -600,7 +715,7 @@ int pe_kmer(int argc, char *argv[]) {
 	kmer_id_mutex = g_mutex_new();
 	tpl_kmers_hash_size <<= kmer_len * 2;
 
-	ext_by_kmers_core(argv[optind], argv[optind + 1]);
+	ext_by_kmers_core(argv[optind]);
 
 	clock_gettime(CLOCK_MONOTONIC, &kmer_finish_time);
 	show_msg(__func__, "Done: %.2f sec\n",

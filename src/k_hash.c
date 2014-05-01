@@ -110,11 +110,12 @@ void p_hash_table(hash_table *ht) {
 			for (j = start; j < end; j++) {
 				value = ht->pos[j];
 				read_hash_value(&read_id, &locus, value);
-				show_debug_msg(__func__, "Read id: %d; locus: %d\n", read_id,
-						locus);
-				r = &ht->seqs[read_id];
-				r->pos = locus;
-				p_query("HIT", r);
+				show_debug_msg(__func__, "Hit id: %d; locus: %d\n", read_id, locus);
+				if (ht->seqs) {
+					r = &ht->seqs[read_id];
+					r->pos = locus;
+					p_query("HIT", r);
+				}
 			}
 		}
 	}

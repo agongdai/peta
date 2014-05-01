@@ -100,6 +100,7 @@ extern "C" {
 	int min3(int a, int b, int c);
 	int max3(int a, int b, int c);
 	int in_range(int locus_1, int locus_2);
+	int good_insert_size(int size);
 
 #ifdef __cplusplus
 }

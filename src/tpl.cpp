@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <glib.h>
+#include <inttypes.h>
 #include "utils.h"
 #include "tpl.hpp"
 #include "peseq.h"
@@ -30,8 +31,8 @@ void p_tpl(tpl *t) {
 	if (!t) {
 		show_debug_msg(__func__, "---- Template is NULL ----\n");
 	}
-	show_debug_msg(__func__, "---- Template %d alive: %d; root %d ----\n",
-			t->id, t->alive, t->is_root);
+	show_debug_msg(__func__, "---- Template %d alive: %d; visited %d ----\n",
+			t->id, t->alive, t->visited);
 	show_debug_msg(__func__, "\t Length: %d; Pairs: %.2f \n", t->len, t->pair_pc);
 	if (t->reads)
 		show_debug_msg(__func__, "\t Reads: %d\n", t->reads->len);
@@ -122,7 +123,7 @@ tpl *new_tpl() {
 	t->id = 0;
 	t->alive = 1;
 	t->pair_pc = 0.0;
-	t->is_root = 0;
+	t->visited = 0;
 	t->ori = 0;
 	t->start_read = NULL;
 	t->last_read = NULL;
@@ -302,6 +303,13 @@ gint cmp_tpl_by_id(gpointer a, gpointer b) {
 	tpl *c_a = *((tpl**) a);
 	tpl *c_b = *((tpl**) b);
 	return (c_a->id - c_b->id);
+}
+
+gint cmp_tpl_by_rev_pair_pc(gpointer a, gpointer b) {
+	tpl *c_a = *((tpl**) a);
+	tpl *c_b = *((tpl**) b);
+	gint larger = c_b->pair_pc - c_a->pair_pc >= 0 ? 1 : -1;
+	return larger;
 }
 
 /**
@@ -501,6 +509,11 @@ int paired_by_reads(bwa_seq_t *seqs, tpl *t_1, tpl *t_2, int n_pairs) {
 			return 1;
 	}
 	return 0;
+}
+
+int count_pairs_at_hit() {
+	int n = 0;
+	return n;
 }
 
 /**
@@ -761,7 +774,7 @@ void add2tpl(tpl *t, bwa_seq_t *r, const int locus) {
  * Align the template kmer by kmer to find reads, but do not remove existing reads on it.
  * To add more reads not obtained due to hashing limitation when extending
  */
-void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
+void refresh_tpl_reads(hash_table *ht, tpl *t, int start, int end, int mismatches) {
 	bwa_seq_t *r = NULL, *seq = NULL, *window = NULL;
 	int left_len = 0, counted_len = 0, right_len = 0, n_mis = 0, rev_com = 0;
 	int i = 0, j = 0, not_covered_len = 0, ol = 0;
@@ -774,8 +787,7 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	seq = get_tpl_ctg_wt(t, &left_len, &right_len, &counted_len);
 	// If it happens, means something wrong
 	if (seq->len < ht->o->read_len) {
-		show_debug_msg(
-				"[WARNING]",
+		show_debug_msg("[WARNING]",
 				"The sequence with tails shorter than read length: [%d, %d] \n",
 				t->id, t->len);
 		//p_tpl(t);
@@ -785,7 +797,7 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 
 	//p_tpl(t);
 	//p_query(__func__, seq);
-	for (i = 0; i <= seq->len - ht->o->read_len; i++) {
+	for (i = max(0, start + right_len); i <= min(end + right_len, seq->len) - ht->o->read_len; i++) {
 		window = new_seq(seq, ht->o->read_len, i);
 		hits = g_ptr_array_sized_new(4);
 
@@ -838,6 +850,8 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int mismatches) {
 	}
 	bwa_free_read_seq(1, seq);
 	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
+	int n_pairs = count_pairs_on_tpl(t);
+	t->pair_pc = (((float) n_pairs) * 2.0) / ((float) t->reads->len);
 	t->cov = calc_tpl_cov(t, 0, t->len, ht->o->read_len);
 }
 
@@ -922,9 +936,9 @@ void correct_tpl_base(bwa_seq_t *seqs, tpl *t, const int read_len, int start,
 	start = max(0, start);
 	end = min(t->len, end);
 	counters = g_ptr_array_sized_new(t->len);
-	show_debug_msg(__func__,
-			"Correcting template [%d, %d] at range [%d, %d] ...\n", t->id,
-			t->len, start, end);
+	//show_debug_msg(__func__,
+	//		"Correcting template [%d, %d] at range [%d, %d] ...\n", t->id,
+	//		t->len, start, end);
 	//p_tpl_reads(t);
 	//p_ctg_seq("BEFORE", t->ctg);
 
@@ -1417,12 +1431,8 @@ void save_tpls(tplarray *pfd_ctg_ids, FILE *ass_fa, const int ori,
 			contig = t->ctg;
 			if (ori)
 				seq_reverse(contig->len, contig->seq, 0);
-			if (t->last_read)
-				sprintf(h, ">%d_%s\tlength: %d\tstart: %s\tstep: %s\n", t->id,
-						t->last_read->name, contig->len, t->start_read->name, t->step);
-			else
-				sprintf(h, ">%d_0\tlength: %d\tstart: %s\tstep: %s\n", t->id, contig->len,
-						t->start_read->name, t->step);
+			sprintf(h, ">%d\tlength: %d; start: %s; step: %s; pair_percentage: %.2f\n", t->id, contig->len,
+						t->start_read->name, t->step, t->pair_pc);
 			save_con(h, contig, ass_fa);
 		}
 	}
@@ -1566,6 +1576,11 @@ int pairs_spanning_locus(bwa_seq_t *seqs, tpl *t, int locus) {
 	return n_pairs;
 }
 
+int read_on_tpl(tpl *t, bwa_seq_t *r) {
+	if (r->status == USED && r->contig_id == t->id) return 1;
+	return 0;
+}
+
 int count_pairs_on_tpl(tpl *t) {
 	int n = 0, i = 0;
 	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
@@ -1580,3 +1595,84 @@ int count_pairs_on_tpl(tpl *t) {
 	show_debug_msg(__func__, "Template [%d, %d]: %d / %d \n", t->id, t->len, n, t->reads->len);
 	return n;
 }
+
+void destory_tpl_ht(hash_table *ht) {
+	if (!ht) return;
+	if (ht->k_mers_occ_acc) free(ht->k_mers_occ_acc);
+	if (ht->n_kmers) free(ht->n_kmers);
+	if (ht->o) free(ht->o);
+	if (ht->pos) free(ht->pos);
+	free(ht);
+}
+
+hash_table *hash_tpls(GPtrArray *tpls, int k, int interleaving) {
+	hash_table *ht = (hash_table*) malloc(sizeof(hash_table));
+	hash_key *k_mers_occ_acc, key = 0ULL;
+	hash_value *pos = NULL;
+	index64 n_pos = 0, pos_index = 0, n_seqs = tpls->len;
+	hash_value value;
+	int *n_occ = NULL;
+	int tmp = 0, tmp_2 = 0;
+	index64 n_k_mers = (1 << (k * 2)) + 1;
+	tpl *t = NULL;
+	int i = 0, j = 0, i_acc = 0;
+	uint32_t *kmer_occ_on_reads = NULL;
+
+	hash_opt *opt = init_hash_opt();
+	opt->k = k;
+	opt->interleaving = interleaving;
+	opt->read_len = -1;
+	opt->block_size = 1;
+
+	show_msg(__func__, "Hashing %d templates ... \n", n_seqs);
+	ht->seqs = NULL;
+	ht->n_seqs = n_seqs;
+	ht->o = opt;
+	k_mers_occ_acc = (hash_value*) calloc(n_k_mers, sizeof(hash_value));
+
+	show_debug_msg(__func__, "Round 1/2: Counting occurrences of k-mers %d templates ... \n", n_seqs);
+	for (i = 0; i < n_seqs; i++) {
+		t = (tpl*) g_ptr_array_index(tpls, i);
+		if (t->len < k) continue;
+		for (j = 0; j <= t->ctg->len - k; j++) {
+			key = get_hash_key(t->ctg->seq, j, interleaving, k);
+			k_mers_occ_acc[key]++;
+			n_pos++;
+		}
+	}
+
+	tmp = 0;
+	for (i = 1; i < n_k_mers - 1; i++) {
+		tmp_2 = k_mers_occ_acc[i];
+		k_mers_occ_acc[i] = k_mers_occ_acc[i - 1] + tmp;
+		tmp = tmp_2;
+	}
+	k_mers_occ_acc[0] = 0;
+	k_mers_occ_acc[n_k_mers - 1] = n_pos - 1;
+
+	// Round 2: save the hashes.
+	show_debug_msg(__func__, "Round 2/2: Placing k-mer pointers ... \n");
+	pos = (hash_value*) calloc(n_pos, sizeof(hash_value));
+	n_occ = (int*) calloc(n_k_mers, sizeof(int)); // Store how many occs through the iteration
+
+	for (i = 0; i < n_seqs; i++) {
+		t = (tpl*) g_ptr_array_index(tpls, i);
+		if (t->len < k) continue;
+		for (j = 0; j <= t->ctg->len - k; j++) {
+			key = get_hash_key(t->ctg->seq, j, interleaving, k);
+			value = get_hash_value(t->id, j);
+			pos_index = k_mers_occ_acc[key] + n_occ[key];
+			pos[pos_index] = value;
+			n_occ[key]++;
+		}
+	}
+	opt->n_k_mers = n_k_mers;
+	opt->n_pos = n_pos;
+	ht->pos = pos;
+	ht->k_mers_occ_acc = k_mers_occ_acc;
+	ht->n_kmers = NULL;
+	free(n_occ);
+	show_debug_msg(__func__, "%d templates hashed. \n", n_seqs);
+	return ht;
+}
+

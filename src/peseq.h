@@ -58,6 +58,7 @@ void concat_arrays(GPtrArray *to, GPtrArray *from);
 void reset_to_fresh(bwa_seq_t *r);
 void reset_to_dead(bwa_seq_t *r);
 void reset_to_hang(bwa_seq_t *r);
+void reset_seqs(bwa_seq_t *seqs, uint32_t n);
 bwa_seq_t *blank_seq(const int len);
 bwa_seq_t *new_mem_rev_seq(const bwa_seq_t *query, const int ol,
 		const int shift);
@@ -107,6 +108,7 @@ int is_paired(const bwa_seq_t *read, const int ori);
 int get_mismatches_on_ol(const bwa_seq_t *query, const bwa_seq_t *seq,
 		const int ol, const int max);
 void free_read_seq(bwa_seq_t *p);
+GPtrArray *clone_read_arr(GPtrArray *reads);
 int has_rep_pattern(const bwa_seq_t *read);
 int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 		int *seq_1_start, int *seq_1_stop, int *seq_2_start, int *seq_2_stop, int min_score);

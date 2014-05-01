@@ -48,14 +48,11 @@ junction *new_junction(tpl *main_tpl, tpl *branch_tpl, bwa_seq_t * connector,
 junction *add_a_junction(tpl *main_tpl, tpl *branch_tpl, bwa_seq_t *connector,
 		int locus, int ori, int weight) {
 	// Indicating the templates are in-connect, cannot be reverse-complement
-	junction *new_j = new_junction(main_tpl, branch_tpl, connector, locus, ori,
-			weight);
+	junction *new_j = new_junction(main_tpl, branch_tpl, connector, locus, ori, weight);
 	// Add the junction to the templates. For the 'existing connect' later.
-	if (!main_tpl->m_juncs)
-		main_tpl->m_juncs = g_ptr_array_sized_new(2);
+	if (!main_tpl->m_juncs) main_tpl->m_juncs = g_ptr_array_sized_new(2);
 	g_ptr_array_add(main_tpl->m_juncs, new_j);
-	if (!branch_tpl->b_juncs)
-		branch_tpl->b_juncs = g_ptr_array_sized_new(2);
+	if (!branch_tpl->b_juncs) branch_tpl->b_juncs = g_ptr_array_sized_new(2);
 	new_j->reads = g_ptr_array_sized_new(0);
 	g_ptr_array_add(branch_tpl->b_juncs, new_j);
 	return new_j;
@@ -155,10 +152,10 @@ GPtrArray *get_nearby_tpls(tpl *t, GPtrArray *tpls) {
 	if (!tpls)
 		tpls = g_ptr_array_sized_new(4);
 	//p_tpl(t);
-	if (t->is_root)
+	if (t->visited)
 		return tpls;
 	// Set to 1, means that the reads on it have been visited.
-	t->is_root = 1;
+	t->visited = 1;
 	g_ptr_array_add(tpls, t);
 	//show_debug_msg(__func__, "Nearby template: [%d, %d] \n", t->id, t->len);
 	if (t->b_juncs && t->b_juncs->len > 0) {
@@ -166,7 +163,7 @@ GPtrArray *get_nearby_tpls(tpl *t, GPtrArray *tpls) {
 			jun = (junction*) g_ptr_array_index(t->b_juncs, j);
 			//p_junction(jun);
 			//p_tpl(jun->main_tpl);
-			if (jun->main_tpl->is_root == 0)
+			if (jun->main_tpl->visited == 0)
 				get_nearby_tpls(jun->main_tpl, tpls);
 		}
 	}
@@ -175,7 +172,7 @@ GPtrArray *get_nearby_tpls(tpl *t, GPtrArray *tpls) {
 			jun = (junction*) g_ptr_array_index(t->m_juncs, j);
 			//p_junction(jun);
 			//p_tpl(jun->main_tpl);
-			if (jun->branch_tpl->is_root == 0)
+			if (jun->branch_tpl->visited == 0)
 				get_nearby_tpls(jun->branch_tpl, tpls);
 		}
 	}
@@ -187,7 +184,7 @@ void reset_is_root(GPtrArray *tpls) {
 	tpl *t = NULL;
 	for (i = 0; i < tpls->len; i++) {
 		t = (tpl*) g_ptr_array_index(tpls, i);
-		t->is_root = 0;
+		t->visited = 0;
 	}
 }
 
@@ -1105,8 +1102,7 @@ void truncate_tpl(tpl *t, int len, int ori) {
 	bwa_seq_t *r = NULL;
 	junction *jun = NULL;
 	int i = 0, n = 0;
-	if (len <= 0)
-		return;
+	if (len <= 0) return;
 	show_debug_msg(__func__, "Template [%d, %d] Ori: %d; Truncated: %d \n",
 					t->id, t->len, ori, len);
 	p_ctg_seq("BEFORE", t->ctg);
@@ -1116,7 +1112,7 @@ void truncate_tpl(tpl *t, int len, int ori) {
 			r->contig_locus -= len;
 			if (r->contig_locus < 0) {
 				p_query("RESET", r);
-				reset_to_hang(r);
+				reset_to_fresh(r);
 				g_ptr_array_remove_index_fast(t->reads, i--);
 			}
 		}
@@ -1135,8 +1131,8 @@ void truncate_tpl(tpl *t, int len, int ori) {
 		for (i = t->reads->len - 1; i >= 0; i--) {
 			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 			if (r->contig_locus + r->len > t->len - len) {
+				reset_to_fresh(r);
 				p_query("RESET", r);
-				reset_to_hang(r);
 				g_ptr_array_remove_index_fast(t->reads, i);
 			}
 		}
@@ -1167,4 +1163,51 @@ int is_short_hanging_branch(tpl *branch) {
 		}
 	}
 	return 0;
+}
+
+/**
+ * Whether there are junctions connecting to the 'ori' side of the 'locus' of the 't'
+ * ori: 1 if checking right side
+ */
+int has_junction_at_locus(tpl *t, int locus, int ori) {
+	junction *jun = NULL;
+	int i = 0;
+	if (!t->m_juncs || t->m_juncs->len <= 0) return 0;
+	for (i = 0; i < t->m_juncs->len; i++) {
+		jun = (junction*) g_ptr_array_index(t->m_juncs, i);
+		if (ori) {
+			if (jun->locus <= locus) return 1;
+		} else {
+			if (jun->locus >= locus) return 1;
+		}
+	}
+	return 0;
+}
+
+int has_any_junction(tpl *t) {
+	junction *jun = NULL;
+	int i = 0;
+	if (t->m_juncs && t->m_juncs->len > 0) return 1;
+	if (t->b_juncs && t->b_juncs->len > 0) return 1;
+	return 0;
+}
+
+/**
+ * There is a deletion on the template 't', represented by 'b'
+ */
+void erase_tpl_at_locus(tpl *t, tpl *b, int read_len, int locus, int t_left, int t_right) {
+	int i = 0, n = 0; bwa_seq_t *r = NULL;
+	for (i = 0; i < b->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(b->reads, i);
+		if (r->contig_locus < locus && r->contig_locus + r->len > locus) {
+			r->contig_locus = r->contig_locus - locus;
+			n++;
+		} else reset_to_fresh(r);
+	}
+	set_tail(b, t, t_left, read_len - 1, 0);
+	set_tail(b, t, t_right, read_len - 1, 0);
+	b->len = 0;
+	b->ctg->len = 0;
+	add_a_junction(t, b, NULL, t_left, 0, n) ;
+	add_a_junction(t, b, NULL, t_right, 1, n) ;
 }

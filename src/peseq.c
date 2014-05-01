@@ -585,6 +585,17 @@ void reset_to_hang(bwa_seq_t *r) {
 	reset_read(r);
 }
 
+void reset_seqs(bwa_seq_t *seqs, uint32_t n) {
+	bwa_seq_t *r = NULL;
+	int i = 0;
+	for(i = 0; i < n; i++) {
+		r = &seqs[i];
+		if (r->status != USED && r->status != DEAD) {
+			reset_to_fresh(r);
+		}
+	}
+}
+
 bwa_seq_t *blank_seq(const int len) {
 	bwa_seq_t *p = (bwa_seq_t*) malloc(sizeof(bwa_seq_t));
 	p->status = 0;
@@ -1351,4 +1362,15 @@ void free_read_seq(bwa_seq_t *p) {
 		free(p->rseq);
 		free(p);
 	}
+}
+
+GPtrArray *clone_read_arr(GPtrArray *reads) {
+	if (!reads) return g_ptr_array_sized_new(0);
+	GPtrArray *clone = g_ptr_array_sized_new(reads->len);
+	int i = 0; bwa_seq_t *r = NULL;
+	for (i = 0; i < reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		g_ptr_array_add(clone, r);
+	}
+	return clone;
 }

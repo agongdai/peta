@@ -5,7 +5,7 @@ CFLAGS=		-ggdb -g -pg -Wall -O2 $(shell pkg-config --libs glib-2.0 gthread-2.0 -
 #CFLAGS=		-Wall -O2 $(shell pkg-config --libs glib-2.0 gthread-2.0 --cflags glib-2.0)
 CXXFLAGS=	-std=c++0x $(CFLAGS)
 DFLAGS=		-DHAVE_PTHREAD #-D_FILE_OFFSET_BITS=64
-OBJS=		utils.o rnaseq.o \
+OBJS=		utils.o rnaseq.o psl.o \
 			bwtaln.o k_hash.o hash.o junction.o \
 			pechar.o peseq.o pool.o merge.o \
 			bwaseqio.o tpl.o ass.o \

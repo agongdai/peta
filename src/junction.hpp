@@ -81,6 +81,10 @@ extern "C" {
 			GPtrArray *all_junctions);
 	void mark_unpaired_reads(bwa_seq_t *seqs, tpl *t);
 	int is_short_hanging_branch(tpl *branch);
+	void truncate_tpl(tpl *t, int len, int ori);
+	int has_junction_at_locus(tpl *t, int locus, int ori);
+	int has_any_junction(tpl *t);
+	void erase_tpl_at_locus(tpl *t, tpl *b, int read_len, int locus, int t_left, int t_right);
 
 #ifdef __cplusplus
 }

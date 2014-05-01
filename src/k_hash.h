@@ -49,6 +49,7 @@ extern "C" {
 	void destroy_ht(hash_table *ht);
 	uint64_t get_kmer_int(const ubyte_t *seq, const int start,
 			const int interleaving, const int len);
+	hash_opt *init_hash_opt();
 	bwa_seq_t *get_key_seq(uint64_t kmer, const int k);
 	hash_value get_hash_value(const index64 seq_id, const int pos_start);
 	void read_hash_value(index64 *seq_id, int *pos_start, hash_value value);
@@ -64,6 +65,7 @@ extern "C" {
 			const int mismatches);
 	GPtrArray *align_query(hash_table *ht, bwa_seq_t *query,
 			int8_t status, int mismatches);
+	void p_hash_table(hash_table *ht);
 	void hash_a_tpl(uint32_t *hash, const ubyte_t *seq, const int len, const int k, const int tpl_id);
 
 #ifdef __cplusplus

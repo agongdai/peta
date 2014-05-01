@@ -634,7 +634,9 @@ void assign_path_attrs(GPtrArray *paths, hash_table *ht) {
 		p->ctg->len = len;
 		p->len = len;
 		// The coverage, given all reads are from this path
-		p->reads = reads_on_seq(p->ctg, ht, N_MISMATCHES);
+		v = (vertex*) g_ptr_array_index(p->vertexes, 0);
+		if (p->vertexes->len == 1) p->reads = clone_read_arr(v->reads);
+		else p->reads = reads_on_seq(p->ctg, ht, N_MISMATCHES);
 		//p_path_reads(p);
 		if (!validate_pairs_on_path(ht, p)) {
 			show_debug_msg(__func__,
