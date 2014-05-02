@@ -1195,19 +1195,19 @@ int has_any_junction(tpl *t) {
 /**
  * There is a deletion on the template 't', represented by 'b'
  */
-void erase_tpl_at_locus(tpl *t, tpl *b, int read_len, int locus, int t_left, int t_right) {
-	int i = 0, n = 0; bwa_seq_t *r = NULL;
-	for (i = 0; i < b->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(b->reads, i);
-		if (r->contig_locus < locus && r->contig_locus + r->len > locus) {
-			r->contig_locus = r->contig_locus - locus;
-			n++;
-		} else reset_to_fresh(r);
-	}
-	set_tail(b, t, t_left, read_len - 1, 0);
-	set_tail(b, t, t_right, read_len - 1, 0);
-	b->len = 0;
-	b->ctg->len = 0;
-	add_a_junction(t, b, NULL, t_left, 0, n) ;
-	add_a_junction(t, b, NULL, t_right, 1, n) ;
+void cut_tpl_at_locus(tpl *t, tpl *b, int read_len, int b_left, int b_right, int t_left, int t_right) {
+//	int i = 0, n = 0; bwa_seq_t *r = NULL;
+//	for (i = 0; i < b->reads->len; i++) {
+//		r = (bwa_seq_t*) g_ptr_array_index(b->reads, i);
+//		if (r->contig_locus < locus && r->contig_locus + r->len > locus) {
+//			r->contig_locus = r->contig_locus - locus;
+//			n++;
+//		} else reset_to_fresh(r);
+//	}
+//	set_tail(b, t, t_left, read_len - 1, 0);
+//	set_tail(b, t, t_right, read_len - 1, 0);
+//	b->len = 0;
+//	b->ctg->len = 0;
+//	add_a_junction(t, b, NULL, t_left, 0, n) ;
+//	add_a_junction(t, b, NULL, t_right, 1, n) ;
 }

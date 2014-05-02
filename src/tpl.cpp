@@ -27,6 +27,10 @@ eg_gap *init_gap(int s_index, int size, int ori) {
 	return gap;
 }
 
+void p_anchor(char *header, anchor *a) {
+	show_debug_msg(header, "Anchor: template [%d, %d] @ %d size %d; from %d \n", a->t->id, a->t->len, a->locus, a->size, a->from);
+}
+
 void p_tpl(tpl *t) {
 	if (!t) {
 		show_debug_msg(__func__, "---- Template is NULL ----\n");
@@ -310,6 +314,24 @@ gint cmp_tpl_by_rev_pair_pc(gpointer a, gpointer b) {
 	tpl *c_b = *((tpl**) b);
 	gint larger = c_b->pair_pc - c_a->pair_pc >= 0 ? 1 : -1;
 	return larger;
+}
+
+gint cmp_anchor_by_locus(gpointer a, gpointer b) {
+	anchor *c_a = *((anchor**) a);
+	anchor *c_b = *((anchor**) b);
+	return (c_a->locus - c_b->locus);
+}
+
+gint cmp_anchor_by_rev_locus(gpointer a, gpointer b) {
+	anchor *c_a = *((anchor**) a);
+	anchor *c_b = *((anchor**) b);
+	return (c_b->locus - c_a->locus);
+}
+
+gint cmp_anchor_by_from(gpointer a, gpointer b) {
+	anchor *c_a = *((anchor**) a);
+	anchor *c_b = *((anchor**) b);
+	return (c_a->from - c_b->from);
 }
 
 /**

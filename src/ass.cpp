@@ -417,21 +417,21 @@ GPtrArray *tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tp
 	bwa_seq_t *kmer = NULL;
 	GPtrArray *anchors = g_ptr_array_sized_new(4);
 	anchor *a = NULL;
-	show_debug_msg(__func__, "Templates sharing 11-mer with template [%d, %d] \n", t->id, t->len);
+	//show_debug_msg(__func__, "Templates sharing 11-mer with template [%d, %d] \n", t->id, t->len);
 	for (i = max(0, s); i <= min(t->len, e) - tpl_ht->o->k; i++) {
 		key = get_hash_key(t->ctg->seq, i, tpl_ht->o->interleaving, tpl_ht->o->k);
 		start = tpl_ht->k_mers_occ_acc[key];
 		end = (key >= tpl_ht->o->n_k_mers) ? tpl_ht->k_mers_occ_acc[tpl_ht->o->n_k_mers - 1]
 				: tpl_ht->k_mers_occ_acc[key + 1];
 		if (end - start > 1) {
-			kmer = get_key_seq(key, tpl_ht->o->k);
-			p_query("KMER", kmer);
-			bwa_free_read_seq(1, kmer);
+			//kmer = get_key_seq(key, tpl_ht->o->k);
+			//p_query("KMER", kmer);
+			//bwa_free_read_seq(1, kmer);
 			for (j = start; j < end; j++) {
 				value = tpl_ht->pos[j];
 				read_hash_value(&tpl_id, &locus, value);
 				if (tpl_id == t->id) continue;
-				show_debug_msg(__func__, "At %d: template %d at %d \n", i, tpl_id, locus);
+				//show_debug_msg(__func__, "At %d: template %d at %d \n", i, tpl_id, locus);
 				tpl_hash::iterator it = all_tpls->find(tpl_id);
 				if (it == all_tpls->end()) continue;
 				sharing = (tpl*) it->second;
@@ -482,12 +482,9 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 
 			if (!connected) {
 				anchors = tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, t, 0, t->len);
+				connect_both_ends(ht, anchors, t);
 				for (j = 0; j < anchors->len; j++) {
-					a = (anchor*) g_ptr_array_index(anchors, j);
-					if (a->t->alive && !a->t->visited) {
-						connect_deletion(ht, anchors, t);
-					}
-					free(a);
+					a = (anchor*) g_ptr_array_index(anchors, j); free(a);
 				}
 				g_ptr_array_free(anchors, TRUE);
 				anchors = NULL;

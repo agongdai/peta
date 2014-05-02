@@ -68,10 +68,14 @@ extern "C" {
 
 	gint cmp_tpl_by_id(gpointer a, gpointer b);
 	gint cmp_tpl_by_rev_pair_pc(gpointer a, gpointer b);
+	gint cmp_anchor_by_locus(gpointer a, gpointer b);
+	gint cmp_anchor_by_rev_locus(gpointer a, gpointer b);
+	gint cmp_anchor_by_from(gpointer a, gpointer b);
 	int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs);
 	GPtrArray *rm_dup_reads_on_tpl(GPtrArray *reads);
 	void switch_tpl_fr(tpl *t);
 	int rev_com_on_tpl(tpl *t, int start, bwa_seq_t *read);
+	void p_anchor(char *header, anchor *a);
 	void p_tpl(tpl *t);
 	eg_gap *init_gap(int s_index, int size, int ori);
 	void p_tpl_reads(tpl *t);

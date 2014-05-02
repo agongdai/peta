@@ -1,49 +1,54 @@
-python /home/ariyaratnep/shaojiang//peta_copies/peta_dev/scripts/eva.py blat -t /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.fa -c /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/paired.fa -p /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/paired.fa.psl -o /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/ -s 0.99
+/home/carl/Projects//blat/blat -fine /home/carl/Projects//peta_pair/scripts/spombe.broad.tx.fasta.rev /home/carl/Projects//peta_pair/spombe_630/paired.fa -ooc=/home/carl/Projects//blat/11.ooc /home/carl/Projects//peta_pair/spombe_630/paired.fa.psl
+Loaded 7212774 letters in 5162 sequences
+Searched 13311501 bases in 26441 sequences
+python /home/carl/Projects//peta_pair/scripts/eva.py blat -t /home/carl/Projects//peta_pair/scripts/spombe.broad.tx.fasta.rev -c /home/carl/Projects//peta_pair/spombe_630/paired.fa -p /home/carl/Projects//peta_pair/spombe_630/paired.fa.psl -o /home/carl/Projects//peta_pair/spombe_630/ -s 0.99
 ===================================================================
-Summary of /home/ariyaratnep/shaojiang//peta/rnaseq/Spombe/genome/tx.630.oracle.fa
-        Total base:             7012307
-        # of transcripts:       5063
-        Longest length:         9015
-        Shortest length:        78
-        Average length:         1385.01
-        N50 value:              1752
-===================================================================
-===================================================================
-Summary of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/paired.fa
-        Total base:             27203373
-        # of transcripts:       900918
-        Longest length:         15160
-        Shortest length:        1
-        Average length:         30.20
-        N50 value:              68
+Summary of /home/carl/Projects//peta_pair/scripts/spombe.broad.tx.fasta.rev
+	Total base: 		7212774
+	# of transcripts: 	5162
+	Longest length: 	14775
+	Shortest length: 	75
+	Average length: 	1397.28
+	N50 value: 		1770
 ===================================================================
 ===================================================================
-Evaluation result of /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/paired.fa
+Summary of /home/carl/Projects//peta_pair/spombe_630/paired.fa
+	Total base: 		13311501
+	# of transcripts: 	26441
+	Longest length: 	15160
+	Shortest length: 	68
+	Average length: 	503.44
+	N50 value: 		2549
+===================================================================
+===================================================================
+Evaluation result of /home/carl/Projects//peta_pair/spombe_630/paired.fa
 [similarity threshold: 0.99]
 [full length threshold: 0.99]
 [n_mismatches + n_indels < 10]
-        Assembled base:               27203373
-        Bases aligned:                10182606
-        # of contigs:                 900918
-        # of Full length:             4269
-        # of Ctgs not aligned:        842172
-        Bases not aligned:            14560839
-        # of Ctgs not reached:        0
-        Bases not reached:            0
-        Optimal N50:                  1752
-        Raw N50:                      68
-        Aligned N50:                  1707
-        Accuracy:                     99.62%
-        Completeness 80%:             99.51%
-        Contiguity 80%:               91.11%
-        # of chimaeras:               153
-        Chimerism:                    0.02%
-        Variant resolution:           0.00%
+	Assembled base:               13311501
+	Bases aligned:                9066090
+	# of contigs:                 26441
+	# of Full length:             4479
+	# of Ctgs not aligned:        8357
+	Bases not aligned:            1279832
+	# of Ctgs not reached:        47
+	Bases not reached:            29546
+	Optimal N50:                  1770
+	Raw N50:                      2549
+	Aligned N50:                  1725
+	Accuracy:                     99.97%
+	Completeness 80%:             97.38%
+	Contiguity 80%:               91.77%
+	# of chimaeras:               188
+	Chimerism:                    0.71%
+	Variant resolution:           0.00%
 ===================================================================
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/paired.fa_full_length.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/paired.fa_one_on_one.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/paired.fa_near_full_length.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/paired.fa_covered_70.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/paired.fa_one_covered.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/paired.fa_not_aligned.txt
-Check /home/ariyaratnep/shaojiang//peta_copies/peta_dev/spombe_630/paired.fa_partial.txt
+Check /home/carl/Projects//peta_pair/spombe_630/paired.fa.full
+Check /home/carl/Projects//peta_pair/spombe_630/paired.fa_full_length.txt
+Check /home/carl/Projects//peta_pair/spombe_630/paired.fa_one_on_one.txt
+Check /home/carl/Projects//peta_pair/spombe_630/paired.fa_near_full_length.txt
+Check /home/carl/Projects//peta_pair/spombe_630/paired.fa_covered_70.txt
+Check /home/carl/Projects//peta_pair/spombe_630/paired.fa_one_covered.txt
+Check /home/carl/Projects//peta_pair/spombe_630/paired.fa_not_aligned.txt
+Check /home/carl/Projects//peta_pair/spombe_630/paired.fa_partial.txt
+Done
