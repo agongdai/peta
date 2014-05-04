@@ -60,6 +60,7 @@ typedef struct {
 	int locus;
 	int from;
 	int size;
+	index64 hash;
 } anchor;
 
 #ifdef __cplusplus
@@ -71,6 +72,10 @@ extern "C" {
 	gint cmp_anchor_by_locus(gpointer a, gpointer b);
 	gint cmp_anchor_by_rev_locus(gpointer a, gpointer b);
 	gint cmp_anchor_by_from(gpointer a, gpointer b);
+	gint cmp_anchor_by_hash(gpointer a, gpointer b);
+	void shrink_anchor_right(anchor *a, int shifted);
+	void disable_anchor(anchor *a);
+	void compact_anchors(GPtrArray *anchors);
 	int has_nearby_pairs(hash_table *ht, GPtrArray *tpls, tpl *t, int n_pairs);
 	GPtrArray *rm_dup_reads_on_tpl(GPtrArray *reads);
 	void switch_tpl_fr(tpl *t);
@@ -130,6 +135,7 @@ extern "C" {
 	void refresh_tpl_reads(hash_table *ht, tpl *t, int start, int end, int mismatches);
 	GPtrArray *get_supporting_reads(tpl *t, int start, int end);
 	int pairs_spanning_locus(bwa_seq_t *seqs, tpl *t, int locus);
+	int reads_covering_locus(tpl *t, int s, int locus, int e);
 	int read_on_tpl(tpl *t, bwa_seq_t *r);
 	int count_pairs_on_tpl(tpl *t);
 	void destory_tpl_ht(hash_table *ht);

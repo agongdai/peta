@@ -1096,9 +1096,9 @@ void mark_unpaired_reads(bwa_seq_t *seqs, tpl *t) {
 
 /**
  * Truncate the template by some length at left/right side;
- * The reads falling within this range will be marked as FRESH.
+ * If 'reset_reads', The reads falling within this range will be marked as FRESH.
  */
-void truncate_tpl(tpl *t, int len, int ori) {
+void truncate_tpl(tpl *t, int len, int reset_reads, int ori) {
 	bwa_seq_t *r = NULL;
 	junction *jun = NULL;
 	int i = 0, n = 0;
@@ -1110,7 +1110,7 @@ void truncate_tpl(tpl *t, int len, int ori) {
 		for (i = 0; i < t->reads->len; i++) {
 			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 			r->contig_locus -= len;
-			if (r->contig_locus < 0) {
+			if (reset_reads && r->contig_locus < 0) {
 				p_query("RESET", r);
 				reset_to_fresh(r);
 				g_ptr_array_remove_index_fast(t->reads, i--);
@@ -1128,12 +1128,14 @@ void truncate_tpl(tpl *t, int len, int ori) {
 			}
 		}
 	} else {
-		for (i = t->reads->len - 1; i >= 0; i--) {
-			r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
-			if (r->contig_locus + r->len > t->len - len) {
-				reset_to_fresh(r);
-				p_query("RESET", r);
-				g_ptr_array_remove_index_fast(t->reads, i);
+		if (reset_reads) {
+			for (i = t->reads->len - 1; i >= 0; i--) {
+				r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+				if (r->contig_locus + r->len > t->len - len) {
+					reset_to_fresh(r);
+					p_query("RESET", r);
+					g_ptr_array_remove_index_fast(t->reads, i);
+				}
 			}
 		}
 		t->len -= len;

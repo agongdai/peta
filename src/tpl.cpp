@@ -5,11 +5,13 @@
  *      Author: carl
  */
 
-#include <stdio.h>
-#include <unistd.h>
+#include <stdint.h>
+#include <glib.h>
+#include <cstdio>
+#include <time.h>
 #include <stdlib.h>
 #include <string.h>
-#include <glib.h>
+#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include "utils.h"
 #include "tpl.hpp"
@@ -28,7 +30,7 @@ eg_gap *init_gap(int s_index, int size, int ori) {
 }
 
 void p_anchor(char *header, anchor *a) {
-	show_debug_msg(header, "Anchor: template [%d, %d] @ %d size %d; from %d \n", a->t->id, a->t->len, a->locus, a->size, a->from);
+	show_debug_msg(header, "HASH = %"ID64 "; Anchor: template [%d, %d] @ %d size %d; from %d \n", a->hash, a->t->id, a->t->len, a->locus, a->size, a->from);
 }
 
 void p_tpl(tpl *t) {
@@ -332,6 +334,52 @@ gint cmp_anchor_by_from(gpointer a, gpointer b) {
 	anchor *c_a = *((anchor**) a);
 	anchor *c_b = *((anchor**) b);
 	return (c_a->from - c_b->from);
+}
+
+gint cmp_anchor_by_hash(gpointer a, gpointer b) {
+	anchor *c_a = *((anchor**) a);
+	anchor *c_b = *((anchor**) b);
+	gint rs = (c_a->hash >= c_b->hash) ? 1 : -1;
+	return rs;
+}
+
+/**
+ * Shrink an anchor with sized 'shifted'
+ * Example: anchor 'AAAACCCCCCCC'
+ * Shifted 4: anchor 'CCCCCCCC'
+ */
+void shrink_anchor_right(anchor *a, int shifted) {
+	int s = min(shifted, a->size);
+	a->locus += s; a->size -= s; a->from += s;
+}
+
+/**
+ * Mark the anchor not usable anymore.
+ */
+void disable_anchor(anchor *a) {
+	a->locus = -1; a->from = -1; a->size = 0; a->from = NULL;
+}
+
+/**
+ * If two templates share regions longer than 11bp, there are multiple anchors nearby,
+ * here merge them;
+ * By 'cmp_anchor_by_hash', the anchors are ordered first by template id, then by locus, increasingly.
+ */
+void compact_anchors(GPtrArray *anchors) {
+	int i = 0;
+	anchor *a = NULL, *pre = NULL;
+	g_ptr_array_sort(anchors, (GCompareFunc) cmp_anchor_by_hash);
+	if (anchors && anchors->len > 0) {
+		pre = (anchor*) g_ptr_array_index(anchors, anchors->len - 1);
+		for (i = anchors->len - 2; i >= 0; i--) {
+			a = (anchor*) g_ptr_array_index(anchors, i);
+			if (a->t == pre->t && pre->locus - a->locus == 1 && pre->from - a->from == 1) {
+				pre->locus--; pre->size++; pre->from--;
+				free(a); g_ptr_array_remove_index_fast(anchors, i);
+			} else pre = a;
+		}
+	}
+	g_ptr_array_sort(anchors, (GCompareFunc) cmp_anchor_by_hash);
 }
 
 /**
@@ -1598,6 +1646,20 @@ int pairs_spanning_locus(bwa_seq_t *seqs, tpl *t, int locus) {
 	return n_pairs;
 }
 
+/**
+ * Count reads covering 'locus'; the reads should be within range between [s, e)
+ */
+int reads_covering_locus(tpl *t, int s, int locus, int e) {
+	bwa_seq_t *r = NULL;
+	int i = 0, n = 0;
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		if (r->contig_locus < s || r->contig_locus + r->len >= e) continue;
+		if (r->contig_locus < locus && r->contig_locus + r->len > locus) n++;
+	}
+	return n;
+}
+
 int read_on_tpl(tpl *t, bwa_seq_t *r) {
 	if (r->status == USED && r->contig_id == t->id) return 1;
 	return 0;
@@ -1655,6 +1717,10 @@ hash_table *hash_tpls(GPtrArray *tpls, int k, int interleaving) {
 	show_debug_msg(__func__, "Round 1/2: Counting occurrences of k-mers %d templates ... \n", n_seqs);
 	for (i = 0; i < n_seqs; i++) {
 		t = (tpl*) g_ptr_array_index(tpls, i);
+		if (t->len > 65536) {
+			show_debug_msg(__func__, "[WARNING] Template [%d, %d] is too long to be hashed. \n", t->id, t->len);
+			continue;
+		}
 		if (t->len < k) continue;
 		for (j = 0; j <= t->ctg->len - k; j++) {
 			key = get_hash_key(t->ctg->seq, j, interleaving, k);
@@ -1679,6 +1745,10 @@ hash_table *hash_tpls(GPtrArray *tpls, int k, int interleaving) {
 
 	for (i = 0; i < n_seqs; i++) {
 		t = (tpl*) g_ptr_array_index(tpls, i);
+		if (t->len > 65536) {
+			show_debug_msg(__func__, "[WARNING] Template [%d, %d] is too long to be hashed. \n", t->id, t->len);
+			continue;
+		}
 		if (t->len < k) continue;
 		for (j = 0; j <= t->ctg->len - k; j++) {
 			key = get_hash_key(t->ctg->seq, j, interleaving, k);

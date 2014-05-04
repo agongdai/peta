@@ -146,13 +146,13 @@ int max3(int a, int b, int c) {
 }
 
 int good_insert_size(int size) {
-	if (size < INS_SIZE - SD_INS_SIZE * 2 || size > INS_SIZE + SD_INS_SIZE * 2) return 0;
+	if (size < INS_SIZE - SD_INS_SIZE * GRACE_TIMES || size > INS_SIZE + SD_INS_SIZE * GRACE_TIMES) return 0;
 	return 1;
 }
 
 int in_range(int locus_1, int locus_2) {
 	int dis = abs(locus_2 - locus_1);
-	if (dis < INS_SIZE - SD_INS_SIZE * 2 || dis > INS_SIZE + SD_INS_SIZE * 2)
+	if (dis < INS_SIZE - SD_INS_SIZE * GRACE_TIMES || dis > INS_SIZE + SD_INS_SIZE * GRACE_TIMES)
 		return 0;
 	return 1;
 }

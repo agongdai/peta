@@ -30,6 +30,7 @@ enum SIDE {
 
 #define INS_SIZE				202
 #define SD_INS_SIZE				62
+#define GRACE_TIMES				2.5
 
 #define ID64 					PRId64
 #define BUFSIZE 				1023

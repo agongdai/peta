@@ -30,7 +30,7 @@
 
 using namespace std;
 
-int TESTING = 80598; //651444; //1306907;
+int TESTING = 0; //80598;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -416,7 +416,7 @@ GPtrArray *tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tp
 	int i = 0, j = 0, locus = 0, start = 0, end = 0;
 	bwa_seq_t *kmer = NULL;
 	GPtrArray *anchors = g_ptr_array_sized_new(4);
-	anchor *a = NULL;
+	anchor *a = NULL, *pre = NULL;
 	//show_debug_msg(__func__, "Templates sharing 11-mer with template [%d, %d] \n", t->id, t->len);
 	for (i = max(0, s); i <= min(t->len, e) - tpl_ht->o->k; i++) {
 		key = get_hash_key(t->ctg->seq, i, tpl_ht->o->interleaving, tpl_ht->o->k);
@@ -431,7 +431,7 @@ GPtrArray *tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tp
 				value = tpl_ht->pos[j];
 				read_hash_value(&tpl_id, &locus, value);
 				if (tpl_id == t->id) continue;
-				//show_debug_msg(__func__, "At %d: template %d at %d \n", i, tpl_id, locus);
+				//show_debug_msg(__func__, "HASH = %"ID64"; At %d: template %d at %d \n", value, i, tpl_id, locus);
 				tpl_hash::iterator it = all_tpls->find(tpl_id);
 				if (it == all_tpls->end()) continue;
 				sharing = (tpl*) it->second;
@@ -441,23 +441,25 @@ GPtrArray *tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tp
 					a->locus = locus;
 					a->size = tpl_ht->o->k;
 					a->from = i;
+					a->hash = value;
 					g_ptr_array_add(anchors, a);
 				}
 			}
 		}
 	}
+	compact_anchors(anchors);
 	return anchors;
 }
 
 int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
-	int connected = 0, n_merged = 1, i = 0, j = 0, iter = 1;
+	int connected = 0, n_merged = 1, n_both_connected = 0, i = 0, j = 0, iter = 1;
 	tpl *t = NULL, *b = NULL;
 	anchor *a = NULL;
 	hash_table *ht = params->ht;
 	GPtrArray *anchors = NULL;
 	hash_table *tpl_ht = NULL;
 	while(iter < 8 && n_merged) {
-		n_merged = 0;
+		n_merged = 0; n_both_connected = 0;
 		tpl_ht = hash_tpls(tpls, ht->o->k, 1);
 		//p_hash_table(tpl_ht);
 		show_msg(__func__, "Connecting %d templates, iteration %d ... \n", tpls->len, iter++);
@@ -469,34 +471,42 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 			anchors = tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, t, t->len - ht->o->k * 4, t->len);
 			for (j = 0; j < anchors->len; j++) {
 				a = (anchor*) g_ptr_array_index(anchors, j);
-				if (a->t->alive && !a->t->visited) {
+				if (!connected && a->size > 0 && a->t->alive && !a->t->visited) {
 					connected = connect_at_locus_right(ht, t, a->t, a->from, a->locus);
 					if (connected)  {
 						t->visited = 1;
-						n_merged++; break;
+						n_merged++;
 					}
 				}
 				free(a);
 			}
 			g_ptr_array_free(anchors, TRUE);
-
-			if (!connected) {
-				anchors = tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, t, 0, t->len);
-				connect_both_ends(ht, anchors, t);
-				for (j = 0; j < anchors->len; j++) {
-					a = (anchor*) g_ptr_array_index(anchors, j); free(a);
-				}
-				g_ptr_array_free(anchors, TRUE);
-				anchors = NULL;
-			}
 		}
 		for (i = 0; i < tpls->len; i++) {
 			t = (tpl*) g_ptr_array_index(tpls, i);
 			t->visited = 0;
 		}
 		show_msg(__func__, "%d templates are merged. \n", n_merged);
-		destory_tpl_ht(tpl_ht);
+
+		if (n_merged > 0) {
+			destory_tpl_ht(tpl_ht); tpl_ht = NULL;
+		}
 	}
+	if (!tpl_ht) tpl_ht = hash_tpls(tpls, ht->o->k, 1);
+	for (i = 0; i < tpls->len; i++) {
+		t = (tpl*) g_ptr_array_index(tpls, i);
+		if (!t->alive || t->pair_pc >= 1.0) continue;
+		anchors = tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, t, 0, t->len);
+		n_both_connected += connect_both_ends(ht, anchors, t);
+		for (j = 0; j < anchors->len; j++) {
+			a = (anchor*) g_ptr_array_index(anchors, j);
+			free(a);
+		}
+		g_ptr_array_free(anchors, TRUE);
+		anchors = NULL;
+	}
+	show_msg(__func__, "%d templates are both connected. \n", n_both_connected);
+	destory_tpl_ht(tpl_ht);
 	for (i = 0; i < tpls->len; i++) {
 		t = (tpl*) g_ptr_array_index(tpls, i);
 		if (!t->alive) {
@@ -584,7 +594,7 @@ void kmer_threads(kmer_t_meta *params) {
 		kmer_ext_thread(counter, params);
 		free(counter);
 		if (TESTING && fresh_trial >= 2) break;
-		//if (i >= 200000) break;
+		//if (i >= 1000000) break;
 		//if (all_tpls->size() >= 2) break;
 	}
 	g_ptr_array_free(starting_reads, TRUE);
@@ -668,12 +678,12 @@ void ext_by_kmers_core(char *lib_file) {
 	fn = get_output_file("paired.junctions", kmer_out);
 	store_features(fn, branching_events, read_tpls);
 	free(fn);
-//
-//	show_msg(__func__, "Reloading the hash table ... \n");
-//	reload_table(ht, lib_fn_copy);
-//	free(lib_fn_copy);
-//	process_graph(read_tpls, branching_events, ht, kmer_out);
-//	destroy_ht(ht);
+
+	show_msg(__func__, "Reloading the hash table ... \n");
+	reload_table(ht, lib_fn_copy);
+	free(lib_fn_copy);
+	process_graph(read_tpls, branching_events, ht, kmer_out);
+	destroy_ht(ht);
 }
 
 int pe_kmer(int argc, char *argv[]) {
