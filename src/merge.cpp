@@ -473,14 +473,15 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
 			if (good_insert_size(dist)) n_spanning++;
 		}
 	}
-	show_debug_msg(__func__, "Left template [%d, %d] @ %d \n", t->id, t->len, t_locus);
-	show_debug_msg(__func__, "Right template [%d, %d] @ %d \n", b->id, b->len, b_locus);
-	show_debug_msg(__func__, "Spanning reads: %.2f/%.2f.\n", n_spanning, n_not_paired);
 	if (n_spanning > 0 && n_spanning >= n_not_paired * PAIR_PERCENTAGE) {
 		if (b_locus < ht->o->k && (t->len - con_pos) < 2 * ht->o->k) {
-			p_tpl(t);
+			//p_tpl(t);
+			show_debug_msg(__func__, "Left template [%d, %d] @ %d \n", t->id, t->len, t_locus);
+			show_debug_msg(__func__, "Right template [%d, %d] @ %d \n", b->id, b->len, b_locus);
+			show_debug_msg(__func__, "Spanning reads: %.2f/%.2f.\n", n_spanning, n_not_paired);
 			show_debug_msg(__func__, "Merging: left [%d, %d] @ %d; right [%d, %d] %d. \n",
 				t->id, t->len, con_pos, b->id, b->len, cut_pos);
+
 			truncate_tpl(t, t->len - con_pos, 1, 0);
 			truncate_tpl(b, cut_pos, 1, 1);
 			ori_len = t->len;
@@ -488,7 +489,7 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
 			refresh_tpl_reads(ht, t, ori_len - ht->o->read_len, ori_len + ht->o->read_len, N_MISMATCHES);
 			correct_tpl_base(ht->seqs, t, ht->o->read_len, ori_len
 					- ht->o->read_len, ori_len + ht->o->read_len);
-			p_tpl(t);
+			//p_tpl(t);
 			return 1;
 		}
 	}
@@ -499,6 +500,8 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
  * Description: http://caishaojiang.com/2014/05/01/peta-connect-both-ends-of-branch-template-to-main-template/
  * t: ----------------------------------------------------
  * b:               a1 ---------         ----------- a2
+ * Assumption: the anchors are already sorted by 'hash' attribute;
+ * 	That means, first sorted by t->id, then sorted by 'locus'
  */
 int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 	if (!anchors || anchors->len <= 0 || !t || !t->alive) return 0;
@@ -506,7 +509,6 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 	int i = 0, j = 0, x = 0, k = ht->o->k, tmp = 0, adjusted = 0;
 	int connected = 0, dist = 0, n_left = 0, n_right = 0, con_left = 0, con_right = 0;
 	float n_pairs = 0.0, n_single_reads = 0.0;
-	bwa_seq_t *left_cross_r = NULL, *right_cross_r = NULL;
 	anchor *a = NULL, *a1 = NULL, *a2 = NULL;
 	bwa_seq_t *r = NULL, *m = NULL;
 	GPtrArray *junc_reads = NULL;
@@ -522,21 +524,21 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 		if (!b->alive || has_any_junction(b)) continue;
 		for (j = i; j < anchors->len; j++) {
 			a2 = (anchor*) g_ptr_array_index(anchors, j);
+			if (a1->t != a2->t) break;
 			if (a1->size <= 0 || a2->size <= 0) continue;
-			left_cross_r = NULL, right_cross_r = NULL;
-			if (a1 == a2 || !a2->t->alive || a1->t != a2->t || a1->from >= a2->from) continue;
-			if (a1->size + a2->size < ht->o->read_len) continue;
-			if (a1->locus + a1->size > a2->locus) continue;
-			//p_tpl(t); p_tpl(b);
+			if (a1 == a2 || !a2->t->alive || a1->from >= a2->from) continue;
+			if (a1->size + a2->size < ht->o->read_len || has_any_junction(b)) continue;
+			p_tpl(t); p_tpl(b);
 			p_anchor("A1", a1); p_anchor("A2", a2);
 			show_debug_msg(__func__, "Connecting branch template [%d, %d] to main template [%d, %d] ... \n",
 					b->id, b->len, t->id, t->len);
 			con_left = a1->from + a1->size;
 			con_right = a2->from;
 			adjusted = 0;
-			if (con_right - con_left < 0) {
-				show_debug_msg(__func__, "Left position %d larger than right position %d. \n ", con_left, con_right);
-				dist = con_left - con_right;
+			if (con_right - con_left < 0 || a2->locus < a1->locus + a1->size) {
+				show_debug_msg(__func__, "Left position %d larger than right position %d. \n", con_left, con_right);
+				// Either the main branch anchors overlap or branch anchors overlap
+				dist = max(a1->from + a1->size - a2->from, a1->locus + a1->size - a2->locus);
 				tmp = a2->locus + dist;
 				for (x = 1; x <= dist; x++) {
 					show_debug_msg(__func__, "LEFT: %d; RIGHT: %d \n", tmp-x, a1->locus + a1->size - x);
@@ -545,25 +547,31 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 					if (b->ctg->seq[tmp - x] == b->ctg->seq[a1->locus + a1->size - x]) {
 						adjusted++;
 					} else break;
-					if (con_right + adjusted == con_left) break;
 				}
 				show_debug_msg(__func__, "Adjusted: left %d; right %d. \n ", con_left, con_right + adjusted);
 			}
+			con_right += adjusted;
+			// Not allow circle in the graph
+			if (con_left > con_right) continue;
+			if (con_right - con_left == a2->locus + adjusted - a1->locus) continue;
+			if (con_right - con_left <= 2 * k && a2->locus + adjusted - a1->locus - a1->size <= 2 * k) continue;
 			junc_reads = g_ptr_array_sized_new(4);
+			n_left = 0; n_right = 0;
 			for (x = 0; x < b->reads->len; x++) {
 				r = (bwa_seq_t*) g_ptr_array_index(b->reads, x);
 				if (r->contig_locus < a1->locus + a1->size && r->contig_locus + r->len > a1->locus + a1->size) {
-					left_cross_r = r; g_ptr_array_add(junc_reads, r);
+					n_left++; g_ptr_array_add(junc_reads, r);
 				}
 				if (r->contig_locus < a2->locus + adjusted && r->contig_locus + r->len > a2->locus + adjusted) {
-					right_cross_r = r; g_ptr_array_add(junc_reads, r);
+					n_right++; g_ptr_array_add(junc_reads, r);
 				}
 			}
 			show_debug_msg(__func__, "Junction reads: %d \n", junc_reads->len);
-			if (left_cross_r && right_cross_r) {
+			if (n_left && n_right) {
 				n_pairs = 0.0; n_single_reads = 0.0;
 				for (x = 0; x < junc_reads->len; x++) {
 					r = (bwa_seq_t*) g_ptr_array_index(junc_reads, x);
+					if (r->contig_locus < a1->locus || r->contig_locus + r->len > a2->locus + a2->size) continue;
 					m = get_mate(r, ht->seqs);
 					//p_query(__func__, r);
 					//p_query(__func__, m);
@@ -580,10 +588,13 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 					//show_debug_msg(__func__, "Pairs: %.2f/%.2f; Distance: %d \n", n_pairs, n_single_reads, dist);
 				}
 			}
+			if ((b->len - a2->locus - adjusted) + (a1->locus + a1->size) > b->len) {
+				show_debug_msg(__func__, "[WARNING] Branch template [%d, %d] is too short to be truncated: Right %d; Left %d\n",
+						b->id, b->len, (b->len - a2->locus - adjusted), (a1->locus + a1->size));
+				continue;
+			}
 			if (n_pairs > 0.0 && n_pairs >= n_single_reads * PAIR_PERCENTAGE) {
 				shrink_anchor_right(a2, adjusted);
-				n_left = reads_covering_locus(b, a1->locus, a1->locus + a1->size, a2->locus + a2->size);
-				n_right = reads_covering_locus(b, a1->locus, a2->locus, a2->locus + a2->size);
 				add_a_junction(t, b, NULL, a2->from, 1, n_right);
 				add_a_junction(t, b, NULL, a1->from + a1->size, 0, n_left);
 
@@ -603,8 +614,7 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 				set_tail(b, t, a2->from, ht->o->read_len - 1, 1);
 				disable_anchor(a1); disable_anchor(a2);
 				connected = 1;
-				//p_tpl(b);
-				//p_tpl_reads(b);
+				//p_tpl(b); p_tpl_reads(b);
 			}
 			g_ptr_array_free(junc_reads, TRUE);
 		}

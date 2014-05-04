@@ -1721,7 +1721,7 @@ hash_table *hash_tpls(GPtrArray *tpls, int k, int interleaving) {
 			show_debug_msg(__func__, "[WARNING] Template [%d, %d] is too long to be hashed. \n", t->id, t->len);
 			continue;
 		}
-		if (t->len < k) continue;
+		if (t->len < k || !t->alive) continue;
 		for (j = 0; j <= t->ctg->len - k; j++) {
 			key = get_hash_key(t->ctg->seq, j, interleaving, k);
 			k_mers_occ_acc[key]++;
@@ -1749,7 +1749,7 @@ hash_table *hash_tpls(GPtrArray *tpls, int k, int interleaving) {
 			show_debug_msg(__func__, "[WARNING] Template [%d, %d] is too long to be hashed. \n", t->id, t->len);
 			continue;
 		}
-		if (t->len < k) continue;
+		if (t->len < k || !t->alive) continue;
 		for (j = 0; j <= t->ctg->len - k; j++) {
 			key = get_hash_key(t->ctg->seq, j, interleaving, k);
 			value = get_hash_value(t->id, j);
