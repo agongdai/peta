@@ -196,9 +196,9 @@ void hash_a_tpl(uint32_t *hash, const ubyte_t *seq, const int len, const int k, 
 	}
 }
 
-void read_hash_value(index64 *seq_id, int *pos_start, hash_value value) {
-	*seq_id = value >> N_POS_BITS;
-	*seq_id = *seq_id & HASH_VALUE_HIGHER;
+void read_hash_value(index64 *tpl_id, int *pos_start, hash_value value) {
+	*tpl_id = value >> N_POS_BITS;
+	*tpl_id = *tpl_id & HASH_VALUE_HIGHER;
 	*pos_start = value & HASH_VALUE_LOWER;
 }
 

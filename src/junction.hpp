@@ -84,6 +84,7 @@ extern "C" {
 	void truncate_tpl(tpl *t, int len, int reset_reads, int ori);
 	int has_junction_at_locus(tpl *t, int locus, int ori);
 	int has_any_junction(tpl *t);
+	void rev_com_tpl(tpl *t);
 	void cut_tpl_at_locus(tpl *t, tpl *b, int read_len, int b_left, int b_right, int t_left, int t_right);
 
 #ifdef __cplusplus

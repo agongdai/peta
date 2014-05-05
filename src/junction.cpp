@@ -1213,3 +1213,19 @@ void cut_tpl_at_locus(tpl *t, tpl *b, int read_len, int b_left, int b_right, int
 //	add_a_junction(t, b, NULL, t_left, 0, n) ;
 //	add_a_junction(t, b, NULL, t_right, 1, n) ;
 }
+
+/**
+ * Reverse complement a template and the reads on it.
+ * Assumption: no junctions on this template
+ */
+void rev_com_tpl(tpl *t) {
+	if (has_any_junction(t)) return;
+	switch_fr(t->ctg);
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		r->contig_locus = t->len - r->contig_locus - r->len;
+		r->rev_com = r->rev_com ? 0 : 1;
+	}
+}

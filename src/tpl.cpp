@@ -30,7 +30,7 @@ eg_gap *init_gap(int s_index, int size, int ori) {
 }
 
 void p_anchor(char *header, anchor *a) {
-	show_debug_msg(header, "HASH = %"ID64 "; Anchor: template [%d, %d] @ %d size %d; from %d \n", a->hash, a->t->id, a->t->len, a->locus, a->size, a->from);
+	show_debug_msg(header, "HASH = %"ID64 "; Anchor: template [%d, %d] @ %d size %d; from %d; rev_com: %d \n", a->hash, a->t->id, a->t->len, a->locus, a->size, a->from, a->rev_com);
 }
 
 void p_tpl(tpl *t) {

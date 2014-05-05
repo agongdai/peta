@@ -61,6 +61,7 @@ typedef struct {
 	int from;
 	int size;
 	index64 hash;
+	int8_t rev_com;
 } anchor;
 
 #ifdef __cplusplus

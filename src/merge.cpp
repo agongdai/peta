@@ -147,6 +147,7 @@ void merge_tpl_to_left(tpl *t, tpl *jumped, int ol, int rev_com) {
 	}
 	t->len = t->ctg->len;
 	set_rev_com(t->ctg);
+	//p_tpl(t);
 
 	// Add the reads on right template to the left template
 	for (i = 0; i < jumped->reads->len; i++) {
@@ -166,6 +167,7 @@ void merge_tpl_to_left(tpl *t, tpl *jumped, int ol, int rev_com) {
 	while (jumped->reads->len > 0)
 		g_ptr_array_remove_index_fast(jumped->reads, 0);
 	jumped->alive = 0;
+	//p_tpl(t);
 }
 
 int similar_to_merge(bwa_seq_t *from, bwa_seq_t *jumped, int unique_len) {
@@ -451,14 +453,15 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
 	int i = 0, con_pos = t_locus, cut_pos = b_locus;
 	float n_not_paired = 0.0, n_spanning = 0.0;
 	int t_part_len = 0, dist = 0, ori_len = 0;
-	//show_debug_msg(__func__, "Left template [%d, %d] @ %d \n", t->id, t->len, t_locus);
-	//show_debug_msg(__func__, "Right template [%d, %d] @ %d \n", b->id, b->len, b_locus);
+	show_debug_msg(__func__, "Left template [%d, %d] @ %d \n", t->id, t->len, t_locus);
+	show_debug_msg(__func__, "Right template [%d, %d] @ %d \n", b->id, b->len, b_locus);
 	if (t_locus < t->len - 4 * ht->o->k || b_locus > 2 * ht->o->k) return 0;
 	if (has_junction_at_locus(t, con_pos, 0)) return 0;
 	for (i = 0; i < min(t->len - t_locus, b->len - b_locus); i++) {
 		if (t->ctg->seq[i + t_locus] != b->ctg->seq[i + b_locus]) break;
 		con_pos++; cut_pos++;
 	}
+	show_debug_msg(__func__, "con_pos: %d; cut_pos: %d \n", con_pos, cut_pos);
 	bwa_seq_t *r = NULL, *m = NULL;
 	// Count pairs spanning the two templates
 	for (i = 0; i < t->reads->len; i++) {
@@ -482,14 +485,15 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
 			show_debug_msg(__func__, "Merging: left [%d, %d] @ %d; right [%d, %d] %d. \n",
 				t->id, t->len, con_pos, b->id, b->len, cut_pos);
 
-			truncate_tpl(t, t->len - con_pos, 1, 0);
-			truncate_tpl(b, cut_pos, 1, 1);
+			truncate_tpl(t, t->len - con_pos, 0, 0);
+			truncate_tpl(b, cut_pos, 0, 1);
 			ori_len = t->len;
 			merge_tpl_to_left(t, b, 0, 0);
 			refresh_tpl_reads(ht, t, ori_len - ht->o->read_len, ori_len + ht->o->read_len, N_MISMATCHES);
 			correct_tpl_base(ht->seqs, t, ht->o->read_len, ori_len
 					- ht->o->read_len, ori_len + ht->o->read_len);
-			//p_tpl(t);
+			p_tpl(t);
+			//p_tpl_reads(t);
 			return 1;
 		}
 	}

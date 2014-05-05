@@ -30,7 +30,7 @@
 
 using namespace std;
 
-int TESTING = 0; //510324;// 80598;
+int TESTING = 0;//1661730;//24533;// 80598;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -408,33 +408,25 @@ tpl *ext_a_read(hash_table *ht, tpl_hash *all_tpls, bwa_seq_t *read, index64 cou
 	return t;
 }
 
-GPtrArray *tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tpl_ht, tpl *t, int s, int e) {
-	tpl *sharing = NULL;
-	hash_key key = 0ULL;
-	hash_value value = 0ULL;
-	index64 tpl_id = 0;
+void load_anchors(tpl_hash *all_tpls, hash_table *tpl_ht, int8_t *candiates, GPtrArray *anchors, tpl *t, int rev_com, int s, int e) {
 	int i = 0, j = 0, locus = 0, start = 0, end = 0;
-	bwa_seq_t *kmer = NULL, *r = NULL, *m = NULL;
-	GPtrArray *anchors = g_ptr_array_sized_new(4);
-	anchor *a = NULL, *pre = NULL;
-	if (!t->alive || t->reads->len <= 0 || t->pair_pc >= 1.0) return anchors;
-	// It is a list, acting as a quick hash table, indicating the templates that have reads pairing with 't'
-	// For two templates, only if they have pairs, they could be probably connected.
-	int8_t *candiates = (int8_t*) calloc(kmer_ctg_id + 4, sizeof(int8_t));
-	for (i = 0; i < t->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
-		m = get_mate(r, ht->seqs);
-		if (m->status == USED && m->contig_id != t->id)
-			candiates[m->contig_id] = 1;
-	}
-	//show_debug_msg(__func__, "Templates sharing 11-mer with template [%d, %d] \n", t->id, t->len);
+	hash_key key = 0ULL;
+	index64 tpl_id = 0;
+	hash_value value = 0ULL;
+	anchor *a = NULL;
+	tpl *sharing = NULL;
+	bwa_seq_t *kmer = NULL;
+	//p_hash_table(tpl_ht);
+	//show_debug_msg(__func__, "Templates sharing 11-mer with template [%d, %d]; rev_com: %d \n", t->id, t->len, rev_com);
 	for (i = max(0, s); i <= min(t->len, e) - tpl_ht->o->k; i++) {
 		key = get_hash_key(t->ctg->seq, i, tpl_ht->o->interleaving, tpl_ht->o->k);
+		if (rev_com) key = get_hash_key(t->ctg->rseq, i, tpl_ht->o->interleaving, tpl_ht->o->k);
 		start = tpl_ht->k_mers_occ_acc[key];
 		end = (key >= tpl_ht->o->n_k_mers) ? tpl_ht->k_mers_occ_acc[tpl_ht->o->n_k_mers - 1]
 				: tpl_ht->k_mers_occ_acc[key + 1];
-		if (end - start > 1) {
+		if (end - start >= 1) {
 			//kmer = get_key_seq(key, tpl_ht->o->k);
+			//kmer->contig_locus = i; kmer->contig_id = t->id;
 			//p_query("KMER", kmer);
 			//bwa_free_read_seq(1, kmer);
 			for (j = start; j < end; j++) {
@@ -448,18 +440,41 @@ GPtrArray *tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tp
 				if (sharing->alive) {
 					a = (anchor*) malloc(sizeof(anchor));
 					a->t = sharing;
-					a->locus = locus;
 					a->size = tpl_ht->o->k;
 					a->from = i;
+					a->locus = locus;
 					a->hash = value;
+					a->rev_com = rev_com;
 					g_ptr_array_add(anchors, a);
+					//p_anchor("HIT", a);
 				}
 			}
 		}
 	}
+}
+
+void tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tpl_ht, GPtrArray *anchors,
+		tpl *t, int s, int e, int rev_com) {
+	int i = 0;
+	bwa_seq_t *kmer = NULL, *r = NULL, *m = NULL;
+	anchor *a = NULL, *pre = NULL;
+	if (!t->alive || t->reads->len <= 0 || t->pair_pc >= 1.0) return;
+	// It is a list, acting as a quick hash table, indicating the templates that have reads pairing with 't'
+	// For two templates, only if they have pairs, they could be probably connected.
+	int8_t *candiates = (int8_t*) calloc(kmer_ctg_id + 4, sizeof(int8_t));
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		m = get_mate(r, ht->seqs);
+		if (m->status == USED && m->contig_id != t->id) {
+			//p_query("READ", r);
+			//p_query("MATE", m);
+			candiates[m->contig_id] = 1;
+		}
+	}
+	load_anchors(all_tpls, tpl_ht, candiates, anchors, t, rev_com, s, e);
 	free(candiates);
 	compact_anchors(anchors);
-	return anchors;
+	return;
 }
 
 int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
@@ -483,9 +498,13 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 			//p_tpl(t);
 			if (!t->alive || t->pair_pc >= 1.0) continue;
 			connected = 0;
-			anchors = tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, t, t->len - ht->o->k * 4, t->len);
+
+			// Both template are with the same orientation
+			anchors = g_ptr_array_sized_new(4);
+			tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, anchors, t, 0, t->len, 0);
 			for (j = 0; j < anchors->len; j++) {
 				a = (anchor*) g_ptr_array_index(anchors, j);
+				//p_anchor("HIT", a);
 				if (!connected && a->size > 0 && a->t->alive && !a->t->visited) {
 					connected = connect_at_locus_right(ht, t, a->t, a->from, a->locus);
 					if (connected)  {
@@ -493,6 +512,42 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 						n_merged++;
 					}
 				}
+				free(a);
+			}
+			g_ptr_array_free(anchors, TRUE);
+			if (connected) continue;
+
+			// If the two templates are not with the same orientation
+			anchors = g_ptr_array_sized_new(4);
+			tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, anchors, t, 0, t->len, 1);
+			rev_com_tpl(t);
+			for (j = 0; j < anchors->len; j++) {
+				a = (anchor*) g_ptr_array_index(anchors, j);
+				//p_anchor("HIT", a);
+				if (!connected && a->size > 0 && a->t->alive && !a->t->visited) {
+					connected = connect_at_locus_right(ht, t, a->t, a->from, a->locus);
+					if (connected)  {
+						t->visited = 1; n_merged++;
+					}
+				}
+			}
+			if (!connected) {
+				rev_com_tpl(t);
+				for (j = 0; j < anchors->len; j++) {
+					a = (anchor*) g_ptr_array_index(anchors, j);
+					//p_anchor("HIT", a);
+					if (!connected && a->size > 0 && a->t->alive && !a->t->visited) {
+						rev_com_tpl(a->t);
+						connected = connect_at_locus_right(ht, t, a->t, t->len - a->from - a->size,
+								a->t->len - a->locus - a->size);
+						if (connected)  {
+							t->visited = 1; n_merged++;
+						} else rev_com_tpl(a->t);
+					}
+				}
+			}
+			for (j = 0; j < anchors->len; j++) {
+				a = (anchor*) g_ptr_array_index(anchors, j);
 				free(a);
 			}
 			g_ptr_array_free(anchors, TRUE);
@@ -511,7 +566,8 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 	for (i = 0; i < tpls->len; i++) {
 		t = (tpl*) g_ptr_array_index(tpls, i);
 		if (!t->alive || t->pair_pc >= 1.0) continue;
-		anchors = tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, t, 0, t->len);
+		anchors = g_ptr_array_sized_new(4);
+		tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, anchors, t, 0, 0, t->len);
 		n_both_connected += connect_both_ends(ht, anchors, t);
 		for (j = 0; j < anchors->len; j++) {
 			a = (anchor*) g_ptr_array_index(anchors, j);
@@ -550,7 +606,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 
 	if (counter->count < 1)  return NULL;
 	if (TESTING && fresh_trial == 0) read = &ht->seqs[TESTING];
-	if (TESTING && fresh_trial == 1) read = &ht->seqs[7309714];//856387];
+	if (TESTING && fresh_trial == 1) read = &ht->seqs[94305];//1579778];//856387];
 
 	t = ext_a_read(ht, all_tpls, read, counter->count);
 	if (t) {
@@ -558,6 +614,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 			unfrozen_tried(t);
 			refresh_tpl_reads(ht, t, 0, t->len, N_MISMATCHES);
 			correct_tpl_base(ht->seqs, t, ht->o->read_len, 0, t->len);
+			//p_tpl(t);
 		} else rm_global_tpl(all_tpls, t, TRIED);
 	}
 	return NULL;
