@@ -30,7 +30,7 @@
 
 using namespace std;
 
-int TESTING = 0;//1661730;//24533;// 80598;
+int TESTING = 0;//80598;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -567,7 +567,7 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 		t = (tpl*) g_ptr_array_index(tpls, i);
 		if (!t->alive || t->pair_pc >= 1.0) continue;
 		anchors = g_ptr_array_sized_new(4);
-		tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, anchors, t, 0, 0, t->len);
+		tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, anchors, t, 0, t->len, 0);
 		n_both_connected += connect_both_ends(ht, anchors, t);
 		for (j = 0; j < anchors->len; j++) {
 			a = (anchor*) g_ptr_array_index(anchors, j);
@@ -606,7 +606,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 
 	if (counter->count < 1)  return NULL;
 	if (TESTING && fresh_trial == 0) read = &ht->seqs[TESTING];
-	if (TESTING && fresh_trial == 1) read = &ht->seqs[94305];//1579778];//856387];
+	if (TESTING && fresh_trial == 1) read = &ht->seqs[856387];
 
 	t = ext_a_read(ht, all_tpls, read, counter->count);
 	if (t) {
