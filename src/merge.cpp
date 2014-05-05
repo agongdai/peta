@@ -508,9 +508,10 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 	tpl *b = NULL;
 	int i = 0, j = 0, x = 0, k = ht->o->k, tmp = 0, adjusted = 0;
 	int connected = 0, dist = 0, n_left = 0, n_right = 0, con_left = 0, con_right = 0;
+	int t_mid = 0, b_mid = 0, similar = 0;
 	float n_pairs = 0.0, n_single_reads = 0.0;
 	anchor *a = NULL, *a1 = NULL, *a2 = NULL;
-	bwa_seq_t *r = NULL, *m = NULL;
+	bwa_seq_t *r = NULL, *m = NULL, *t_seq = NULL, *b_seq = NULL;
 	GPtrArray *junc_reads = NULL;
 //	show_debug_msg(__func__, "Anchors shared with [%d, %d] \n", t->id, t->len);
 //	for (i = 0; i < anchors->len; i++) {
@@ -528,6 +529,7 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 			if (a1->size <= 0 || a2->size <= 0) continue;
 			if (a1 == a2 || !a2->t->alive || a1->from >= a2->from) continue;
 			if (a1->size + a2->size < ht->o->read_len || has_any_junction(b)) continue;
+			if (a1->from + a1->size - a2->from <= 2 * k && a2->locus - a1->locus - a1->size <= 2 * k) continue;
 			p_tpl(t); p_tpl(b);
 			p_anchor("A1", a1); p_anchor("A2", a2);
 			show_debug_msg(__func__, "Connecting branch template [%d, %d] to main template [%d, %d] ... \n",
@@ -548,13 +550,34 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 						adjusted++;
 					} else break;
 				}
-				show_debug_msg(__func__, "Adjusted: left %d; right %d. \n ", con_left, con_right + adjusted);
+				show_debug_msg(__func__, "Adjusted: left %d; right %d. \n", con_left, con_right + adjusted);
 			}
 			con_right += adjusted;
 			// Not allow circle in the graph
 			if (con_left > con_right) continue;
-			if (con_right - con_left == a2->locus + adjusted - a1->locus) continue;
-			if (con_right - con_left <= 2 * k && a2->locus + adjusted - a1->locus - a1->size <= 2 * k) continue;
+			if ((b->len - a2->locus - adjusted) + (a1->locus + a1->size) > b->len) {
+				show_debug_msg(__func__, "[WARNING] Branch template [%d, %d] is too short to be truncated: Right %d; Left %d\n",
+						b->id, b->len, (b->len - a2->locus - adjusted), (a1->locus + a1->size));
+				continue;
+			}
+
+			t_mid = a2->from + adjusted - a1->from - a1->size;
+			b_mid = a2->locus + adjusted - a1->locus - a1->size;
+			if (abs(t_mid - b_mid) <= k) {
+				t_seq = new_seq(t->ctg, t_mid, a1->from + a1->size);
+				b_seq = new_seq(b->ctg, b_mid, a1->locus + a1->size);
+				p_query("MAIN_MIDDLE", t_seq);
+				p_query("BRAN MIDDLE", b_seq);
+				similar = similar_seqs(b_seq, b_seq, (1 - SM_SIMILARY) * min(t_mid, b_mid),
+						MAX_GAPS, MATCH_SCORE, MISMATCH_SCORE, INDEL_SCORE);
+				bwa_free_read_seq(1, t_seq);
+				bwa_free_read_seq(1, b_seq);
+				if (similar) {
+					show_debug_msg(__func__, "The middle sequences are similar, not connected. \n");
+					continue;
+				}
+			}
+
 			junc_reads = g_ptr_array_sized_new(4);
 			n_left = 0; n_right = 0;
 			for (x = 0; x < b->reads->len; x++) {
@@ -567,7 +590,7 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 				}
 			}
 			show_debug_msg(__func__, "Junction reads: %d \n", junc_reads->len);
-			if (n_left && n_right) {
+			if (n_left >= MIN_PAIRS && n_right >= MIN_PAIRS) {
 				n_pairs = 0.0; n_single_reads = 0.0;
 				for (x = 0; x < junc_reads->len; x++) {
 					r = (bwa_seq_t*) g_ptr_array_index(junc_reads, x);
@@ -588,12 +611,8 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 					//show_debug_msg(__func__, "Pairs: %.2f/%.2f; Distance: %d \n", n_pairs, n_single_reads, dist);
 				}
 			}
-			if ((b->len - a2->locus - adjusted) + (a1->locus + a1->size) > b->len) {
-				show_debug_msg(__func__, "[WARNING] Branch template [%d, %d] is too short to be truncated: Right %d; Left %d\n",
-						b->id, b->len, (b->len - a2->locus - adjusted), (a1->locus + a1->size));
-				continue;
-			}
-			if (n_pairs > 0.0 && n_pairs >= n_single_reads * PAIR_PERCENTAGE) {
+			g_ptr_array_free(junc_reads, TRUE);
+			if (n_pairs >= MIN_PAIRS && n_pairs >= n_single_reads * PAIR_PERCENTAGE) {
 				shrink_anchor_right(a2, adjusted);
 				add_a_junction(t, b, NULL, a2->from, 1, n_right);
 				add_a_junction(t, b, NULL, a1->from + a1->size, 0, n_left);
@@ -616,7 +635,6 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 				connected = 1;
 				//p_tpl(b); p_tpl_reads(b);
 			}
-			g_ptr_array_free(junc_reads, TRUE);
 		}
 	}
 	return connected;

@@ -30,7 +30,7 @@
 
 using namespace std;
 
-int TESTING = 0; //80598;
+int TESTING = 0; //510324;// 80598;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -414,9 +414,19 @@ GPtrArray *tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tp
 	hash_value value = 0ULL;
 	index64 tpl_id = 0;
 	int i = 0, j = 0, locus = 0, start = 0, end = 0;
-	bwa_seq_t *kmer = NULL;
+	bwa_seq_t *kmer = NULL, *r = NULL, *m = NULL;
 	GPtrArray *anchors = g_ptr_array_sized_new(4);
 	anchor *a = NULL, *pre = NULL;
+	if (!t->alive || t->reads->len <= 0 || t->pair_pc >= 1.0) return anchors;
+	// It is a list, acting as a quick hash table, indicating the templates that have reads pairing with 't'
+	// For two templates, only if they have pairs, they could be probably connected.
+	int8_t *candiates = (int8_t*) calloc(kmer_ctg_id + 4, sizeof(int8_t));
+	for (i = 0; i < t->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		m = get_mate(r, ht->seqs);
+		if (m->status == USED && m->contig_id != t->id)
+			candiates[m->contig_id] = 1;
+	}
 	//show_debug_msg(__func__, "Templates sharing 11-mer with template [%d, %d] \n", t->id, t->len);
 	for (i = max(0, s); i <= min(t->len, e) - tpl_ht->o->k; i++) {
 		key = get_hash_key(t->ctg->seq, i, tpl_ht->o->interleaving, tpl_ht->o->k);
@@ -430,7 +440,7 @@ GPtrArray *tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tp
 			for (j = start; j < end; j++) {
 				value = tpl_ht->pos[j];
 				read_hash_value(&tpl_id, &locus, value);
-				if (tpl_id == t->id) continue;
+				if (tpl_id == t->id || candiates[tpl_id] != 1) continue;
 				//show_debug_msg(__func__, "HASH = %"ID64"; At %d: template %d at %d \n", value, i, tpl_id, locus);
 				tpl_hash::iterator it = all_tpls->find(tpl_id);
 				if (it == all_tpls->end()) continue;
@@ -447,6 +457,7 @@ GPtrArray *tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tp
 			}
 		}
 	}
+	free(candiates);
 	compact_anchors(anchors);
 	return anchors;
 }
@@ -458,6 +469,10 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 	hash_table *ht = params->ht;
 	GPtrArray *anchors = NULL;
 	hash_table *tpl_ht = NULL;
+	for (i = 0; i < tpls->len; i++) {
+		t = (tpl*) g_ptr_array_index(tpls, i);
+		t->visited = 0;
+	}
 	while(iter < 8 && n_merged) {
 		n_merged = 0; n_both_connected = 0;
 		tpl_ht = hash_tpls(tpls, ht->o->k, 1);
@@ -535,7 +550,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 
 	if (counter->count < 1)  return NULL;
 	if (TESTING && fresh_trial == 0) read = &ht->seqs[TESTING];
-	if (TESTING && fresh_trial == 1) read = &ht->seqs[856387];
+	if (TESTING && fresh_trial == 1) read = &ht->seqs[7309714];//856387];
 
 	t = ext_a_read(ht, all_tpls, read, counter->count);
 	if (t) {
@@ -673,6 +688,7 @@ void ext_by_kmers_core(char *lib_file) {
 	fclose(contigs);
 	free(fn);
 
+	g_ptr_array_sort(read_tpls, (GCompareFunc) cmp_tpl_by_id);
 	get_junction_arr(read_tpls, branching_events);
 	g_ptr_array_sort(branching_events, (GCompareFunc) cmp_junc_by_id);
 	fn = get_output_file("paired.junctions", kmer_out);

@@ -372,8 +372,7 @@ void break_tpl(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_table *ht) {
 		left = (vertex*) g_ptr_array_index(this_vs, i);
 		right = (vertex*) g_ptr_array_index(this_vs, i + 1);
 		e = bridge_edge(left, right);
-		if (!e)
-			continue;
+		if (!e) continue;
 		e->junc_seq = get_junc_seq(t, pre_start, &e->left_len, t, pre_start,
 				&e->right_len, max_len);
 		e->len = e->left_len + e->right_len;
@@ -543,6 +542,8 @@ void connect_tpls(tpl *t, GPtrArray *main_juncs, splice_graph *g, hash_table *ht
 
 /**
  * Build the graph from the templates and junctions
+ * Important: the templates must be sorted by template id
+ * 			  the junctions must be sorted by template id
  */
 splice_graph *build_graph(GPtrArray *all_tpls, GPtrArray *all_juncs,
 		hash_table *ht) {

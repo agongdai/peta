@@ -647,11 +647,11 @@ void get_junction_arr(GPtrArray *read_tpls, GPtrArray *junctions) {
 	for (i = 0; i < junctions->len; i++) {
 		junc = (junction*) g_ptr_array_index(junctions, i);
 		junc->status = 0;
-		if (junc->weight < MIN_JUNCTION_READS) {
-			show_debug_msg(__func__, "Junction two few reads.\n");
-			g_ptr_array_remove_index_fast(junctions, i--);
-			destroy_junction(junc);
-		}
+//		if (junc->weight < MIN_JUNCTION_READS) {
+//			show_debug_msg(__func__, "Junction two few reads.\n");
+//			g_ptr_array_remove_index_fast(junctions, i--);
+//			destroy_junction(junc);
+//		}
 	}
 }
 
