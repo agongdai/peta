@@ -30,7 +30,7 @@
 
 using namespace std;
 
-int TESTING = 0;//80598;
+int TESTING = 522426;//404427;// 163989;//80598;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -478,7 +478,7 @@ void tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tpl_ht, 
 }
 
 int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
-	int connected = 0, n_merged = 1, n_both_connected = 0, i = 0, j = 0, iter = 1;
+	int connected = 0, both_connected = 0, n_merged = 1, n_both_connected = 0, i = 0, j = 0, iter = 1;
 	tpl *t = NULL, *b = NULL;
 	anchor *a = NULL;
 	hash_table *ht = params->ht;
@@ -565,15 +565,32 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 	if (!tpl_ht) tpl_ht = hash_tpls(tpls, ht->o->k, 1);
 	for (i = 0; i < tpls->len; i++) {
 		t = (tpl*) g_ptr_array_index(tpls, i);
+		//printf("\n------------------------------------------------------- \n");
+		//p_tpl(t);
 		if (!t->alive || t->pair_pc >= 1.0) continue;
 		anchors = g_ptr_array_sized_new(4);
 		tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, anchors, t, 0, t->len, 0);
-		n_both_connected += connect_both_ends(ht, anchors, t);
+		both_connected = connect_both_ends(ht, anchors, t);
+		n_both_connected += both_connected;
 		for (j = 0; j < anchors->len; j++) {
-			a = (anchor*) g_ptr_array_index(anchors, j);
-			free(a);
+			a = (anchor*) g_ptr_array_index(anchors, j); free(a);
 		}
 		g_ptr_array_free(anchors, TRUE);
+
+		// If the main and branch templates are with different orientation
+		if (!both_connected) {
+			anchors = g_ptr_array_sized_new(4);
+			tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, anchors, t, 0, t->len, 1);
+			rev_com_tpl(t);
+			both_connected = connect_both_ends(ht, anchors, t);
+			if (both_connected) n_both_connected++;
+			else rev_com_tpl(t);
+			for (j = 0; j < anchors->len; j++) {
+				a = (anchor*) g_ptr_array_index(anchors, j); free(a);
+			}
+			g_ptr_array_free(anchors, TRUE);
+		}
+
 		anchors = NULL;
 	}
 	show_msg(__func__, "%d templates are both connected. \n", n_both_connected);
@@ -606,7 +623,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 
 	if (counter->count < 1)  return NULL;
 	if (TESTING && fresh_trial == 0) read = &ht->seqs[TESTING];
-	if (TESTING && fresh_trial == 1) read = &ht->seqs[856387];
+	if (TESTING && fresh_trial == 1) read = &ht->seqs[1841338];//1025528];//2887696];//856387];
 
 	t = ext_a_read(ht, all_tpls, read, counter->count);
 	if (t) {

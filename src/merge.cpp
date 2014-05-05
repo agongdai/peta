@@ -455,7 +455,6 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
 	int t_part_len = 0, dist = 0, ori_len = 0;
 	show_debug_msg(__func__, "Left template [%d, %d] @ %d \n", t->id, t->len, t_locus);
 	show_debug_msg(__func__, "Right template [%d, %d] @ %d \n", b->id, b->len, b_locus);
-	if (t_locus < t->len - 4 * ht->o->k || b_locus > 2 * ht->o->k) return 0;
 	if (has_junction_at_locus(t, con_pos, 0)) return 0;
 	for (i = 0; i < min(t->len - t_locus, b->len - b_locus); i++) {
 		if (t->ctg->seq[i + t_locus] != b->ctg->seq[i + b_locus]) break;
@@ -517,7 +516,7 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 	anchor *a = NULL, *a1 = NULL, *a2 = NULL;
 	bwa_seq_t *r = NULL, *m = NULL, *t_seq = NULL, *b_seq = NULL;
 	GPtrArray *junc_reads = NULL;
-//	show_debug_msg(__func__, "Anchors shared with [%d, %d] \n", t->id, t->len);
+	show_debug_msg(__func__, "Anchors shared with [%d, %d] \n", t->id, t->len);
 //	for (i = 0; i < anchors->len; i++) {
 //		a1 = (anchor*) g_ptr_array_index(anchors, i);
 //		p_anchor("ANCHOR", a1);
@@ -533,7 +532,7 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 			if (a1->size <= 0 || a2->size <= 0) continue;
 			if (a1 == a2 || !a2->t->alive || a1->from >= a2->from) continue;
 			if (a1->size + a2->size < ht->o->read_len || has_any_junction(b)) continue;
-			if (a1->from + a1->size - a2->from <= 2 * k && a2->locus - a1->locus - a1->size <= 2 * k) continue;
+			if (abs(a1->from + a1->size - a2->from) <= 2 * k && abs(a2->locus - a1->locus - a1->size) <= 2 * k) continue;
 			p_tpl(t); p_tpl(b);
 			p_anchor("A1", a1); p_anchor("A2", a2);
 			show_debug_msg(__func__, "Connecting branch template [%d, %d] to main template [%d, %d] ... \n",
