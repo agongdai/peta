@@ -30,7 +30,7 @@
 
 using namespace std;
 
-int TESTING = 0;// 870751; //1176672;//278052;//501241;//569894; //757632;// 569894;// 522426;//404427;// 163989;//80598;
+int TESTING = 0; //1176672;//278052;//501241;//569894; //757632;// 569894;// 522426;//404427;// 163989;//80598;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -726,9 +726,10 @@ int connect_missing_ends(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 		b = ext_a_read(ht, all_tpls, t, r, c->count);
 		if (b && b->alive) {
 			right_tpl_id = right_tpl_to_merge(ht->seqs, b, SM_SIMILARY);
+			show_debug_msg(__func__, "RIHGT_TPL_ID: %d \n", right_tpl_id);
 			if (right_tpl_id == t->id) {
-				p_tpl_reads(b);
-				p_tpl_reads(t);
+				//p_tpl_reads(b);
+				//p_tpl_reads(t);
 				connected = merged_jumped(ht, b, t, N_MISMATCHES);
 				break;
 			}
@@ -805,7 +806,7 @@ void kmer_threads(kmer_t_meta *params) {
 
 	show_msg( __func__, "----------- Stage 2: connect existing templates ----------\n");
 	connect_tpls(params);
-	ext_remaining_reads(params);
+	//ext_remaining_reads(params);
 
 	g_thread_pool_free(thread_pool, 0, 1);
 }

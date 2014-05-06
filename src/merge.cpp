@@ -228,30 +228,26 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped, int mis) {
 	//p_tpl_reads(jumped);
 	//**/
 	if (score >= 4) {
-		spanning = pairs_spanning_locus(ht->seqs, from, from_e + (from->len - from_seq->len));
-		//show_debug_msg(__func__, "Spanning pairs: %d \n", spanning);
-		if (spanning < 2) {
-			// For the overlapped region, pick the one with higher coverage
-			from_cov = calc_tpl_cov(from, from->len - from_seq->len + from_s,
-					from->len - from_seq->len + from_e, ht->o->read_len);
-			jumped_cov = calc_tpl_cov(jumped, jumped_s, jumped_e,
-					ht->o->read_len);
-			if (from_cov > jumped_cov) {
-				truncate_tpl(from, from_seq->len - from_e, 1, 0);
-				truncate_tpl(jumped, jumped_e, 1, 1);
-			} else {
-				truncate_tpl(from, from_seq->len - from_s, 1, 0);
-				truncate_tpl(jumped, jumped_s, 1, 1);
-			}
-			bwa_free_read_seq(1, from_seq);
-			bwa_free_read_seq(1, jumped_seq);
-			ori_len = from->len;
-			merge_tpl_to_left(from, jumped, 0, rev_com);
-			refresh_tpl_reads(ht, from, 0, from->len, N_MISMATCHES);
-			correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
-					- ht->o->read_len, ori_len + ht->o->read_len);
-			return 1;
+		// For the overlapped region, pick the one with higher coverage
+		from_cov = calc_tpl_cov(from, from->len - from_seq->len + from_s,
+				from->len - from_seq->len + from_e, ht->o->read_len);
+		jumped_cov = calc_tpl_cov(jumped, jumped_s, jumped_e,
+				ht->o->read_len);
+		if (from_cov > jumped_cov) {
+			truncate_tpl(from, from_seq->len - from_e, 1, 0);
+			truncate_tpl(jumped, jumped_e, 1, 1);
+		} else {
+			truncate_tpl(from, from_seq->len - from_s, 1, 0);
+			truncate_tpl(jumped, jumped_s, 1, 1);
 		}
+		bwa_free_read_seq(1, from_seq);
+		bwa_free_read_seq(1, jumped_seq);
+		ori_len = from->len;
+		merge_tpl_to_left(from, jumped, 0, rev_com);
+		refresh_tpl_reads(ht, from, 0, from->len, N_MISMATCHES);
+		correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
+				- ht->o->read_len, ori_len + ht->o->read_len);
+		return 1;
 	}
 	bwa_free_read_seq(1, from_seq);
 	bwa_free_read_seq(1, jumped_seq);
@@ -416,7 +412,7 @@ int right_tpl_to_merge(bwa_seq_t *seqs, tpl *left, float pair_pc) {
 		if (r->contig_id == pre->contig_id) n++;
 		else {
 			if (n > max_n) {
-				max_tpl_id = r->contig_id;
+				max_tpl_id = pre->contig_id;
 				max_n = n;
 			}
 			n = 1;
@@ -424,6 +420,7 @@ int right_tpl_to_merge(bwa_seq_t *seqs, tpl *left, float pair_pc) {
 		pre = r;
 	}
 	if (n > max_n) {
+		p_query("MAX", r);
 		max_tpl_id = r->contig_id;
 		max_n = n;
 	}
