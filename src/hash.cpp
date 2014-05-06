@@ -20,12 +20,6 @@
 #include "peseq.h"
 #include "k_hash.h"
 
-gint cmp_kmers_by_count(gpointer a, gpointer b) {
-	kmer_counter *c_a = *((kmer_counter**) a);
-	kmer_counter *c_b = *((kmer_counter**) b);
-	return ((c_b->count) - c_a->count);
-}
-
 // Count the 11-mers on the reads, sort kmer frequency on reads decreasingly
 void sort_by_kmers(hash_table *ht, GPtrArray *read_counters) {
 	int i = 0, j = 0;

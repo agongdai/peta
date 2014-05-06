@@ -38,6 +38,7 @@ enum SIDE {
 #define LINELEN					50
 #define	MIN_TPL_LEN				100
 #define JUNCTION_BOUNDARY_BASE	2
+#define REGION_ALLOW_MERGING	150
 
 #define MAX_POOL_SIZE			281474976710655			// @Desperate
 #define MAX_POOL_N_READS		500

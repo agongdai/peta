@@ -40,10 +40,16 @@ typedef struct {
 	index64 n_seqs;
 } hash_table;
 
+typedef struct {
+	uint64_t kmer;
+	uint64_t count;
+} kmer_counter;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+	gint cmp_kmers_by_count(gpointer a, gpointer b);
 	int has_next_bit(hash_table *ht, bwa_seq_t *query, int ori);
 	hash_table *load_k_hash(char *hash_fn);
 	void destroy_ht(hash_table *ht);
@@ -67,6 +73,7 @@ extern "C" {
 			int8_t status, int mismatches);
 	void p_hash_table(hash_table *ht);
 	void hash_a_tpl(uint32_t *hash, const ubyte_t *seq, const int len, const int k, const int tpl_id);
+	GPtrArray *fresh_reads_by_kmer(bwa_seq_t *seqs, index64 n_seqs, int k);
 
 #ifdef __cplusplus
 }

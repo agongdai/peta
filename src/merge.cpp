@@ -453,14 +453,14 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
 	int i = 0, con_pos = t_locus, cut_pos = b_locus;
 	float n_not_paired = 0.0, n_spanning = 0.0;
 	int t_part_len = 0, dist = 0, ori_len = 0;
-	show_debug_msg(__func__, "Left template [%d, %d] @ %d \n", t->id, t->len, t_locus);
-	show_debug_msg(__func__, "Right template [%d, %d] @ %d \n", b->id, b->len, b_locus);
+	//show_debug_msg(__func__, "Left template [%d, %d] @ %d \n", t->id, t->len, t_locus);
+	//show_debug_msg(__func__, "Right template [%d, %d] @ %d \n", b->id, b->len, b_locus);
 	if (has_junction_at_locus(t, con_pos, 0)) return 0;
 	for (i = 0; i < min(t->len - t_locus, b->len - b_locus); i++) {
 		if (t->ctg->seq[i + t_locus] != b->ctg->seq[i + b_locus]) break;
 		con_pos++; cut_pos++;
 	}
-	show_debug_msg(__func__, "con_pos: %d; cut_pos: %d \n", con_pos, cut_pos);
+	//show_debug_msg(__func__, "con_pos: %d; cut_pos: %d \n", con_pos, cut_pos);
 	bwa_seq_t *r = NULL, *m = NULL;
 	// Count pairs spanning the two templates
 	for (i = 0; i < t->reads->len; i++) {
@@ -476,7 +476,7 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
 		}
 	}
 	if (n_spanning > 0 && n_spanning >= n_not_paired * PAIR_PERCENTAGE) {
-		if (b_locus < ht->o->k && (t->len - con_pos) < 2 * ht->o->k) {
+		if (b_locus < ht->o->k * 4 && (t->len - con_pos) < 5 * ht->o->k) {
 			//p_tpl(t);
 			show_debug_msg(__func__, "Left template [%d, %d] @ %d \n", t->id, t->len, t_locus);
 			show_debug_msg(__func__, "Right template [%d, %d] @ %d \n", b->id, b->len, b_locus);

@@ -30,7 +30,7 @@
 
 using namespace std;
 
-int TESTING = 522426;//404427;// 163989;//80598;
+int TESTING = 757632;//569894; //757632;// 569894;// 522426;//404427;// 163989;//80598;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -487,8 +487,9 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 	for (i = 0; i < tpls->len; i++) {
 		t = (tpl*) g_ptr_array_index(tpls, i);
 		t->visited = 0;
+		rm_paired_reads_tmply(ht, t);
 	}
-	while(iter < 8 && n_merged) {
+	while(iter < 16 && n_merged) {
 		n_merged = 0; n_both_connected = 0;
 		tpl_ht = hash_tpls(tpls, ht->o->k, 1);
 		//p_hash_table(tpl_ht);
@@ -519,8 +520,8 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 
 			// If the two templates are not with the same orientation
 			anchors = g_ptr_array_sized_new(4);
-			tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, anchors, t, 0, t->len, 1);
 			rev_com_tpl(t);
+			tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, anchors, t, 0, t->len, 0);
 			for (j = 0; j < anchors->len; j++) {
 				a = (anchor*) g_ptr_array_index(anchors, j);
 				//p_anchor("HIT", a);
@@ -623,11 +624,11 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 
 	if (counter->count < 1)  return NULL;
 	if (TESTING && fresh_trial == 0) read = &ht->seqs[TESTING];
-	if (TESTING && fresh_trial == 1) read = &ht->seqs[1841338];//1025528];//2887696];//856387];
+	if (TESTING && fresh_trial == 1) read = &ht->seqs[3901683];//1176672];//3901683];//1176672];//1841338];//1025528];//2887696];//856387];
 
 	t = ext_a_read(ht, all_tpls, read, counter->count);
 	if (t) {
-		if (t->alive) {
+		if (t->alive && t->len > read->len + 2) {
 			unfrozen_tried(t);
 			refresh_tpl_reads(ht, t, 0, t->len, N_MISMATCHES);
 			correct_tpl_base(ht->seqs, t, ht->o->read_len, 0, t->len);
@@ -637,6 +638,26 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 	return NULL;
 }
 
+void connect_tpls(kmer_t_meta *params) {
+	GPtrArray *tpls_by_pair_pc = NULL;
+	int i = 0; tpl *t = NULL;
+	hash_table *ht = params->ht;
+	tpls_by_pair_pc = hash_to_array(params->all_tpls);
+	g_ptr_array_sort(tpls_by_pair_pc, (GCompareFunc) cmp_tpl_by_rev_pair_pc);
+	for (i = 0; i < tpls_by_pair_pc->len; i++) {
+		t = (tpl*) g_ptr_array_index(tpls_by_pair_pc, i);
+		t->visited = 0;
+		if (!t->alive) {
+			t->alive = 0;
+			rm_global_tpl(params->all_tpls, t, FRESH);
+			g_ptr_array_remove_index_fast(tpls_by_pair_pc, i--);
+		}
+	}
+	reset_seqs(ht->seqs, ht->n_seqs);
+	connect_paired_tpls(params, tpls_by_pair_pc);
+	g_ptr_array_free(tpls_by_pair_pc, TRUE);
+}
+
 void kmer_threads(kmer_t_meta *params) {
 	GThreadPool *thread_pool = NULL;
 	uint64_t i = 0;
@@ -644,7 +665,6 @@ void kmer_threads(kmer_t_meta *params) {
 	bwa_seq_t *r = NULL, *seqs = ht->seqs;
 	kmer_counter *counter = NULL;
 	GPtrArray *starting_reads = g_ptr_array_sized_new(ht->n_seqs);
-	GPtrArray *tpls_by_pair_pc = NULL;
 	tpl_hash *all_tpls = params->all_tpls;
 	tpl *t = NULL;
 
@@ -663,9 +683,6 @@ void kmer_threads(kmer_t_meta *params) {
 	}
 
 	TEST = &seqs[4663319];
-
-	// shrink_ht(ht);
-
 	if (!TESTING) {
 		show_msg(__func__, "Sorting %d initial reads ... \n", starting_reads->len);
 		g_ptr_array_sort(starting_reads, (GCompareFunc) cmp_kmers_by_count);
@@ -690,20 +707,20 @@ void kmer_threads(kmer_t_meta *params) {
 	show_msg(__func__, "%d templates are obtained. \n", params->all_tpls->size());
 
 	show_msg( __func__, "----------- Stage 2: connect existing templates ----------\n");
-	tpls_by_pair_pc = hash_to_array(all_tpls);
-	g_ptr_array_sort(tpls_by_pair_pc, (GCompareFunc) cmp_tpl_by_rev_pair_pc);
-	for (i = 0; i < tpls_by_pair_pc->len; i++) {
-		t = (tpl*) g_ptr_array_index(tpls_by_pair_pc, i);
-		t->visited = 0;
-		if (!t->alive) {
-			t->alive = 0;
-			rm_global_tpl(all_tpls, t, FRESH);
-			g_ptr_array_remove_index_fast(tpls_by_pair_pc, i--);
+	connect_tpls(params);
+	if (!TESTING && 0) {
+		show_msg(__func__, "Getting good reads in the remaining FRESH reads ... \n");
+		starting_reads = fresh_reads_by_kmer(ht->seqs, ht->n_seqs, ht->o->k);
+		show_msg( __func__, "----------- Stage 3: extending remaining reads ----------\n");
+		for (i = 0; i < starting_reads->len; i++) {
+			counter = (kmer_counter*) g_ptr_array_index(starting_reads, i);
+			kmer_ext_thread(counter, params);
+			free(counter);
 		}
+		g_ptr_array_free(starting_reads, TRUE);
 	}
-	reset_seqs(ht->seqs, ht->n_seqs);
-	connect_paired_tpls(params, tpls_by_pair_pc);
-	g_ptr_array_free(tpls_by_pair_pc, TRUE);
+	show_msg( __func__, "----------- Stage 4: connect existing templates again ----------\n");
+	connect_tpls(params);
 
 	g_thread_pool_free(thread_pool, 0, 1);
 }
