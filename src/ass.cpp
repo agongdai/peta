@@ -743,6 +743,7 @@ void kmer_threads(kmer_t_meta *params) {
 	show_msg( __func__, "----------- Stage 2: connect existing templates ----------\n");
 	connect_tpls(params);
 	if (!TESTING) {
+		// Assembly the remaining reads
 		show_msg(__func__, "Getting good reads in the remaining FRESH reads ... \n");
 		starting_reads = fresh_reads_by_kmer(ht->seqs, ht->n_seqs, ht->o->k);
 		show_msg( __func__, "----------- Stage 3: extending remaining reads ----------\n");
