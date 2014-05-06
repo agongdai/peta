@@ -8,15 +8,15 @@ die () {
 [ "$#" -eq 4 ] || die "4 arguments required, $# provided. run: sh eva.sh [aligner] [new/other] [branch/part/out/] [paired/peta/paths]"
 
 query="$4"
-root_dir="/home/hoiqz/shaojiang/"
+root_dir="/home/carl/Projects/"
 eva_exe="$root_dir/peta/scripts/eva.py"
 db_dir="$root_dir/peta/scripts/"
 db="spombe.broad.tx.fasta.rev"
 #db="tx.630.oracle.fa"
 blastdb="$root_dir/ncbi-blast-2.2.26+/db/"
 similarity="99"
-#query_dir="$root_dir/peta_pair/SRR097897_$3/"
-query_dir="$root_dir/peta/SRS167022_out/"
+query_dir="$root_dir/peta/SRR097897_$3/"
+#query_dir="$root_dir/peta/SRS167022_out/"
 
 blastn_exe="blastn"
 blat_exe="$root_dir/blat/blat"

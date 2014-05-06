@@ -141,7 +141,8 @@ extern "C" {
 	int count_pairs_on_tpl(GPtrArray *reads);
 	void destory_tpl_ht(hash_table *ht);
 	hash_table *hash_tpls(GPtrArray *tpls, int k, int interleaving);
-	void rm_paired_reads_tmply(hash_table *ht, tpl *t);
+	void mv_paired_reads_to_tried(hash_table *ht, tpl *t);
+	void mv_paired_reads_back(tpl *t);
 
 #ifdef __cplusplus
 }

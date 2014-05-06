@@ -1771,17 +1771,33 @@ hash_table *hash_tpls(GPtrArray *tpls, int k, int interleaving) {
 /**
  * During merging, the paired reads on a template are not used, so ignore them first.
  */
-void rm_paired_reads_tmply(hash_table *ht, tpl *t) {
+void mv_paired_reads_to_tried(hash_table *ht, tpl *t) {
 	bwa_seq_t *r = NULL, *m = NULL;
 	int i = 0;
 	GPtrArray *reads = g_ptr_array_sized_new(4);
+	if (t->tried) {
+		g_ptr_array_free(t->tried, TRUE);
+		t->tried = g_ptr_array_sized_new(4);
+	}
 	for (i = 0; i < t->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
 		m = get_mate(r, ht->seqs);
 		if (!read_on_tpl(t, m)) {
 			g_ptr_array_add(reads, r);
+		} else {
+			g_ptr_array_add(t->tried, r);
 		}
 	}
 	g_ptr_array_free(t->reads, TRUE);
 	t->reads = reads;
 }
+
+void mv_paired_reads_back(tpl *t) {
+	bwa_seq_t *r = NULL;
+	int i = 0;
+	for (i = 0; i < t->tried->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->tried, i);
+		g_ptr_array_add(t->reads, r);
+	}
+}
+

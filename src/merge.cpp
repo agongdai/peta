@@ -207,15 +207,10 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped, int mis) {
 	int rev_com = 0, n_mis = 0, in_paired = 0, spanning = 0;
 	int from_s = 0, from_e = 0, jumped_s = 0, jumped_e = 0;
 	int score = 0, similar = 0, ori_len = 0, side = 0, i = 0;
-	int max_ol = ht->o->k;
+	int max_ol = ht->o->k * 2;
 	float from_cov = 0.0, jumped_cov = 0.0;
 	bwa_seq_t *from_seq = NULL, *jumped_seq = NULL, *r = NULL;
 	junction *jun = NULL;
-	//	p_tpl_reads(t);
-	//	p_tpl_reads(jumped);
-	if (!paired_by_reads(ht->seqs, from, jumped, 1) && jumped->len
-			> ht->o->read_len + 2)
-		return 0;
 
 	from_seq = new_seq(from->ctg, min(max_ol, from->len), from->len
 			- min(max_ol, from->len));
@@ -405,15 +400,15 @@ int right_tpl_to_merge(bwa_seq_t *seqs, tpl *left, float pair_pc) {
 		if (left_dist > INS_SIZE + GRACE_TIMES * SD_INS_SIZE) continue;
 		m = get_mate(r, seqs);
 		if (!read_on_tpl(left, m)) {
-			//p_query("USED", r);
-			//p_query("MATE", m);
+			p_query("USED", r);
+			p_query("MATE", m);
 			g_ptr_array_add(reads, m);
 		}
 	}
 	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_contig_id);
 	for (i = 0; i < reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
-		//p_query("PAIR", r);
+		p_query("PAIR", r);
 		if (r->contig_id <= 0) continue;
 		if (!pre) {
 			pre = r; n++; max_tpl_id = r->contig_id; continue;
@@ -433,9 +428,9 @@ int right_tpl_to_merge(bwa_seq_t *seqs, tpl *left, float pair_pc) {
 		max_n = n;
 	}
 	if (reads->len > 0) pc = max_n / ((float) reads->len);
-	//show_debug_msg(__func__, "Pair percentage: %.2f/%.2f \n", pc, pair_pc);
+	show_debug_msg(__func__, "Pair percentage: %.2f/%.2f \n", pc, pair_pc);
 	g_ptr_array_free(reads, TRUE);
-	return pc > pair_pc ? max_tpl_id : -1;
+	return pc >= pair_pc ? max_tpl_id : -1;
 }
 
 /**

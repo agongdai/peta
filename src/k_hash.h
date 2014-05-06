@@ -73,7 +73,7 @@ extern "C" {
 			int8_t status, int mismatches);
 	void p_hash_table(hash_table *ht);
 	void hash_a_tpl(uint32_t *hash, const ubyte_t *seq, const int len, const int k, const int tpl_id);
-	GPtrArray *fresh_reads_by_kmer(bwa_seq_t *seqs, index64 n_seqs, int k);
+	GPtrArray *fresh_reads_by_kmer(bwa_seq_t *seqs, GPtrArray *reads, int k);
 
 #ifdef __cplusplus
 }
