@@ -43,7 +43,7 @@ typedef struct {
 typedef struct {
 	uint64_t kmer;
 	uint64_t count;
-} kmer_counter;
+} occ_counter;
 
 #ifdef __cplusplus
 extern "C" {

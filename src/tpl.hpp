@@ -138,7 +138,7 @@ extern "C" {
 	int pairs_spanning_locus(bwa_seq_t *seqs, tpl *t, int locus);
 	int reads_covering_locus(tpl *t, int s, int locus, int e);
 	int read_on_tpl(tpl *t, bwa_seq_t *r);
-	int count_pairs_on_tpl(tpl *t);
+	int count_pairs_on_tpl(GPtrArray *reads);
 	void destory_tpl_ht(hash_table *ht);
 	hash_table *hash_tpls(GPtrArray *tpls, int k, int interleaving);
 	void rm_paired_reads_tmply(hash_table *ht, tpl *t);

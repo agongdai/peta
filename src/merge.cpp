@@ -203,12 +203,11 @@ int paired_at_head_tail(bwa_seq_t *seqs, tpl *left, tpl *right) {
  * Try to merge two templates.
  * The 'jumped' template does not have any junctions on it
  */
-int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
-		bwa_seq_t *jumping_read, int mis) {
+int merged_jumped(hash_table *ht, tpl *from, tpl *jumped, int mis) {
 	int rev_com = 0, n_mis = 0, in_paired = 0, spanning = 0;
 	int from_s = 0, from_e = 0, jumped_s = 0, jumped_e = 0;
 	int score = 0, similar = 0, ori_len = 0, side = 0, i = 0;
-	int max_ol = ht->o->read_len * 1.5;
+	int max_ol = ht->o->k;
 	float from_cov = 0.0, jumped_cov = 0.0;
 	bwa_seq_t *from_seq = NULL, *jumped_seq = NULL, *r = NULL;
 	junction *jun = NULL;
@@ -218,105 +217,49 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped,
 			> ht->o->read_len + 2)
 		return 0;
 
-	side = should_at_which_side(ht->seqs, from, jumping_read);
-	show_debug_msg(__func__, "Read %s at side %d; %s \n", jumping_read->name,
-			side, side == 0 ? "LEFT" : "RIGHT");
-
-	if (!from->r_tail && (side == RIGHT_SIDE || side == UNKNOWN_SIDE)) {
-		from_seq = new_seq(from->ctg, min(max_ol, from->len), from->len
-				- min(max_ol, from->len));
-		jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), 0);
-		score = smith_waterman_simple(from_seq, jumped_seq, &from_s, &from_e,
-				&jumped_s, &jumped_e, ht->o->k);
-		in_paired = paired_at_head_tail(ht->seqs, from, jumped);
-		/**
-		p_ctg_seq("FROM", from->ctg);
-		p_ctg_seq("FROM_PART END", from_seq);
-		p_ctg_seq("JUMPED", jumped->ctg);
-		p_ctg_seq("JUMPED_PART HEAD", jumped_seq);
-		show_debug_msg(__func__, "SCORE: %d \n", score);
-		show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
-		show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
-		//p_tpl_reads(jumped);
-		//**/
- // && (jumped->len - jumped_e) > (from_seq->len - from_e)
-		if (score >= ht->o->k - 1 && in_paired >= MIN_PAIRS) {
-			spanning = pairs_spanning_locus(ht->seqs, from, from_e + (from->len - from_seq->len));
-			//show_debug_msg(__func__, "Spanning pairs: %d \n", spanning);
-			if (spanning < 2) {
-				// For the overlapped region, pick the one with higher coverage
-				from_cov = calc_tpl_cov(from, from->len - from_seq->len + from_s,
-						from->len - from_seq->len + from_e, ht->o->read_len);
-				jumped_cov = calc_tpl_cov(jumped, jumped_s, jumped_e,
-						ht->o->read_len);
-				if (from_cov > jumped_cov) {
-					truncate_tpl(from, from_seq->len - from_e, 1, 0);
-					truncate_tpl(jumped, jumped_e, 1, 1);
-				} else {
-					truncate_tpl(from, from_seq->len - from_s, 1, 0);
-					truncate_tpl(jumped, jumped_s, 1, 1);
-				}
-				bwa_free_read_seq(1, from_seq);
-				bwa_free_read_seq(1, jumped_seq);
-				ori_len = from->len;
-				merge_tpl_to_left(from, jumped, 0, rev_com);
-				refresh_tpl_reads(ht, from, 0, from->len, N_MISMATCHES);
-				correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
-						- ht->o->read_len, ori_len + ht->o->read_len);
-				return 1;
+	from_seq = new_seq(from->ctg, min(max_ol, from->len), from->len
+			- min(max_ol, from->len));
+	jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), 0);
+	score = smith_waterman_simple(from_seq, jumped_seq, &from_s, &from_e,
+			&jumped_s, &jumped_e, 4);
+	///**
+	p_ctg_seq("FROM", from->ctg);
+	p_ctg_seq("FROM_PART END", from_seq);
+	p_ctg_seq("JUMPED", jumped->ctg);
+	p_ctg_seq("JUMPED_PART HEAD", jumped_seq);
+	show_debug_msg(__func__, "SCORE: %d \n", score);
+	show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
+	show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
+	//p_tpl_reads(jumped);
+	//**/
+	if (score >= 4) {
+		spanning = pairs_spanning_locus(ht->seqs, from, from_e + (from->len - from_seq->len));
+		//show_debug_msg(__func__, "Spanning pairs: %d \n", spanning);
+		if (spanning < 2) {
+			// For the overlapped region, pick the one with higher coverage
+			from_cov = calc_tpl_cov(from, from->len - from_seq->len + from_s,
+					from->len - from_seq->len + from_e, ht->o->read_len);
+			jumped_cov = calc_tpl_cov(jumped, jumped_s, jumped_e,
+					ht->o->read_len);
+			if (from_cov > jumped_cov) {
+				truncate_tpl(from, from_seq->len - from_e, 1, 0);
+				truncate_tpl(jumped, jumped_e, 1, 1);
+			} else {
+				truncate_tpl(from, from_seq->len - from_s, 1, 0);
+				truncate_tpl(jumped, jumped_s, 1, 1);
 			}
+			bwa_free_read_seq(1, from_seq);
+			bwa_free_read_seq(1, jumped_seq);
+			ori_len = from->len;
+			merge_tpl_to_left(from, jumped, 0, rev_com);
+			refresh_tpl_reads(ht, from, 0, from->len, N_MISMATCHES);
+			correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
+					- ht->o->read_len, ori_len + ht->o->read_len);
+			return 1;
 		}
-		bwa_free_read_seq(1, from_seq);
-		bwa_free_read_seq(1, jumped_seq);
 	}
-
-	if (!from->l_tail && (side == UNKNOWN_SIDE || side == LEFT_SIDE)) {
-		// From right template jump to left
-		from_seq = new_seq(from->ctg, min(max_ol, from->len), 0);
-		jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), jumped->len
-				- min(jumped->len, max_ol));
-		score = smith_waterman_simple(from_seq, jumped_seq, &from_s, &from_e,
-				&jumped_s, &jumped_e, ht->o->k);
-		in_paired = paired_at_head_tail(ht->seqs, jumped, from);
-		///**
-		p_ctg_seq("FROM", from->ctg);
-		p_ctg_seq("FROM_PART END", from_seq);
-		p_ctg_seq("JUMPED", jumped->ctg);
-		p_ctg_seq("JUMPED_PART HEAD", jumped_seq);
-		show_debug_msg(__func__, "Score: %d \n", score);
-		show_debug_msg(__func__, "FROM: [%d, %d] \n", from_s, from_e);
-		show_debug_msg(__func__, "JUMPED: [%d, %d] \n", jumped_s, jumped_e);
-		// **/
-		// && from_s < jumped->len - (jumped_seq->len - jumped_s)
-		if (score >= ht->o->k - 1 && in_paired >= MIN_PAIRS) {
-			spanning = pairs_spanning_locus(ht->seqs, from, from_s);
-			if (spanning < 2) {
-				from_cov = calc_tpl_cov(from, from_s, from_e, ht->o->read_len);
-				jumped_cov = calc_tpl_cov(jumped, jumped->len - jumped_seq->len
-						+ jumped_s, jumped->len - jumped_seq->len + jumped_e,
-						ht->o->read_len);
-				if (from_cov > jumped_cov) {
-					truncate_tpl(from, from_s, 1, 1);
-					truncate_tpl(jumped, jumped_seq->len - jumped_s, 1, 0);
-				} else {
-					truncate_tpl(from, from_e, 1, 1);
-					truncate_tpl(jumped, jumped_seq->len - jumped_e, 1, 0);
-				}
-				bwa_free_read_seq(1, from_seq);
-				bwa_free_read_seq(1, jumped_seq);
-				ori_len = jumped->len;
-				merge_tpl_to_right(jumped, from, 0, rev_com);
-				refresh_tpl_reads(ht, from, 0, from->len, N_MISMATCHES);
-				correct_tpl_base(ht->seqs, from, ht->o->read_len, ori_len
-						- ht->o->read_len, ori_len + ht->o->read_len);
-				//p_ctg_seq("MERGED", t->ctg);
-				return 1;
-			}
-
-		}
-		bwa_free_read_seq(1, from_seq);
-		bwa_free_read_seq(1, jumped_seq);
-	}
+	bwa_free_read_seq(1, from_seq);
+	bwa_free_read_seq(1, jumped_seq);
 	return 0;
 }
 
@@ -446,6 +389,56 @@ int merge_tpls(tpl *left, tpl *right, int ol, int rev_com) {
 }
 
 /**
+ * At the right end of template 'left', if there are single reads, try
+ * to get its right template id to merge.
+ * If the mates of 'pair_pc' of the single reads are on right template 'r',
+ * return r->id
+ */
+int right_tpl_to_merge(bwa_seq_t *seqs, tpl *left, float pair_pc) {
+	bwa_seq_t *r = NULL, *m = NULL, *pre = NULL;
+	int i = 0, left_dist = 0, max_tpl_id = 0;
+	float max_n = 0.0, n = 0.0, pc = 0.0;
+	GPtrArray *reads = g_ptr_array_sized_new(4);
+	for (i = 0; i < left->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(left->reads, i);
+		left_dist = left->len - r->contig_locus;
+		if (left_dist > INS_SIZE + GRACE_TIMES * SD_INS_SIZE) continue;
+		m = get_mate(r, seqs);
+		if (!read_on_tpl(left, m)) {
+			//p_query("USED", r);
+			//p_query("MATE", m);
+			g_ptr_array_add(reads, m);
+		}
+	}
+	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_contig_id);
+	for (i = 0; i < reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
+		//p_query("PAIR", r);
+		if (r->contig_id <= 0) continue;
+		if (!pre) {
+			pre = r; n++; max_tpl_id = r->contig_id; continue;
+		}
+		if (r->contig_id == pre->contig_id) n++;
+		else {
+			if (n > max_n) {
+				max_tpl_id = r->contig_id;
+				max_n = n;
+			}
+			n = 1;
+		}
+		pre = r;
+	}
+	if (n > max_n) {
+		max_tpl_id = r->contig_id;
+		max_n = n;
+	}
+	if (reads->len > 0) pc = max_n / ((float) reads->len);
+	//show_debug_msg(__func__, "Pair percentage: %.2f/%.2f \n", pc, pair_pc);
+	g_ptr_array_free(reads, TRUE);
+	return pc > pair_pc ? max_tpl_id : -1;
+}
+
+/**
  * Try to connect the template 'b' to template 't' at locus 't_locus'.
  */
 int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_locus) {
@@ -468,7 +461,7 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
 		m = get_mate(r, ht->seqs);
 		if (read_on_tpl(t, m)) continue;
 		t_part_len = con_pos - r->contig_locus;
-		if (t_part_len <= 0 || t_part_len > INS_SIZE + 2 * SD_INS_SIZE) continue;
+		if (t_part_len <= 0 || t_part_len > INS_SIZE + GRACE_TIMES * SD_INS_SIZE) continue;
 		if (m->status != USED || m->contig_id != t->id) n_not_paired++;
 		if (read_on_tpl(b, m)) {
 			dist = (con_pos - r->contig_locus) + (m->contig_locus - cut_pos);
@@ -477,7 +470,7 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
 	}
 	if (n_spanning > 0 && n_spanning >= n_not_paired * PAIR_PERCENTAGE) {
 		if (b_locus < ht->o->k * 4 && (t->len - con_pos) < 5 * ht->o->k) {
-			//p_tpl(t);
+			p_tpl(t);
 			show_debug_msg(__func__, "Left template [%d, %d] @ %d \n", t->id, t->len, t_locus);
 			show_debug_msg(__func__, "Right template [%d, %d] @ %d \n", b->id, b->len, b_locus);
 			show_debug_msg(__func__, "Spanning reads: %.2f/%.2f.\n", n_spanning, n_not_paired);
@@ -491,8 +484,9 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
 			refresh_tpl_reads(ht, t, ori_len - ht->o->read_len, ori_len + ht->o->read_len, N_MISMATCHES);
 			correct_tpl_base(ht->seqs, t, ht->o->read_len, ori_len
 					- ht->o->read_len, ori_len + ht->o->read_len);
+
 			p_tpl(t);
-			//p_tpl_reads(t);
+			p_tpl_reads(t);
 			return 1;
 		}
 	}

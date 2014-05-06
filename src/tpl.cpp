@@ -920,7 +920,7 @@ void refresh_tpl_reads(hash_table *ht, tpl *t, int start, int end, int mismatche
 	}
 	bwa_free_read_seq(1, seq);
 	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_contig_locus);
-	int n_pairs = count_pairs_on_tpl(t);
+	int n_pairs = count_pairs_on_tpl(t->reads);
 	t->pair_pc = (((float) n_pairs) * 2.0) / ((float) t->reads->len);
 	t->cov = calc_tpl_cov(t, 0, t->len, ht->o->read_len);
 }
@@ -1665,18 +1665,18 @@ int read_on_tpl(tpl *t, bwa_seq_t *r) {
 	return 0;
 }
 
-int count_pairs_on_tpl(tpl *t) {
+int count_pairs_on_tpl(GPtrArray *reads) {
 	int n = 0, i = 0;
-	g_ptr_array_sort(t->reads, (GCompareFunc) cmp_reads_by_name);
+	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_name);
 	bwa_seq_t *r = NULL, *pre = NULL;
-	if (t->reads->len < 2) return 0;
-	pre = (bwa_seq_t*) g_ptr_array_index(t->reads, 0);
-	for (i = 1; i < t->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+	if (reads->len < 2) return 0;
+	pre = (bwa_seq_t*) g_ptr_array_index(reads, 0);
+	for (i = 1; i < reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
 		if (is_a_pair(pre, r)) n++;
 		pre = r;
 	}
-	show_debug_msg(__func__, "Template [%d, %d]: %d / %d \n", t->id, t->len, n, t->reads->len);
+	show_debug_msg(__func__, "Pairs: %d / %d \n", n, reads->len);
 	return n;
 }
 

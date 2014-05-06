@@ -26,13 +26,13 @@ void sort_by_kmers(hash_table *ht, GPtrArray *read_counters) {
 	int cannot_ext = 0;
 	hash_key key = 0, ext_key = 0;
 	bwa_seq_t *r = NULL, *seqs = NULL, *key_seq = NULL;
-	kmer_counter *counter = NULL;
+	occ_counter *counter = NULL;
 	uint64_t n_k_mers = (1 << (ht->o->k * 2));
 	uint32_t *kmers = (uint32_t*) calloc(n_k_mers, sizeof(uint32_t));
     seqs = ht->seqs;
 	// Count the kmers
 	for (i = 0; i < read_counters->len; i++) {
-		counter = (kmer_counter*) g_ptr_array_index(read_counters, i);
+		counter = (occ_counter*) g_ptr_array_index(read_counters, i);
 		if (counter->kmer < 0 || counter->kmer >= ht->n_seqs) {
 			show_msg(__func__, "[WARNING] Read index out of range: %d \n",
 					counter->kmer);
@@ -53,7 +53,7 @@ void sort_by_kmers(hash_table *ht, GPtrArray *read_counters) {
 	}
 	// Get kmer counts for every read
 	for (i = 0; i < read_counters->len; i++) {
-		counter = (kmer_counter*) g_ptr_array_index(read_counters, i);
+		counter = (occ_counter*) g_ptr_array_index(read_counters, i);
 		if (counter->kmer < 0 || counter->kmer >= ht->n_seqs) {
 			show_msg(__func__, "[WARNING] Read index out of range: %d \n",
 					counter->kmer);

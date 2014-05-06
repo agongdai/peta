@@ -14,8 +14,8 @@
 int n_threads = 4;
 
 gint cmp_kmers_by_count(gpointer a, gpointer b) {
-	kmer_counter *c_a = *((kmer_counter**) a);
-	kmer_counter *c_b = *((kmer_counter**) b);
+	occ_counter *c_a = *((occ_counter**) a);
+	occ_counter *c_b = *((occ_counter**) b);
 	return ((c_b->count) - c_a->count);
 }
 
@@ -187,18 +187,20 @@ hash_value get_hash_value(const index64 seq_id, const int pos_start) {
 
 /**
  * For the remaining FRESH reads, return a list of counters with number of kmers shared
+ * Only consider a read if its mate is USED.
  */
 GPtrArray *fresh_reads_by_kmer(bwa_seq_t *seqs, index64 n_seqs, int k) {
 	GPtrArray *counters = g_ptr_array_sized_new(4);
 	int i = 0, j = 0, n = 0;
-	bwa_seq_t *r = NULL;
-	kmer_counter *c = NULL;
+	bwa_seq_t *r = NULL, *m = NULL;
+	occ_counter *c = NULL;
 	hash_key key = 0; hash_value value = 0;
 	index64 n_k_mers = (1 << (k * 2)) + 1;
 	uint16_t *k_mers_occ = (uint16_t*) calloc(n_k_mers, sizeof(uint16_t));
 	for (i = 0; i < n_seqs; i++) {
-		r = &seqs[i];
+		r = &seqs[i]; m = get_mate(r, seqs);
 		if (r->status != FRESH) continue;
+		if (m->status == FRESH) continue;
 		for (j = 0; j <= r->len - k; j++) {
 			key = get_hash_key(r->seq, j, 1, k);
 			if (key <= 16 || n_k_mers - key <= 16) continue;
@@ -210,8 +212,9 @@ GPtrArray *fresh_reads_by_kmer(bwa_seq_t *seqs, index64 n_seqs, int k) {
 		}
 	}
 	for (i = 0; i < n_seqs; i++) {
-		r = &seqs[i];
+		r = &seqs[i]; m = get_mate(r, seqs);
 		if (r->status != FRESH) continue;
+		if (m->status == FRESH) continue;
 		n = 0;
 		for (j = 0; j <= r->len - k; j++) {
 			key = get_hash_key(r->seq, j, 1, k);
@@ -224,7 +227,7 @@ GPtrArray *fresh_reads_by_kmer(bwa_seq_t *seqs, index64 n_seqs, int k) {
 			n += k_mers_occ[key];
 		}
 		if (n <= r->len - k + 1) continue;
-		c = (kmer_counter*) malloc(sizeof(kmer_counter));
+		c = (occ_counter*) malloc(sizeof(occ_counter));
 		c->kmer = atoi(r->name);
 		c->count = n;
 		g_ptr_array_add(counters, c);
