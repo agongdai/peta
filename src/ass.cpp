@@ -30,7 +30,7 @@
 
 using namespace std;
 
-int TESTING = 870751; //1176672;//278052;//501241;//569894; //757632;// 569894;// 522426;//404427;// 163989;//80598;
+int TESTING = 0;// 870751; //1176672;//278052;//501241;//569894; //757632;// 569894;// 522426;//404427;// 163989;//80598;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -714,7 +714,7 @@ int connect_missing_ends(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 		m = get_mate(r, ht->seqs);
 		if (m->status == FRESH && r->contig_locus <= INS_SIZE + SD_INS_SIZE * GRACE_TIMES) {
 			g_ptr_array_add(reads, m);
-			p_query("FRESH", m);
+			//p_query("FRESH", m);
 		}
 	}
 	counters = fresh_reads_by_kmer(ht->seqs, reads, ht->o->k);
@@ -722,7 +722,7 @@ int connect_missing_ends(hash_table *ht, tpl_hash *all_tpls, tpl *t) {
 	for (i = 0; i < counters->len; i++) {
 		c = (occ_counter*) g_ptr_array_index(counters, i);
 		r = &ht->seqs[c->kmer];
-		p_query("START", r);
+		//p_query("START", r);
 		b = ext_a_read(ht, all_tpls, t, r, c->count);
 		if (b && b->alive) {
 			right_tpl_id = right_tpl_to_merge(ht->seqs, b, SM_SIMILARY);

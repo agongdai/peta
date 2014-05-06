@@ -400,15 +400,15 @@ int right_tpl_to_merge(bwa_seq_t *seqs, tpl *left, float pair_pc) {
 		if (left_dist > INS_SIZE + GRACE_TIMES * SD_INS_SIZE) continue;
 		m = get_mate(r, seqs);
 		if (!read_on_tpl(left, m)) {
-			p_query("USED", r);
-			p_query("MATE", m);
+			//p_query("USED", r);
+			//p_query("MATE", m);
 			g_ptr_array_add(reads, m);
 		}
 	}
 	g_ptr_array_sort(reads, (GCompareFunc) cmp_reads_by_contig_id);
 	for (i = 0; i < reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(reads, i);
-		p_query("PAIR", r);
+		//p_query("PAIR", r);
 		if (r->contig_id <= 0) continue;
 		if (!pre) {
 			pre = r; n++; max_tpl_id = r->contig_id; continue;
