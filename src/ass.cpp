@@ -30,7 +30,7 @@
 
 using namespace std;
 
-int TESTING = 0;//278052;//501241;//569894; //757632;// 569894;// 522426;//404427;// 163989;//80598;
+int TESTING = 1176672;//278052;//501241;//569894; //757632;// 569894;// 522426;//404427;// 163989;//80598;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -658,7 +658,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 
 	if (counter->count < 1)  return NULL;
 	if (TESTING && fresh_trial == 0) read = &ht->seqs[TESTING];
-	if (TESTING && fresh_trial == 1) read = &ht->seqs[1493548];//2370012];//1176672];//3901683];//1176672];//1841338];//1025528];//2887696];//856387];
+	if (TESTING && fresh_trial == 1) read = &ht->seqs[1255875];//1493548];//2370012];//1176672];//3901683];//1176672];//1841338];//1025528];//2887696];//856387];
 
 	t = ext_a_read(ht, all_tpls, read, counter->count);
 	if (t) {
@@ -741,20 +741,6 @@ void kmer_threads(kmer_t_meta *params) {
 	show_msg(__func__, "%d templates are obtained. \n", params->all_tpls->size());
 
 	show_msg( __func__, "----------- Stage 2: connect existing templates ----------\n");
-	connect_tpls(params);
-	if (!TESTING) {
-		// Assembly the remaining reads
-		show_msg(__func__, "Getting good reads in the remaining FRESH reads ... \n");
-		starting_reads = fresh_reads_by_kmer(ht->seqs, ht->n_seqs, ht->o->k);
-		show_msg( __func__, "----------- Stage 3: extending remaining reads ----------\n");
-		for (i = 0; i < starting_reads->len; i++) {
-			counter = (occ_counter*) g_ptr_array_index(starting_reads, i);
-			kmer_ext_thread(counter, params);
-			free(counter);
-		}
-		g_ptr_array_free(starting_reads, TRUE);
-	}
-	show_msg( __func__, "----------- Stage 4: connect existing templates again ----------\n");
 	connect_tpls(params);
 
 	g_thread_pool_free(thread_pool, 0, 1);
