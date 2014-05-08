@@ -1222,6 +1222,7 @@ void cut_tpl_at_locus(tpl *t, tpl *b, int read_len, int b_left, int b_right, int
  */
 void rev_com_tpl(tpl *t) {
 	if (has_any_junction(t)) return;
+	show_debug_msg(__func__, "Reverse complement template [%d, %d]. \n", t->id, t->len);
 	switch_fr(t->ctg);
 	int i = 0;
 	bwa_seq_t *r = NULL;

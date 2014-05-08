@@ -1788,14 +1788,19 @@ void mv_reads_to_main_tpl(tpl *t, tpl *b, int from) {
  * Main:   ----------================ (from=10)
  * Count: for all unpaired reads on the branch, how many of the mates are on main and distance is ok
  */
-int pairs_connect_left_locus(bwa_seq_t *seqs, tpl *t, tpl *b, int locus, int from, float *n_unpaired) {
-	int n = 0, i = 0;
+float pairs_connect_left_locus(bwa_seq_t *seqs, tpl *t, tpl *b, int locus, int from, float *n_unpaired) {
+	int i = 0, dist = 0, max_range = INS_SIZE + GRACE_TIMES * SD_INS_SIZE;
+	float n = 0.0;
 	bwa_seq_t *r = NULL, *m = NULL;
 	for (i = 0; i < b->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		r = (bwa_seq_t*) g_ptr_array_index(b->reads, i);
 		m = get_mate(r, seqs);
-		if (!read_on_tpl(b, m)) *n_unpaired += 1;
-		if (read_on_tpl(t, m)) n++;
+		if (read_on_tpl(t, m)) {
+			dist = from - m->contig_locus + r->contig_locus;
+			if (good_insert_size(dist)) n++;
+		} else { // Only count the pairs within the range
+			if (m->contig_locus <= max_range) *n_unpaired += 1;
+		}
 	}
 	return n;
 }

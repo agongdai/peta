@@ -493,24 +493,36 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
  * Assumption: a->locus <= ht->o->k
  */
 int connect_left_end(hash_table *ht, anchor *a, tpl *t) {
-	int has_juc_read = 0, has_spanning_read = 0, connected = 0, similar = 0;
+	int has_juc_read = 0, connected = 0, similar = 0;
 	int j = 0, len = 0, dist = 0;
-	float n_spanning = 0.0, n = 0.0;
+	float n_spanning = 0.0, n = 0.0, n_unpaired = 0.0;
 	tpl *b = a->b;
 	bwa_seq_t *r = NULL, *m = NULL, *t_seq = NULL, *b_seq = NULL;
-	len = min(t->len - a->from - a->size, b->len - a->from - a->size);
+
+	if (has_any_junction(b)) return 0;
+
+	len = min(t->len - a->from - a->size, b->len - a->locus - a->size);
 	t_seq = new_seq(t->ctg, len, a->from + a->size);
 	b_seq = new_seq(b->ctg, len, a->locus + a->size);
 	similar = similar_seqs(t_seq, b_seq, len / 10, MAX_GAPS,
 					MATCH_SCORE, MISMATCH_SCORE, INDEL_SCORE);
+
+//	p_anchor("ANCHOR", a);
+//	show_debug_msg(__func__, "LEN: %d \n", len);
+//	p_ctg_seq("MAIN_FULL", t->ctg);
+//	p_ctg_seq("BRANCH_FULL", b->ctg);
+//	p_ctg_seq("MAIN", t_seq);
+//	p_ctg_seq("BRANCH", b_seq);
+//	show_debug_msg(__func__, "Similar: %d \n", similar);
+
 	bwa_free_read_seq(1, t_seq);
 	bwa_free_read_seq(1, b_seq);
 	// If the branch is at least 90% similar with the main template,
 	// It is likely to be constructed from 'squeezed' reads,
 	// then merge it to the main template
+	n_spanning = pairs_connect_left_locus(ht->seqs, t, b, a->from, a->locus, &n_unpaired);
 	if (similar) {
-		n_spanning = pairs_connect_left_locus(ht->seqs, t, b, a->from, a->locus, &n);
-		if (n_spanning >= n * PAIR_PERCENTAGE) {
+		if (n_spanning >= max(MIN_PAIRS, (int) (n_unpaired * PAIR_PERCENTAGE))) {
 			mv_reads_to_main_tpl(t, b, a->from);
 			b->alive = 0;
 			return 1;
@@ -522,20 +534,20 @@ int connect_left_end(hash_table *ht, anchor *a, tpl *t) {
 	for (j = 0; j < b->reads->len; j++) {
 		r = (bwa_seq_t*) g_ptr_array_index(b->reads, j);
 		m = get_mate(r, ht->seqs);
-		dist = -1; has_juc_read = 0; has_spanning_read = 0;
-		if (r->contig_locus < a->locus + a->size && r->contig_locus > a->locus + a->size) {
+		dist = -1;
+		//p_query("BRAN_READ", r);
+		//p_query("MAIN_READ", m);
+		if (r->contig_locus < a->locus + a->size && r->contig_locus + r->len >= a->locus + a->size) {
 			if (read_on_tpl(t, m)) dist = (a->from - m->contig_locus) + (r->contig_locus - a->locus);
 			if (read_on_tpl(b, m)) dist = (m->contig_locus - a->locus);
-			if (good_insert_size(dist)) has_juc_read = 1;
+			if (good_insert_size(dist)) has_juc_read++;
+			//show_debug_msg(__func__, "DISTANCHE: %d \n", dist);
 			n++;
 		}
-		if (r->contig_locus >= a->locus + a->size && read_on_tpl(t, m)) {
-			dist = (a->from - m->contig_locus) + (r->contig_locus - a->locus);
-			if (good_insert_size(dist)) has_spanning_read = 1;
-		}
 	}
-	if (has_spanning_read && has_juc_read) {
-		truncate_tpl(b, a->locus, 0, 1);
+	show_debug_msg(__func__, "n_spanning: %.2f/%.2f; has_juc_read: %.2f \n", n_spanning, n_unpaired, has_juc_read);
+	if (n_spanning >= max(MIN_PAIRS, (int) (n_unpaired * PAIR_PERCENTAGE)) && has_juc_read) {
+		truncate_tpl(b, a->locus + a->size, 0, 1);
 		add_a_junction(t, b, NULL, a->from + a->size, 0, n);
 		return 1;
 	}
@@ -556,7 +568,6 @@ int connect_one_end(hash_table *ht, GPtrArray *anchors, tpl *t) {
 	show_debug_msg(__func__, "Anchors with template [%d, %d] \n", t->id, t->len);
 	for (i = 0; i < anchors->len; i++) {
 		a = (anchor*) g_ptr_array_index(anchors, i);
-		p_anchor("BRANCHING", a);
 		b = a->b;
 		if (t == b || !b->alive || a->size > ht->o->read_len) continue;
 		if (a->locus <= ht->o->k) { // Try to connect left end of the branch to the main
@@ -583,7 +594,7 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 	anchor *a = NULL, *a1 = NULL, *a2 = NULL;
 	bwa_seq_t *r = NULL, *m = NULL, *t_seq = NULL, *b_seq = NULL;
 	GPtrArray *junc_reads = NULL;
-	show_debug_msg(__func__, "Anchors shared with [%d, %d] \n", t->id, t->len);
+//	show_debug_msg(__func__, "Anchors shared with [%d, %d] \n", t->id, t->len);
 //	for (i = 0; i < anchors->len; i++) {
 //		a1 = (anchor*) g_ptr_array_index(anchors, i);
 //		p_anchor("ANCHOR", a1);
@@ -601,7 +612,7 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 			if (a1->size + a2->size < ht->o->read_len || has_any_junction(b)) continue;
 			if (abs(a1->from + a1->size - a2->from) <= 2 * k && abs(a2->locus - a1->locus - a1->size) <= 2 * k) continue;
 			if (a1->locus >= ht->o->k * 2 || b->len - a2->locus - a2->size >= ht->o->k * 2) continue;
-			p_tpl(t); p_tpl(b);
+			//p_tpl(t); p_tpl(b);
 			p_anchor("A1", a1); p_anchor("A2", a2);
 			show_debug_msg(__func__, "Connecting branch template [%d, %d] to main template [%d, %d] ... \n",
 					b->id, b->len, t->id, t->len);

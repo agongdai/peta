@@ -510,16 +510,25 @@ void branching(hash_table *ht, tpl_hash *all_tpls, GPtrArray *tpls) {
 	show_msg(__func__, "Perform branching ... \n");
 	for (i = 0; i < tpls->len; i++) {
 		t = (tpl*) g_ptr_array_index(tpls, i);
-		if (t->id == 1) rev_com_tpl(t);
+		//if (t->id == 1) rev_com_tpl(t);
 		if (!t->alive || t->pair_pc >= 1.0) continue;
 		anchors = g_ptr_array_sized_new(4);
 		tpls_sharing_kmers(ht, all_tpls, tpl_ht, anchors, t, 0, t->len, 0);
 		one_connected = connect_one_end(ht, anchors, t);
 		n_one_connected += one_connected;
+		g_ptr_array_free(anchors, TRUE);
+		if (!one_connected && !has_any_junction(t)) {
+			rev_com_tpl(t);
+			anchors = g_ptr_array_sized_new(4);
+			tpls_sharing_kmers(ht, all_tpls, tpl_ht, anchors, t, 0, t->len, 0);
+			one_connected = connect_one_end(ht, anchors, t);
+			n_one_connected += one_connected;
+			if (!one_connected) rev_com_tpl(t);
+			g_ptr_array_free(anchors, TRUE);
+		}
 		for (j = 0; j < anchors->len; j++) {
 			a = (anchor*) g_ptr_array_index(anchors, j); free(a);
 		}
-		g_ptr_array_free(anchors, TRUE);
 	}
 	show_msg(__func__, "%d branches are created. \n", n_one_connected);
 	destory_tpl_ht(tpl_ht);
