@@ -392,7 +392,6 @@ int right_tpl_to_merge(bwa_seq_t *seqs, tpl *left, float pair_pc) {
 	for (i = 0; i < left->reads->len; i++) {
 		r = (bwa_seq_t*) g_ptr_array_index(left->reads, i);
 		m = get_mate(r, seqs);
-		if (r->rev_com != m->rev_com) continue;
 		dist = left->len - r->contig_locus;
 		if (dist > max_range) continue;
 		if (!read_on_tpl(left, m)) {
@@ -413,7 +412,7 @@ int right_tpl_to_merge(bwa_seq_t *seqs, tpl *left, float pair_pc) {
 			r = get_mate(m, seqs);
 			dist = left->len - r->contig_locus + m->contig_locus;
 			//show_debug_msg(__func__, "Dist: %d \n", dist);
-			if (good_insert_size(dist)) n_left++;
+			if (r->rev_com == m->rev_com && good_insert_size(dist)) n_left++;
 		} else {
 			if (n_left > max_n) {
 				max_tpl_id = pre->contig_id;
@@ -461,7 +460,7 @@ int connect_at_locus_right(hash_table *ht, tpl *t, tpl *b, int t_locus, int b_lo
 		if (m->status != USED || m->contig_id != t->id) n_not_paired++;
 		if (read_on_tpl(b, m)) {
 			dist = (con_pos - r->contig_locus) + (m->contig_locus - cut_pos);
-			if (good_insert_size(dist)) n_spanning++;
+			if (r->rev_com == m->rev_com && good_insert_size(dist)) n_spanning++;
 		}
 	}
 	if (n_spanning > 0 && n_spanning >= n_not_paired * PAIR_PERCENTAGE) {
@@ -554,8 +553,10 @@ int connect_one_end(hash_table *ht, GPtrArray *anchors, tpl *t) {
 	int i = 0, j = 0;
 	anchor *a = NULL;
 	bwa_seq_t *b_seq = NULL, *t_seq = NULL, *r = NULL, *m = NULL;
+	show_debug_msg(__func__, "Anchors with template [%d, %d] \n", t->id, t->len);
 	for (i = 0; i < anchors->len; i++) {
 		a = (anchor*) g_ptr_array_index(anchors, i);
+		p_anchor("BRANCHING", a);
 		b = a->b;
 		if (t == b || !b->alive || a->size > ht->o->read_len) continue;
 		if (a->locus <= ht->o->k) { // Try to connect left end of the branch to the main
@@ -599,6 +600,7 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 			if (a1 == a2 || !a2->b->alive || a1->from >= a2->from) continue;
 			if (a1->size + a2->size < ht->o->read_len || has_any_junction(b)) continue;
 			if (abs(a1->from + a1->size - a2->from) <= 2 * k && abs(a2->locus - a1->locus - a1->size) <= 2 * k) continue;
+			if (a1->locus >= ht->o->k * 2 || b->len - a2->locus - a2->size >= ht->o->k * 2) continue;
 			p_tpl(t); p_tpl(b);
 			p_anchor("A1", a1); p_anchor("A2", a2);
 			show_debug_msg(__func__, "Connecting branch template [%d, %d] to main template [%d, %d] ... \n",
@@ -663,8 +665,9 @@ int connect_both_ends(hash_table *ht, GPtrArray *anchors, tpl *t) {
 				n_pairs = 0.0; n_single_reads = 0.0;
 				for (x = 0; x < junc_reads->len; x++) {
 					r = (bwa_seq_t*) g_ptr_array_index(junc_reads, x);
-					if (r->contig_locus < a1->locus || r->contig_locus + r->len > a2->locus + a2->size) continue;
 					m = get_mate(r, ht->seqs);
+					if (r->rev_com != m->rev_com) continue;
+					if (r->contig_locus < a1->locus || r->contig_locus + r->len > a2->locus + a2->size) continue;
 					//p_query(__func__, r);
 					//p_query(__func__, m);
 					if (read_on_tpl(b, m)) continue;
