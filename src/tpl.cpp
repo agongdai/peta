@@ -30,7 +30,7 @@ eg_gap *init_gap(int s_index, int size, int ori) {
 }
 
 void p_anchor(char *header, anchor *a) {
-	show_debug_msg(header, "HASH = %"ID64 "; Anchor: template [%d, %d] @ %d size %d; from %d; rev_com: %d \n", a->hash, a->t->id, a->t->len, a->locus, a->size, a->from, a->rev_com);
+	show_debug_msg(header, "HASH = %"ID64 "; Anchor: template [%d, %d] @ %d size %d; from %d; rev_com: %d \n", a->hash, a->b->id, a->b->len, a->locus, a->size, a->from, a->rev_com);
 }
 
 void p_tpl(tpl *t) {
@@ -214,37 +214,6 @@ void unfrozen_tried(tpl *t) {
 }
 
 /**
- * For reads on the template, if its mate is used another template, add its mate to TRIED.
- * Used for merging. To save time.
- *
- * If there are multiple reads spanning two templates, add only one
- */
-void mv_unpaired_to_tried(bwa_seq_t *seqs, tpl *t, const int n_tpls) {
-	int i = 0;
-	bwa_seq_t *r = NULL, *m = NULL;
-	uint8_t *flag = NULL;
-	if (!t || !t->reads || t->reads->len == 0)
-		return;
-	if (!t->tried)
-		t->tried = g_ptr_array_sized_new(4);
-	while (t->tried->len > 0)
-		g_ptr_array_remove_index_fast(t->tried, 0);
-	// flag[0] indicates template 0 has been tried with current template
-	flag = (uint8_t*) calloc(n_tpls, sizeof(uint8_t));
-	for (i = 0; i < t->reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
-		m = get_mate(r, seqs);
-		if (m->status == USED && m->contig_id != r->contig_id) {
-			if (flag[m->contig_id] == 0) {
-				g_ptr_array_add(t->tried, m);
-				flag[m->contig_id] = 1;
-			}
-		}
-	}
-	free(flag);
-}
-
-/**
  * Check whether the template is with high coverage
  */
 int is_high_cov(tpl *t) {
@@ -373,7 +342,7 @@ void compact_anchors(GPtrArray *anchors) {
 		pre = (anchor*) g_ptr_array_index(anchors, anchors->len - 1);
 		for (i = anchors->len - 2; i >= 0; i--) {
 			a = (anchor*) g_ptr_array_index(anchors, i);
-			if (a->t == pre->t && pre->locus - a->locus == 1 && pre->from - a->from == 1) {
+			if (a->b == pre->b && pre->locus - a->locus == 1 && pre->from - a->from == 1) {
 				pre->locus--; pre->size++; pre->from--;
 				free(a); g_ptr_array_remove_index_fast(anchors, i);
 			} else pre = a;
@@ -966,11 +935,9 @@ void refresh_reads_on_tail(hash_table *ht, tpl *t, int mismatches) {
 				: t->len;
 		len = t->r_tail->len + borrow_len;
 		s = blank_seq(len);
-		memcpy(s->seq, t->ctg->seq + (t->len - borrow_len), borrow_len
-				* sizeof(ubyte_t));
+		memcpy(s->seq, t->ctg->seq + (t->len - borrow_len), borrow_len * sizeof(ubyte_t));
 		s->len = borrow_len;
-		memcpy(s->seq + s->len, t->r_tail->seq, t->r_tail->len
-				* sizeof(ubyte_t));
+		memcpy(s->seq + s->len, t->r_tail->seq, t->r_tail->len * sizeof(ubyte_t));
 		s->len += t->r_tail->len;
 
 		for (i = 0; i <= s->len - ht->o->read_len; i++) {
@@ -1800,4 +1767,40 @@ void mv_paired_reads_back(tpl *t) {
 		g_ptr_array_add(t->reads, r);
 	}
 }
+
+/**
+ * Move all reads on the branch template to the main template
+ */
+void mv_reads_to_main_tpl(tpl *t, tpl *b, int from) {
+	int i = 0;
+	bwa_seq_t *r = NULL;
+	for (i = 0; i < b->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(b->reads, i);
+		add2tpl(t, r, from + r->contig_locus);
+	}
+	g_ptr_array_free(b->reads, TRUE);
+    b->reads = g_ptr_array_sized_new(0);
+}
+
+/**
+ * Before connecting the branch template to the main, validate the pairs
+ * Branch:         ++++++++++++++++++ (locus=2)
+ * Main:   ----------================ (from=10)
+ * Count: for all unpaired reads on the branch, how many of the mates are on main and distance is ok
+ */
+int pairs_connect_left_locus(bwa_seq_t *seqs, tpl *t, tpl *b, int locus, int from, float *n_unpaired) {
+	int n = 0, i = 0;
+	bwa_seq_t *r = NULL, *m = NULL;
+	for (i = 0; i < b->reads->len; i++) {
+		r = (bwa_seq_t*) g_ptr_array_index(t->reads, i);
+		m = get_mate(r, seqs);
+		if (!read_on_tpl(b, m)) *n_unpaired += 1;
+		if (read_on_tpl(t, m)) n++;
+	}
+	return n;
+}
+
+
+
+
 

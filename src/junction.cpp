@@ -1097,6 +1097,8 @@ void mark_unpaired_reads(bwa_seq_t *seqs, tpl *t) {
 /**
  * Truncate the template by some length at left/right side;
  * If 'reset_reads', The reads falling within this range will be marked as FRESH.
+ * If ori=0: ========+++ becomes ========
+ * Otherwise: +++======== becomes ========
  */
 void truncate_tpl(tpl *t, int len, int reset_reads, int ori) {
 	bwa_seq_t *r = NULL;

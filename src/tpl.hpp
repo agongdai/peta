@@ -56,7 +56,7 @@ typedef struct {
 } eg_gap;
 
 typedef struct {
-	tpl *t;
+	tpl *b;	// branch template
 	int locus;
 	int from;
 	int size;
@@ -143,6 +143,8 @@ extern "C" {
 	hash_table *hash_tpls(GPtrArray *tpls, int k, int interleaving);
 	void mv_paired_reads_to_tried(hash_table *ht, tpl *t);
 	void mv_paired_reads_back(tpl *t);
+	void mv_reads_to_main_tpl(tpl *t, tpl *b, int from);
+	int pairs_connect_left_locus(bwa_seq_t *seqs, tpl *t, tpl *b, int locus, int from, float *n_unpaired);
 
 #ifdef __cplusplus
 }

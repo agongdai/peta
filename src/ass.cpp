@@ -30,7 +30,9 @@
 
 using namespace std;
 
-int TESTING = 0; //1176672;//278052;//501241;//569894; //757632;// 569894;// 522426;//404427;// 163989;//80598;
+int TESTING = 0;//1140082;
+int TESTING2 = 3172928;
+int MAX_FRESH_TRIAL = 2;
 int DETAIL_ID = -1;
 
 int test_suffix = 0;
@@ -248,16 +250,6 @@ int kmer_ext_tpl(hash_table *ht, tpl_hash *all_tpls, pool *p, tpl *from,
 			break;
 		}
 
-		// If any long-enough subsequence is not covered by any read, try to connect
-		if (no_read_len >= ht->o->read_len * 1.5 && !has_n_in_pool(p)) {
-			show_debug_msg(__func__,
-					"[%d, %d] %d bases not covered by a read. \n", t->id,
-					t->len, no_read_len);
-			to_connect = 1;
-			t->alive = 0;
-			break;
-		}
-
 		if (p->reads->len > 0)
 			last_read = (bwa_seq_t*) g_ptr_array_index(p->reads, p->reads->len - 1);
 
@@ -439,7 +431,7 @@ void load_anchors(tpl_hash *all_tpls, hash_table *tpl_ht, int8_t *candiates, GPt
 				sharing = (tpl*) it->second;
 				if (sharing->alive) {
 					a = (anchor*) malloc(sizeof(anchor));
-					a->t = sharing;
+					a->b = sharing;
 					a->size = tpl_ht->o->k;
 					a->from = i;
 					a->locus = locus;
@@ -477,6 +469,61 @@ void tpls_sharing_kmers(hash_table *ht, tpl_hash *all_tpls, hash_table *tpl_ht, 
 	return;
 }
 
+void branching(hash_table *ht, tpl_hash *all_tpls, GPtrArray *tpls) {
+	hash_table *tpl_ht = hash_tpls(tpls, ht->o->k, 1);
+	GPtrArray *anchors = NULL;
+	int i = 0, j = 0, n_both_connected = 0, n_one_connected = 0;
+	int both_connected = 0, one_connected = 0;
+	tpl *t = NULL;
+	anchor *a = NULL;
+	for (i = 0; i < tpls->len; i++) {
+		t = (tpl*) g_ptr_array_index(tpls, i);
+		//printf("\n------------------------------------------------------- \n");
+		//p_tpl(t);
+		if (!t->alive || t->pair_pc >= 1.0) continue;
+		anchors = g_ptr_array_sized_new(4);
+		tpls_sharing_kmers(ht, all_tpls, tpl_ht, anchors, t, 0, t->len, 0);
+		both_connected = connect_both_ends(ht, anchors, t);
+		n_both_connected += both_connected;
+		for (j = 0; j < anchors->len; j++) {
+			a = (anchor*) g_ptr_array_index(anchors, j); free(a);
+		}
+		g_ptr_array_free(anchors, TRUE);
+
+		// If the main and branch templates are with different orientation
+		if (!both_connected) {
+			anchors = g_ptr_array_sized_new(4);
+			tpls_sharing_kmers(ht, all_tpls, tpl_ht, anchors, t, 0, t->len, 1);
+			rev_com_tpl(t);
+			both_connected = connect_both_ends(ht, anchors, t);
+			if (both_connected) n_both_connected++;
+			else rev_com_tpl(t);
+			for (j = 0; j < anchors->len; j++) {
+				a = (anchor*) g_ptr_array_index(anchors, j); free(a);
+			}
+			g_ptr_array_free(anchors, TRUE);
+		}
+
+		anchors = NULL;
+	}
+	show_msg(__func__, "%d templates are both connected. \n", n_both_connected);
+//	show_msg(__func__, "Perform branching ... \n");
+//	for (i = 0; i < tpls->len; i++) {
+//		t = (tpl*) g_ptr_array_index(tpls, i);
+//		if (!t->alive || t->pair_pc >= 1.0) continue;
+//		anchors = g_ptr_array_sized_new(4);
+//		tpls_sharing_kmers(ht, all_tpls, tpl_ht, anchors, t, 0, t->len, 0);
+//		one_connected = connect_one_end(ht, anchors, t);
+//		n_one_connected += one_connected;
+//		for (j = 0; j < anchors->len; j++) {
+//			a = (anchor*) g_ptr_array_index(anchors, j); free(a);
+//		}
+//		g_ptr_array_free(anchors, TRUE);
+//	}
+//	show_msg(__func__, "%d branches are created. \n", n_one_connected);
+	destory_tpl_ht(tpl_ht);
+}
+
 int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 	int connected = 0, both_connected = 0, n_merged = 1, n_both_connected = 0, i = 0, j = 0, iter = 1;
 	tpl *t = NULL, *b = NULL;
@@ -508,8 +555,8 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 			for (j = 0; j < anchors->len; j++) {
 				a = (anchor*) g_ptr_array_index(anchors, j);
 				//p_anchor("HIT", a);
-				if (!connected && a->size > 0 && a->t->alive && !a->t->visited) {
-					connected = connect_at_locus_right(ht, t, a->t, a->from, a->locus);
+				if (!connected && a->size > 0 && a->b->alive && !a->b->visited) {
+					connected = connect_at_locus_right(ht, t, a->b, a->from, a->locus);
 					if (connected)  {
 						t->visited = 1; n_merged++;
 					}
@@ -526,10 +573,10 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 			for (j = 0; j < anchors->len; j++) {
 				a = (anchor*) g_ptr_array_index(anchors, j);
 				//p_anchor("HIT", a);
-				if (!connected && a->size > 0 && a->t->alive && !a->t->visited) {
-					connected = connect_at_locus_right(ht, t, a->t, a->from, a->locus);
+				if (!connected && a->size > 0 && a->b->alive && !a->b->visited) {
+					connected = connect_at_locus_right(ht, t, a->b, a->from, a->locus);
 					if (connected)  {
-						t->visited = 1; n_merged++;
+						t->visited = 1; n_merged++; break;
 					}
 				}
 			}
@@ -539,13 +586,13 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 				for (j = 0; j < anchors->len; j++) {
 					a = (anchor*) g_ptr_array_index(anchors, j);
 					//p_anchor("HIT", a);
-					if (!connected && a->size > 0 && a->t->alive && !a->t->visited) {
-						rev_com_tpl(a->t);
-						connected = connect_at_locus_right(ht, t, a->t, t->len - a->from - a->size,
-								a->t->len - a->locus - a->size);
+					if (!connected && a->size > 0 && a->b->alive && !a->b->visited) {
+						rev_com_tpl(a->b);
+						connected = connect_at_locus_right(ht, t, a->b, t->len - a->from - a->size,
+								a->b->len - a->locus - a->size);
 						if (connected)  {
-							t->visited = 1; n_merged++;
-						} else rev_com_tpl(a->t);
+							t->visited = 1; n_merged++; break;
+						} else rev_com_tpl(a->b);
 					}
 				}
 			}
@@ -557,28 +604,28 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 
 			// If the are enough spanning pairs, merge them
 			if (!connected) {
-				right_tpl_id = right_tpl_to_merge(ht->seqs, t, SM_SIMILARY);
+				right_tpl_id = right_tpl_to_merge(ht->seqs, t, PAIR_PERCENTAGE);
 				show_debug_msg(__func__, "Right template of [%d, %d]: %d\n", t->id, t->len, right_tpl_id);
 				if (right_tpl_id >= 0) {
 					tpl_hash::iterator it = all_tpls->find(right_tpl_id);
 					if (it != all_tpls->end()) {
 						b = (tpl*) it->second;
-						connected = merged_jumped(ht, t, b, N_MISMATCHES);
-						if (connected) n_merged++;
+						if (left_tpl_is_paired(ht->seqs, t, b, PAIR_PERCENTAGE))
+							connected = merged_jumped(ht, t, b, N_MISMATCHES);
 					}
 				}
+				if (connected) n_merged++;
 				// Reverse complement the current left template
 				if (!connected) {
 					rev_com_tpl(t);
-					right_tpl_id = right_tpl_to_merge(ht->seqs, t, SM_SIMILARY);
+					right_tpl_id = right_tpl_to_merge(ht->seqs, t, PAIR_PERCENTAGE);
+					show_debug_msg(__func__, "Right template of reverse [%d, %d]: %d\n", t->id, t->len, right_tpl_id);
 					if (right_tpl_id >= 0) {
 						tpl_hash::iterator it = all_tpls->find(right_tpl_id);
 						if (it != all_tpls->end()) {
 							b = (tpl*) it->second;
-							connected = merged_jumped(ht, t, b, N_MISMATCHES);
-							if (connected)  {
-								t->visited = 1; n_merged++;
-							}
+							if (left_tpl_is_paired(ht->seqs, t, b, PAIR_PERCENTAGE))
+								connected = merged_jumped(ht, t, b, N_MISMATCHES);
 						}
 					}
 					if (connected)  {
@@ -592,45 +639,13 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 			t->visited = 0;
 		}
 		show_msg(__func__, "%d templates are merged. \n", n_merged);
-
 		if (n_merged > 0) {
 			destory_tpl_ht(tpl_ht); tpl_ht = NULL;
 		}
 	}
 	// Connect both end of a branch template to a main template
-	if (!tpl_ht) tpl_ht = hash_tpls(tpls, ht->o->k, 1);
-	for (i = 0; i < tpls->len; i++) {
-		t = (tpl*) g_ptr_array_index(tpls, i);
-		//printf("\n------------------------------------------------------- \n");
-		//p_tpl(t);
-		if (!t->alive || t->pair_pc >= 1.0) continue;
-		anchors = g_ptr_array_sized_new(4);
-		tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, anchors, t, 0, t->len, 0);
-		both_connected = connect_both_ends(ht, anchors, t);
-		n_both_connected += both_connected;
-		for (j = 0; j < anchors->len; j++) {
-			a = (anchor*) g_ptr_array_index(anchors, j); free(a);
-		}
-		g_ptr_array_free(anchors, TRUE);
-
-		// If the main and branch templates are with different orientation
-		if (!both_connected) {
-			anchors = g_ptr_array_sized_new(4);
-			tpls_sharing_kmers(ht, params->all_tpls, tpl_ht, anchors, t, 0, t->len, 1);
-			rev_com_tpl(t);
-			both_connected = connect_both_ends(ht, anchors, t);
-			if (both_connected) n_both_connected++;
-			else rev_com_tpl(t);
-			for (j = 0; j < anchors->len; j++) {
-				a = (anchor*) g_ptr_array_index(anchors, j); free(a);
-			}
-			g_ptr_array_free(anchors, TRUE);
-		}
-
-		anchors = NULL;
-	}
-	show_msg(__func__, "%d templates are both connected. \n", n_both_connected);
-	destory_tpl_ht(tpl_ht);
+	if (!tpl_ht) destory_tpl_ht(tpl_ht);
+	branching(ht, all_tpls, tpls);
 	int n_pairs = 0;
 	for (i = 0; i < tpls->len; i++) {
 		t = (tpl*) g_ptr_array_index(tpls, i);
@@ -664,7 +679,7 @@ void *kmer_ext_thread(gpointer data, gpointer thread_params) {
 
 	if (counter->count < 1)  return NULL;
 	if (TESTING && fresh_trial == 0) read = &ht->seqs[TESTING];
-	//if (TESTING && fresh_trial == 1) read = &ht->seqs[1255875];//1493548];//2370012];//1176672];//3901683];//1176672];//1841338];//1025528];//2887696];//856387];
+	if (TESTING && fresh_trial == 1) read = &ht->seqs[TESTING2];
 
 	t = ext_a_read(ht, all_tpls, NULL, read, counter->count);
 	if (t) {
@@ -797,7 +812,7 @@ void kmer_threads(kmer_t_meta *params) {
 		//g_thread_pool_push(thread_pool, (gpointer) counter, NULL);
 		kmer_ext_thread(counter, params);
 		free(counter);
-		if (TESTING && fresh_trial >= 1) break;
+		if (TESTING && fresh_trial >= MAX_FRESH_TRIAL) break;
 		//if (i >= 1000000) break;
 		//if (all_tpls->size() >= 2) break;
 	}
