@@ -111,7 +111,7 @@ void free_read_seq(bwa_seq_t *p);
 GPtrArray *clone_read_arr(GPtrArray *reads);
 int has_rep_pattern(const bwa_seq_t *read);
 int smith_waterman_simple(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
-		int *seq_1_start, int *seq_1_stop, int *seq_2_start, int *seq_2_stop, int min_score);
+		int *seq_1_start, int *seq_1_stop, int *seq_2_start, int *seq_2_stop);
 int smith_waterman(const bwa_seq_t *seq_1, const bwa_seq_t *seq_2,
 		const int score_mat, const int score_mis, const int score_gap,
 		const int min_acceptable_score);

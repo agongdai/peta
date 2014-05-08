@@ -170,35 +170,6 @@ void merge_tpl_to_left(tpl *t, tpl *jumped, int ol, int rev_com) {
 	//p_tpl(t);
 }
 
-int similar_to_merge(bwa_seq_t *from, bwa_seq_t *jumped, int unique_len) {
-	int from_s = 0, from_e = 0, jumped_s = 0, jumped_e = 0;
-	int score = 0, similar = 0;
-	int min_score = unique_len;
-
-	score = smith_waterman_simple(from, jumped, &from_s, &from_e, &jumped_s,
-			&jumped_e, min_score);
-	if (score > min_score && score + 4 > from_e - from_e)
-		return 1;
-}
-
-/**
- * Before merging, check whether there are pairs at the head/tail area.
- */
-int paired_at_head_tail(bwa_seq_t *seqs, tpl *left, tpl *right) {
-	int range = INS_SIZE - 2 * SD_INS_SIZE;
-	GPtrArray *tail_reads = get_supporting_reads(left, left->len - range, left->len);
-	int n = 0, i = 0, total = 0;
-	bwa_seq_t *m = NULL, *r = NULL;
-	for (i = 0; i < tail_reads->len; i++) {
-		r = (bwa_seq_t*) g_ptr_array_index(tail_reads, i);
-		m = get_mate(r, seqs);
-		if (m->status == USED && m->contig_id == right->id && m->contig_locus < range)
-			n++;
-	}
-	g_ptr_array_free(tail_reads, TRUE);
-	return n;
-}
-
 /**
  * Try to merge two templates.
  * The 'jumped' template does not have any junctions on it
@@ -207,7 +178,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped, int mis) {
 	int rev_com = 0, n_mis = 0, in_paired = 0, spanning = 0;
 	int from_s = 0, from_e = 0, jumped_s = 0, jumped_e = 0;
 	int score = 0, similar = 0, ori_len = 0, side = 0, i = 0;
-	int max_ol = ht->o->k * 2;
+	int max_ol = ht->o->k;
 	float from_cov = 0.0, jumped_cov = 0.0;
 	bwa_seq_t *from_seq = NULL, *jumped_seq = NULL, *r = NULL;
 	junction *jun = NULL;
@@ -216,7 +187,7 @@ int merged_jumped(hash_table *ht, tpl *from, tpl *jumped, int mis) {
 			- min(max_ol, from->len));
 	jumped_seq = new_seq(jumped->ctg, min(jumped->len, max_ol), 0);
 	score = smith_waterman_simple(from_seq, jumped_seq, &from_s, &from_e,
-			&jumped_s, &jumped_e, 4);
+			&jumped_s, &jumped_e);
 	///**
 	p_ctg_seq("FROM", from->ctg);
 	p_ctg_seq("FROM_PART END", from_seq);

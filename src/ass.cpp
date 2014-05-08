@@ -556,7 +556,7 @@ int connect_paired_tpls(kmer_t_meta *params, GPtrArray *tpls) {
 			g_ptr_array_free(anchors, TRUE);
 
 			// If the are enough spanning pairs, merge them
-			if (!connected && 0) {
+			if (!connected) {
 				right_tpl_id = right_tpl_to_merge(ht->seqs, t, SM_SIMILARY);
 				show_debug_msg(__func__, "Right template of [%d, %d]: %d\n", t->id, t->len, right_tpl_id);
 				if (right_tpl_id >= 0) {
